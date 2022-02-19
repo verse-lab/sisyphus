@@ -1,6 +1,4 @@
-module Expr = Expr
 module Eval = Eval
-module Gen = Gen
 
 let do_test_pure p =
   Z3.Solver.push Logic.solver;

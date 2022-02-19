@@ -1,2 +1,10 @@
-(test
- (name verification))
+(tests
+ (names test_verification test_proof_lexer test_proof_parser)
+ (modules (:standard \ "testing_utils"))
+ (libraries proof_parser testing_utils alcotest containers)
+ (preprocess (pps ppx_deriving.std))
+)
+
+(library (name testing_utils)
+ (modules testing_utils)
+ (libraries alcotest))

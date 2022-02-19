@@ -48,18 +48,6 @@ let check assumptions expr =
   begin fun () ->
     match
       Z3.Solver.add solver assumptions;
-      (* let query_str = 
-       *   let assumptions_str = Z3.Solver.to_string solver in
-       *   let goal_str = Z3.Expr.to_string expr in
-       *   Printf.sprintf "(set-option :timeout 100)\n%s\n(assert %s)\n(check-sat)"  assumptions_str goal_str in
-       * let z3_out =
-       *   OS.Cmd.run_io (Cmd.of_list ["z3"; "-smt2"; "-in"]) (OS.Cmd.in_string query_str)
-       *   |> OS.Cmd.to_string
-       *   |> function Ok "unsat" -> Some false
-       *             | Ok "sat" -> Some true
-       *             | Ok "unknown" -> (\* print_endline query_str;  *\)None
-       *             | Ok str -> print_endline ("unknown z3 output " ^ str); None
-       *             | Error `Msg err -> failwith err in *)
       let result =  Z3.Solver.check solver [expr] in
       result
     with

@@ -1,4 +1,5 @@
 open Containers
+module Expr = Program.Expr
 open Expr
 module StringMap = Map.Make(String)
 

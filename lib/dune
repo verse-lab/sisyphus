@@ -1,4 +1,4 @@
 (library
- (name verification)
+ (name proof_repair)
  (preprocess (pps ppx_deriving.std))
- (libraries containers z3 bos))
+ (libraries containers z3 bos proof_parser))

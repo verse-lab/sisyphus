@@ -1,6 +1,8 @@
 [@@@warning "-33"]
 open Verification
 open Containers
+module Expr = Program.Expr
+module Gen = Synthesis.Gen
 open Expr
 
 let bool_functions = [  ]

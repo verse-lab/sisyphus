@@ -1,0 +1,10 @@
+(library
+ (name program_parser)
+ (modules (:standard \ "main"))
+ (preprocess (pps ppx_deriving.std))
+ (libraries containers compiler-libs.common))
+
+(executable (name main)
+ (modules "main")
+ (preprocess (pps ppx_deriving.std))
+ (libraries containers compiler-libs.common program_parser))

@@ -2,4 +2,4 @@
  (public_name verification)
  (name main)
  (preprocess (pps ppx_deriving.std))
- (libraries verification seq))
+ (libraries proof_repair verification program synthesis seq))

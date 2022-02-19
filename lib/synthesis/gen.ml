@@ -1,5 +1,5 @@
 open Containers
-open Expr
+open Program.Expr
 
 let gen_function_args (ints, lists, bools, vars) args =
   List.map (function IntTy -> List.map (fun v -> IntExpr v) ints
