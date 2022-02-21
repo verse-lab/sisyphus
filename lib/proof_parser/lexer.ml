@@ -39,18 +39,28 @@ let rec token lexbuf =
   | "-" -> P.PROOF_DASH_OR_SUB
   | digit -> P.INT (Int.of_string_exn @@ lexeme lexbuf)
   | "case_eq", whitespace -> case_eq lexbuf
+  | "let" -> P.LET
+  | "in" -> P.IN
+
+  | ":=" -> P.BIND
+  | "\\*" -> P.SEP
   | "SPEC" -> P.SPEC
+  | "SPEC_PURE" -> P.SPEC_PURE
   | "PRE" -> P.PRE
   | "POST" -> P.POST
   | "xcf" -> P.XCF
   | "xpull" -> P.XPULL
   | "xapp" -> P.XAPP
   | "xmatch" -> P.XMATCH
+  | "xsimpl" -> P.XSIMPL
   | "xlet" -> P.XLET
   | "xvals" -> P.XVALS
   | "xseq" -> P.XSEQ
+  | "intros" -> intros lexbuf
+  | "::" -> P.CONS
   | "++" -> P.APPEND
   | "+" -> P.ADD
+  | "*" -> P.STAR
   | "{" ->
     let buf = Buffer.create 1024 in
     Buffer.add_char buf '{';
@@ -58,6 +68,7 @@ let rec token lexbuf =
   | ";", skip_whitespace ->
     let buf = Buffer.create 1024 in
     semi_with_coq_proof buf lexbuf
+  | "\\[=" -> P.PURE_LBRACE_EQ
   | "\\[" -> P.PURE_LBRACE
   | "[" -> P.LSQBRACE
   | "]" -> P.RSQBRACE
@@ -70,6 +81,7 @@ let rec token lexbuf =
   | "`{" -> P.IMPLICIT_LBRACE | "}" -> P.IMPLICIT_RBRACE
   | "Proof using" -> P.PROOF_USING
   | "Qed" -> P.QED
+  | "=" -> P.EQ
   | ident ->
     let ident = lexeme lexbuf in
     let ident = if String.prefix ~pre:"@" ident then String.drop 1 ident else ident in
@@ -168,3 +180,11 @@ and opaque_coq_script buf depth lexbuf =
     Buffer.add_string buf (lexeme lexbuf);
     opaque_coq_script buf depth lexbuf
   | _ -> failwith "invalid input 144"
+and intros lexbuf =
+  match%sedlex lexbuf with
+    | whitespace -> intros lexbuf
+    | not_full_stop ->
+      let names = String.split_on_char ' ' (String.trim (lexeme lexbuf)) in
+      P.INTROS names
+    | _ -> failwith "invalid input 84"
+  
