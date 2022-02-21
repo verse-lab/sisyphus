@@ -211,3 +211,6 @@ let convert_declaration : Parsetree.structure_item -> Program.Statements.func = 
     let body = convert_statement body in
     (fn_name, args, body)
 
+
+let parse str = List.map convert_declaration (raw_parse_str str)
+let parse_channel chan = List.map convert_declaration (raw_parse_channel chan)
