@@ -12,6 +12,7 @@ let () =
 
 let (!!) = Z3.Symbol.mk_string ctx
 let sort name = Z3.Sort.mk_uninterpreted_s ctx name
+let bool = Z3.Boolean.mk_sort ctx
 let int = Z3.Arithmetic.Integer.mk_sort ctx
 let (+) a b = Z3.Arithmetic.mk_add ctx [ a; b ]
 let (-) a b = Z3.Arithmetic.mk_sub ctx [ a; b ]
@@ -276,4 +277,40 @@ module List = struct
       (i = length l1) ==> (update (append l1 (cons w l2)) i v = append (rcons l1 v) l2)
     )
 
+end
+
+module Tuple = struct
+
+  let sort_map : (Z3.Sort.sort list, Z3.Sort.sort) Hashtbl.t = Hashtbl.create 10
+
+  let mk_fresh base =
+    let i = ref 0 in
+    fun () -> incr i; base ^ Int.to_string !i
+
+  let fresh_sort_name = mk_fresh "tuple_"
+
+  let sort ls =
+    match Hashtbl.find_opt sort_map ls with
+    | Some sort -> sort
+    | None ->
+      let sort_name = fresh_sort_name () in
+      let fresh_field_name = mk_fresh (sort_name ^ "_get_") in
+      let field_names =
+        Containers.List.map (fun _ -> !! (fresh_field_name ())) ls in
+      let sort = Z3.Tuple.mk_sort ctx (!! sort_name) field_names ls in
+      Hashtbl.add sort_map ls sort;
+      sort
+
+  let make ls tuple =
+    let sort = sort ls in
+    let decl = Z3.Tuple.get_mk_decl sort in
+    Z3.Expr.mk_app ctx decl tuple
+    
+  let get ls tuple i =
+    let sort = sort ls in
+    let decl = Containers.List.nth (Z3.Tuple.get_field_decls sort) i in
+    Z3.Expr.mk_app ctx decl [tuple]
+    
+
+  
 end

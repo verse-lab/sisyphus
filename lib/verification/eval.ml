@@ -4,12 +4,22 @@ open Expr
 module StringMap = Map.Make(String)
 
 type ctx = Z3.Expr.expr StringMap.t
-  
+
+let rec expr_to_sort : Expr.expr -> Z3.Sort.sort = function
+  | ListExpr _ -> Logic.List.t
+  | IntExpr _ -> Logic.int
+  | BoolExpr _ -> Logic.bool
+  | Var _ -> Logic.a
+  | TupleExpr elts -> Logic.Tuple.sort (List.map expr_to_sort elts)
+
 let rec eval_expr (ctx: ctx) : Expr.expr -> Z3.Expr.expr = function
   | Var var -> StringMap.find var ctx
   | ListExpr lexp -> eval_list_expr ctx lexp
   | IntExpr iexp -> eval_int_expr ctx iexp
   | BoolExpr bexp -> eval_bool_expr ctx bexp
+  | TupleExpr elts ->
+    let sorts = List.map expr_to_sort elts in
+    Logic.Tuple.make sorts (List.map (eval_expr ctx) elts)
 and eval_list_expr ctx = function
   | ListVar var -> StringMap.find var ctx
   | Nil -> Logic.List.nil

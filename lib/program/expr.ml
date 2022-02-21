@@ -20,7 +20,12 @@ and bool_expr =
   | IntEq of int_expr * int_expr
   | ListEq of list_expr * list_expr
   | AppBool of string * expr list
-and expr = ListExpr of list_expr | IntExpr of int_expr | BoolExpr of bool_expr | Var of string
+and expr =
+    ListExpr of list_expr
+  | IntExpr of int_expr
+  | BoolExpr of bool_expr
+  | Var of string
+  | TupleExpr of expr list
 [@@deriving eq]
 
 
@@ -29,6 +34,14 @@ let rec pp ?(parens=false) fmt = function
   | ListExpr lexp -> pp_list_expr ~parens fmt lexp
   | BoolExpr bexp -> pp_bool_expr ~parens fmt bexp
   | Var str -> Format.pp_print_string fmt str
+  | TupleExpr tupl ->
+    Format.pp_print_string fmt "(";
+    Format.pp_print_list
+      ~pp_sep:(fun fmt () ->
+        Format.pp_print_space fmt ();
+        Format.pp_print_string fmt ","
+      ) pp fmt tupl;
+    Format.pp_print_string fmt ")"
 and pp_int_expr ?(parens=false) fmt = let open Format in
   function
   | Int i -> pp_print_int fmt i
@@ -109,6 +122,7 @@ let rec contains var : expr -> bool =
   | IntExpr iexp -> contains_int_expr var iexp
   | BoolExpr bexp -> contains_bool_expr var bexp
   | Var var' -> String.equal var var'
+  | TupleExpr tupl -> List.exists (contains var) tupl
 and contains_list_expr var =
   function Nil -> false
          | ListVar var' -> String.equal var var'
