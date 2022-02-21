@@ -109,6 +109,7 @@ and pp_list_expr ?(parens=false) fmt = let open Format in
     pp_print_list ~pp_sep:pp_print_space (pp ~parens:true) fmt args;
     if parens then (pp_print_char fmt ')');
     pp_close_box fmt ()
+let pp_expr fmt vl = pp fmt vl
 let show = Format.to_string pp 
 let show_int_expr = Format.to_string pp_int_expr
 let show_bool_expr = Format.to_string pp_bool_expr
@@ -143,3 +144,19 @@ and contains_bool_expr var =
          | IntEq (l, r) -> contains_int_expr var l || contains_int_expr var r
          | ListEq (l, r) -> contains_list_expr var l || contains_list_expr var r
          | AppBool (_, args) -> List.exists (contains var) args
+
+let unwrap_int_expr : expr -> int_expr =
+  function  IntExpr i -> i
+          | Var v -> IntVar v
+          | exp -> failwith @@ "attempted to convert non-int expression to int: " ^ show exp
+
+let unwrap_bool_expr : expr -> bool_expr =
+  function  BoolExpr i -> i
+          | Var v -> BoolVar v
+          | exp -> failwith @@ "attempted to convert non-int expression to bool: " ^ show exp
+
+let unwrap_list_expr : expr -> list_expr =
+  function  ListExpr i -> i
+          | Var v -> ListVar v
+          | exp -> failwith @@ "attempted to convert non-int expression to list: " ^ show exp
+

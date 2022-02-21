@@ -229,7 +229,7 @@ Proof using.
     { apply LSeq_intro; rewrite Hl; eapply HLseq. }
     { rew_list; math_rewrite ((length l - 0) = length l); rewrite Hl; auto. }
     xvals. { math_rewrite ((length l - length l) = 0); rewrite make_zero; rew_list; auto. }
-Qed.      
+Qed.
 |}
 ;;
 

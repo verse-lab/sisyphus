@@ -6,16 +6,24 @@ type pattern =
 
 (* straight line code *)
 and slc = [
-  | `Let of pattern * Expr.expr
   | `ArrayAssign of string * Expr.expr * Expr.expr
   | `Expr of Expr.expr
-]
+] [@@deriving eq, show]
 
 type t = [
-  | `Fold of pattern * pattern * pattern * slc list * Expr.expr * Expr.expr
-  | `Iteri of string * string * slc * Expr.expr
-  | `ListFold of pattern * pattern * pattern * slc list * Expr.expr * Expr.expr
-  | `Match of Expr.expr * (pattern * t list) list
+  | `LetPure of string * Expr.expr
+  | `AllocArray of string * Expr.expr * string
+  | `Length of string * Expr.expr
+  | `Fold of pattern * pattern * string * slc list * Expr.expr * Expr.expr
+  | `Iteri of string * string * slc list * Expr.expr
+  | `ListFold of pattern * pattern * string * slc list * Expr.expr * Expr.expr
+  | `MatchPure of string * (pattern * t list) list
+  | `MatchDeferred of string * (pattern * t list) list
+  | `Comment of string
+  | `EmpArray
   | slc
 ]
+[@@deriving eq, show]
 
+type func = string * pattern list * t list
+[@@deriving eq, show]
