@@ -9,17 +9,19 @@ open Proof
 %token<string> COQ_PROOF                     "{...}"
 %token<string> SEMI_WITH_COQ_PROOF           ";{...}"
 
+%token FUN                                   "fun"
+%token ARROW                                 "=>"
 
-%token LET                                  "let"
-%token BIND                                 ":="
-%token EQ                                   "="
+%token HOLE                                  "(??)"
+
+%token EQ                                    "="
 
 %token PROOF_DASH_OR_SUB                     "-"
 %token CONS                                  "::"
 %token APPEND                                "++"
 %token ADD                                   "+"
 %token PURE_LBRACE                           "\\["
-%token PURE_LBRACE_EQ                        "\\[="
+%token DESTRUCT_PAREN                        "'("
 %token IMPLICIT_LBRACE                       "`{"
 %token IMPLICIT_RBRACE                       "}"
 %token LPAREN                                "("
@@ -35,40 +37,51 @@ open Proof
 %token LEMMA                                 "Lemma"
 %token PROOF_USING                           "Proof using"
 %token QED                                   "Qed"
+%token ADMITTED                              "Admitted"
 
 %token FORALL                                "forall"
 
 
 %token SPEC                                  "SPEC"
-%token SPEC_PURE                             "SPEC_PURE"
 %token PRE                                   "PRE"
 %token POST                                  "POST"
-%token FUN                                   "fun"
-%token ARROW                                 "=>"
 %token SEP                                   "\\*"
 %token PTS                                   "~>"
 
 
-
-%token<string list> INTROS                   "intros"
-%token APPLY                                 "apply"
-%token IN                                    "in"
-%token<(string * string list list)> CASE_EQ  "case_eq"
-%token REWRITE                               "rewrite"
 %token STAR                                  "*"
 
 %token XCF                                   "xcf"
-%token XPULL                                 "xpull"
+%token XPULLPURE                             "xpullpure"
+
+%token XPUREFUN                              "xpurefun"
+%token USING                                 "using"
+
 %token XAPP                                  "xapp"
-%token XMATCH                                "xmatch"
-%token XLET                                  "xlet"
-%token XSEQ                                  "xseq"
+%token XDESTRUCT                             "xdestruct"
+
+%token REWRITE                               "rewrite"
+%token IN                                    "in"
+
+%token SEP_SPLIT_TUPLE                       "sep_split_tuple"
+
+%token <int>XMATCH_CASE_N                    "xmatch_case_n"
+%token WITH                                  "with"
+
+%token XVALEMPTYARR                          "xvalemptyarr"
+%token XALLOC                                "xalloc"
+%token XLETOPAQUE                            "xletopaque"
+%token INTROS                                "intros"
 %token XVALS                                 "xvals"
-%token XSIMPL                                "xsimpl"
+
+%token CASE                                  "case"
+%token AS                                    "as"
+%token BAR                                   "|"
+%token EQN                                   "eqn:"
 
 %token EOF                                   "$$"
 
-%left "+" "-" "++" "::" "in" "="
+%left "+" "-" "++" "::" "="
 
 
 %start <Proof.t> proof
@@ -91,7 +104,7 @@ ty:
 param :
 | "`{" id = IDENT ":" ty=ty "}" { Implicit (id, ty) }
 | "(" id = IDENT ":" ty=ty ")" { Explicit (id, ty) }
-| IDENT { Ident $1 }
+| "'(" "(" ids = separated_nonempty_list(",", IDENT) ")" ":" ty=ty ")" { TupleParam (ids, ty)  }
 
 pure_expression :
     | var=IDENT { Var var }
@@ -102,24 +115,30 @@ pure_expression :
     | e1 = pure_expression; "++"; e2 = pure_expression { Append (e1,e2) }
     | e1 = pure_expression; "+"; e2 = pure_expression { Add (e1,e2) }
     | e1 = pure_expression; "-"; e2 = pure_expression { Sub (e1,e2) }
-    | "let" "(" i1=IDENT "," i2 = IDENT ")" ":=" pair=IDENT "in" body=pure_expression
-     { DestructurePair (i1, i2, pair, body)}
     | "(" e1 = pure_expression "," rest = separated_nonempty_list(",", pure_expression) ")" { Tuple (e1 :: rest) }
     | "(" expr = pure_expression ")" { expr }
-    | "(" "fun" params=nonempty_list(param) "=>" body=coq_expression ")"
-    { Lambda (params, body) }
+
 
 parenthesized_pure_expression:
     | var=IDENT { Var var }
     | "(" expr = pure_expression ")" { expr }
-    | "(" "fun" params=nonempty_list(param) "=>" body=coq_expression ")"
-    { Lambda (params, body) }
     | "(" e1 = pure_expression "," rest = separated_nonempty_list(",", pure_expression) ")" { Tuple (e1 :: rest) }
 
 assertion :
+    | "\\[" "]" { Emp }
     | "\\[" exp = pure_expression "]" { Pure exp }
     | ptr=IDENT "~>" body=pure_expression { Spatial (PointsTo (ptr,body)) }
 
+lambda: | "(" "fun" params=nonempty_list(param) "=>" body=coq_expression ")"
+    { Lambda (params, body) }
+
+spec_arg :
+    | parenthesized_pure_expression { Pure $1 }
+    | lambda                        { $1 }
+    | "(??)"                        { Hole }
+
+spec_app : 
+ id = IDENT args = nonempty_list(spec_arg) { SpecApp (id, args)}
 
 sep_spec : separated_nonempty_list("\\*", assertion) { $1 }
     
@@ -127,40 +146,48 @@ coq_expression :
     | sep_spec { HeapSpec $1  }
     | pure_expression { FunctionalSpec $1  }
 
-theorem :
-  "Lemma" name=IDENT ":" "forall" formal_params=list(param) ","
-        "SPEC" "(" spec=function_application ")"
+spec : "forall" formal_params=list(param) ","
+        "SPEC" "(" fapp=function_application ")"
         "PRE" "(" pre = sep_spec ")"
-        "POST" "(" "fun" post_arg = param "=>" post_spec = sep_spec  ")" "."
+        "POST" "(" "fun" post_arg = param "=>" post_spec = sep_spec  ")" 
+{ Spec (formal_params, fapp, pre, post_arg, post_spec) }
+
+theorem :
+  "Lemma" name=IDENT ":" spec=spec "."
  {
-        Proof.{directives=[]; name; formal_params; spec; pre; post=(post_arg, post_spec); proof=([]: proof_step list)}
+        Proof.{directives=[]; name; spec; proof=([]: proof_step list)}
 }
 
 proof_case :
     | "-" steps=list(proof_step) { steps }
 
-let_spec:
-    | "(" "fun" p=param "=>" "forall" formals=nonempty_list(param) ","
-              "SPEC_PURE" "(" fapp = function_application ")"
-              "POST" "\\[=" res = pure_expression "]" ")"
-    { (p,formals, fapp, res) }
-
 proof_step :
     | "xcf" "." { Xcf }
-    | "xpull" extra=list(";{...}") "." { Xpull extra }
-    | "xapp" inv=option(pure_expression) extra=list(";{...}") "." oblig=list("{...}") { Xapp (inv, extra, oblig)}
-    | "xmatch" extra=list(";{...}") "." oblig=list("{...}") { Xmatch (extra, oblig) }
-    | "xlet" spec=option(let_spec) extra=list(";{...}") "." oblig=list("{...}") { Xlet(spec, extra, oblig) }
-    | "xseq" "." { Xseq }
+    | "xpullpure" ids=nonempty_list(IDENT) "." { Xpullpure ids }
+    | "xpurefun" f=IDENT hf=IDENT "using" "(" "fun" "(" fn = IDENT ":" ty=ty ")" "=>" s=spec ")" "."
+     { Xpurefun (f, hf, (fn, ty), s) }
+    | "xapp" "(" sapp = spec_app ")" extra=list(";{...}") "." oblig=list("{...}") { Xapp (sapp, extra, oblig) }
+    | "xdestruct" ids=list(IDENT) "." { Xdestruct ids }
+    | "rewrite" lemma=IDENT "in" hyp=IDENT "." { Rewrite (lemma, hyp) }
+    | "sep_split_tuple" ids=nonempty_list(IDENT) "." { SepSplitTuple ids }
+    | "xmatch_case_n" "." { Xmatchcase ($1, []) }
+    | "xmatch_case_n" "with" ids=nonempty_list(IDENT) "." { Xmatchcase ($1, ids) }
+    | "xvalemptyarr" "." { Xvalemptyarr }
+    | "xalloc" arr=IDENT data=IDENT harr=IDENT "." { Xalloc (arr,data,harr) }
+    | "xletopaque" sym=IDENT hsym=IDENT "." { Xletopaque (sym, hsym) }
+    | "intros" ids=list(IDENT) "." { Intros ids }
     | "xvals" "." oblig=list("{...}") { Xvals oblig}
-    | "intros" "." { Intros $1 }
-    | "xsimpl" "." { Xsimpl }
 
-proof_split: case="case_eq" extra=list(";{...}") "." cases=list(proof_case) { CaseEq (case, extra, cases) }
+proof_split: "case" vl = IDENT "as" "[" cases=separated_nonempty_list("|", list(IDENT)) "]" "eqn:" h=IDENT "." 
+proofs_cases=list(proof_case)
+{ Case (vl, h, cases, proofs_cases) }
 
 proof_script : steps=list(proof_step) last=option(proof_split)  { steps @ Option.to_list last }
+
+terminator: "Qed" { () }
+ | "Admitted" { () }
 
 theorem_proof:
   "Proof using" "."
   ps = proof_script
-  "Qed" "." { ps }
+  terminator "." { ps }

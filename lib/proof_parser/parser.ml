@@ -5,5 +5,8 @@ let parse lexbuf =
     token, start_, end_ in
   MenhirLib.Convert.Simplified.traditional2revised Raw_parser.proof  token 
 
+let parse_channel chan =
+  parse (Sedlexing.Utf8.from_channel chan)
+
 let parse_str str =
   parse (Sedlexing.Utf8.from_string str)

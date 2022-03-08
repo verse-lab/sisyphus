@@ -4,9 +4,9 @@ type ty = Type of string list
  [@@deriving show, eq]
 
 type param =
-  | Ident of string
   | Implicit of string * ty
   | Explicit of string * ty
+  | TupleParam of string list * ty
  [@@deriving show, eq]
 
 type function_application = (string * pure_expression list)
@@ -22,18 +22,14 @@ and pure_expression =
   | Cons of pure_expression * pure_expression
   | Tuple of pure_expression list
   | Predicate of string * pure_expression list
-  | Lambda of param list * coq_expression
-  | DestructurePair of string * string  * string * pure_expression
-
 
 and spatial_expression =
   | PointsTo of string * pure_expression
 
-
 and assertion =
+  | Emp
   | Pure of pure_expression
   | Spatial of spatial_expression
-
 
 and sep_spec = assertion list
 
@@ -46,29 +42,44 @@ type opaque_proof_script = string
 type let_spec = param * param list * function_application * pure_expression
 [@@deriving show, eq]
 
+type spec_arg =
+  | Lambda of param list * coq_expression
+  | Pure of pure_expression
+  | Hole
+[@@deriving show, eq]   
+
+type spec_app = SpecApp of string * spec_arg list
+[@@deriving show, eq] 
+
+type spec = Spec of param list * function_application * sep_spec * param * sep_spec
+[@@deriving show, eq] 
+
 type proof_step =
   | Xcf
-  | Xpull of opaque_proof_script list
-  | Xapp of pure_expression option * opaque_proof_script list * opaque_proof_script list
-  | Xvals of opaque_proof_script list
-  | Xmatch of opaque_proof_script list * opaque_proof_script list
-  | Xlet of let_spec option * opaque_proof_script list * opaque_proof_script list
-  | Xseq
-  | CaseEq of (string * string list list) * opaque_proof_script list * proof_step list list
+  | Xpullpure of string list
+  | Xpurefun of string * string * (string * ty) * spec
+  | Xapp of spec_app * string list * string list
+  | Xdestruct of string list
+  | Rewrite of string * string
+  | SepSplitTuple of string list
+  | Xmatchcase of int * string list
+  | Xvalemptyarr
+  | Xalloc of string * string * string
+  | Xletopaque of string * string
   | Intros of string list
-  | Xsimpl
+  | Xvals of string list
+  | Case of string * string * string list list * proof_step list list
 [@@deriving show, eq] 
 
 type proof = proof_step list
 [@@deriving show, eq] 
 
+
+
 type t = {
   directives: Command.t list;
   name: string;
-  formal_params: param list;
-  spec: function_application;
-  pre: sep_spec;
-  post: param * sep_spec;
+  spec: spec;
   proof: proof;
 } [@@deriving show, eq]
 

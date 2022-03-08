@@ -6,31 +6,35 @@ From TLC Require Import LibListZ.
 From Proofs Require Import Verify_seq_to_array_utils_new.
 From Proofs Require Import Seq_to_array_new.
 
+(* TODO *)
+
 Lemma to_array_spec : forall A `{EA:Enc A} (l:list A) (s:func),
   SPEC (to_array s)
     PRE (\[LSeq l s])
     POST (fun a => a ~> Array l).
 Proof using.
   xcf.
+  xpull; [intros HLseq; apply LSeq_if in HLseq].
   xlet (fun (f: func) =>
      forall (i: int) (acc: list A) (x: A),
        SPEC_PURE (f (i,acc) x)
                  POST \[= (i + 1, x :: acc)]); auto.
   { xgo*. }
-  xpull; [intros HLseq; apply LSeq_if in HLseq].
   xapp (@fold_spec _ _ _ _ l f0__ (0, nil) s
                    (fun (pair: int * list A) (x: A) =>
                       let (i, acc) := pair in
                       (i + 1, x :: acc))); auto.
   { intros [i acc] x. xapp. xsimpl. auto. }
   { apply LSeq_intro; auto. }
-  xmatch; [rewrite list_fold_length_rev in H0; inversion H0 as [Hlen]].
+  rewrite list_fold_length_rev.
+  xmatch.
   case_eq l; [intros Hl | intros x xs Hl]; rewrite Hl in *.
   - xmatch.
-    xapp; [intros x].
+    xapp.
     xsimpl.
-  - xmatch. { apply nil_eq_rev_inv in H2. inversion H2. }
-    xapp; [math| intros arr data Hdata].
+  - xmatch. { apply nil_eq_rev_inv in H0. inversion H0. }
+    xapp; try math.
+    intros arr data Hdata.
     xlet.
     xlet.
     xapp (@list_fold_spec A EA int _ f1__ idx rest (fun t i =>
@@ -40,7 +44,7 @@ Proof using.
          )). {
         introv Hrst. apply Spec_f1__; clear Spec_f1__.
         assert (length (init :: rest) = length l) as Htmp by
-                (rewrite H2; rewrite length_rev; rewrite Hl; auto).
+                (rewrite H0; rewrite length_rev; rewrite Hl; auto).
         rewrite length_cons in Htmp.
         rewrite Hrst in Htmp; rewrite length_app in Htmp.
         rewrite length_cons in Htmp.
@@ -68,10 +72,10 @@ Proof using.
           intros ->; auto.
         }
         rewrite Hl.
-        rewrite Hrst in H2.
-        rewrite <- app_cons_l in H2.
-        symmetry in  H2.
-        pose proof (case_rev_split (x :: xs) v (init :: t) r H2) as H1.
+        rewrite Hrst in H0.
+        rewrite <- app_cons_l in H0.
+        symmetry in  H0.
+        pose proof (case_rev_split (x :: xs) v (init :: t) r H0) as H1.
         rewrite H1.
         assert (length (rev r) = acc) as Hr by (rewrite length_rev; math).
         assert (length (rev r & v) = acc + 1) as Hrev by
@@ -85,7 +89,7 @@ Proof using.
    { rewrite Hl; rewrite Pidx; rewrite !length_cons.
      math_rewrite ((1 + length xs - 2 + 1) = length xs).
      assert (length xs = length (x :: xs) - 1) as H' by (rewrite length_cons; math).
-     rewrite H' at 2. symmetry in H2. rewrite (drop_last (x :: xs) H2).
+     rewrite H' at 2. symmetry in H0. rewrite (drop_last (x :: xs) H0).
      rewrite <- make_succ_r; try math.
      rewrite Hdata. rewrite length_cons.
      math_rewrite (1 + length xs = length xs + 1); auto. }
@@ -95,7 +99,7 @@ Proof using.
     {
       rewrite Hi.
       assert (length (init :: rest) = length l) as Htmp by
-          (rewrite H2; rewrite length_rev; rewrite Hl; auto).
+          (rewrite H0; rewrite length_rev; rewrite Hl; auto).
       rewrite length_cons in Htmp.
       assert (length rest = length l - 1) as Hrest by math.
       clear Htmp. rewrite Hrest.

@@ -1,3 +1,4 @@
 * Construct AST to represent programs
 ** represent comments
-* TODO 
+* TODO Work on simplifying proof script
+* TODO Define agnostic representation of functions

@@ -17,7 +17,8 @@ let parse_raw_expr lexbuf =
   no_comments_to_ignore := !no_comments_to_ignore + List.length !comments;
   result
 
-let raw_parse_expr str = parse_raw_expr (Lexing.from_string ~with_positions:true str)
+let raw_parse_expr_str str = parse_raw_expr (Lexing.from_string ~with_positions:true str)
+let raw_parse_expr_channel chan = parse_raw_expr (Lexing.from_channel ~with_positions:true chan)
 let raw_parse_str str = parse_raw (Lexing.from_string ~with_positions:true str)
 let raw_parse_channel chan = parse_raw (Lexing.from_channel ~with_positions:true chan)
 
@@ -79,6 +80,10 @@ let rec convert_pure_expression (expr: Parsetree.expression) : Program.Expr.expr
     let h = convert_pure_expression h  in
     let t = convert_pure_expression t |> Program.Expr.unwrap_list_expr in
     ListExpr (AppList ("cons", [h; ListExpr t]))
+  | { pexp_desc=Pexp_apply ({pexp_desc=Pexp_ident {txt=Lident "length"}}, [Nolabel, ls]) } ->
+    let l = convert_pure_expression ls |> Program.Expr.unwrap_list_expr in
+    IntExpr (AppInt ("length", [ListExpr l]))
+
   | {pexp_desc = Pexp_ident {txt=Lident v}} -> Var v
   | {pexp_desc=Pexp_tuple exprs} -> TupleExpr (List.map convert_pure_expression exprs)
   | _ -> failwith @@ "unable to support: " ^ Format.to_string Pprintast.expression expr
@@ -214,3 +219,5 @@ let convert_declaration : Parsetree.structure_item -> Program.Statements.func = 
 
 let parse str = List.map convert_declaration (raw_parse_str str)
 let parse_channel chan = List.map convert_declaration (raw_parse_channel chan)
+let parse_expr str = convert_pure_expression (raw_parse_expr_str str)
+let parse_expr_channel chan = convert_pure_expression (raw_parse_expr_channel chan)

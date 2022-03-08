@@ -22,6 +22,7 @@ let not_lbrace_or_rbrace = [%sedlex.regexp? Star (Compl ('{' |'}'))]
 let whitespace = [%sedlex.regexp? Plus (' ' | '\013' | '\009' | '\012')]
 let skip_whitespace = [%sedlex.regexp? Star (' ' | '\013' | '\009' | '\012')]
 
+
 type ustr = Uchar.t array 
 let ustr_to_str str =
   Array.to_seq str |> Seq.map Uchar.to_char |> String.of_seq
@@ -31,36 +32,86 @@ let rec token lexbuf =
   match%sedlex lexbuf with
   | whitespace -> token lexbuf
   | '\010' -> Sedlexing.new_line lexbuf; token lexbuf
-  | "." -> P.FULL_STOP
-  | "Set", whitespace -> set_flag lexbuf
-  | "From", whitespace -> require_import_library lexbuf
-  | "Lemma" -> P.LEMMA
-  | "," -> P.COMMA
-  | "-" -> P.PROOF_DASH_OR_SUB
-  | digit -> P.INT (Int.of_string_exn @@ lexeme lexbuf)
-  | "case_eq", whitespace -> case_eq lexbuf
-  | "let" -> P.LET
-  | "in" -> P.IN
+  | "(*" -> comment 0 lexbuf
+  | "(??)" -> P.HOLE
 
-  | ":=" -> P.BIND
-  | "\\*" -> P.SEP
-  | "SPEC" -> P.SPEC
-  | "SPEC_PURE" -> P.SPEC_PURE
-  | "PRE" -> P.PRE
-  | "POST" -> P.POST
-  | "xcf" -> P.XCF
-  | "xpull" -> P.XPULL
-  | "xapp" -> P.XAPP
-  | "xmatch" -> P.XMATCH
-  | "xsimpl" -> P.XSIMPL
-  | "xlet" -> P.XLET
-  | "xvals" -> P.XVALS
-  | "xseq" -> P.XSEQ
-  | "intros" -> intros lexbuf
+  | "fun" -> P.FUN
+  | "=>" -> P.ARROW
+
+  | "=" -> P.EQ
+
+  | "-" -> P.PROOF_DASH_OR_SUB
+
   | "::" -> P.CONS
   | "++" -> P.APPEND
   | "+" -> P.ADD
+
+  | "\\[" -> P.PURE_LBRACE
+  | "'(" -> P.DESTRUCT_PAREN
+  | "`{" -> P.IMPLICIT_LBRACE
+  | "}" -> P.IMPLICIT_RBRACE
+  | "(" -> P.LPAREN
+  | ")" -> P.RPAREN
+  | "[" -> P.LSQBRACE
+  | "]" -> P.RSQBRACE
+  | "." -> P.FULL_STOP
+  | ":" -> P.COLON
+  | "," -> P.COMMA
+  | digit -> P.INT (Int.of_string_exn @@ lexeme lexbuf)
+
+  | "Lemma" -> P.LEMMA
+  | "Proof using" -> P.PROOF_USING
+  | "Qed" -> P.QED
+  | "Admitted" -> P.ADMITTED
+  | "forall" -> P.FORALL
+
+  | "Set", whitespace -> set_flag lexbuf
+  | "From", whitespace -> require_import_library lexbuf
+
+  | "SPEC" -> P.SPEC
+  | "PRE" -> P.PRE
+  | "POST" -> P.POST
+  | "\\*" -> P.SEP
+  | "~>" -> P.PTS
+
   | "*" -> P.STAR
+
+  | "xcf" -> P.XCF
+  | "xpullpure" -> P.XPULLPURE
+
+  | "xpurefun" -> P.XPUREFUN
+  | "using" -> P.USING
+
+  | "xapp" -> P.XAPP
+  | "xdestruct" -> P.XDESTRUCT
+
+  | "rewrite" -> P.REWRITE
+  | "in" -> P.IN
+
+  | "sep_split_tuple" -> P.SEP_SPLIT_TUPLE
+
+  | "xmatch_case_", digit ->
+    let digit =
+      lexeme lexbuf
+      |> String.drop (String.length "xmatch_case_") 
+      |> Int.of_string_exn in
+    P.XMATCH_CASE_N digit
+  | "with" -> P.WITH
+
+  | "xvalemptyarr" -> P.XVALEMPTYARR
+  | "xalloc" -> P.XALLOC
+  | "xletopaque" -> P.XLETOPAQUE
+  | "intros" -> P.INTROS
+  | "xvals" -> P.XVALS
+
+  | "case" -> P.CASE
+  | "as" -> P.AS
+
+  | "|" -> P.BAR
+  | "eqn:" -> P.EQN
+
+
+
   | "{" ->
     let buf = Buffer.create 1024 in
     Buffer.add_char buf '{';
@@ -68,20 +119,7 @@ let rec token lexbuf =
   | ";", skip_whitespace ->
     let buf = Buffer.create 1024 in
     semi_with_coq_proof buf lexbuf
-  | "\\[=" -> P.PURE_LBRACE_EQ
-  | "\\[" -> P.PURE_LBRACE
-  | "[" -> P.LSQBRACE
-  | "]" -> P.RSQBRACE
-  | "fun" -> P.FUN
-  | "=>" -> P.ARROW
-  | "~>" -> P.PTS
-  | "(" -> P.LPAREN | ")" -> P.RPAREN
-  | ":" -> P.COLON
-  | "forall" -> P.FORALL
-  | "`{" -> P.IMPLICIT_LBRACE | "}" -> P.IMPLICIT_RBRACE
-  | "Proof using" -> P.PROOF_USING
-  | "Qed" -> P.QED
-  | "=" -> P.EQ
+
   | ident ->
     let ident = lexeme lexbuf in
     let ident = if String.prefix ~pre:"@" ident then String.drop 1 ident else ident in
@@ -141,31 +179,6 @@ and semi_with_coq_proof_inside_braces buf depth lexbuf =
     else semi_with_coq_proof_inside_braces buf depth lexbuf
   | _ -> failwith "invalid input"
 
-and case_eq lexbuf =
-  let rec case_eq_cases var lexbuf =
-    match%sedlex lexbuf with
-    | whitespace -> case_eq_cases var lexbuf
-    | skip_whitespace, ";", skip_whitespace,
-      "[", Star (skip_whitespace, "intros", skip_whitespace,  Plus (skip_whitespace, ident), skip_whitespace, "|"),
-                 skip_whitespace, "intros", skip_whitespace,  Plus (skip_whitespace, ident), skip_whitespace,
-      "]" ->
-      let intro_pats = lexeme lexbuf |> String.trim |> String.drop 1 |> String.trim in
-      let intro_pats = String.sub intro_pats 1 (String.length intro_pats - 2) in
-      let cases = String.split_on_char '|' intro_pats
-                  |> List.map String.trim
-                  |> List.map (String.drop (String.length "intros"))
-                  |> List.map String.trim
-                  |> List.map (String.split_on_char ' ')
-                  |> List.map (List.map String.trim) in
-      P.CASE_EQ (var, cases)
-    | "[", any, "]" -> failwith @@ "invalid input 124: "^ lexeme lexbuf 
-    | _ -> failwith @@ "invalid input 124: "^ lexeme lexbuf in
-  match%sedlex lexbuf with
-  | whitespace -> case_eq lexbuf 
-  | ident ->
-    let var = lexeme lexbuf in
-    case_eq_cases var lexbuf
-  | _ -> failwith "invalid input 130"
 and opaque_coq_script buf depth lexbuf =
   match%sedlex lexbuf with
   | '}' ->
@@ -180,11 +193,10 @@ and opaque_coq_script buf depth lexbuf =
     Buffer.add_string buf (lexeme lexbuf);
     opaque_coq_script buf depth lexbuf
   | _ -> failwith "invalid input 144"
-and intros lexbuf =
+and comment depth lexbuf =
   match%sedlex lexbuf with
-    | whitespace -> intros lexbuf
-    | not_full_stop ->
-      let names = String.split_on_char ' ' (String.trim (lexeme lexbuf)) in
-      P.INTROS names
-    | _ -> failwith "invalid input 84"
-  
+  | "(*" -> comment (depth + 1) lexbuf
+  | "*)" -> if depth = 0 then token lexbuf else comment (depth - 1) lexbuf
+  | any -> comment depth lexbuf
+  | _ -> P.EOF
+

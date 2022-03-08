@@ -1,17 +1,3 @@
-[@@@warning "-33"]
-open Containers
-
-let iter_until_eof str f =
-  let lexbuf = Sedlexing.Utf8.from_string str in
-  let rec loop () =
-    match Proof_parser.Lexer.token lexbuf with
-    | EOF -> f Proof_parser.Raw_parser.EOF
-    | tok -> f tok; loop () in
-  loop ()
-
-
-let () =
-  let txt = {|
 Set Implicit Arguments.
 
 From CFML Require Import WPLib Stdlib.
@@ -55,13 +41,3 @@ Proof using.
    xvals.
    { admit. }
 Admitted.
-|} in
-
-  try
-  print_endline @@  
-  Proof_parser.Proof.show (Proof_parser.Parser.parse_str txt)
-  with exn ->
-    print_endline @@ Printexc.to_string exn;
-    iter_until_eof txt (fun tok -> print_endline @@ Proof_parser.Raw_parser.show_token tok);
-    
-
