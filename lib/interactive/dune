@@ -1,0 +1,7 @@
+(library (name interactive)
+ (modules (:standard \ "main"))
+ (libraries logic lwd nottui containers))
+
+(executable (name main)
+ (modules main)
+ (libraries interactive logic nottui containers))

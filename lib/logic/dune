@@ -1,0 +1,3 @@
+(library (name logic)
+  (preprocess (pps ppx_deriving.std ppx_deriving.ord))
+ (libraries proof_parser program compiler-libs.common containers iter pprint))
