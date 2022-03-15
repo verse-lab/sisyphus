@@ -14,14 +14,15 @@ let rec stmt_display ~indent:ind : E.t Prog.stmt -> ui Lwd.t =
     W.vbox [
       W.hbox [indent'; string "let "; display_highlightable v;
               string " = ";
-              lambda_display lambda; string " in " ];
+              W.vbox [lambda_display lambda;
+                      string " in "; ]];
       stmt_display ~indent:ind rest
     ]
   | `LetExp (param, exp, rest) ->
     W.vbox [
       W.hbox [indent'; string "let "; Expr.param_display param;
               string " = ";
-              Expr.expr_display exp; string " in " ];
+              W.hbox [Expr.expr_display exp; string " in "] ];
       stmt_display ~indent:ind rest
     ]
   | `EmptyArray -> W.hbox [indent'; string "[| |]"]
@@ -38,11 +39,16 @@ let rec stmt_display ~indent:ind : E.t Prog.stmt -> ui Lwd.t =
 and case_display ~indent =
   let indent' = string (String.make indent ' ') in
   function
+  | (cons, [], body) ->
+    W.vbox (
+      W.hbox (indent' :: string "| " :: string cons :: [string " -> "] ) ::
+      [stmt_display ~indent:(indent + 2) body]
+    )
   | (cons, args, body) ->
     W.vbox (
       W.hbox (indent' :: string "| " :: string cons :: string "(" ::
               (List.map display_highlightable args
-               |> List.intersperse (string ", ")) @ [string ")"]
+               |> List.intersperse (string ", ")) @ [string ") -> "]
              ) ::
       [stmt_display ~indent:(indent + 2) body]
     )

@@ -13,9 +13,12 @@ type 'a simple_shape = [>
 [@@deriving show, eq]
 
 type param = [`Var of string | `Tuple of string list]
-  [@@deriving show, eq, ord]
+[@@deriving eq, ord]
 
-type 'a lambda_shape = [`Lambda of param list * 'a]
+type typed_param = [`Var of (string * Type.t) | `Tuple of (string * Type.t) list]
+[@@deriving show, eq, ord]
+
+type 'a lambda_shape = [`Lambda of typed_param list * 'a]
 [@@deriving show, eq, ord]
 
 type 'a shape = [> 'a lambda_shape ] as 'a constraint 'a = 'a simple_shape
@@ -35,15 +38,29 @@ type t = [
   | `Tuple of t list
   | `App of string * t list
   | `Constructor of string * t list
-  | `Lambda of param list * t
+  | `Lambda of typed_param list * t
 ] [@@deriving eq, ord]
 
 let print_param : param -> PP.document =
   let open PP in
   function
-  | `Var v -> group (string v)
+  | `Var v -> (string (String.trim v))
   | `Tuple args ->
     group (parens (flow_map (char ',' ^^ break 1) string args))
+
+let print_typed_param : typed_param -> PP.document =
+  let open PP in
+  let param (v,ty) = parens (group (string (String.trim v)) ^^ string ":" ^/^ Type.print ty) in
+  function
+  | `Var (v, ty) -> param (v,ty)
+  | `Tuple args ->
+    group (parens (flow_map (char ',' ^^ break 1) param args))
+
+let pp_param fmt vl = PP.ToFormatter.pretty 0.9 80 fmt (print_param vl)
+let show_param vl = Format.to_string pp_param vl
+let pp_typed_param fmt vl = PP.ToFormatter.pretty 0.9 80 fmt (print_typed_param vl)
+let show_typed_param vl = Format.to_string pp_typed_param vl
+
 
 let print_simple_nonfix : 'a .
   (needs_parens:bool -> 'a simple_shape -> PP.document) ->
@@ -52,14 +69,17 @@ let print_simple_nonfix : 'a .
   fun print_simple default ~needs_parens exp ->
   let open PP in
   match exp with
-  | `Var v -> string v
+  | `Var v -> string (String.trim v)
   | `Int i -> string (Int.to_string i)
   | `Constructor (cons, []) -> string cons 
   | `Constructor ("::", [h;t]) ->
-    let body () = group ((print_simple ~needs_parens:true h) ^/^ string "::" ^/^ (print_simple ~needs_parens:false t)) in
+    let body () = group ((print_simple ~needs_parens:true h) ^/^ string "::" ^^ space ^^ (print_simple ~needs_parens:false t)) in
+    if needs_parens then parens (body ()) else body ()
+  | `Constructor (cons, [t]) ->
+    let body () = (string (String.trim cons) ^/^ print_simple ~needs_parens:true t) in
     if needs_parens then parens (body ()) else body ()
   | `Constructor (cons, t) ->
-    let body () = group (string cons ^/^ parens (flow_map (string "," ^^ break 1) (print_simple ~needs_parens:false) t)) in
+    let body () = (string cons ^/^ parens @@ group (flow_map (string "," ^^ break 1) (print_simple ~needs_parens:false) t)) in
     if needs_parens then parens (body ()) else body ()
   | `Tuple t ->
     group (parens (separate_map (string "," ^^ space) (print_simple ~needs_parens:false) t))
@@ -67,7 +87,7 @@ let print_simple_nonfix : 'a .
     let body () = group ((print_simple ~needs_parens:false l) ^/^ string (String.sub op 1 1) ^/^ (print_simple ~needs_parens:true r)) in
     if needs_parens then parens (body ()) else body ()
   | `App (f,args) ->
-    let body () = group (string f ^/^ (flow_map (break 1) (print_simple ~needs_parens:true) args)) in
+    let body () = (string f ^^ blank 1 ^^ (flow_map (break 1) (print_simple ~needs_parens:true) args)) in
     if needs_parens then parens (body ()) else body ()
   | e -> default ~needs_parens e
 
@@ -133,7 +153,7 @@ let remove_binding fn v =
 let rec print ~needs_parens exp =
   print_simple_nonfix print_simple' ~needs_parens PP.(fun ~needs_parens:_ -> function
     | `Lambda (params, body) -> group @@
-      parens (string "fun" ^/^ flow_map space print_param params ^/^ string "->" ^/^
+      parens (string "fun" ^/^ flow_map space print_typed_param params ^/^ string "->" ^/^
       nest 2 (print ~needs_parens:false body) )
     | _ -> PP.string "(??)"
   ) exp
@@ -144,12 +164,13 @@ let show vl = Format.to_string pp vl
 let rec subst :
   'a . (string -> 'a shape option) -> 'a shape -> 'a shape =
   fun map exp ->
-  subst_simple_nonfix subst (fun map -> function
+  subst_simple_nonfix subst (fun map ->
+    function
     | `Lambda (params, body) ->
       let map = List.fold_left (fun fn ->
         function
-        | `Var v -> remove_binding fn v
-        | `Tuple elts -> List.fold_left remove_binding fn elts
+        | `Var (v, _) -> remove_binding fn v
+        | `Tuple elts -> List.fold_left (fun bd (v, _) -> remove_binding bd v) fn elts
       ) map params in
       `Lambda (params, subst map body)
     | e -> e
@@ -162,8 +183,8 @@ let rec subst_var :
     | `Lambda (params, body) ->
       let map = List.fold_left (fun fn ->
         function
-        | `Var v -> remove_binding fn v
-        | `Tuple elts -> List.fold_left remove_binding fn elts
+        | `Var (v, _) -> remove_binding fn v
+        | `Tuple elts -> List.fold_left (fun bd (v, _) -> remove_binding bd v) fn elts
       ) map params in
       `Lambda (params, subst_var map body)
     | e -> e
@@ -176,8 +197,8 @@ let rec vars :
     | `Lambda (params, body) ->
       let map = List.fold_left (fun map ->
         function
-        | `Var v -> StringSet.remove v map
-        | `Tuple elts -> List.fold_left (Fun.flip StringSet.remove) map elts
+        | `Var (v, _) -> StringSet.remove v map
+        | `Tuple elts -> List.fold_left (fun set (v, _) -> StringSet.remove v set) map elts
       ) map params in
       vars ?with_funs map body
     | _ -> map

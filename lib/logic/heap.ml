@@ -9,6 +9,10 @@ module Heaplet = struct
   type t = PointsTo of string * Expr.t
   [@@deriving show, eq, ord]
 
+  let print = function
+    | PointsTo (var, exp) ->
+      PPrint.( (string var ^/^ string "~>" ^//^  (Expr.print exp)))
+
   let pp (fmt: Format.formatter) (PointsTo (vl, expr)) =
     Format.fprintf fmt "%s ~> %a"  vl Expr.pp expr
 
@@ -107,6 +111,28 @@ end
 
 module Assertion = struct
   type t = {phi: ExprSet.t; sigma: Heap.t} [@@deriving eq, ord]
+
+  let emp = {phi=ExprSet.empty; sigma=Heap.emp}
+
+  let of_list (phi,sigma) = {phi=ExprSet.of_list phi; sigma=Heap.of_list sigma}
+
+  let phi t = ExprSet.to_list t.phi
+  let sigma t = Heap.to_list t.sigma
+
+  let print t =
+    let open PPrint in
+    let phi = phi t in
+    let sigma = sigma t in
+    match List.is_empty phi, List.is_empty sigma with
+    | false, true ->
+      group (separate_map (space ^^ fancystring "∧" 1 ^^ break 1) Expr.print phi) ^^ string ";" ^/^ string "emp"
+    | true, false ->
+      flow_map (space ^^ fancystring "★" 1 ^^ break 1) Heaplet.print sigma
+    | true, true -> string "emp"
+    | false, false ->
+      group (separate_map (space ^^ fancystring "∧" 1 ^^ break 1) Expr.print phi ^^ string ";") ^//^ 
+      group (separate_map (space ^^ fancystring "★" 1 ^^ break 1) Heaplet.print sigma)
+
   let pp fmt {phi; sigma} =
     let open Format in
     pp_print_string fmt "{";

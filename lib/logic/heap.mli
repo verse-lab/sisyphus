@@ -6,6 +6,8 @@ module StringSet  : module type of Set.Make(String)
 module Heaplet : sig
   type t = PointsTo of string * Expr.t [@@deriving show, eq, ord]
 
+  val print: t -> PPrint.document
+
   val subst : (string -> Expr.t option) -> t -> t
 
   val subst_var : (string -> string option) -> t -> t
@@ -60,7 +62,15 @@ module Heap : sig
 end
 
 module Assertion : sig
-  type t = { phi : ExprSet.t; sigma : Heap.t; } [@@deriving eq, ord, show]
+  type t [@@deriving eq, ord, show]
+
+  val print: t -> PPrint.document
+
+  val emp: t
+
+  val of_list: Expr.t list * Heaplet.t list -> t
+  val phi: t -> Expr.t list
+  val sigma: t -> Heaplet.t list
 
   val filter_phi : (Expr.t -> bool) -> t -> t
   val filter_sigma : (Heaplet.t -> bool) -> t -> t

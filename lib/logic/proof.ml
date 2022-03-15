@@ -1,6 +1,7 @@
 module Heap' = Heap 
 open Containers
 module Heap = Heap'
+module PP = PPrint
 
 module StringMap = Containers.Map.Make(String)
 
@@ -31,29 +32,69 @@ type spec = {
   application: string * string list;                          (* f a b c *)
 }
 
+
+let print_param (var, ty) =
+  let open PP in
+  parens ( string var ^^ string ":"  ^^ space ^^ Type.print ty)
+  
+let rec print_spec spec =
+  let open PP in
+  let print_type = (fun ty -> (parens @@ (string ty ^^ string ":" ^^ space ^^ string "Type"))) in
+  let print_invariant (arg, exp) =
+    parens (string arg ^^ string ":" ^/^ flow_map (string " ->" ^^ break 1)  Expr.print exp ^^ string " -> hprop") in
+  let print_pure_preconditions exprs =
+    flow_map (string " ->" ^^ break 1) (fun exp -> parens @@ Expr.print exp) exprs in
+  group (
+    group (fancystring "∀" 1 ^/^ group (flow_map space print_type spec.types)) ^^ string "," ^/^
+    group (flow_map (break 1) print_param spec.params)  ^^ string "," ^^
+    (if List.is_empty spec.invariants then empty else
+       group (flow_map (string "," ^^ break 1) print_invariant spec.invariants) ^^ string ",") ^^
+    (if List.is_empty spec.pure_preconditions then empty else
+       print_pure_preconditions spec.pure_preconditions ^^ string " -> ") ^^
+    (if List.is_empty spec.impure_preconditions then empty else
+      separate_map (break 1) (fun sp -> parens @@ print_spec sp) spec.impure_preconditions ^^ string " -> ") ^/^
+    (braces @@ group (Heap.Assertion.print spec.pre)) ^/^
+    (braces @@ group (print_param spec.res_param ^/^ group (string "=>" ^/^ group (Heap.Assertion.print spec.post))))
+  ) 
+let pp_spec fmt vl = PP.ToFormatter.pretty 0.999999999999 80 fmt (print_spec vl)
+let show_spec = Format.to_string pp_spec
+
 type spec_arg = [
     `Expr of Expr.t
-  | `Spec of (string * Type.t) list * Heap.Assertion.t
+  | `Spec of (Expr.param * Type.t) list * Heap.Assertion.t
   | `Hole
-]
+] [@@deriving show]
 
+let print_spec_param (param, ty) =
+  let open PP in
+  parens (group (Expr.print_param param ^^ string ": " ^^ Type.print ty))
 
+let print_spec_arg = let open PP in function
+  | `Expr e -> Expr.print e
+  | `Hole -> string "(??)"
+  | `Spec (params, spec) ->
+    group (group (fancystring "∀" 1 ^/^ group (flow_map space print_spec_param params)) ^^ string "," ^/^
+           Heap.Assertion.print spec)
+
+type simple = Expr.simple_t
+let pp_simple = Expr.pp_simple
 
 type step = [
+  | `Xcf
   | `Xpullpure of string list
   (**
     Γ ∪ {x1: P1 ᠁ xn: Pn} {P; H} C {res ↠ Q}
      ------------------------ XPullPure (x1,...,xn)
     Γ, {P1,᠁ Pn, P;H} C {res ↠ Q}
   *)
-  | `Xpurefun of string * string * [`Lambda of Expr.param list * Expr.simple_t]
+  | `Xpurefun of string * string * [`Lambda of Expr.typed_param list * simple]
   (**
      lam = fun args -> body, pure_expr(body)
      Γ ∪ {f : func, Hf: f = lam}, {P} e {res ↠ Q}
      ------------------------ XPureFun (f,Hf, lam)
      Γ, {P} let f = fun args -> body in e  {res ↠ Q}
   *)
-  | `Xapp of spec * spec_arg list * string list
+  | `Xapp of string * spec_arg list * string list
   (**
      spec = ∀ v1..vn, {Pf} f args res => {res ↠ res = vl, Qf1...Qfm; Hf}
      {P} ⊫ {Pf}[ai/vi]  vl' = vl[ai/vi]
@@ -131,3 +172,46 @@ type step = [
      Γ, {P} v {res ↠ Q}
   *)
 ]
+
+let print_step print_steps : step -> PP.document = let open PP in function
+  | `SepSplitTuple (h, vars) ->
+    (string "SepSplittuple" ^/^ string h ^^ group (break 1 ^^ separate_map space string vars) ^^ string ".")
+  | `Xvals -> string "Xvals."
+  | `Xvalemptyarr -> string "Xvalemptyarr."
+  | `Xcf -> string "xcf."
+  | `Xdestruct vars ->
+    (string "Xdestruct" ^^ group (break 1 ^^ separate_map space string vars) ^^ string ".")
+  | `Xalloc (arr,data,h_data) ->
+    (string "Xalloc" ^^ group (space ^^ string arr ^/^ string data ^/^ string h_data) ^^ string ".")      
+  | `Xletopaque (f,h_f) ->
+    (string "Xletopaque" ^^ group (space ^^ string f ^/^ string h_f) ^^ string ".")      
+  | `Rewrite (lemma, h) ->
+    (string "rewrite" ^^ group (space ^^ string lemma ^/^ string "in" ^/^ string h) ^^ string ".")      
+  | `Xpullpure vars ->
+    (group (string "Xpullpure" ^^ align (group (space ^^ separate_map space string vars)) ^^ string "."))
+  | `Xmatchcase (i, vars)  ->
+    (string ("Xmatch_case_" ^ Int.to_string i) ^/^ group (break 1 ^^ separate_map space string vars) ^^ string ".")        
+  | `Xapp (fn, args, intrs) ->
+    group (string "Xapp" ^/^ parens (
+       string fn ^/^ group (break 1 ^^ separate_map space print_spec_arg args)
+     ) ^^ string ".") ^/^
+    (if List.is_empty intrs then empty else
+       group (string "intros" ^/^ group (break 1 ^^ separate_map space string intrs) ^^ string "."))
+  | `Xpurefun (f, h_f, `Lambda (params, expr)) ->
+    group (string "Xpurefun" ^/^ string f ^/^ string h_f ^/^
+           Expr.print (`Lambda (params, (expr :> Expr.t))) ^^ string ".")
+  | `Case (l, h_l, cases) ->
+    group (string "case" ^/^ string l ^/^ string "as" ^/^ braces (
+       flow_map (string " |" ^^ break 1) (fun (vars, _) -> separate_map space string vars) cases
+     ) ^/^ string "eqn:" ^^ string h_l ^^ string ".") ^^
+    nest 2 (break 1 ^^ separate_map (hardline) (fun (_, prf) -> group (string " - " ^^ align (print_steps prf))) cases)
+
+let rec print_steps : step list -> PP.document =
+  let open PP in
+  fun steps -> group (separate_map (break 1) (print_step print_steps) steps)
+let print_step = print_step (fun _ -> PP.string "...")
+
+let pp_step fmt vl = PP.ToFormatter.pretty 10.99 80 fmt (print_step vl)
+let show_step vl = Format.to_string pp_step vl
+let pp_steps fmt vl = PP.ToFormatter.pretty 0.99 80 fmt (print_steps vl)
+let show_steps vl = Format.to_string pp_steps vl                        

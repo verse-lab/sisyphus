@@ -22,12 +22,11 @@ module Make (S: sig
 
   let ui =
     let ctx = Lwd.get proof_state in
-    W.vbox [
-      S.debug;
-      W.v_pane
-        (Proof.ctx_display ctx)
-        (W.h_pane (Proof.proof_goal ctx) repl)
-    ]
+    W.v_pane 
+      (W.v_pane
+         (Proof.ctx_display ctx)
+         (W.h_pane (Proof.proof_goal ctx) repl))
+      S.debug
 
   let run () =
     Ui_loop.run ui

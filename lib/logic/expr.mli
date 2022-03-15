@@ -13,14 +13,17 @@ type 'a simple_shape = 'a constraint 'a =
 type param = [ `Tuple of string list | `Var of string ]
 [@@deriving show, eq, ord]
 
-type 'a lambda_shape = [`Lambda of param list * 'a]
+type typed_param = [`Var of (string * Type.t) | `Tuple of (string * Type.t) list]
+[@@deriving show, eq, ord]
+
+type 'a lambda_shape = [`Lambda of typed_param list * 'a]
 [@@deriving show, eq, ord]
 
 type 'a shape = 'a constraint 'a =
     [> `App of string * 'a shape list
     | `Constructor of string * 'a shape list
     | `Int of int
-    | `Lambda of param list * 'a shape
+    | `Lambda of typed_param list * 'a shape
     | `Tuple of 'a shape list
     | `Var of string ]
 [@@deriving show, eq]
@@ -37,12 +40,13 @@ type t =
   [ `App of string * t list
   | `Constructor of string * t list
   | `Int of int
-  | `Lambda of param list * t
+  | `Lambda of typed_param list * t
   | `Tuple of t list
   | `Var of string ]
 [@@deriving eq, ord]
 
 val print_param : param -> PPrint.document
+val print_typed_param : typed_param -> PPrint.document
 
 val print_simple : 'a simple_shape -> PPrint.document
 val pp_simple : Format.formatter -> 'a simple_shape -> unit

@@ -10,6 +10,14 @@ let param_display : E.param -> ui Lwd.t = function
 
 let rec expr_display ?(needs_params=false) : E.t -> ui Lwd.t = fun (e: E.t) ->
   match e with
+  | `App ("(+)", [l;r]) ->
+    W.hbox ((if needs_params then [string "("] else []) @
+             [expr_display ~needs_params:false l; string " + "; expr_display ~needs_params:true r]  @
+              (if needs_params then [string ")"] else []))
+  | `App ("(-)", [l;r]) ->
+    W.hbox ((if needs_params then [string "("] else []) @
+             [expr_display ~needs_params:false l; string " - "; expr_display ~needs_params:true r]  @
+              (if needs_params then [string ")"] else []))
   | `App (fn, args) ->
     W.hbox ((if needs_params then [string "("] else []) @
              [display_highlightable fn; string " "] @

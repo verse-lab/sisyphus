@@ -15,17 +15,17 @@ let heaplet_display (P.Heap.Heaplet.PointsTo (var, e): P.Heap'.Heaplet.t) =
   W.hbox [display_highlightable var; string " ~> "; Expr.expr_display ~needs_params:true e]
 
 let heap_display ?(res_param=[]) (heap: P.Heap'.Assertion.t) =
-  match P.Heap'.ExprSet.is_empty  heap.phi, P.Heap'.Heap.is_empty heap.sigma with
+  match List.is_empty  (P.Heap'.Assertion.phi heap), List.is_empty (P.Heap'.Assertion.sigma heap) with
   | true, true -> W.hbox (string "{" :: res_param @ [ string "emp"; string "}"])
   | false, true ->
     W.hbox (string "{" :: res_param @
-            (P.Heap'.ExprSet.to_list heap.phi
+            (P.Heap'.Assertion.phi heap
              |> List.map Expr.expr_display
              |> List.intersperse (string " /\\ ") ) @
             [ string "; emp"; string "}"])
   | true, false ->
     W.hbox (string "{" :: res_param @
-            (P.Heap'.Heap.to_list heap.sigma
+            (P.Heap'.Assertion.sigma heap
              |> List.map heaplet_display
              |> List.intersperse (string " * ")
             ) @
@@ -33,11 +33,11 @@ let heap_display ?(res_param=[]) (heap: P.Heap'.Assertion.t) =
 
   | _ ->
     W.hbox (string "{" :: res_param @
-            (P.Heap'.ExprSet.to_list heap.phi
+            (P.Heap'.Assertion.phi heap
              |> List.map Expr.expr_display
              |> List.intersperse (string " /\\ ") ) @
             string ";" ::
-            (P.Heap'.Heap.to_list heap.sigma
+            (P.Heap'.Assertion.sigma heap
              |> List.map heaplet_display
              |> List.intersperse (string " * ")
             ) @

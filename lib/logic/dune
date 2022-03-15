@@ -1,3 +1,8 @@
 (library (name logic)
-  (preprocess (pps ppx_deriving.std ppx_deriving.ord))
- (libraries proof_parser program compiler-libs.common containers iter pprint))
+ (preprocess (pps ppx_deriving.std ppx_deriving.ord))
+ (modules (:standard \ "main"))
+ (libraries proof_parser compiler-libs.common containers iter pprint))
+
+(executable (name main)
+ (modules main)
+ (libraries proof_parser logic containers))

@@ -27,7 +27,7 @@ let to_array (l: 'a t) =
   | Cons ((x: 'a), (_unused: 'a t)) ->
     let (n: int) = length' l in
     let (a: 'a array) = Array.make n x in (* need first elem to create [a] *)
-    let _ = iteri
+    iteri
       (fun (i: int) (x: 'a) -> a.(i) <- x)
-      l in
+      l;
     a
