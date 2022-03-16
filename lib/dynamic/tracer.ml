@@ -10,23 +10,6 @@ end
 
 module Make(Symbol: SYMBOL) = struct
 
-
-  module StringMap = Map.Make (String)
-
-  type 'a stringmap = 'a StringMap.t
-  let equal_stringmap f a b = StringMap.equal f a b
-  let pp_stringmap f fmt vl =
-    StringMap.pp
-      ~pp_start:Format.(fun fmt () ->
-        pp_open_hovbox fmt 1;
-        pp_print_string fmt "{")
-      ~pp_stop:Format.(fun fmt () ->
-        pp_print_string fmt "}";
-        pp_close_box fmt ()
-      )
-      ~pp_sep:Format.(fun fmt () -> pp_print_string fmt " -> ")
-      String.pp f fmt vl
-
   type value = [
     | `Int of int
     | `Value of Symbol.t
@@ -45,6 +28,7 @@ module Make(Symbol: SYMBOL) = struct
 
   type trace = state list
   [@@deriving show, eq]
+
 
   let ty_def = Format.sprintf {|
   type value = [
@@ -110,7 +94,7 @@ let __enc_int v = `Int v
         (List.map (fun (_,ty) -> sample_arg_for_ty env ty) args |> Random.list_seq) in
     String.concat " " args
 
-  let encode ?prelude:(prelude'="") (prog: Logic.Expr.t Logic.Program.t) =
+  let encode ?prelude:(prelude'="") (prog: Logic.Expr.t Logic.Program.t) input =
     let id =
       let ind = ref 0 in
       fun () -> incr ind; !ind in
@@ -185,48 +169,74 @@ let __enc_int v = `Int v
       | `Tuple args -> env @ args
       | `Var arg -> env @ [arg] in
 
-    let rec loop env (body: Logic.Expr.t Logic.Program.stmt) =
+    let rec loop ~observe env (body: Logic.Expr.t Logic.Program.stmt) =
       match body with
       | `Value vl ->
         let id = id () in
         let heap = print_heap env in
         let env = print_env env in
+        if observe then begin
         fmt {|
           __observe %d [%s] [%s];
+        |} id env heap 
+        end;
+        fmt {|
           %a
-        |} id env heap Logic.Expr.pp vl
+        |} Logic.Expr.pp vl;
+        if observe then begin
+          fmt {|
+          __observe %d [%s] [%s];
+        |} id env heap
+        end;
       | `EmptyArray ->
         let id = id () in
         let heap = print_heap env in
         let env = print_env env in
-        fmt {|
+        if observe then begin
+          fmt {|
           __observe %d [%s] [%s];
-          [| |]
         |} id env heap
+        end;
+        fmt {|
+          [| |]
+        |} ;
+        if observe then begin
+          fmt {|
+          __observe %d [%s] [%s];
+        |} id env heap
+        end;
       | `LetExp (`Var (_, Logic.Type.Unit), expr, body) ->
         let () =
           let id = id () in
           let heap = print_heap env in
           let env = print_env env in
+          if observe then begin
           fmt {|
           __observe %d [%s] [%s];
-          let _ = %a in
         |} id env heap
+          end;
+          fmt {|
+          let _ = %a in
+        |} 
             Logic.Expr.pp expr in
-        loop env body
+        loop ~observe env body
       | `LetExp (args, expr, body) ->
         let () =
           let id = id () in
           let heap = print_heap env in
           let env = print_env env in
-          fmt {|
+          if observe then begin
+            fmt {|
           __observe %d [%s] [%s];
+|} id env heap
+          end;
+          fmt {|
           let %a = %a in
-        |} id env heap
+        |} 
             Logic.Expr.pp_typed_param args
             Logic.Expr.pp expr in
         let env = add_param args env in
-        loop env body
+        loop ~observe env body
       | `LetLambda (var, `Lambda (params, lambody), body) ->
         let () = 
           fmt {|
@@ -239,19 +249,23 @@ let __enc_int v = `Int v
           let env =
             List.fold_left (fun env param -> add_param param env)
               env params in
-          loop env lambody;
+          loop ~observe:false env lambody;
           fmt {| in |} in
         let env = env @ [var, Func] in
-        loop env body
+        loop ~observe env body
       | `Match (exp, cases) ->
         let () =
           let id = id () in
           let heap = print_heap env in
           let env = print_env env in
-          fmt {|
+          if observe then begin
+            fmt {|
           __observe %d [%s] [%s];
+        |}  id env heap 
+          end;
+          fmt {|
           match %a with
-        |}  id env heap Logic.Expr.pp exp in
+        |}  Logic.Expr.pp exp in
         List.iter (fun (cons, params, body) ->
           begin
             let params = List.map (fun v -> `Var v) params in
@@ -276,24 +290,28 @@ let __enc_int v = `Int v
 |} cons pp_params  params;
           end;
           let env = env @ params in
-          loop env body
+          loop ~observe env body
         ) cases
       | `Write (arr, offs, vl, body) ->
         let () =
           let id = id () in
           let heap = print_heap env in
           let env = print_env env in
-          fmt {|
+          if observe then begin
+            fmt {|
           __observe %d [%s] [%s];
+        |} id env heap
+          end;
+          fmt {|
             %s.(%s) <- %a;
-        |} id env heap arr offs
+        |} arr offs
             Logic.Expr.pp vl in
-        loop env body
+        loop ~observe env body
     in
-    loop prog.args prog.body;
+    loop ~observe:true prog.args prog.body;
 
     fmt "\nlet () = ignore (%s %s); __marshal ()"
-      prog.name (generate_random_args prog.converters prog.args);
+      prog.name input;
     
     Buffer.contents buf
 
@@ -303,9 +321,18 @@ let __enc_int v = `Int v
     |> OS.Cmd.out_string |> Result.get_exn |> fst |> Fun.flip Marshal.from_string 0
 
 
-  let trace ?prelude prog =
-    encode ?prelude prog
-    |> generate_trace
+  let trace ?prelude prog input =
+    encode ?prelude prog input
+    |> generate_trace 
+
+  let bitrace (prog1: Logic.Expr.t Logic.Program.t) (prog2: Logic.Expr.t Logic.Program.t) =
+    assert Equal.(poly prog1.args prog2.args);
+    assert Equal.(poly prog1.converters prog2.converters);
+
+    let input = generate_random_args prog1.converters prog1.args in
+    let trace1 = trace prog1 input in
+    let trace2 = trace prog2 input in
+    (trace1, trace2)
 
 end
 
