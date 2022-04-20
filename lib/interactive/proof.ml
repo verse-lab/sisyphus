@@ -1,15 +1,15 @@
 open Containers
 open Common
 
-let types v = Lwd.map (fun (v: 'a P.ctx) -> v.types) v
-let variables v = Lwd.map (fun (v: 'a P.ctx) -> StringMap.to_list v.variables) v
-let relations v = Lwd.map (fun (v: 'a P.ctx) -> StringMap.to_list v.relations) v
-let equalities v = Lwd.map (fun (v: 'a P.ctx) -> StringMap.to_list v.equalities) v
-let specifications v = Lwd.map (fun (v: 'a P.ctx) -> StringMap.to_list v.specifications) v
-let pre v = Lwd.map (fun (v: 'a P.ctx) -> v.pre) v
-let res_param v = Lwd.map (fun (v: 'a P.ctx) -> v.res_param) v
-let post v = Lwd.map (fun (v: 'a P.ctx) -> v.post) v
-let state v : [`Init of E.t Prog.t | `Step of E.t Prog.stmt ] Lwd.t = Lwd.map (fun (v: 'a P.ctx) -> v.state) v
+let types v = Lwd.map ~f:(fun (v: 'a P.ctx) -> v.types) v
+let variables v = Lwd.map ~f:(fun (v: 'a P.ctx) -> StringMap.to_list v.variables) v
+let relations v = Lwd.map  ~f:(fun (v: 'a P.ctx) -> StringMap.to_list v.relations) v
+let equalities v = Lwd.map  ~f:(fun (v: 'a P.ctx) -> StringMap.to_list v.equalities) v
+let specifications v = Lwd.map  ~f:(fun (v: 'a P.ctx) -> StringMap.to_list v.specifications) v
+let pre v = Lwd.map  ~f:(fun (v: 'a P.ctx) -> v.pre) v
+let res_param v = Lwd.map  ~f:(fun (v: 'a P.ctx) -> v.res_param) v
+let post v = Lwd.map  ~f:(fun (v: 'a P.ctx) -> v.post) v
+let state v : [`Init of E.t Prog.t | `Step of E.t Prog.stmt ] Lwd.t = Lwd.map  ~f:(fun (v: 'a P.ctx) -> v.state) v
 
 let heaplet_display (P.Heap.Heaplet.PointsTo (var, e): P.Heap'.Heaplet.t) =
   W.hbox [display_highlightable var; string " ~> "; Expr.expr_display ~needs_params:true e]
@@ -73,11 +73,11 @@ let spec_display (hyp, (fn, def)) =
           Program.lambda_display def]
 
 let ctx_display ctx =
-  let+ types = Lwd.map (List.map quantified_type_display) (types ctx) in
-  let+ variables = Lwd.map (List.map variable_display) (variables ctx) in
-  let+ relations = Lwd.map (List.map relation_display) (relations ctx) in
-  let+ equalities = Lwd.map (List.map equality_display) (equalities ctx) in
-  let+ specifications = Lwd.map (List.map spec_display) (specifications ctx) in
+  let+ types = Lwd.map  ~f:(List.map quantified_type_display) (types ctx) in
+  let+ variables = Lwd.map  ~f:(List.map variable_display) (variables ctx) in
+  let+ relations = Lwd.map  ~f:(List.map relation_display) (relations ctx) in
+  let+ equalities = Lwd.map  ~f:(List.map equality_display) (equalities ctx) in
+  let+ specifications = Lwd.map  ~f:(List.map spec_display) (specifications ctx) in
   W.h_pane (W.vbox (List.concat [
          types;
          variables;
@@ -93,12 +93,12 @@ let program_state_display program =
     Program.stmt_display ~indent:2 stmt
 
 let proof_goal ctx =
-  let program = Lwd.bind (state ctx) program_state_display in
-  let pre = Lwd.bind (pre ctx) heap_display in
+  let program = Lwd.bind (state ctx)  ~f:program_state_display in
+  let pre = Lwd.bind (pre ctx)  ~f:heap_display in
   let post =
     let+ res_param = res_param ctx in
     let res_param = [res_param_display res_param] in
-    Lwd.bind (post ctx) (heap_display ~res_param) in
+    Lwd.bind (post ctx)  ~f:(heap_display ~res_param) in
   W.vbox [
     pre;
     program;

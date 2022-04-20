@@ -20,7 +20,7 @@ let rec stmt_display ~indent:ind : E.t Prog.stmt -> ui Lwd.t =
     ]
   | `LetExp (param, exp, rest) ->
     W.vbox [
-      W.hbox [indent'; string "let "; Expr.param_display param;
+      W.hbox [indent'; string "let "; Expr.typed_param_display param;
               string " = ";
               W.hbox [Expr.expr_display exp; string " in "] ];
       stmt_display ~indent:ind rest
@@ -47,7 +47,7 @@ and case_display ~indent =
   | (cons, args, body) ->
     W.vbox (
       W.hbox (indent' :: string "| " :: string cons :: string "(" ::
-              (List.map display_highlightable args
+              (List.map Expr.display_annotation args
                |> List.intersperse (string ", ")) @ [string ") -> "]
              ) ::
       [stmt_display ~indent:(indent + 2) body]
@@ -57,7 +57,7 @@ and lambda_display : E.t Prog.lambda -> ui Lwd.t =
   | `Lambda (params, body) ->
     W.vbox [
       W.hbox (string "fun " ::
-              (List.map Expr.param_display params
+              (List.map Expr.typed_param_display params
                |> List.intersperse (string " ")) @
               [string " -> "] );
       stmt_display ~indent:2 body

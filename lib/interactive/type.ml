@@ -3,10 +3,19 @@ open Common
 
 let rec type_display (typ: Logic.Type.t) =
   match typ with
+  | Unit -> display_highlightable "()"
   | Var v -> display_highlightable ~attr:A.(st bold) v
   | Int -> display_highlightable  "int"
   | Loc -> display_highlightable "loc"
   | Func -> display_highlightable "func"
+  | Ref ty -> 
+    let ref = display_highlightable ~attr:A.(fg cyan) "ref" in
+    let ty = type_display ty in
+    W.hbox [ref; string " "; ty]
+  | Array ty -> 
+    let array = display_highlightable ~attr:A.(fg cyan) "array" in
+    let ty = type_display ty in
+    W.hbox [array; string " "; ty]
   | List ty ->
     let list = display_highlightable ~attr:A.(fg cyan) "list" in
     let ty = type_display ty in

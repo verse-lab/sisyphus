@@ -8,6 +8,19 @@ let param_display : E.param -> ui Lwd.t = function
                             |> List.intersperse (string " ")) @ [string ")"])
   |`Var v -> display_highlightable v
 
+
+let display_annotation: (string * Ty.t) -> ui Lwd.t = function
+  | (v, ty) ->
+    let ty = Type.type_display ty in
+    W.hbox [display_highlightable v; string ": "; ty]
+
+let typed_param_display : E.typed_param -> ui Lwd.t = function
+  | `Tuple args ->
+    W.hbox (string "(" :: (List.map display_annotation  args
+                            |> List.intersperse (string " ")) @ [string ")"])
+  |`Var v -> display_annotation v
+
+
 let rec expr_display ?(needs_params=false) : E.t -> ui Lwd.t = fun (e: E.t) ->
   match e with
   | `App ("(+)", [l;r]) ->
@@ -44,7 +57,7 @@ let rec expr_display ?(needs_params=false) : E.t -> ui Lwd.t = fun (e: E.t) ->
   | `Lambda (params, body) ->
     W.hbox (
       (if needs_params then [string "("] else []) @
-      string "fun " :: (List.map param_display params
+      string "fun " :: (List.map typed_param_display params
                               |> List.intersperse (string " ")) @
       [string " -> "; expr_display ~needs_params:false body] @
       (if needs_params then [string ")"] else [])

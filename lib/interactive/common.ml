@@ -8,7 +8,7 @@ module Prog = Logic.Program
 
 module StringMap = Map.Make(String)
 
-let (let+) x f = Lwd.bind x f 
+let (let+) x f = Lwd.bind x ~f 
 
 let string ?attr s = Lwd.pure (W.string ?attr s)
 let highlighted_name: string option Lwd.var = Lwd.var None

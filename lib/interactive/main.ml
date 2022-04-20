@@ -6,7 +6,7 @@ module S = struct
 
   let debug =
     let scroll_state = Lwd.var Nottui_widgets.default_scroll_state in
-    Lwd.bind (Lwd.get debug_log) (fun vars ->
+    Lwd.bind (Lwd.get debug_log)  ~f:(fun vars ->
       Nottui_widgets.vscroll_area ~state:(Lwd.get scroll_state)
         ~change:(fun _ st -> Lwd.set scroll_state st) @@
       Lwd_utils.pack Nottui.Ui.pack_z
