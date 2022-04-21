@@ -1,6 +1,6 @@
-# Sisyphus: Proof Repair at Scale
-
-![Sisyphus Logo](https://github.com/verse-lab/proof-repair/raw/master/web/res/sisyphus-logo.png)
+![Sisyphus Logo]()
+<p align="center"><img width="20%" src="https://github.com/verse-lab/proof-repair/raw/master/web/res/sisyphus-logo.png" alt="sisyphus-logo" /></p>
+<h1 align="center">Sisyphus: Proof Repair at Scale</h1>
 
 
 Idea: Repair proofs of programs after refactoring.
