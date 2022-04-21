@@ -1,5 +1,4 @@
-![Sisyphus Logo]()
-<p align="center"><img width="20%" src="https://github.com/verse-lab/proof-repair/raw/master/web/res/sisyphus-logo.png" alt="sisyphus-logo" /></p>
+<p align="center"><img width="70%" src="https://github.com/verse-lab/proof-repair/raw/master/web/res/sisyphus-logo.png" alt="sisyphus-logo" /></p>
 <h1 align="center">Sisyphus: Proof Repair at Scale</h1>
 
 
