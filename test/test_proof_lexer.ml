@@ -110,10 +110,10 @@ From TLC Require Import LibListZ.
 From Proofs Require Import Verify_seq_to_array_utils.
 From Proofs Require Import Seq_to_array_old.
 
-Lemma to_array_spec : forall A `{EA:Enc A} (l:list A) (s:func),
+Lemma to_array_spec : forall (A: Type) `{EA:Enc A} (l:list A) (s:func),
   SPEC (to_array s)
     PRE (\[LSeq l s])
-    POST (fun a => a ~> Array l).
+    POST (fun (a: loc) => a ~> Array l).
 Proof using.
   xcf.
   xpull; [intros HLseq; apply LSeq_if in HLseq].
@@ -148,9 +148,6 @@ Proof using.
     { rew_list; math_rewrite ((length l - 0) = length l); rewrite Hl; auto. }
     xvals. { math_rewrite ((length l - length l) = 0); rewrite make_zero; rew_list; auto. }
 Qed.      
-|} 135
-
-
-
+|} 145
 
 let () = T.run ()
