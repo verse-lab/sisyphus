@@ -75,58 +75,28 @@ Lemma to_array_spec : forall A `{EA:Enc A} (l:list A) (s:func),
     EOF
   ]);;
 
-  
-
-T.add_test "lexes sequences of proof script" @@
-check_produces_tokens {|
-  xcf.
-  xpull; [intros HLseq; apply LSeq_if in HLseq].
-|} [
-  XCF; FULL_STOP;
-  XPULL; SEMI_WITH_COQ_PROOF ("[intros HLseq; apply LSeq_if in HLseq]"); FULL_STOP;
-  EOF
-];;
-
-T.add_test "lexes sequences of proof script with cases" @@
-check_produces_tokens {|
-  xcf.
-  xpull; [intros HLseq; apply LSeq_if in HLseq].
-  case_eq l; [intros Hl|intros x xs Hl]; rewrite Hl in *.
-|} [
-  XCF; FULL_STOP;
-  XPULL; SEMI_WITH_COQ_PROOF ("[intros HLseq; apply LSeq_if in HLseq]"); FULL_STOP;
-  CASE_EQ ("l", [["Hl"]; ["x"; "xs"; "Hl"]]); SEMI_WITH_COQ_PROOF ("rewrite Hl in *"); FULL_STOP;
-  EOF
-];;
-
 T.add_test "lexes longer sequences of proof script with cases" @@
 check_produces_tokens {|
   xcf.
-  xpull; [intros HLseq; apply LSeq_if in HLseq].
-  case_eq l; [intros Hl|intros x xs Hl]; rewrite Hl in *.
+  xpullpure HLseq.
   - xapp.
-    xmatch.
+    xmatch_case_0.
     xapp.
     { intros *; xsimpl. }
   - xapp; (intros result [nxt_r [-> Hnxt_r]]).
-    xmatch.
+    xmatch_case_1.
     xapp length_spec. { apply LSeq_intro; auto. applys HLseq. }
     xapp; [try math|]; [intros arr data Hdata].
-    xlet.
-    xseq.
 |} [
   XCF; FULL_STOP;
-  XPULL; SEMI_WITH_COQ_PROOF ("[intros HLseq; apply LSeq_if in HLseq]"); FULL_STOP;
-  CASE_EQ ("l", [["Hl"]; ["x"; "xs"; "Hl"]]); SEMI_WITH_COQ_PROOF ("rewrite Hl in *"); FULL_STOP;
+  XPULLPURE; IDENT "HLseq"; FULL_STOP;
   PROOF_DASH_OR_SUB; XAPP; FULL_STOP;
-        XMATCH; FULL_STOP;
+        XMATCH_CASE_N 0; FULL_STOP;
         XAPP; FULL_STOP; COQ_PROOF "{ intros *; xsimpl. }";
   PROOF_DASH_OR_SUB; XAPP; SEMI_WITH_COQ_PROOF "(intros result [nxt_r [-> Hnxt_r]])"; FULL_STOP;
-              XMATCH; FULL_STOP;
+              XMATCH_CASE_N 1; FULL_STOP;
               XAPP; IDENT "length_spec"; FULL_STOP; COQ_PROOF "{ apply LSeq_intro; auto. applys HLseq. }";
               XAPP; SEMI_WITH_COQ_PROOF "[try math|]"; SEMI_WITH_COQ_PROOF "[intros arr data Hdata]"; FULL_STOP;
-              XLET; FULL_STOP;
-              XSEQ; FULL_STOP;
   EOF
 ];;
 
