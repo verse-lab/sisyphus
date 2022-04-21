@@ -97,6 +97,7 @@ module type HTML_SIG = sig
   val a_width : int -> [> `Width ] attrib
   val a_role : uri list -> [> `Role ] attrib
   val a_aria : uri -> uri list -> [> `Aria ] attrib
+  val a_user_data : uri -> uri -> [> `User_data ] attrib
 
   val h1: (common, h_content_fun , [> `H1 ]) star
   val h2: (common, h_content_fun , [> `H2 ]) star

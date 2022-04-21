@@ -62,6 +62,7 @@ module Html = struct
   let a_width : int -> [> `Width ] attrib = fun n -> a (At.width n)
   let a_role : uri list -> [> `Role ] attrib = fun rls -> a (At.v (s "role") (s (flatten rls)))
   let a_aria : uri -> uri list -> [> `Aria ] attrib = fun tag vls -> a (At.v (s("aria-" ^ tag)) (s (flatten vls)))
+  let a_user_data : uri -> uri -> [> `User_data ] attrib = fun tag vl -> a (At.v (s ("data-" ^ tag)) (s vl))
 
   let txt : uri -> 'a txt elt = fun txt -> El.txt (s txt)
 
