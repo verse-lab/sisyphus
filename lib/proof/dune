@@ -1,0 +1,9 @@
+(library (name proof_validator)
+ (libraries coq-core.toplevel)
+ (flags -rectypes)
+ (modules (:standard \ main)))
+
+(executable (name main)
+ (modules main)
+ (flags -rectypes)
+ (libraries proof_validator))

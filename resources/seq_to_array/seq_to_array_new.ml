@@ -1,6 +1,7 @@
+open Common
+
 let to_array l =
-  let len = ref 0 in
-  let ls = fold (fun acc x -> incr len; x :: acc) [] l in
+   let len, ls = fold (fun (i, acc) x -> (i + 1, x :: acc)) (0, []) l in
    match ls with
      | [] -> [| |]
      | init::rest ->
