@@ -1,4 +1,4 @@
-<p align="center"><img width="70%" src="https://github.com/verse-lab/proof-repair/raw/master/web/res/sisyphus-logo.png" alt="sisyphus-logo" /></p>
+<p align="center"><img width="70%" src="https://github.com/verse-lab/proof-repair/raw/master/sisyphus-logo.png" alt="sisyphus-logo" /></p>
 <h1 align="center">Sisyphus: Proof Repair at Scale</h1>
 
 
@@ -37,4 +37,36 @@ Algorithm:
 └── readme.md
 
 12 directories, 15 files
+```
+
+## Requirements
+
+| Packages       | Version  | Notes                                     |
+|:---------------|:---------|:------------------------------------------|
+| cmdliner       | 1.0.4    | important otherwise coq-serapi will crash |
+| coq            | 8.15.1   |                                           |
+| coq-serapi     |          |                                           |
+| coq-cfml       | 20220112 |                                           |
+| coq-cfml-basis | 20220112 |                                           |
+| cfml           | 20220112 |                                           |
+| containers     | 3.7      |                                           |
+| nottui         | 0.2      |                                           |
+| iter           | 1.4      |                                           |
+| bos            | 0.2.1    |                                           |
+| alcotest       | 1.5.0    |                                           |
+| z3             | 4.8.14   |                                           |
+| sedlex         | 2.5      |                                           |
+
+## Setup
+
+Setting up the project is mostly automated by the opam file.
+
+Simply create a new local opam switch, and opam will handle installing all the dependencies:
+```
+opam switch create . 4.12.0
+```
+
+Note: you will need the coq-released repo installed and set as a default for fresh-switches, otherwise you will get a complaint about unknown packages cfml:
+```
+opam repo add coq-released https://coq.inria.fr/opam/released --all --set-default
 ```

@@ -1,5 +1,5 @@
 (library (name proof_validator)
- (libraries coq-core.toplevel)
+ (libraries coq-serapi.serlib coq-serapi.sertop_v8_12 coq-serapi.serapi_v8_14)
  (flags -rectypes)
  (modules (:standard \ main)))
 
