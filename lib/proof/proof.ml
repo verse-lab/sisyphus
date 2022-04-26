@@ -16,6 +16,10 @@ module Make(C: Context.CONFIG) = struct
     List.head_opt prf.states
     |> Option.value ~default:Ctx.initial_state
 
+  let past_state count prf =
+    List.nth_opt prf.states count
+    |> Option.value ~default:Ctx.initial_state
+
   let reset () =
     Ctx.fresh_doc ();
     prf.states <- []
@@ -35,11 +39,16 @@ module Make(C: Context.CONFIG) = struct
     prf.states <- states;
     ignore @@ Ctx.cancel [cancelled]
 
-  let parse txt =
-    Ctx.parse ~state:(current_state prf) txt
+  let parse ?at txt =
+    match at with
+    | None -> Ctx.parse ~state:(current_state prf) txt
+    | Some at ->
+      Ctx.parse ~state:(past_state at prf) txt
     
-  let query cmd =
-    Ctx.query (current_state prf) cmd
+  let query ?at cmd =
+    match at with
+    | None -> Ctx.query (current_state prf) cmd
+    | Some at -> Ctx.query (past_state at prf) cmd
     
   let exec () =
     Ctx.exec (current_state prf)

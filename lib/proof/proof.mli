@@ -31,13 +31,14 @@ module Make(C: CONFIG) : sig
   val cancel_last : unit -> unit
   (** [cancel_last ()] undoes the last statement of the proof script. *)
 
-  val parse : string -> Vernacexpr.vernac_control option
+  val parse : ?at:int -> string -> Vernacexpr.vernac_control option
   (** [parse txt] parses [txt] in the context of the current proof script. *)
 
-  val query :
+  val query : ?at:int ->
     Serapi.Serapi_protocol.query_cmd ->
     Serapi.Serapi_protocol.coq_object list option
-  (** [query cmd] executes a query [cmd] on the proof script state. *)
+  (** [query ?at cmd] executes a query [cmd] on the proof script
+     state. If provided, evaluated at [at] commands prev *)
 
   val exec : unit -> unit
   (** [exec ()] executes the proof script.  *)

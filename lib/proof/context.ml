@@ -125,7 +125,7 @@ module Make (C: CONFIG) = struct
     }, cmd))
     |> List.find_map (function
       | SP.(ObjList query) -> Some query
-      | _ -> None)
+      | _  -> None)
 
   let exec (State state) =
     ignore @@ _eval_cmd SP.(Exec state)
