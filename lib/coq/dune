@@ -1,4 +1,4 @@
-(library (name proof_validator)
+(library (name coq)
  (libraries containers bos coq-serapi.serlib coq-serapi.sertop_v8_12 coq-serapi.serapi_v8_14)
  (flags -rectypes)
  (modules (:standard \ main)))
@@ -6,4 +6,4 @@
 (executable (name main)
  (modules main)
  (flags -rectypes)
- (libraries proof_validator))
+ (libraries coq))
