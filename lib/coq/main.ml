@@ -1,12 +1,11 @@
 open Containers
 
 let () =
-  print_endline "initial: hello world";
   let module Ctx =
-    Proof_validator.Proof.Make(struct
+    Coq.Proof.Make(struct
       let verbose = false
       let libs = [
-        Proof_validator.Coqlib.make
+        Coq.Coqlib.make
           ~path:(Fpath.of_string "../../_build/default/resources/seq_to_array" |> Result.get_exn)
           "Proofs"
       ]
