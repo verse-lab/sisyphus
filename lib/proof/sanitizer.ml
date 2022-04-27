@@ -1,3 +1,4 @@
+open Lang
 module Heap' = Heap
 open Containers
 module Heap = Heap'
@@ -100,7 +101,7 @@ let convert_assertion: PProof.sep_spec -> Heap.Assertion.t =
   |> Heap.Assertion.of_list
 
 
-let convert_spec: PProof.spec -> Proof.spec = function
+let convert_spec: PProof.spec -> Script.spec = function
     Proof_parser.Proof.Spec (param, f_app, pre, res_param, post) ->
     let types, params  =  extract_params param in
     let invariants = [] in
@@ -131,7 +132,7 @@ let convert_spec: PProof.spec -> Proof.spec = function
       res_param;
       post;
       application;
-    }: Proof.spec)
+    }: Script.spec)
 
 let convert_param : PProof.param -> Expr.typed_param = function
   | PProof.Implicit (v, ty) -> `Var (v, convert_ty ty)
@@ -144,7 +145,7 @@ let convert_param_ty : PProof.param -> Expr.param * _ = function
   | PProof.TupleParam (args, ty) -> (`Tuple args, convert_ty ty)
 
 
-let convert_spec_arg : PProof.spec_arg -> Proof.spec_arg = function
+let convert_spec_arg : PProof.spec_arg -> Script.spec_arg = function
   | PProof.Lambda (params, HeapSpec heapspec) ->
     let params = List.map convert_param_ty params in
     let body = convert_assertion heapspec in
@@ -166,7 +167,7 @@ let rec mapM f ls kont =
     let+ t = mapM f t in
     kont (h :: t)
 
-let rec convert_proof ls (kont : (Proof.step list -> 'a)) : 'a = match ls with
+let rec convert_proof ls (kont : (Script.step list -> 'a)) : 'a = match ls with
   | [] -> kont []
   | PProof.Xcf :: rest ->
     let+ rest = convert_proof rest in

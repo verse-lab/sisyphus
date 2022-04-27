@@ -60,41 +60,41 @@ let __enc_int v = `Int v
 
 |ocaml} 
 
-  (* Logic.Program *)
+  (* Lang.Program *)
 
-  let rec sample_arg_for_ty env : Logic.Type.t -> string Random.random_gen =
+  let rec sample_arg_for_ty env : Lang.Type.t -> string Random.random_gen =
     let open Random in
     function[@warning "-8"]
-    | Logic.Type.Unit -> pure "()"
-    | Logic.Type.Var _ -> pure @@ Format.sprintf "%a" Symbol.pp (Symbol.fresh ())
-    | Logic.Type.Int -> let* i = Random.int 10 in pure @@ Printf.sprintf "%d" i
-    | Logic.Type.List ty ->
+    | Lang.Type.Unit -> pure "()"
+    | Lang.Type.Var _ -> pure @@ Format.sprintf "%a" Symbol.pp (Symbol.fresh ())
+    | Lang.Type.Int -> let* i = Random.int 10 in pure @@ Printf.sprintf "%d" i
+    | Lang.Type.List ty ->
       let* sz = Random.pick_array [|1; 3; 4; 5; 8; 10; 20|] in
       let* contents = List.init sz (fun _ -> sample_arg_for_ty env ty) |> list_seq in
       pure (Printf.sprintf "[%s]" (String.concat "; " contents))
-    | Logic.Type.Array ty ->
+    | Lang.Type.Array ty ->
       let* sz = Random.pick_array [|1; 3; 4; 5; 8; 10; 20|] in
       let* contents = List.init sz (fun _ -> sample_arg_for_ty env ty) |> list_seq in
       pure (Printf.sprintf "[|%s|]" (String.concat "; " contents))
-    | Logic.Type.Product tys ->
+    | Lang.Type.Product tys ->
       let* contents = List.map (fun ty -> sample_arg_for_ty env ty) tys |> list_seq in
       pure (Printf.sprintf "(%s)" (String.concat ", " contents))
-    | Logic.Type.Ref ty ->
+    | Lang.Type.Ref ty ->
       let* contents = sample_arg_for_ty env ty in
       pure @@ Printf.sprintf "(ref (%s))" contents
-    | Logic.Type.ADT (name, [ty]) ->
+    | Lang.Type.ADT (name, [ty]) ->
       let conv_fun = List.assoc ~eq:String.equal name env in
       let* sz = Random.pick_array [|1; 3; 4; 5; 8; 10; 20|] in
       let* contents = List.init sz (fun _ -> sample_arg_for_ty env ty) |> list_seq in
       pure @@ Printf.sprintf "(%s [%s])" conv_fun (String.concat "; " contents)
 
-  let generate_random_args env (args: (string * Logic.Type.t) list) =
+  let generate_random_args env (args: (string * Lang.Type.t) list) =
     let args =
       Random.run
         (List.map (fun (_,ty) -> sample_arg_for_ty env ty) args |> Random.list_seq) in
     String.concat " " args
 
-  let encode ?prelude:(prelude'="") (prog: Logic.Expr.t Logic.Program.t) input =
+  let encode ?prelude:(prelude'="") (prog: Lang.Expr.t Lang.Program.t) input =
     let id =
       let ind = ref 0 in
       fun () -> incr ind; !ind in
@@ -111,23 +111,23 @@ let __enc_int v = `Int v
       (List.pp ~pp_start:(fun _ _ -> ())
          ~pp_stop:(fun _ _ -> ())
          ~pp_sep:(fun fmt () -> Format.pp_print_space fmt ())
-         Logic.Expr.pp_typed_param)
+         Lang.Expr.pp_typed_param)
       (List.map (fun v -> `Var v) prog.args);
 
-    let rec build_enc (v: Logic.Type.t) =
+    let rec build_enc (v: Lang.Type.t) =
       match v with
-      | Logic.Type.Unit -> None
-      | Logic.Type.Ref _ -> None
-      | Logic.Type.Array _ -> None
-      | Logic.Type.Var _ -> Some "__enc_symbol"
-      | Logic.Type.Int -> Some "__enc_int"
-      | Logic.Type.Func -> None
-      | Logic.Type.Loc -> None
-      | Logic.Type.List ty ->
+      | Lang.Type.Unit -> None
+      | Lang.Type.Ref _ -> None
+      | Lang.Type.Array _ -> None
+      | Lang.Type.Var _ -> Some "__enc_symbol"
+      | Lang.Type.Int -> Some "__enc_int"
+      | Lang.Type.Func -> None
+      | Lang.Type.Loc -> None
+      | Lang.Type.List ty ->
         Option.map
           (fun enc -> Printf.sprintf "(__enc_list %s)" enc)
           (build_enc ty)
-      | Logic.Type.ADT (_adt, _tys) ->
+      | Lang.Type.ADT (_adt, _tys) ->
         None
         (* List.map build_enc tys
          * |> List.all_some
@@ -136,7 +136,7 @@ let __enc_int v = `Int v
          *     adt
          *     (String.concat " " tys)
          * ) *)
-      | Logic.Type.Product tys ->
+      | Lang.Type.Product tys ->
         List.map build_enc tys
         |> List.all_some
         |> Option.map @@ fun tys ->
@@ -146,7 +146,7 @@ let __enc_int v = `Int v
           (List.mapi (fun i ty -> Printf.sprintf "%s v%d" ty i) tys
            |> String.concat "; ") in
 
-    let print_env (env: (string * Logic.Type.t) list) =
+    let print_env (env: (string * Lang.Type.t) list) =
       List.filter_map (fun (name, ty) ->
         build_enc ty |> Option.map (fun enc ->
           Printf.sprintf {|"%s", %s %s|}
@@ -155,21 +155,21 @@ let __enc_int v = `Int v
 
     let print_heap env =
       List.filter_map (function
-        | v, Logic.Type.Array ty ->
+        | v, Lang.Type.Array ty ->
           (build_enc ty) |> Option.map @@ fun enc ->
           (Printf.sprintf {|"%s", `Array (List.map (%s) (Array.to_list %s))|} v enc v)
-        | v, Logic.Type.Ref ty ->
+        | v, Lang.Type.Ref ty ->
           (build_enc ty) |> Option.map @@ fun enc ->
           (Printf.sprintf {|"%s", `PointsTo ((%s) (! %s))|} v enc v)
         | _ -> None
       ) env |> String.concat "; " in
 
-    let add_param (param: Logic.Expr.typed_param) env =
+    let add_param (param: Lang.Expr.typed_param) env =
       match param with
       | `Tuple args -> env @ args
       | `Var arg -> env @ [arg] in
 
-    let rec loop ~observe env (body: Logic.Expr.t Logic.Program.stmt) =
+    let rec loop ~observe env (body: Lang.Expr.t Lang.Program.stmt) =
       match body with
       | `Value vl ->
         let id = id () in
@@ -182,7 +182,7 @@ let __enc_int v = `Int v
         end;
         fmt {|
           %a
-        |} Logic.Expr.pp vl;
+        |} Lang.Expr.pp vl;
         if observe then begin
           fmt {|
           __observe %d [%s] [%s];
@@ -205,7 +205,7 @@ let __enc_int v = `Int v
           __observe %d [%s] [%s];
         |} id env heap
         end;
-      | `LetExp (`Var (_, Logic.Type.Unit), expr, body) ->
+      | `LetExp (`Var (_, Lang.Type.Unit), expr, body) ->
         let () =
           let id = id () in
           let heap = print_heap env in
@@ -218,7 +218,7 @@ let __enc_int v = `Int v
           fmt {|
           let _ = %a in
         |} 
-            Logic.Expr.pp expr in
+            Lang.Expr.pp expr in
         loop ~observe env body
       | `LetExp (args, expr, body) ->
         let () =
@@ -233,8 +233,8 @@ let __enc_int v = `Int v
           fmt {|
           let %a = %a in
         |} 
-            Logic.Expr.pp_typed_param args
-            Logic.Expr.pp expr in
+            Lang.Expr.pp_typed_param args
+            Lang.Expr.pp expr in
         let env = add_param args env in
         loop ~observe env body
       | `LetLambda (var, `Lambda (params, lambody), body) ->
@@ -245,7 +245,7 @@ let __enc_int v = `Int v
             (List.pp ~pp_start:(fun _ _ -> ())
                ~pp_stop:(fun _ _ -> ())
                ~pp_sep:(fun fmt () -> Format.pp_print_space fmt ())
-               Logic.Expr.pp_typed_param) params;
+               Lang.Expr.pp_typed_param) params;
           let env =
             List.fold_left (fun env param -> add_param param env)
               env params in
@@ -265,7 +265,7 @@ let __enc_int v = `Int v
           end;
           fmt {|
           match %a with
-        |}  Logic.Expr.pp exp in
+        |}  Lang.Expr.pp exp in
         List.iter (fun (cons, params, body) ->
           begin
             let params = List.map (fun v -> `Var v) params in
@@ -273,7 +273,7 @@ let __enc_int v = `Int v
               (List.pp ~pp_start:(fun _ _ -> ())
                  ~pp_stop:(fun _ _ -> ())
                  ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ", ")
-                 Logic.Expr.pp_typed_param) in
+                 Lang.Expr.pp_typed_param) in
             match cons, params with
             | _, [] ->
           fmt {|
@@ -282,8 +282,8 @@ let __enc_int v = `Int v
             | "::", [h; t] ->
           fmt {|
             | (%a) :: (%a) ->
-|}        Logic.Expr.pp_typed_param h
-          Logic.Expr.pp_typed_param t
+|}        Lang.Expr.pp_typed_param h
+          Lang.Expr.pp_typed_param t
             | cons, _ :: _ ->
           fmt {|
             | %s (%a) ->
@@ -305,7 +305,7 @@ let __enc_int v = `Int v
           fmt {|
             %s.(%s) <- %a;
         |} arr offs
-            Logic.Expr.pp vl in
+            Lang.Expr.pp vl in
         loop ~observe env body
     in
     loop ~observe:true prog.args prog.body;
@@ -325,7 +325,7 @@ let __enc_int v = `Int v
     encode ?prelude prog input
     |> generate_trace 
 
-  let bitrace (prog1: Logic.Expr.t Logic.Program.t) (prog2: Logic.Expr.t Logic.Program.t) =
+  let bitrace (prog1: Lang.Expr.t Lang.Program.t) (prog2: Lang.Expr.t Lang.Program.t) =
     assert Equal.(poly prog1.args prog2.args);
     assert Equal.(poly prog1.converters prog2.converters);
 

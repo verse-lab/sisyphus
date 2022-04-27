@@ -1,9 +1,9 @@
 (library (name dynamic)
  (modules (:standard \ "main"))
  (preprocess (pps ppx_deriving.std ppx_deriving.ord))
- (libraries logic bos containers iter))
+ (libraries lang bos containers iter))
 
 
 (executable (name main)
  (modules main)
- (libraries dynamic logic containers))
+ (libraries dynamic lang containers))

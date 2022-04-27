@@ -1,3 +1,4 @@
+open Lang
 module Heap' = Heap 
 open Containers
 module Heap = Heap'

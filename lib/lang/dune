@@ -1,8 +1,8 @@
-(library (name logic)
+(library (name lang)
  (preprocess (pps ppx_deriving.std ppx_deriving.ord))
  (modules (:standard \ "main"))
  (libraries proof_parser compiler-libs.common containers iter pprint))
 
 (executable (name main)
  (modules main)
- (libraries proof_parser logic containers))
+ (libraries proof proof_parser lang containers))

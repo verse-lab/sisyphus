@@ -1,0 +1,3 @@
+(library (name proof)
+ (preprocess (pps ppx_deriving.std ppx_deriving.ord))
+ (libraries lang proof_parser containers iter pprint))

@@ -20,10 +20,10 @@ pos %d:
 let () =
   let prog1 =
     IO.with_in "../../resources/seq_to_array/original.ml" IO.read_all
-    |> Logic.Sanitizer.parse_str in
+    |> Lang.Sanitizer.parse_str in
   let prog2 =
     IO.with_in "../../resources/seq_to_array/updated.ml" IO.read_all
-    |> Logic.Sanitizer.parse_str in
+    |> Lang.Sanitizer.parse_str in
 
 
   (* IO.with_out "/tmp/original.ml" (Fun.flip IO.write_line
@@ -37,13 +37,13 @@ let () =
   let print_top_k top_k =
     IntMap.to_iter top_k (fun (lpos, rpos) ->
       Format.printf "%d:\n\t[%a]\n" lpos
-        (* (Option.pp (Logic.Program.pp_stmt_line Logic.Expr.print))
-         * (Logic.Program.lookup_statement lpos prog1) *)
+        (* (Option.pp (Lang.Program.pp_stmt_line Lang.Expr.print))
+         * (Lang.Program.lookup_statement lpos prog1) *)
         (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt ";\n\t" ) (fun fmt (rpos, score) ->
            Format.fprintf fmt "%d, %.2f"
              rpos score
-             (* (Option.pp (Logic.Program.pp_stmt_line Logic.Expr.print))
-              * (Logic.Program.lookup_statement rpos prog2) *)
+             (* (Option.pp (Lang.Program.pp_stmt_line Lang.Expr.print))
+              * (Lang.Program.lookup_statement rpos prog2) *)
          )) rpos
     ) in
   print_endline "matches from left to right";

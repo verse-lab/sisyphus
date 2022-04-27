@@ -1,4 +1,5 @@
 open Containers
+open Lang
 
 module StringMap : module type of Map.Make(String)
 module StringSet  : module type of Set.Make(String)

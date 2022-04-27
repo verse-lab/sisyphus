@@ -1,4 +1,5 @@
 open Containers
+open Lang
 
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
