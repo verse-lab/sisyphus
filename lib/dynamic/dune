@@ -6,4 +6,4 @@
 
 (executable (name main)
  (modules main)
- (libraries dynamic lang containers))
+ (libraries containers dynlink ocaml-compiler-libs.common ocaml-compiler-libs.optcomp ocaml-compiler-libs.bytecomp lang))
