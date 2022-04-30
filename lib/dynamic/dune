@@ -1,9 +1,19 @@
 (library (name dynamic)
- (modules (:standard \ "main"))
+ (modules (:standard \ "main" "sisyphus_dynamic_global"))
  (preprocess (pps ppx_deriving.std ppx_deriving.ord))
- (libraries lang bos containers iter))
+ (libraries sisyphus_dynamic_global lang bos containers iter))
 
+(library (name sisyphus_dynamic_global)
+ (modules sisyphus_dynamic_global))
 
 (executable (name main)
  (modules main)
- (libraries containers dynlink ocaml-compiler-libs.common ocaml-compiler-libs.optcomp ocaml-compiler-libs.bytecomp lang))
+  (preprocess (pps ppx_blob))
+ (libraries dynamic
+            containers
+            dynlink ocaml-compiler-libs.common
+            ocaml-compiler-libs.optcomp
+            ; ocaml-compiler-libs.bytecomp
+            lang))
+
+

@@ -6,6 +6,9 @@ let () =
     | Env.Error (Lookup_error (loc, env, err)) ->
       Some (Format.to_string (fun fmt () -> Env.report_lookup_error loc env fmt err) ())
     | Symtable.(Error (Undefined_global global)) -> Some ("error: undefined global " ^ global)
+
+    | Typecore.Error (loc, env, error) ->
+      Some (Format.to_string Location.print_report (Typecore.report_error ~loc env error))
     | _ -> None
   )
 
@@ -52,7 +55,6 @@ let dll_run dll entry =
 
 let load_lambda phrase_name module_ident lam size required_globals =
   let slam = Simplif.simplify_lambda lam in
-  print_endline @@ Format.to_string Printlambda.lambda slam;
   let dll = Filename.temp_file ("caml" ^ phrase_name) Config.ext_dll in
   let filename = Filename.chop_extension dll in
   let program = {
@@ -78,33 +80,15 @@ let load_lambda phrase_name module_ident lam size required_globals =
   (try Sys.remove dll with Sys_error _ -> ());
   res
 
-
-let remembered = ref Ident.empty
-
-let rec remember phrase_name i = function
-  | [] -> ()
-  | Types.Sig_value  (id, _, _) :: rest
-  | Sig_module (id, _, _, _, _) :: rest
-  | Sig_typext (id, _, _, _) :: rest
-  | Sig_class  (id, _, _, _) :: rest ->
-      remembered := Ident.add id (phrase_name, i) !remembered;
-      remember phrase_name (succ i) rest
-  | _ :: rest -> remember phrase_name i rest
-
-
 let global_symbol id =
   let sym = Compilenv.symbol_for_global id in
   match Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol:sym with
   | None ->
-    failwith ("Opttoploop.global_symbol " ^ (Ident.unique_name id))
+    failwith ("global_symbol " ^ (Ident.unique_name id) ^ " not found")
   | Some obj -> obj
 
 let toplevel_value id =
-  try Ident.find_same id !remembered
-  with _ -> Misc.fatal_error @@ "Unknown ident: " ^ Ident.unique_name id
-
-let toplevel_value id =
-  let glob, pos = toplevel_value id in
+  let glob, pos = Translmod.nat_toplevel_name id in
   (Obj.magic (global_symbol glob)).(pos)
 
 let fresh_phrase_name =
@@ -113,27 +97,33 @@ let fresh_phrase_name =
     incr seqid;
     Printf.sprintf "TOP%d" !seqid
 
-let execute_mod env modl =
-    (* print_endline @@ "module env: [" ^ String.concat ", " (List.map (fun id -> Ident.name id) Env.(diff empty env)) ^ "]"; *)
+let type_phrase env modl =
+  let phrase_name = fresh_phrase_name () in
+  Compilenv.reset ?packname:None phrase_name;
+  Typecore.reset_delayed_checks ();
+  let (str, sg, names, newenv) = Typemod.type_structure env modl in
+  let sg' = Typemod.Signature_names.simplify newenv names sg in
+  str, sg', newenv
+
+let execute_phrase env modl =
     let phrase_name = fresh_phrase_name () in
     Compilenv.reset ?packname:None phrase_name;
     Typecore.reset_delayed_checks ();
     let (str, sg, names, newenv) = Typemod.type_structure env modl in
-    (* print_endline @@ "typed env: [" ^ String.concat ", " (List.map (fun id -> Ident.name id) Env.(diff env newenv)) ^ "]"; *)
     let sg' = Typemod.Signature_names.simplify newenv names sg in
     ignore (Includemod.signatures newenv ~mark:Mark_positive sg sg');
     Typecore.force_delayed_checks ();
+
     let module_ident, res, required_globals, size =
       let size, res = Translmod.transl_store_phrases phrase_name str in
       Ident.create_persistent phrase_name, res, Ident.Set.empty, size in
     Warnings.check_fatal ();
     let res = load_lambda phrase_name module_ident res size required_globals in
-    (* print_endline @@ "registering opaque: " ^ (Ident.name module_ident); *)
 
     (* IMPORTANT: otherwise, will complain about no cmx files found for dyn-linked modules  *)
     Compilenv.record_global_approx_toplevel ();
 
-    res, newenv
+    sg', res, newenv
 
 let open_mod_ast file =
   let file = Load_path.find file in
@@ -153,41 +143,133 @@ let open_mod_ast file =
     ]
   )
 
-let () =
-  (* Sys.interactive := true; *)
-  (* Compmisc.init_path (); *)
-  (* Clflags.dlcode := true; *)
+let eval_expr env expr =
+  let expr = 
+    let pat = Ast_helper.Pat.var (Location.mknoloc "_$") in
+    let vb = Ast_helper.Vb.mk pat expr in
+    Ast_helper.[
+      Str.value Asttypes.Nonrecursive [vb]
+    ] in
+  let sg, outcome, env = execute_phrase env expr in
 
+  match outcome with
+  | Exception e -> raise e
+  | Result _ ->
+    match sg with
+    | Types.[ Sig_value (id, _, _) ] ->
+      toplevel_value id
+    | _ -> assert false
+
+let v = Sisyphus_dynamic_global.trace
+let () =
   Clflags.native_code := true;  (* important, otherwise will crash *)
-  (* Compmisc.read_clflags_from_env (); *)
+  Compmisc.init_path ~dir:"../../_build/default/lib/dynamic/" ();
   Compmisc.init_path ~dir:"../../_build/default/resources/seq_to_array/" ();
 
-  (* let load_path =
-   *   let expand = Misc.expand_directory Config.standard_library in
-   *   List.concat [
-   *   List.map expand (List.rev !Compenv.first_include_dirs);
-   *   List.map expand (List.rev !Clflags.include_dirs);
-   * 
-   *   List.map expand (List.rev !Compenv.last_include_dirs);
-   *   ["../../_build/default/resources/seq_to_array/"];
-   *   Load_path.get_paths ()
-   * ] in *)
-  (* Load_path.init load_path;
-   * Dll.add_path load_path; *)
-  (* Load_path.add_dir "../../_build/default/resources/seq_to_array/"; *)
-  (* List.iteri (Printf.printf "%d: %s\n") (Load_path.get_paths ());
-   * Sys.interactive := true;
-   * let crc_intfs = Symtable.init_toplevel() in
-   * Env.import_crcs ~source:Sys.executable_name crc_intfs; *)
-  let env = Compmisc.initial_env () in
-  let ast = open_mod_ast "common.ml" in
-  let res, env = execute_mod env ast in
+  let dyn_global_sig, sg, _ = [%blob "./sisyphus_dynamic_global.ml"]
+             |> raw_parse_str
+             |> type_phrase (Compmisc.initial_env ()) in
 
-  let ast = open_mod_ast "seq_to_array_old.ml" in
-  let res, env = execute_mod env ast in
+  let cmt : Cmi_format.cmi_infos = {
+    cmi_name="Sisyphus_dynamic_global";
+    cmi_sign=sg;
+    cmi_crcs=[];
+    cmi_flags=[];
+  } in
+  let old_loader = !Persistent_env.Persistent_signature.load in
+  Persistent_env.Persistent_signature.load := (fun ~unit_name ->
+    match unit_name with
+    | "Sisyphus_dynamic_global" ->
+      Some (Persistent_env.Persistent_signature.{filename="sisyphus_dynamic_global.cmi"; cmi=cmt})
+    | _ -> old_loader ~unit_name;
+  );
+
+  for _ = 0 to 2 do
 
 
-  
+    let env = Compmisc.initial_env () in
+      
+    let env = Env.add_persistent_structure (Ident.create_persistent "Sisyphus_dynamic_global") env in
+
+    let ast = open_mod_ast "common.ml" in
+    let _, res, env = execute_phrase env ast in
+
+    let ast = open_mod_ast "seq_to_array_old.ml" in
+    let _, res, env = execute_phrase env ast in
+
+    (* let _, ty = Env.lookup_type
+     *            ~loc:(Location.mknoloc ()).loc
+     *            (Option.get_exn_or "could not parse stdlib" @@ Longident.unflatten ["Stdlib"; "ref"]) env in *)
+
+
+    let v = (module (struct
+              type t = YouCantSeeThis of int * t list
+
+              let rec to_string = function
+                | YouCantSeeThis (cnt, children) ->
+                  "YouCantSeeThis" ^ string_of_int cnt ^ "(" ^ (String.concat ", " (List.map to_string children)) ^ ")"
+
+              let create () = YouCantSeeThis(10, [])
+
+              let rec update (YouCantSeeThis (vl,children)) n =
+                YouCantSeeThis (vl, YouCantSeeThis (n, []) :: List.map (fun tree -> update tree (n + vl)) children)
+
+            end): Sisyphus_dynamic_global.S) in
+
+    let vl' : (module Sisyphus_dynamic_global.S) = eval_expr env (raw_parse_expr_str "(module (struct
+              type t = YouCantSeeThis of int * t list
+
+              let rec to_string = function
+                | YouCantSeeThis (cnt, children) ->
+                  \"YouCantSeeThis\" ^ string_of_int cnt ^ \"(\" ^ (String.concat \", \" (List.map to_string children)) ^ \")\"
+
+              let create () = YouCantSeeThis(10, [])
+
+              let rec update (YouCantSeeThis (vl,children)) n =
+                YouCantSeeThis (vl, YouCantSeeThis (n, []) :: List.map (fun tree -> update tree (n + vl)) children)
+
+            end): Sisyphus_dynamic_global.S)") in
+    let module M = (val vl') in
+    let datatype_str = M.create () |> Fun.flip M.update 10 |> Fun.flip M.update 20 |> M.to_string in
+    print_endline @@ Printf.sprintf "%s"  datatype_str;
+
+    (* let vl' : int ref =
+     *   eval_expr (Env.add_module (Ident.create_predef "Dynamic") Types.Mp_absent
+     *                Types.(Mty_signature [
+     *                   Sig_value (
+     *                    (Ident.create_predef "trace"), {
+     *                      val_type={
+     *                        desc=Tconstr (Path.Pdot (Pident (Ident.create_persistent "Stdlib"), "ref"), [
+     *                          {
+     *                            desc=Tconstr (Path.Pdot (Pident (Ident.create_persistent "Stdlib"), "int"), [], ref Mnil);
+     *                            level=0;
+     *                            scope=0;
+     *                            id=0;
+     *                          }
+     *                        ], ref Mnil);
+     *                        level=0;
+     *                        scope=0;
+     *                        id=0;
+     *                      };
+     *                      val_kind=Val_reg;
+     *                      val_loc=(Location.mknoloc ()).loc;
+     *                      val_attributes=[];
+     *                      val_uid=Uid.internal_not_actually_unique
+     *                     },
+     *                     Types.Exported
+     *                   )
+     *                 ]) env) (raw_parse_expr_str "Dynamic.trace") in *)
+
+
+
+    let a : int array = eval_expr env (raw_parse_expr_str "Seq_to_array_old.to_array Common.(fun () -> Cons (1, fun () -> Nil))") in
+
+    begin match a with
+    | a ->
+      print_endline @@
+      Printf.sprintf "{%s}" (Array.to_list a |> List.mapi (Printf.sprintf "[%d]: %d") |> String.concat ", ");
+    end;
+  done;
   (* let common, env = 
    *   let prog =
    *     let chan = open_in "../../_build/default/resources/seq_to_array/common.ml" in
