@@ -1,4 +1,5 @@
 open Containers
+
 module type SYMBOL = sig
   type t
   val tname : string
@@ -29,39 +30,7 @@ module Make(Symbol: SYMBOL) = struct
   type trace = state list
   [@@deriving show, eq]
 
-
-  let ty_def = Format.sprintf {|
-  type value = [
-    | `Int of int
-    | `Value of %s
-    | `List of value list
-    | `Tuple of value list
-    | `Constructor of string * value list
-  ] 
-
-  type heaplet = [
-      `PointsTo of value
-    | `Array of value list
-  ]
-
-  type state = int * (string * value) list * (string * heaplet) list
-|} Symbol.tname
-
-
-  let prelude = Symbol.prelude ^ "\n" ^ ty_def ^ "\n" ^ {ocaml|
-
-let __trace : state list ref = ref []
-let __marshal () = print_endline (Marshal.to_string (List.rev !__trace) Marshal.[])
-let __observe id env heaplet = __trace := (id, env,heaplet) :: !__trace
-
-let __enc_list f ls = `List (List.map f ls)
-let __enc_symbol v = `Value v
-let __enc_int v = `Int v
-
-|ocaml} 
-
   (* Lang.Program *)
-
   let rec sample_arg_for_ty env : Lang.Type.t -> string Random.random_gen =
     let open Random in
     function[@warning "-8"]

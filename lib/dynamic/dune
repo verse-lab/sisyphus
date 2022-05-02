@@ -1,10 +1,10 @@
 (library (name dynamic)
- (modules (:standard \ "main" "sisyphus_dynamic_global"))
+ (modules (:standard \ "main" "sisyphus_tracing"))
  (preprocess (pps ppx_deriving.std ppx_deriving.ord))
- (libraries sisyphus_dynamic_global lang bos containers iter))
+ (libraries sisyphus_tracing lang bos containers iter))
 
-(library (name sisyphus_dynamic_global)
- (modules sisyphus_dynamic_global))
+(library (name sisyphus_tracing)
+ (modules sisyphus_tracing))
 
 (executable (name main)
  (modules main)

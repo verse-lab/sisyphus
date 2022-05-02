@@ -14,21 +14,20 @@ type 'a stmt = [
 type 'a lambda = [ `Lambda of Expr.typed_param list * 'a stmt ]
 
 type 'a t = {
-  converters: (string * string) list;
-  prelude: string;
+  prelude: Parsetree.structure_item list;
   name: string;
   args: (string * Type.t) list;
   body: 'a stmt
 }
 
 
-let lookup_statement id prog =
+let lookup_statement (id: Id.t) prog =
   let rec loop pos (body: 'a stmt) =
     match body with
     | _ as v when pos = id -> Ok v
-    | `EmptyArray | `Value _ -> Error (pos + 2)
-    | `Write (_, _, _, rest) -> loop (pos + 1) rest
-    | `LetExp (_, _, rest) -> loop (pos + 1) rest
+    | `EmptyArray | `Value _ -> Error (Id.incr pos)
+    | `Write (_, _, _, rest) -> loop (Id.incr pos) rest
+    | `LetExp (_, _, rest) -> loop (Id.incr pos) rest
     | `LetLambda (_, `Lambda (_, lambody), rest) ->
       begin match loop pos lambody with
       | Ok v -> Ok v
@@ -41,8 +40,8 @@ let lookup_statement id prog =
         | (_, _, h) :: t -> match loop pos h with
           | Ok v -> Ok v
           | Error pos -> fold pos t in
-      fold (pos + 1) cases in
-  loop 1 prog.body
+      fold (Id.incr pos) cases in
+  loop Id.init prog.body
   |> Result.to_option
 
 

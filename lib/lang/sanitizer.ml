@@ -35,10 +35,6 @@ let rec convert_typ (ty: Parsetree.core_type) : Type.t =
     failwith @@ Format.sprintf "unsupported type %a"
                   Pprintast.core_type ty
 
-
-
-
-
 let rec convert_pat (pat: Parsetree.pattern) : Expr.typed_param =
   match pat with
   | { ppat_desc=Ppat_constraint ({ppat_desc=Ppat_var {txt;_}}, ty);  } ->
@@ -177,7 +173,8 @@ and convert_lambda ctx e =
   collect_params ctx [] e 
 
 let split_last ls =
-  let rec loop acc last = function
+  let rec loop acc last =
+    function
     | [] -> (List.rev acc, last)
     | h :: t -> loop (last :: acc) h t in
   match[@warning "-8"] ls with
@@ -199,16 +196,14 @@ let collect_converters ls =
     | _ -> None in
   List.filter_map collect_converters ls
 
-let to_str str = Format.to_string (Pprintast.structure) str
 
 let convert : Parsetree.structure -> 'a Program.t = function
   | pats ->
-    let pres, {
+    let prelude, {
       pstr_desc=Pstr_value (Nonrecursive,
                             [{pvb_pat={ppat_desc=Ppat_var {txt=name}};
                               pvb_expr}])} = split_last pats in
-    let prelude = to_str pres in
-    let converters = collect_converters pres in
+    (* let prelude = to_str pres in *)
     let rec collect_params acc : Parsetree.expression -> _ = function
       | {pexp_desc=
            Pexp_fun (_, _, {
@@ -222,7 +217,7 @@ let convert : Parsetree.structure -> 'a Program.t = function
         let body = convert_stmt ctx body in
         (params, body) in
     let args, body = collect_params [] pvb_expr in
-    {converters; prelude; name;args;body}
+    {prelude; name;args;body}
 
 let parse_lambda_str str = raw_parse_expr_str str |> convert_lambda StringSet.empty
 let parse_expr_str str = raw_parse_expr_str str |> convert_expr
