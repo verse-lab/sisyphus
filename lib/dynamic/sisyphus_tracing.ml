@@ -36,11 +36,12 @@ type heaplet = [
 ]
 
 type context = (string * value) list
+type heap_context = (string * heaplet) list
 
 type state = {
   position: int;
   env: context;
-  heap: context;
+  heap: heap_context;
 }
 
 type trace = state list
@@ -66,6 +67,6 @@ include (struct
       trace
 
 end : sig
-           val observe: at:int -> env:context -> heap:context -> unit
+           val observe: at:int -> env:context -> heap:heap_context -> unit
            val trace : (unit -> unit) -> trace
          end)

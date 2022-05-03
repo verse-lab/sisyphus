@@ -1,5 +1,13 @@
 type env
 
+val raw_parse_str: string -> Parsetree.structure
+(** [raw_parse_str txt] uses the OCaml compiler to parse a given string into structure AST. *)
+
+val raw_parse_expr_str: string -> Parsetree.expression
+(** [raw_parse_expr_str txt] uses the OCaml compiler to parse a given string into expression AST. *)
+
+val raw_parse_channel:in_channel -> Parsetree.structure
+
 val initial_env: unit -> env
 (** [initial_env ()] returns an initial OCaml typing environment,
    preloaded with the OCaml stdlib.  *)

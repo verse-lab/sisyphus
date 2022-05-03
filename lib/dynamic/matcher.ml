@@ -3,13 +3,11 @@ open Utils
 
 type sanitized_state = {
   id: int;
-  env: Tracer.value stringmap;
-  heap: Tracer.heaplet stringmap;
+  env: Runtime.value stringmap;
+  heap: Runtime.heaplet stringmap;
 } [@@deriving show, eq]
 
-type sanitized_trace = sanitized_state list
-
-let sanitize_state ((id, env, heap): Tracer.state) : sanitized_state = {
+let sanitize_state ({position=id; env; heap}: Sisyphus_tracing.state) : sanitized_state = {
   id; env = StringMap.of_list env; heap = StringMap.of_list heap
 }
 let sanitize_trace ls = List.map sanitize_state ls
@@ -23,7 +21,7 @@ let score scorers s1 s2 =
   List.filter_map (fun f -> f s1 s2) scorers
   |> List.fold_left (+.) 0.
 
-let value_size (vl: Tracer.value) =
+let value_size (vl: Runtime.value) =
   Float.of_int @@ match vl with
     | `List vl -> List.length vl
     | `Tuple vl -> List.length vl
@@ -36,31 +34,31 @@ let heaplet_size vl =
     | `PointsTo _ -> 1.0
     | `Array ls -> 1.0 +. (Float.of_int (List.length ls)) /. 100.  
 
-let heap_size s1 =
+let _heap_size s1 =
   StringMap.fold (fun _ vl acc ->
     acc +. heaplet_size vl
   ) s1.heap 0.
 
-let heaplet_matches (v1: Tracer.heaplet) (v2: Tracer.heaplet) =
+let heaplet_matches (v1: Runtime.heaplet) (v2: Runtime.heaplet) =
   match v1, v2 with
-  | (`PointsTo v1, `PointsTo v2) -> Tracer.equal_value v1 v2
-  | (`Array v1, `Array v2) -> List.equal Tracer.equal_value v1 v2
-  | (`PointsTo (`List v1), `Array v2) -> List.equal Tracer.equal_value v1 v2
-  | (`Array v1, `PointsTo (`List v2)) -> List.equal Tracer.equal_value v1 v2
-  | (`PointsTo v1, `Array [v2]) -> Tracer.equal_value v1 v2
-  | (`Array [v1], `PointsTo v2) -> Tracer.equal_value v1 v2
+  | (`PointsTo v1, `PointsTo v2) -> Runtime.equal_value v1 v2
+  | (`Array v1, `Array v2) -> List.equal Runtime.equal_value v1 v2
+  | (`PointsTo (`List v1), `Array v2) -> List.equal Runtime.equal_value v1 v2
+  | (`Array v1, `PointsTo (`List v2)) -> List.equal Runtime.equal_value v1 v2
+  | (`PointsTo v1, `Array [v2]) -> Runtime.equal_value v1 v2
+  | (`Array [v1], `PointsTo v2) -> Runtime.equal_value v1 v2
   | _ -> false
 
-let value_matches_heaplet (v1: Tracer.value) (v2: Tracer.heaplet) =
+let value_matches_heaplet (v1: Runtime.value) (v2: Runtime.heaplet) =
   match v1, v2 with
-  | (v1, `PointsTo v2) -> Tracer.equal_value v1 v2
-  | (`List v1, `Array v2) -> List.equal Tracer.equal_value v1 v2
-  | (v1, `Array [v2]) -> Tracer.equal_value v1 v2
+  | (v1, `PointsTo v2) -> Runtime.equal_value v1 v2
+  | (`List v1, `Array v2) -> List.equal Runtime.equal_value v1 v2
+  | (v1, `Array [v2]) -> Runtime.equal_value v1 v2
   | _ -> false
 
 
 let remove_heaplet h1 ls = remove_one ~eq:heaplet_matches h1 ls
-let remove_value_from_env v1 ls = remove_one ~eq:Tracer.equal_value v1 ls
+let remove_value_from_env v1 ls = remove_one ~eq:Runtime.equal_value v1 ls
 let remove_value_from_heap vl ls = remove_first ~pred:(value_matches_heaplet vl) ls
 
 let heap_match s1 s2 =
