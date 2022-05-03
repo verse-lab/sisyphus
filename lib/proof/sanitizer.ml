@@ -12,7 +12,7 @@ let rec convert_ty: PProof.ty -> Type.t = function
   | Type [v] -> Var v
   | Type ["list"; ty] -> List (Var ty)
   | Type ["array"; ty] -> Array (Var ty)
-  | Type (fn :: args) -> ADT (fn, List.map (fun v -> Type.Var v) args)
+  | Type (fn :: args) -> ADT (fn, List.map (fun v -> Type.Var v) args, None)
   | Prod tys -> Product (List.map convert_ty tys)
   | ty -> 
     failwith @@ Format.sprintf "unsupported type: %a" PProof.pp_ty ty
@@ -27,8 +27,9 @@ type t =
   | List of Type.t
   | Array of Type.t
   | Ref of Type.t
-  | ADT of string * Type.t list
   | Product of Type.t list
+  | ADT of string * Type.t list * string option
+
 
 let extract_params param =
   List.fold_left (

@@ -15,26 +15,25 @@ let () =
 let parse_raw lexbuf =
   let result = Parser.implementation Lexer.token lexbuf in
   result
+let parse_expr_raw lexbuf =
+  let result = Parser.parse_expression Lexer.token lexbuf in
+  result
+
+
+let raw_parse_str str = parse_raw (Lexing.from_string ~with_positions:true str)
+let raw_parse_expr_str str = parse_expr_raw (Lexing.from_string ~with_positions:true str)
 let raw_parse_channel chan = parse_raw (Lexing.from_channel ~with_positions:true chan)
 
-module Internal: sig
+module Internal = struct
+
   (** This module is filled with crazy OCaml runtime dark magic. I
       myself barely have a good grasp of how it fully works.
 
       Be careful when messing with this module...  *)
 
-  val dyn_load_definition_as_module: Env.t -> mod_name:string -> ast:Parsetree.structure -> Env.t
-
-  val dyn_load_module_from_file: Env.t -> string -> Env.t
-
-  val add_static_module_def: Env.t -> mod_name:string -> ast:Parsetree.structure -> Env.t
-
-  val eval_expr: Env.t -> Parsetree.expression -> 'a
-
-end = struct
-
   let () =
-    Clflags.native_code := true
+    Clflags.native_code := true;
+      Compmisc.init_path ()
   (* important, otherwise will crash *)
 
 
@@ -119,6 +118,8 @@ end = struct
     Typecore.reset_delayed_checks ();
     let (str, sg, names, newenv) = Typemod.type_structure env modl in
     let sg' = Typemod.Signature_names.simplify newenv names sg in
+    Typecore.force_delayed_checks ();
+    Compilenv.record_global_approx_toplevel ();
     str, sg', newenv
 
   let execute_phrase env modl =

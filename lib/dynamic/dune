@@ -1,7 +1,14 @@
 (library (name dynamic)
  (modules (:standard \ "main" "sisyphus_tracing"))
- (preprocess (pps ppx_deriving.std ppx_deriving.ord))
- (libraries sisyphus_tracing lang bos containers iter))
+ (preprocess (staged_pps ppx_blob ppx_deriving.std ppx_deriving.ord ppx_import))
+ (libraries
+   lang
+   sisyphus_tracing
+   bos
+   containers iter
+   dynlink ocaml-compiler-libs.common
+   ocaml-compiler-libs.optcomp
+))
 
 (library (name sisyphus_tracing)
  (modules sisyphus_tracing))
@@ -13,7 +20,6 @@
             containers
             dynlink ocaml-compiler-libs.common
             ocaml-compiler-libs.optcomp
-            ; ocaml-compiler-libs.bytecomp
             lang))
 
 
