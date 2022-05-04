@@ -294,6 +294,7 @@ module Generator = struct
   let pp_long_ident fmt l = Pprintast.longident fmt l
   let show_long_ident l = Format.to_string pp_long_ident l
 
+
   type arg_schema =
     | Unit
     | Symbol
@@ -326,6 +327,13 @@ module Generator = struct
   let extract_schema (prog: _ Lang.Program.t) : schema =
     prog.args |> List.map (fun (_, ty) -> of_type ty)
 
+  let fresh_int =
+    let next_id = ref 0 in
+    fun () ->
+      let id = !next_id in
+      incr next_id;
+      encode_int id
+
   let rec sample_expr (s: arg_schema) =
     let str str = Location.{ txt=str; loc= !AH.default_loc } in
     let open Random in
@@ -336,8 +344,8 @@ module Generator = struct
       (* Sisyphus_tracing.Symbol.fresh () *)
       fun state -> AH.Exp.(
         apply
-          (ident (str Longident.(Ldot (Ldot (Lident "Sisyphus_tracing", "Symbol"), "fresh"))))
-          [Nolabel, (construct (str (Longident.Lident "()")) None)]
+          (ident (str Longident.(Ldot (Ldot (Lident "Sisyphus_tracing", "Symbol"), "of_raw"))))
+          [Nolabel, fresh_int ()]
       )
     | Int -> 
       let* i = Random.int 10 in
