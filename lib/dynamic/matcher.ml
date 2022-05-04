@@ -95,7 +95,7 @@ let build ?(scorers=[heap_match; env_match]) trace1 trace2 : t  =
     (s1 +. s2, count1 + count2))
   |> IntPairMap.map (fun (score, count) -> score /. Float.of_int count)
 
-let top_k k side (t: t) =
+let top_k ?k side (t: t) =
   let partition = match side with
       `Left -> fun ((i1,i2), v) -> (i1, [(i2,v)])
     | `Right -> fun ((i1,i2), v) -> (i2, [(i1,v)]) in
@@ -104,4 +104,36 @@ let top_k k side (t: t) =
   |> IntMap.of_iter_with ~f:(fun _ v1 v2 -> v1 @ v2)
   |> IntMap.map (List.sort (fun (pos1, v1) (pos2, v2) ->
     Pair.compare Float.compare (fun i j -> - Int.compare i j) (v2, pos2) (v1,pos1)))
-  |> IntMap.map (List.take k)
+  |> match k with None -> fun v -> v
+                | Some k -> IntMap.map (List.take k)
+
+let find_aligned_range ?k side (t: t) =
+  let (let+) x f = Option.bind x f in
+  let mapping = top_k ?k side t in
+  let is_bound pos =
+    IntMap.find_opt pos mapping
+    |> Option.exists (fun v -> List.length v > 0) in
+  fun (start_,end_) ->
+    let start_ =
+      let rec loop start_ =
+        if is_bound start_
+        then start_
+        else loop (start_ - 1) in
+      loop start_
+      |> Fun.flip IntMap.find mapping  in
+    let end_ =
+      let rec loop end_ =
+        if is_bound end_
+        then end_
+        else loop (end_ + 1) in
+      loop end_
+      |> Fun.flip IntMap.find mapping in
+    List.product
+      (fun (start_, start_score) (end_, end_score) ->
+         let+ () = Option.if_ (fun () -> start_ < end_) () in
+         Some (-. (start_score +. end_score), (end_ - start_), (start_, end_))
+      ) start_ end_
+    |> List.filter_map Fun.id
+    |> List.sort (fun (score1, dif1, _) (score2, dif2, _) -> Pair.compare Float.compare Int.compare (score1, dif1) (score2, dif2))
+    |> List.hd
+    |> fun (_, _, range) -> range
