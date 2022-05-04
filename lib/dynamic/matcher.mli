@@ -18,7 +18,11 @@ val build :
 (** [build ?scorers l r] given two traces [l] and [r] constructs a
    matching between program points. *)
 
-val top_k : int -> [< `Left | `Right ] -> t -> (int * float) list intmap
-(** [top_k k orientation t] given a matcher [t], calculates a mapping
-   of program points of [orientation] to the top [k] similar program
+val top_k : ?k:int -> [< `Left | `Right ] -> t -> (int * float) list intmap
+(** [top_k k side t] given a matcher [t], calculates a mapping
+   of program points of [side] to the top [k] similar program
    points in the other program. *)
+
+val find_aligned_range: ?k:int -> [< `Left | `Right ] -> t -> int * int -> int * int
+(** [find_aligned_range ?k side t range] calculates corresponding
+   program points on the [side] program which matches up with [range]. *)
