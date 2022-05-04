@@ -8,7 +8,7 @@ let () =
     ~deps:["../../resources/seq_to_array/common.ml"]
     ~old_program:"../../resources/seq_to_array/seq_to_array_old.ml"
     ~new_program:"../../resources/seq_to_array/seq_to_array_new.ml" () in
-  let mapping = Dynamic.Matcher.top_k 3 `Left matcher in
+  let mapping = Dynamic.Matcher.top_k 4 `Right matcher in
 
 
   IntMap.iter (fun l r ->

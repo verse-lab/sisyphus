@@ -7,6 +7,8 @@ module Symbol : sig
   val equal : t -> t -> bool
 
   val fresh : unit -> t
+
+  val of_raw: int -> t
 end = struct
   type t = Symbol of int
 
@@ -19,6 +21,8 @@ end = struct
   let fresh =
     let id = ref 0 in
     fun () -> incr id; Symbol !id
+
+  let of_raw v = Symbol v
 
 end
 
