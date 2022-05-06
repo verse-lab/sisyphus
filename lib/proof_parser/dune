@@ -1,0 +1,10 @@
+(library (name proof_parser)
+ (libraries sedlex containers proof_spec lang coq)
+ (modules (:standard \ "main"))
+ (preprocess (pps sedlex.ppx ppx_deriving.std)))
+
+(executable (name main)
+ (modules "main")
+ (flags -rectypes)
+ (libraries proof_parser containers iter))
+ 
