@@ -3,6 +3,8 @@ module PP = PPrint
 module StringMap = Map.Make (String)
 module StringSet = Set.Make (String)
 
+type program_id = int
+
 type 'a simple_shape = [>
   | `Var of string
   | `Int of int
