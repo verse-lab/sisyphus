@@ -6,4 +6,4 @@
 (executable (name main)
  (modules main)
  (flags  -rectypes)
- (libraries program_generator))
+ (libraries program_generator lang containers))
