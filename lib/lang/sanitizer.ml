@@ -38,7 +38,12 @@ let rec convert_typ (ty: Parsetree.core_type) : Type.t =
       match attr.attr_name.txt, attr.attr_payload with
       | "collection", PStr [{pstr_desc=Pstr_eval ({pexp_desc=Pexp_ident {txt=lident; _}; _}, _); _}] ->
         Some (Longident.flatten lident |> String.concat ".")
-      | _ -> None
+      | _ ->
+        (* TODO: this is a hack to get around limitation of CFML that
+           adding annotations cause crashes. As such, we assume
+           Common.of_list will always be the conversion function *)
+        (* should be [None] *)
+        Some ("Common.of_list")
     ) ty.ptyp_attributes in
     ADT (user, List.map convert_typ ity, conv)
   | Ptyp_poly (_, ty) -> convert_typ ty
