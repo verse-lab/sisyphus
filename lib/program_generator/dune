@@ -1,0 +1,9 @@
+(library (name program_generator)
+ (modules (:standard \ "main"))
+ (libraries coq)
+)
+
+(executable (name main)
+ (modules main)
+ (flags  -rectypes)
+ (libraries program_generator))

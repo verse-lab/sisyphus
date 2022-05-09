@@ -3,13 +3,11 @@ open Utils
 
 type sanitized_state = {
   id: int;
-  env: Tracer.value stringmap;
-  heap: Tracer.heaplet stringmap;
+  env: Runtime.value stringmap;
+  heap: Runtime.heaplet stringmap;
 } [@@deriving show, eq]
 
-type sanitized_trace = sanitized_state list
-
-let sanitize_state ((id, env, heap): Tracer.state) : sanitized_state = {
+let sanitize_state ({position=id; env; heap}: Sisyphus_tracing.state) : sanitized_state = {
   id; env = StringMap.of_list env; heap = StringMap.of_list heap
 }
 let sanitize_trace ls = List.map sanitize_state ls
@@ -23,7 +21,7 @@ let score scorers s1 s2 =
   List.filter_map (fun f -> f s1 s2) scorers
   |> List.fold_left (+.) 0.
 
-let value_size (vl: Tracer.value) =
+let value_size (vl: Runtime.value) =
   Float.of_int @@ match vl with
     | `List vl -> List.length vl
     | `Tuple vl -> List.length vl
@@ -36,31 +34,31 @@ let heaplet_size vl =
     | `PointsTo _ -> 1.0
     | `Array ls -> 1.0 +. (Float.of_int (List.length ls)) /. 100.  
 
-let heap_size s1 =
+let _heap_size s1 =
   StringMap.fold (fun _ vl acc ->
     acc +. heaplet_size vl
   ) s1.heap 0.
 
-let heaplet_matches (v1: Tracer.heaplet) (v2: Tracer.heaplet) =
+let heaplet_matches (v1: Runtime.heaplet) (v2: Runtime.heaplet) =
   match v1, v2 with
-  | (`PointsTo v1, `PointsTo v2) -> Tracer.equal_value v1 v2
-  | (`Array v1, `Array v2) -> List.equal Tracer.equal_value v1 v2
-  | (`PointsTo (`List v1), `Array v2) -> List.equal Tracer.equal_value v1 v2
-  | (`Array v1, `PointsTo (`List v2)) -> List.equal Tracer.equal_value v1 v2
-  | (`PointsTo v1, `Array [v2]) -> Tracer.equal_value v1 v2
-  | (`Array [v1], `PointsTo v2) -> Tracer.equal_value v1 v2
+  | (`PointsTo v1, `PointsTo v2) -> Runtime.equal_value v1 v2
+  | (`Array v1, `Array v2) -> List.equal Runtime.equal_value v1 v2
+  | (`PointsTo (`List v1), `Array v2) -> List.equal Runtime.equal_value v1 v2
+  | (`Array v1, `PointsTo (`List v2)) -> List.equal Runtime.equal_value v1 v2
+  | (`PointsTo v1, `Array [v2]) -> Runtime.equal_value v1 v2
+  | (`Array [v1], `PointsTo v2) -> Runtime.equal_value v1 v2
   | _ -> false
 
-let value_matches_heaplet (v1: Tracer.value) (v2: Tracer.heaplet) =
+let value_matches_heaplet (v1: Runtime.value) (v2: Runtime.heaplet) =
   match v1, v2 with
-  | (v1, `PointsTo v2) -> Tracer.equal_value v1 v2
-  | (`List v1, `Array v2) -> List.equal Tracer.equal_value v1 v2
-  | (v1, `Array [v2]) -> Tracer.equal_value v1 v2
+  | (v1, `PointsTo v2) -> Runtime.equal_value v1 v2
+  | (`List v1, `Array v2) -> List.equal Runtime.equal_value v1 v2
+  | (v1, `Array [v2]) -> Runtime.equal_value v1 v2
   | _ -> false
 
 
 let remove_heaplet h1 ls = remove_one ~eq:heaplet_matches h1 ls
-let remove_value_from_env v1 ls = remove_one ~eq:Tracer.equal_value v1 ls
+let remove_value_from_env v1 ls = remove_one ~eq:Runtime.equal_value v1 ls
 let remove_value_from_heap vl ls = remove_first ~pred:(value_matches_heaplet vl) ls
 
 let heap_match s1 s2 =
@@ -97,7 +95,7 @@ let build ?(scorers=[heap_match; env_match]) trace1 trace2 : t  =
     (s1 +. s2, count1 + count2))
   |> IntPairMap.map (fun (score, count) -> score /. Float.of_int count)
 
-let top_k k side (t: t) =
+let top_k ?k side (t: t) =
   let partition = match side with
       `Left -> fun ((i1,i2), v) -> (i1, [(i2,v)])
     | `Right -> fun ((i1,i2), v) -> (i2, [(i1,v)]) in
@@ -106,4 +104,36 @@ let top_k k side (t: t) =
   |> IntMap.of_iter_with ~f:(fun _ v1 v2 -> v1 @ v2)
   |> IntMap.map (List.sort (fun (pos1, v1) (pos2, v2) ->
     Pair.compare Float.compare (fun i j -> - Int.compare i j) (v2, pos2) (v1,pos1)))
-  |> IntMap.map (List.take k)
+  |> match k with None -> fun v -> v
+                | Some k -> IntMap.map (List.take k)
+
+let find_aligned_range ?k side (t: t) =
+  let (let+) x f = Option.bind x f in
+  let mapping = top_k ?k side t in
+  let is_bound pos =
+    IntMap.find_opt pos mapping
+    |> Option.exists (fun v -> List.length v > 0) in
+  fun (start_,end_) ->
+    let start_ =
+      let rec loop start_ =
+        if is_bound start_
+        then start_
+        else loop (start_ - 1) in
+      loop start_
+      |> Fun.flip IntMap.find mapping  in
+    let end_ =
+      let rec loop end_ =
+        if is_bound end_
+        then end_
+        else loop (end_ + 1) in
+      loop end_
+      |> Fun.flip IntMap.find mapping in
+    List.product
+      (fun (start_, start_score) (end_, end_score) ->
+         let+ () = Option.if_ (fun () -> start_ < end_) () in
+         Some (-. (start_score +. end_score), (end_ - start_), (start_, end_))
+      ) start_ end_
+    |> List.filter_map Fun.id
+    |> List.sort (fun (score1, dif1, _) (score2, dif2, _) -> Pair.compare Float.compare Int.compare (score1, dif1) (score2, dif2))
+    |> List.hd
+    |> fun (_, _, range) -> range
