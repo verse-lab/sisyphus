@@ -28,3 +28,7 @@
  (target Seq_to_array_new_ml.v)
  (deps seq_to_array_new.ml Common_ml.v)
  (action (run cfmlc -o ./Seq_to_array_new_ml.v seq_to_array_new.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))
