@@ -9,7 +9,7 @@ module type CONFIG = sig
 
 end
 
-module Make(C: CONFIG) : sig
+module type PROOF = sig
   (** This module represents an instantiation of the Coq proof
      assistant. *)
 
@@ -47,3 +47,7 @@ module Make(C: CONFIG) : sig
   (** [debug_current_goal ()] returns a string representing the current proof script state. *)
 
 end
+
+module Make(C: CONFIG) : PROOF
+
+val make: ?verbose:bool -> Coqlib.t list -> (module PROOF)
