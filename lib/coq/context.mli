@@ -6,7 +6,7 @@ module type CONFIG = sig
 
 end
 
-module Make : functor (C : CONFIG) -> sig
+module type CONTEXT = sig
 
   type state
 
@@ -25,3 +25,7 @@ module Make : functor (C : CONFIG) -> sig
   val exec : state -> unit
 
 end
+
+module Make : functor (C : CONFIG) -> CONTEXT
+
+val make: ?verbose:bool -> Coqlib.t list -> (module CONTEXT)
