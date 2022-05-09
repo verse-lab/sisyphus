@@ -2,14 +2,19 @@
 open Containers
 
 let old_program =
-  IO.with_in "../../_build/default/resources/seq_to_array/seq_to_array_new.ml" IO.read_all
+  IO.with_in "../../_build/default/resources/seq_to_array/seq_to_array_old.ml" IO.read_all
   |> Lang.Sanitizer.parse_str
 
 let new_program =
   IO.with_in "../../_build/default/resources/seq_to_array/seq_to_array_new.ml" IO.read_all
   |> Lang.Sanitizer.parse_str
 
-
+let alignment =
+  Dynamic.build_alignment
+    ~deps:["../../_build/default/resources/seq_to_array/common.ml"]
+    ~old_program
+    ~new_program ()
+  
 
 let () =
   let module Ctx = (val Coq.Context.make [

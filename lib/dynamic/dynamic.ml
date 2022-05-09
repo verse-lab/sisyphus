@@ -1,5 +1,3 @@
-open Containers
-
 module Tracer = Tracer
 
 module Runtime = Runtime
