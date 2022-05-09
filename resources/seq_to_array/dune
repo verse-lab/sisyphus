@@ -20,11 +20,27 @@
  (action (run cfmlc -o ./Common_ml.v common.ml)))
 
 (rule
+ (target seq_to_array_old.sisyphus.ml)
+ (deps seq_to_array_old.ml)
+ (action (with-stdout-to seq_to_array_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" seq_to_array_old.ml))))
+
+(rule
  (target Seq_to_array_old_ml.v)
- (deps seq_to_array_old.ml Common_ml.v)
- (action (run cfmlc -o ./Seq_to_array_old_ml.v seq_to_array_old.ml)))
+ (deps seq_to_array_old.sisyphus.ml common.ml Common_ml.v)
+ (action (run cfmlc -o ./Seq_to_array_old_ml.v seq_to_array_old.sisyphus.ml)))
+
+(rule
+ (target seq_to_array_new.sisyphus.ml)
+ (deps seq_to_array_new.ml)
+ (action (with-stdout-to seq_to_array_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./seq_to_array_new.ml))))
 
 (rule
  (target Seq_to_array_new_ml.v)
- (deps seq_to_array_new.ml Common_ml.v)
- (action (run cfmlc -o ./Seq_to_array_new_ml.v seq_to_array_new.ml)))
+ (deps seq_to_array_new.sisyphus.ml common.ml Common_ml.v)
+ (action (run cfmlc -o ./Seq_to_array_new_ml.v seq_to_array_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))

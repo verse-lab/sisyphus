@@ -41,21 +41,22 @@ Algorithm:
 
 ## Requirements
 
-| Packages       | Version  | Notes                                     |
-|:---------------|:---------|:------------------------------------------|
-| cmdliner       | 1.0.4    | important otherwise coq-serapi will crash |
-| coq            | 8.15.1   |                                           |
-| coq-serapi     |          |                                           |
-| coq-cfml       | 20220112 |                                           |
-| coq-cfml-basis | 20220112 |                                           |
-| cfml           | 20220112 |                                           |
-| containers     | 3.7      |                                           |
-| nottui         | 0.2      |                                           |
-| iter           | 1.4      |                                           |
-| bos            | 0.2.1    |                                           |
-| alcotest       | 1.5.0    |                                           |
-| z3             | 4.8.14   |                                           |
-| sedlex         | 2.5      |                                           |
+| Packages         |    Version | Notes                                       |
+| :--------------- | :--------- | :------------------------------------------ |
+| cmdliner         |      1.0.4 | important otherwise coq-serapi will crash   |
+| coq              |     8.15.1 |                                             |
+| coq-serapi       |            |                                             |
+| coq-cfml         |   20220112 |                                             |
+| coq-cfml-basis   |   20220112 |                                             |
+| cfml             |   20220112 |                                             |
+| containers       |        3.7 |                                             |
+| nottui           |        0.2 |                                             |
+| iter             |        1.4 |                                             |
+| bos              |      0.2.1 |                                             |
+| alcotest         |      1.5.0 |                                             |
+| z3               |     4.8.14 |                                             |
+| sedlex           |        2.5 |                                             |
+| ppx_blob         |            |                                             |
 
 ## Setup
 
