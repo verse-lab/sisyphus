@@ -26,6 +26,13 @@ let add (module Ctx: Coq.Proof.PROOF) txt =
 let exec (module Ctx: Coq.Proof.PROOF) =
   Ctx.exec ()
 
+let search (module Ctx: Coq.Proof.PROOF) txt =
+  Ctx.query Serapi.Serapi_protocol.(Names txt)
+  |> Option.map (List.map (fun v -> Format.to_string Pp.pp_with @@ Serapi.Serapi_protocol.gen_pp_obj Environ.empty_env Evd.empty v))
+  |> Option.map (String.concat ",")
+  |> Option.get_or ~default:"EMPTY"
+  |> fun s -> "result: [" ^ s ^ "]"
+
 let add_and_exec ctx txt =
   add ctx txt;
   exec ctx
@@ -48,6 +55,34 @@ let env ?at (module Ctx: Coq.Proof.PROOF) =
     | _ -> None
   )
 
+let ast ?at (module Ctx: Coq.Proof.PROOF)  =
+  Ctx.query ?at Serapi.Serapi_protocol.Ast
+  |> Option.flat_map (function
+    | [Serapi.Serapi_protocol.CoqAst v] -> Some v.v.expr
+    | _ -> None
+  ) |> Option.get_exn_or "failed to get ast"
+
+let search ?at ctx query =
+  let (let+) x f= Option.bind x f in
+  let+ env = env ?at ctx  in
+  let evd = Evd.from_env env in
+  let acc = ref [] in
+  Search.search env evd query ([], false) (fun refr kind _ typ ->
+    acc := (refr,kind,typ) :: !acc
+  );
+  Some !acc
+
+let find_spec ?at ctx const =
+  search ?at ctx [
+    true, Search.(GlobSearchLiteral (GlobSearchString "spec"));
+    true, Search.(GlobSearchLiteral
+                    (GlobSearchSubPattern (Vernacexpr.InConcl, false, Pattern.PRef (Names.GlobRef.ConstRef const))))
+  ] |> function
+  | Some [(Names.GlobRef.ConstRef name, _, ty)] -> (name, ty)
+  | Some [_] -> failwith "failure finding specification for function application: non-constant name for reference"
+  | Some [] -> failwith "failure finding specification for function application: could not find an appropriate specification"
+  | Some _ -> failwith "failure finding specification for function application: ambiguity - more than one valid specification found"
+  | None -> failwith "internal Coq error: unable to search in context"
 
 let generate (alignment: Dynamic.Matcher.t) (ctx: coq_ctx) (prog: Lang.Expr.t Lang.Program.t) =
   (* TODO: add spec for function.... *)
@@ -60,6 +95,8 @@ Proof using.
 |};
   (* initialise proof state *)
   add_and_exec ctx {|xcf.|};
+
+  (* Extend.user_symbol *)
   let current_goal () =
     match (goal ctx).goals with
     | [goal] -> goal
@@ -74,6 +111,20 @@ Proof using.
   let print_current_goal () =
     print_endline @@ "current goal: \n" ^ to_string (current_goal ()).ty in
 
+  let is_const_named name const =
+    Constr.isConst const &&
+    String.(
+      (fst @@ Constr.destConst const)
+      |> Names.Constant.label
+      |> Names.Label.to_string = name
+    ) in
+  let is_hempty const = is_const_named "hempty" const in
+  let is_hstar const = is_const_named "hstar" const in
+  let is_hpure const = is_const_named "hpure" const in
+  let is_wptag const = is_const_named "Wptag" const in
+  let is_wp_gen_let_trm const = is_const_named "Wpgen_let_trm" const in
+  let is_wp_gen_app const = is_const_named "Wpgen_app" const in
+
   let extract_cfml_goal () =
     let goal = (current_goal ()).ty in
     let[@warning "-8"] himpl, [pre; post] = Constr.decompose_app goal in
@@ -84,16 +135,6 @@ Proof using.
          |> Names.Constant.label
          |> Names.Label.to_string)
     end;
-    let is_const_named name const =
-      Constr.isConst const &&
-      String.(
-        (fst @@ Constr.destConst const)
-        |> Names.Constant.label
-        |> Names.Label.to_string = name
-      ) in
-    let is_hempty const = is_const_named "hempty" const in
-    let is_hstar const = is_const_named "hstar" const in
-    let is_hpure const = is_const_named "hpure" const in
     let destruct_heap pre =
       let rec loop acc pre =
         match Constr.kind pre with
@@ -124,9 +165,9 @@ Proof using.
   let pre, _ = extract_cfml_goal () in
   let intro_pure no_pure =
     let pat = 
-    Int.range 1 no_pure
-    |> Iter.map (fun i -> "H" ^ Int.to_string i)
-    |> Iter.concat_str in
+      Int.range 1 no_pure
+      |> Iter.map (fun i -> "H" ^ Int.to_string i)
+      |> Iter.concat_str in
     add_and_exec ctx (Format.sprintf "xpullpure %s." pat) in
 
   let module StringSet = Set.Make(String) in
@@ -152,6 +193,24 @@ Proof using.
     then loop 0
     else base in
 
+  let extract_x_app_fun pre =
+    let extract_app_enforce name f n pre =
+      match Constr.kind pre with
+      | Constr.App (fname, args) when f fname ->
+        args.(n)
+      | _ ->
+        Format.eprintf "failed because unknown structure for %s: %s\n" name (to_string pre);
+        failwith "" in
+    try
+      pre
+      |> extract_app_enforce "wptag" is_wptag 0
+      |> extract_app_enforce "xlet" is_wp_gen_let_trm 0
+      |> extract_app_enforce "wptag" is_wptag 0
+      |> extract_app_enforce "xapp" is_wp_gen_app 2
+      |> Constr.destConst
+      |> fst
+    with
+      Failure _ -> failwith ("extract_f_app failed because unsupported context: " ^ (to_string pre)) in
   begin match pre with
   | `Empty -> ()
   | `NonEmpty ls ->
@@ -167,11 +226,20 @@ Proof using.
        let h_fname = fresh ~base:("H" ^ name) () in
        add_and_exec ctx (Format.sprintf "xletopaque %s %s." fname h_fname);
        loop rest
+     | `LetExp _ ->
+       let (_, post) = extract_cfml_goal () in
+       let f_app = extract_x_app_fun post in
+       let (refr, ty) = find_spec ctx f_app in
+       print_endline @@ Printf.sprintf "search result: %s (%s)" (Names.Constant.to_string refr) (to_string ty);
+       (* Search.generic_search env (fun gr _ _ typ ) *)
+       (* print_endline @@ Printf.sprintf "got %s (is %b)"  (to_string const) (Constr.isConst const); *)
+
+       failwith "don't know how to handle let bindings"
      | `Match _ -> failwith "don't know how to handle matches"
      | `EmptyArray -> failwith "don't know how to handle empty arrays"
      | `Write _ -> failwith "don't know how to handle write"
      | `Value _ -> failwith "don't know how to handle value"
-     | `LetExp _ -> failwith "don't know how to handle let bindings")
+    )
   in
   ignore @@ loop prog.body;
   ()
@@ -186,7 +254,7 @@ let () =
       ~new_program () in
 
   (* initialise coq ctx *)
-  let module Ctx = (val Coq.Proof.make [
+  let module Ctx = (val Coq.Proof.make ~verbose:false [
     Coq.Coqlib.make ~path:(Fpath.of_string "../../_build/default/resources/seq_to_array/" |> Result.get_exn) "Proofs"
   ]) in
   Ctx.reset ();
