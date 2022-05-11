@@ -350,19 +350,18 @@ Proof using.
            ) StringSet.empty evar_params in
 
          let fn_body =
-           List.find_map (function `Var v -> StringMap.find_opt v env |> Option.flat_map (Option.if_ is_pure) | _ -> None)
-             prog_args
+           List.find_map (function `Var v -> StringMap.find_opt v env |> Option.flat_map (Option.if_ is_pure)
+                                 | _ -> None) prog_args
            |> Option.get_exn_or "invalid assumptions" in
 
          print_endline @@ "command is:\n" ^  Printf.sprintf
                                "xapp (%s %s %s %s)."
                                (Names.Constant.to_string f_name)
-                               (List.map (Format.to_string Lang.Expr.pp) prog_args
-                                |> String.concat " ")
+                               (List.map (Program_generator.Printer.show_expr) prog_args |> String.concat " ")
                                (List.map (fun (name, _) -> "?" ^ Format.to_string Pp.pp_with (Names.Name.print name))
                                   evar_params
                                 |> String.concat " ")
-                               (Format.to_string (Lang.Program.pp_lambda Lang.Expr.print_simple) fn_body);
+                               (Program_generator.Printer.show_lambda fn_body);
 
 
 

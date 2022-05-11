@@ -1,6 +1,6 @@
 (library (name program_generator)
  (modules (:standard \ "main"))
- (libraries coq)
+ (libraries coq lang containers)
 )
 
 (executable (name main)

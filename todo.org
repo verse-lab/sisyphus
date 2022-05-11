@@ -7,7 +7,8 @@ CLOSED: [2022-05-11 Wed 04:48]
 CLOSED: [2022-05-11 Wed 06:43]
 ** DONE If body is pure, last argument is function, evars for all intermediate arguments. 
 CLOSED: [2022-05-11 Wed 06:43]
-** TODO Print expressions in Coq format
+** DONE Print expressions in Coq format
+CLOSED: [2022-05-11 Wed 08:53]
 ** TODO Look at pattern of let-exp - if complex (tuple), then emit destruct w.names, 
 ** TODO update sanitiser with annotations for patterns 
 ** TODO if annotations w. patterns, then rewrite
