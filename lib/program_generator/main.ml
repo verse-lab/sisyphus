@@ -74,8 +74,8 @@ let goal ?at (module Ctx: Coq.Proof.PROOF) =
     | Serapi.Serapi_protocol.CoqGoal g -> g
   )
   |> function
-  | Some [goal] -> goal
-  | Some _ -> failwith "failed to obtain goal - serapi returned multiple goals."
+  | Some (goal :: _) -> goal
+  | Some [] -> failwith "failed to obtain goal - serapi returned no remaining goals."
   | None -> failwith "unable to retrieve goal - serapi returned None."
 
 let env ?at (module Ctx: Coq.Proof.PROOF) =
@@ -354,15 +354,18 @@ Proof using.
                                  | _ -> None) prog_args
            |> Option.get_exn_or "invalid assumptions" in
 
-         print_endline @@ "command is:\n" ^  Printf.sprintf
+         let cmd = Printf.sprintf
                                "xapp (%s %s %s %s)."
                                (Names.Constant.to_string f_name)
                                (List.map (Program_generator.Printer.show_expr) prog_args |> String.concat " ")
                                (List.map (fun (name, _) -> "?" ^ Format.to_string Pp.pp_with (Names.Name.print name))
                                   evar_params
                                 |> String.concat " ")
-                               (Program_generator.Printer.show_lambda fn_body);
+                               (Program_generator.Printer.show_lambda fn_body) in
+         print_endline @@ Printf.sprintf "sending %s" cmd;
+         add_and_exec ctx cmd;
 
+         debug_print_current_goal ();
 
 
          List.iter (fun (name, ty) ->
@@ -399,7 +402,7 @@ let () =
       ~new_program () in
 
   (* initialise coq ctx *)
-  let module Ctx = (val Coq.Proof.make ~verbose:false [
+  let module Ctx = (val Coq.Proof.make ~verbose:true [
     Coq.Coqlib.make ~path:(Fpath.of_string "../../_build/default/resources/seq_to_array/" |> Result.get_exn) "Proofs"
   ]) in
   Ctx.reset ();
