@@ -227,39 +227,14 @@ let get_tactic str vexpr  =
   | Not_found -> assert false
 
 let parse_tactic t vexpr  =
-  match t with
-  | Sexplib.Sexp.List (_ :: _ :: _ :: t' :: _) ->
-    (
-      match t' with
-      | Sexplib.Sexp.List (t'' :: _) ->
-        (match t'' with
-        | Sexplib.Sexp.List (_ :: ((t3:: _))) ->
-          (match t3 with
-           | Sexplib.Sexp.List (_ :: (t4 :: _)) ->
-            (match t4 with
-            | Sexplib.Sexp.List (t5 :: _) ->
-              (match t5 with
-               | Sexplib.Sexp.List (_ :: _ :: (t6 :: _)) ->
-                (match t6 with
-                 | Sexplib.Sexp.List (_ :: (t7 :: _)) ->
-                   (match t7 with
-                      | Sexplib.Sexp.Atom str -> get_tactic str vexpr
-                      | _ -> assert false
-                   )
-                 | _ -> assert false
-                )
-               | _ -> assert false
-              )
-              | _ -> assert false
-              )
-            | _ -> assert false
-            )
-          | _ -> assert false
-          )
-        | _ -> assert false
-        )
-      | _ -> assert false
-  | _ -> assert false
+  let open Sexplib.Sexp in
+  match[@warning "-8"] t with
+  | List (
+    _ :: _ :: _ ::
+    List (List (_ :: ((List (_ :: (List ((List (_ :: _ :: (
+      List (_ :: (Atom str :: _)) :: _))) :: _) :: _)) :: _))) :: _) :: _
+  ) ->
+    get_tactic str vexpr
 
 
 let parse_proof (asts: Vernacexpr.vernac_expr list) =
