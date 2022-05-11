@@ -345,13 +345,15 @@ Proof using.
              let name = fresh ~base:name () in
              add_and_exec ctx @@ Printf.sprintf "evar (%s: %s)." name ty;
              to_clear
-             |> StringSet.add ty
-             |> StringSet.add name
-           ) StringSet.empty evar_params in
+             |> List.cons ty
+             |> List.cons name
+           ) [] evar_params |> List.rev in
 
+         (* emit xapp call *)
          let fn_body =
-           List.find_map (function `Var v -> StringMap.find_opt v env |> Option.flat_map (Option.if_ is_pure)
-                                 | _ -> None) prog_args
+           List.find_map (function
+               `Var v -> StringMap.find_opt v env |> Option.flat_map (Option.if_ is_pure)
+             | _ -> None) prog_args
            |> Option.get_exn_or "invalid assumptions" in
 
          let cmd = Printf.sprintf
@@ -362,8 +364,31 @@ Proof using.
                                   evar_params
                                 |> String.concat " ")
                                (Program_generator.Printer.show_lambda fn_body) in
-         print_endline @@ Printf.sprintf "sending %s" cmd;
          add_and_exec ctx cmd;
+
+         (* solve immediate subgoal of xapp automatically. *)
+         add_and_exec ctx "sep_solve.";
+
+         (* TODO: repeat based on goal shape, not no goals   *)
+         (* any remaining subgoals we assume we can dispatch automatically by eauto. *)
+         while List.length (goal ctx).goals > 1 do
+           add_and_exec ctx "eauto.";
+         done;
+
+         (* finally, clear any evars we introduced at the start  *)
+         add_and_exec ctx @@ Printf.sprintf "clear %s." (String.concat " " clear_vars);
+
+         (* destructuring of arguments *)
+         begin
+           match pat with
+           | `Var _ -> ()
+           | `Tuple vars ->
+             let vars = List.map (fun (name, _) ->
+               fresh ~base:name ()
+             ) vars in
+             let h_var = fresh ~base:("H" ^ String.concat "" vars) () in
+             add_and_exec ctx @@ Printf.sprintf "xdestruct %s %s." (String.concat " " vars) h_var
+         end;
 
          debug_print_current_goal ();
 
@@ -402,7 +427,7 @@ let () =
       ~new_program () in
 
   (* initialise coq ctx *)
-  let module Ctx = (val Coq.Proof.make ~verbose:true [
+  let module Ctx = (val Coq.Proof.make ~verbose:false [
     Coq.Coqlib.make ~path:(Fpath.of_string "../../_build/default/resources/seq_to_array/" |> Result.get_exn) "Proofs"
   ]) in
   Ctx.reset ();
