@@ -1,8 +1,9 @@
 open Common
 
-let to_array (s: ('a t(* [@collection Common.of_list] *))) =
+let to_array (s: ('a t[@collection Common.of_list])) =
   (* 0 *)
-   let ((len: int), (ls: 'a list)) = fold (fun ((i: int), (acc: 'a list)) (x: 'a) -> (i + 1, x :: acc)) (0, []) s in
+  let ((len: int), (ls: 'a list))[@rewrite list_fold_length_rev] =
+    fold (fun ((i: int), (acc: 'a list)) (x: 'a) -> (i + 1, x :: acc)) (0, []) s in
    (* 1 *)
    match ls with
      | [] -> (* 2 *) [| |]
