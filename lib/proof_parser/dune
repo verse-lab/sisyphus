@@ -6,5 +6,5 @@
 (executable (name main)
  (modules "main")
  (flags -rectypes)
- (libraries proof_parser containers iter))
+ (libraries proof_parser proof_spec containers iter))
  
