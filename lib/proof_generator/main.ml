@@ -370,11 +370,11 @@ Proof using.
          let cmd = Printf.sprintf
                      "xapp (%s %s %s %s)."
                      (Names.Constant.to_string f_name)
-                     (List.map (Program_generator.Printer.show_expr) prog_args |> String.concat " ")
+                     (List.map (Proof_generator.Printer.show_expr) prog_args |> String.concat " ")
                      (List.map (fun (name, _) -> "?" ^ Format.to_string Pp.pp_with (Names.Name.print name))
                         evar_params
                       |> String.concat " ")
-                     (Program_generator.Printer.show_lambda fn_body) in
+                     (Proof_generator.Printer.show_lambda fn_body) in
          add_and_exec ctx cmd;
 
          (* solve immediate subgoal of xapp automatically. *)
@@ -470,7 +470,7 @@ Proof using.
        let eqn_var = fresh ~base:("H_eqn") () in
        (* emit a case analysis: *)
        let cmd = Format.sprintf "case %a as [%s] eqn:%s."
-                             Program_generator.Printer.pp_expr prog_expr
+                             Proof_generator.Printer.pp_expr prog_expr
                              (String.concat " | " case_intro_strs)
                              eqn_var in
        add_and_exec ctx @@ cmd;
