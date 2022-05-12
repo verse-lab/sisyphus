@@ -17,11 +17,15 @@ CLOSED: [2022-05-12 Thu 03:46]
 CLOSED: [2022-05-12 Thu 03:56]
 ** DONE sepsplittuple if pattern was tuple
 CLOSED: [2022-05-12 Thu 04:02]
-** TODO if match, emit a case on match argument
-** TODO for each branch, 
+** DONE if match, emit a case on match argument
+CLOSED: [2022-05-12 Thu 05:00]
+** DONE for each branch, 
+CLOSED: [2022-05-12 Thu 05:00]
 *** emit xmatch
 *** solve body
-** TODO if value [| |] then xvalemptyarr
-** TODO let of alloc then xalloc
-** TODO if let then xletopaque
-** TODO 
+** DONE if value [| |] then xvalemptyarr
+CLOSED: [2022-05-12 Thu 05:00]
+** DONE let of alloc then xalloc
+CLOSED: [2022-05-12 Thu 05:00]
+** DONE if let then xletopaque
+CLOSED: [2022-05-12 Thu 05:00]

@@ -311,6 +311,16 @@ Proof using.
        loop env rest
      | `LetExp (pat, rewrite_hint, body, rest) ->
        begin match body with
+       (* array.make *)
+       | `App ("Array.make", [len; init]) ->
+         let prog_arr = match pat with
+           | `Tuple _ -> failwith "found tuple pattern in result of array.make"
+           | `Var (var, _) -> var in
+         let arr = fresh ~base:(prog_arr) () in
+         let data = fresh ~base:"data"  () in
+         let h_data = fresh ~base:("H" ^ data) () in
+         add_and_exec ctx @@ Printf.sprintf "xalloc %s %s %s." arr data h_data;
+         loop env rest
        (* pure function application *)
        | `App (_, prog_args)
          when List.exists (function
@@ -399,15 +409,60 @@ Proof using.
              end;
              (* finally, split the simplified equality on tuples into an equality on terms  *)
              let split_vars = List.map (fun var -> fresh ~base:("H" ^ var) ()) vars in
-             add_and_exec ctx @@ Printf.sprintf "sep_split_tuple %s %s."
-                                   h_var (String.concat " " split_vars);
+             add_and_exec ctx @@ Printf.sprintf "injection %s; intros %s."
+                                   h_var (String.concat " " @@ List.rev split_vars);
          end;
          loop env rest
-       | _ ->
+       (* let binding of higher order functions *)
+       | `App (_, args)
+         when List.exists (function
+           |`Var v -> StringMap.mem v env
+           | _ -> false
+         ) args ->
          failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
+       | _ ->
+         let prog_var = match pat with
+           | `Tuple _ ->
+             failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
+           | `Var (var, _) -> var in
+         let var = fresh ~base:(prog_var) () in
+         let h_var = fresh ~base:("H" ^ var) () in
+         add_and_exec ctx @@ Format.sprintf "xletopaque %s %s."  var h_var;
+         loop env rest
        end
-     | `Match _ -> failwith "don't know how to handle matches"
-     | `EmptyArray -> failwith "don't know how to handle empty arrays"
+     | `Match (prog_expr, cases) ->
+       (* emit a case analysis to correspond to the program match    *)
+       (* for each subproof, first intro variables using the same names as in the program *)
+       let case_intro_strs =
+         List.map (fun (_, args, _) ->
+           List.map (fun (name, _) ->
+             fresh ~base:(name) ()
+           ) args
+           |> String.concat " "
+         ) cases in
+       (* preserve the equality of the program expression *)
+       let eqn_var = fresh ~base:("H_eqn") () in
+       (* emit a case analysis: *)
+       let cmd = Format.sprintf "case %a as [%s] eqn:%s."
+                             Program_generator.Printer.pp_expr prog_expr
+                             (String.concat " | " case_intro_strs)
+                             eqn_var in
+       add_and_exec ctx @@ cmd;
+
+       (* now, handle all of the sub proofs *)
+       List.iter (fun (_, _, rest) ->
+         (* save the number of subgoals before starting this branch *)
+         let no_subgoals = (goal ctx).goals |> List.length in
+         (* start each subproof with an xmatch to determine the appropriate branch *)
+         add_and_exec ctx "- xmatch.";
+         (* now emit the rest *)
+         loop env rest;
+         while (goal ctx).goals |> List.length > 0 do 
+           add_and_exec ctx "{ admit. }";
+         done;
+       ) cases;
+     | `EmptyArray ->
+       add_and_exec ctx "xvalemptyarr."
      | `Write _ -> failwith "don't know how to handle write"
      | `Value _ -> failwith "don't know how to handle value"
     )
