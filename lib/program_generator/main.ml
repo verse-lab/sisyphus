@@ -143,7 +143,7 @@ let is_pure (prog: [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Pr
     | `EmptyArray -> true
     | `Write _ -> false
     | `Value _ -> true
-    | `LetExp (_, _, rest) -> loop rest in
+    | `LetExp (_, _, _, rest) -> loop rest in
   match prog with
   | `Lambda (_, body) -> loop body
 
@@ -309,7 +309,7 @@ Proof using.
        add_and_exec ctx (Format.sprintf "xletopaque %s %s." fname h_fname);
        let env = StringMap.add name body env in
        loop env rest
-     | `LetExp (pat, body, rest) ->
+     | `LetExp (pat, rewrite_hint, body, rest) ->
        begin match body with
        (* pure function application *)
        | `App (_, prog_args)
