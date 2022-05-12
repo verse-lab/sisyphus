@@ -2,7 +2,7 @@ module PP = PPrint
 let (!) = PP.string
 
 type 'a stmt = [
-  | `LetExp of Expr.typed_param * 'a Expr.simple_shape * 'a stmt
+  | `LetExp of Expr.typed_param * string option * 'a Expr.simple_shape * 'a stmt
   | `LetLambda of string * [ `Lambda of Expr.typed_param list * 'a stmt ] * 'a stmt
   | `Match of 'a Expr.simple_shape * (string * (string * Type.t) list * 'a stmt) list
   | `Write of string * string * 'a Expr.simple_shape * 'a stmt
@@ -27,7 +27,7 @@ let lookup_statement (id: Id.t) prog =
     | _ as v when pos = id -> Ok v
     | `EmptyArray | `Value _ -> Error (Id.incr pos)
     | `Write (_, _, _, rest) -> loop (Id.incr pos) rest
-    | `LetExp (_, _, rest) -> loop (Id.incr pos) rest
+    | `LetExp (_, _, _, rest) -> loop (Id.incr pos) rest
     | `LetLambda (_, `Lambda (_, lambody), rest) ->
       begin match loop pos lambody with
       | Ok v -> Ok v
@@ -47,7 +47,7 @@ let lookup_statement (id: Id.t) prog =
 
 let rec print_stmt print_expr : 'a stmt -> _ =
   let open PP in function
-  | `LetExp (param, exp, rest) ->
+  | `LetExp (param, _, exp, rest) ->
     group (group (! "let" ^/^ Expr.print_typed_param param ^/^ !"=") ^^ nest 2 (break 1 ^^ print_expr exp) ^/^ !"in") ^^ break 1 ^^
     group  (print_stmt print_expr rest)
   | `LetLambda (param, lambda, rest) ->
@@ -86,7 +86,7 @@ and print_case print_expr : (string * (string * Type.t) list * 'a stmt) -> PP.do
 
 let print_stmt_line print_expr : 'a stmt -> _ =
   let open PP in function
-  | `LetExp (param, exp, _) ->
+  | `LetExp (param, _, exp, _) ->
     group (group (! "let" ^/^ Expr.print_typed_param param ^/^ !"=") ^^ nest 2 (break 1 ^^ print_expr exp) ^/^ !"in")
   | `LetLambda (param, lambda, _) ->
     group (group (! "let" ^/^ string param ^/^ !"=") ^/^

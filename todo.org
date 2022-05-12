@@ -11,7 +11,8 @@ CLOSED: [2022-05-11 Wed 06:43]
 CLOSED: [2022-05-11 Wed 08:53]
 ** DONE Look at pattern of let-exp - if complex (tuple), then emit destruct w.names, 
 CLOSED: [2022-05-11 Wed 10:15]
-** TODO update sanitiser with annotations for patterns 
+** DONE update sanitiser with annotations for patterns 
+CLOSED: [2022-05-12 Thu 03:46]
 ** TODO if annotations w. patterns, then rewrite
 ** TODO sepsplittuple if pattern was tuple
 ** TODO if match, emit a case on match argument
