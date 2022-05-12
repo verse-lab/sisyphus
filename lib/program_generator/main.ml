@@ -316,7 +316,7 @@ Proof using.
          when List.exists (function
            |`Var v -> StringMap.find_opt v env |> Option.exists is_pure
            | _ -> false
-           ) prog_args ->
+         ) prog_args ->
          (* work out the name of function being called and the spec for it *)
          let (f_name, raw_spec) =
            (* extract the proof script name for the function being called *)
@@ -357,13 +357,13 @@ Proof using.
            |> Option.get_exn_or "invalid assumptions" in
 
          let cmd = Printf.sprintf
-                               "xapp (%s %s %s %s)."
-                               (Names.Constant.to_string f_name)
-                               (List.map (Program_generator.Printer.show_expr) prog_args |> String.concat " ")
-                               (List.map (fun (name, _) -> "?" ^ Format.to_string Pp.pp_with (Names.Name.print name))
-                                  evar_params
-                                |> String.concat " ")
-                               (Program_generator.Printer.show_lambda fn_body) in
+                     "xapp (%s %s %s %s)."
+                     (Names.Constant.to_string f_name)
+                     (List.map (Program_generator.Printer.show_expr) prog_args |> String.concat " ")
+                     (List.map (fun (name, _) -> "?" ^ Format.to_string Pp.pp_with (Names.Name.print name))
+                        evar_params
+                      |> String.concat " ")
+                     (Program_generator.Printer.show_lambda fn_body) in
          add_and_exec ctx cmd;
 
          (* solve immediate subgoal of xapp automatically. *)
@@ -383,27 +383,26 @@ Proof using.
            match pat with
            | `Var _ -> ()
            | `Tuple vars ->
+             (* if we have a tuple, then we need to do some extra work *)
              let vars = List.map (fun (name, _) ->
                fresh ~base:name ()
              ) vars in
              let h_var = fresh ~base:("H" ^ String.concat "" vars) () in
-             add_and_exec ctx @@ Printf.sprintf "xdestruct %s %s." (String.concat " " vars) h_var
+             (* first, emit a xdestruct to split the tuple output - [hvar] remembers the equality *)
+             add_and_exec ctx @@ Printf.sprintf "xdestruct %s %s." (String.concat " " vars) h_var;
+             (* next, use a user-provided rewrite hint to simplify the equality  *)
+             begin match rewrite_hint with
+             | Some rewrite_hint ->
+               add_and_exec ctx @@ Printf.sprintf "rewrite %s in %s." rewrite_hint h_var;
+             | None ->
+               failwith "tuple destructuring with functions requires a rewrite hint."
+             end;
+             (* finally, split the simplified equality on tuples into an equality on terms  *)
+             let split_vars = List.map (fun var -> fresh ~base:("H" ^ var) ()) vars in
+             add_and_exec ctx @@ Printf.sprintf "sep_split_tuple %s %s."
+                                   h_var (String.concat " " split_vars);
          end;
-
-         debug_print_current_goal ();
-
-
-         List.iter (fun (name, ty) ->
-           print_endline @@ Format.sprintf "param %a (%b): %s" Pp.pp_with
-                              (Names.Name.print name)
-                              (Names.Name.is_anonymous name)
-                              (to_string ty)
-         ) evar_params;
-
-         (* Search.generic_search env (fun gr _ _ typ ) *)
-         (* print_endline @@ Printf.sprintf "got %s (is %b)"  (to_string const) (Constr.isConst const); *)
-
-         failwith "don't know how to handle let bindings"
+         loop env rest
        | _ ->
          failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
        end

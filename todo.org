@@ -13,8 +13,10 @@ CLOSED: [2022-05-11 Wed 08:53]
 CLOSED: [2022-05-11 Wed 10:15]
 ** DONE update sanitiser with annotations for patterns 
 CLOSED: [2022-05-12 Thu 03:46]
-** TODO if annotations w. patterns, then rewrite
-** TODO sepsplittuple if pattern was tuple
+** DONE if annotations w. patterns, then rewrite
+CLOSED: [2022-05-12 Thu 03:56]
+** DONE sepsplittuple if pattern was tuple
+CLOSED: [2022-05-12 Thu 04:02]
 ** TODO if match, emit a case on match argument
 ** TODO for each branch, 
 *** emit xmatch
