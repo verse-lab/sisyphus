@@ -129,11 +129,11 @@ xval  *)
      τ = C1 a11..a1m | ... | Cn an1 ... anm
 
      ∀ i,
-     Γ ∪ {ail : τ1,..., aim : τm, H: l = Ci ail..aim}, {P} e {res ↠ Q}    
+     Γ ∪ {ail : τ1,..., aim : τm, H: l = Ci ail..aim}, {P} e {res ↠ Q}
      ------------------------ Case(l,H)
-     Γ ∪ {l : τ}, {P} e {res ↠ Q}    
+     Γ ∪ {l : τ}, {P} e {res ↠ Q}
   *)
-  | `Xmatchcase of Lang.Expr.program_id * string
+  | `Xmatchcase of string
   (**
      τ = C1 a11..a1m | ... | Cn an1 ... anm
      Γ, {P} ⊫ e = Ci x1 ... xn
@@ -172,10 +172,11 @@ xval  *)
      ------------------------ XLetOpaque(v,Hv)
      Γ, {P} v {res ↠ Q}
   *)
-  | `Apply of Lang.Expr.program_id * string
-  | `Intros of Lang.Expr.program_id * string
-  | `Admitted of Lang.Expr.program_id * string
+  | `Apply of  string
+  | `Intros of string
+  | `Admitted of  string
   | `Qed of string
+  | `Xseq of string 
 ]
 
 let print_step print_steps : step -> PP.document = let open PP in function
@@ -196,15 +197,17 @@ let print_step print_steps : step -> PP.document = let open PP in function
     (string @@ str ^  ".")
   | `Xpullpure str ->
     (string @@ str ^ ".")
-  | `Xmatchcase (_,  str)  ->
+  | `Xmatchcase str  ->
     (string @@ str ^ ".")
-  | `Apply (_, str) ->
+  | `Apply  str ->
     (string @@ str ^ ".")
-  | `Intros (_, str) ->
+  | `Intros str ->
     (string @@ str ^ ".")
-  | `Admitted (_, str) ->
+  | `Admitted  str ->
     (string @@ str ^ ".")
   | `Qed str ->
+    (string @@ str ^ ".")
+  | `Xseq str ->
     (string @@ str ^ ".")
   | `Xapp (_, fn, args, intrs) ->
     group (string "Xapp" ^/^ parens (
@@ -221,8 +224,6 @@ let print_step print_steps : step -> PP.document = let open PP in function
      ) ^/^ string "eqn:" ^^ string h_l ^^ string ".") ^^
     nest 2 (break 1 ^^ separate_map (hardline) (fun (_, prf) -> group (string " - " ^^ align (print_steps prf))) cases)
 
-
-
 let rec print_steps : step list -> PP.document =
   let open PP in
   fun steps -> group (separate_map (break 1) (print_step print_steps) steps)
@@ -231,4 +232,4 @@ let print_step = print_step (fun _ -> PP.string "...")
 let pp_step fmt vl = PP.ToFormatter.pretty 10.99 80 fmt (print_step vl)
 let show_step vl = Format.to_string pp_step vl
 let pp_steps fmt vl = PP.ToFormatter.pretty 0.99 80 fmt (print_steps vl)
-let show_steps vl = Format.to_string pp_steps vl                        
+let show_steps vl = Format.to_string pp_steps vl
