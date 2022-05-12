@@ -222,7 +222,8 @@ Proof using.
         end
       | Constr.App (fname, _) when is_hpure fname ->
         `NonEmpty ([`Pure pre])
-      | _ -> failwith ("unexpected pre-heap structure: " ^ (to_string pre)) in
+      | _ -> `NonEmpty ([`Impure pre])
+    in
     (pre, post) in
 
   let pre, _ = extract_cfml_goal () in
@@ -419,6 +420,31 @@ Proof using.
            |`Var v -> StringMap.mem v env
            | _ -> false
          ) args ->
+         print_current_goal ();
+         (* work out the name of function being called and the spec for it *)
+         let (f_name, raw_spec) =
+           (* extract the proof script name for the function being called *)
+           let (_, post) = extract_cfml_goal () in
+           let f_app = extract_x_app_fun post in
+           (* use Coq's searching functionality to work out the spec for the function *)
+           find_spec ctx f_app in
+
+         print_endline @@ Printf.sprintf "lemma is %s, spec is %s"
+                            (Names.Constant.to_string f_name)
+                            (to_string raw_spec);
+         let (params, invariant, spec) = extract_spec raw_spec in
+
+         let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name) in
+
+         print_endline @@
+         Printf.sprintf "params are: %s" 
+           (List.map (fun (name, _) -> name_to_string name) params |> String.concat ", ");
+
+         print_endline @@
+         Printf.sprintf "invariants are: %s" 
+           (List.map (fun (_, sg) -> to_string sg) invariant |> String.concat ", ");
+
+
          failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
        | _ ->
          let prog_var = match pat with
