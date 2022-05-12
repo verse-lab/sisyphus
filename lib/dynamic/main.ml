@@ -4,10 +4,16 @@ module IntMap = Map.Make(Int)
 
 let () =
   let matcher =
+    let old_program =
+      IO.with_in "../../resources/seq_to_array/seq_to_array_old.ml" IO.read_all
+      |> Lang.Sanitizer.parse_str in
+    let new_program =
+      IO.with_in "../../resources/seq_to_array/seq_to_array_new.ml" IO.read_all
+      |> Lang.Sanitizer.parse_str in
   Dynamic.build_alignment
     ~deps:["../../resources/seq_to_array/common.ml"]
-    ~old_program:"../../resources/seq_to_array/seq_to_array_old.ml"
-    ~new_program:"../../resources/seq_to_array/seq_to_array_new.ml" () in
+    ~old_program
+    ~new_program () in
   let mapping = Dynamic.Matcher.top_k ~k:4 `Right matcher in
 
   let (st,ed) = Dynamic.Matcher.find_aligned_range `Right matcher (5,6) in

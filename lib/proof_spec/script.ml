@@ -95,7 +95,7 @@ type step = [
      ------------------------ XPureFun (f,Hf, lam)
      Γ, {P} let f = fun args -> body in e  {res ↠ Q}
   *)
-  | `Xapp of string * spec_arg list * string list
+  | `Xapp of Lang.Expr.program_id * string * spec_arg list * string list
   (**
      spec = ∀ v1..vn, {Pf} f args res => {res ↠ res = vl, Qf1...Qfm; Hf}
      {P} ⊫ {Pf}[ai/vi]  vl' = vl[ai/vi]
@@ -124,7 +124,7 @@ type step = [
      ------------------------ SepSplitTuple (Heq,H1,..,Hn)
      Γ ∪ {Heq: (el1,...eln) = (er1,...ern)}, {P} e {res ↠ Q}    
   *)
-  | `Case of string * string * (string list * step list) list
+  | `Case of Lang.Expr.program_id * string * string * (string list * step list) list
   (**
      τ = C1 a11..a1m | ... | Cn an1 ... anm
 
@@ -133,7 +133,7 @@ type step = [
      ------------------------ Case(l,H)
      Γ ∪ {l : τ}, {P} e {res ↠ Q}    
   *)
-  | `Xmatchcase of int * string list
+  | `Xmatchcase of Lang.Expr.program_id * int * string list
   (**
      τ = C1 a11..a1m | ... | Cn an1 ... anm
      Γ, {P} ⊫ e = Ci x1 ... xn
@@ -141,20 +141,20 @@ type step = [
      ------------------------ XMatchCase(i,x1,...,xn)
      Γ, {P} match e with C1 a1...am -> e1 | ... | Cn an1 ... anm -> en  {res ↠ Q}    
   *)
-  | `Xvalemptyarr
+  | `Xvalemptyarr of Lang.Expr.program_id
   (**
      Γ, {P} ⊫ Q * res → Array []
      ------------------------ XValEmptyArr
      Γ, {P} [| |] {res ↠ Q * res → Array ls}
   *)
-  | `Xalloc of string * string * string
+  | `Xalloc of Lang.Expr.program_id *  string * string * string
   (**
      Γ ∪ {vl: τ, arr: loc, data: list τ, Hdata: data = repeat sz vl},
        {P * arr  → Array data} e {res ↠ Q}
      ------------------------ XAlloc(arr,data,Hdata)
      Γ ∪ {vl: τ}, {P} let arr = Array.make sz vl in e {res ↠ Q}
   *)
-  | `Xletopaque of string * string
+  | `Xletopaque of Lang.Expr.program_id * string * string
   (**
      simple_expr(ev)
      Γ ∪ {v: τ, Hv: v = ev}, {P} e {res ↠ Q}
@@ -166,7 +166,7 @@ type step = [
      ------------------------ XLetOpaque(v,Hv)
      Γ, {P} let v = ev in e {res ↠ Q}
   *)
-  | `Xvals
+  | `Xvals of Lang.Expr.program_id
   (**
      Γ ∪ {P} ⊫ {Q[v/res]}
      ------------------------ XLetOpaque(v,Hv)
@@ -177,22 +177,22 @@ type step = [
 let print_step print_steps : step -> PP.document = let open PP in function
   | `SepSplitTuple (h, vars) ->
     (string "SepSplittuple" ^/^ string h ^^ group (break 1 ^^ separate_map space string vars) ^^ string ".")
-  | `Xvals -> string "Xvals."
-  | `Xvalemptyarr -> string "Xvalemptyarr."
+  | `Xvals _ -> string "Xvals."
+  | `Xvalemptyarr _ -> string "Xvalemptyarr."
   | `Xcf -> string "xcf."
   | `Xdestruct vars ->
     (string "Xdestruct" ^^ group (break 1 ^^ separate_map space string vars) ^^ string ".")
-  | `Xalloc (arr,data,h_data) ->
+  | `Xalloc (_, arr,data,h_data) ->
     (string "Xalloc" ^^ group (space ^^ string arr ^/^ string data ^/^ string h_data) ^^ string ".")      
-  | `Xletopaque (f,h_f) ->
+  | `Xletopaque (_, f,h_f) ->
     (string "Xletopaque" ^^ group (space ^^ string f ^/^ string h_f) ^^ string ".")      
   | `Rewrite (lemma, h) ->
     (string "rewrite" ^^ group (space ^^ string lemma ^/^ string "in" ^/^ string h) ^^ string ".")      
   | `Xpullpure vars ->
     (group (string "Xpullpure" ^^ align (group (space ^^ separate_map space string vars)) ^^ string "."))
-  | `Xmatchcase (i, vars)  ->
+  | `Xmatchcase (_, i, vars)  ->
     (string ("Xmatch_case_" ^ Int.to_string i) ^/^ group (break 1 ^^ separate_map space string vars) ^^ string ".")        
-  | `Xapp (fn, args, intrs) ->
+  | `Xapp (_, fn, args, intrs) ->
     group (string "Xapp" ^/^ parens (
        string fn ^/^ group (break 1 ^^ separate_map space print_spec_arg args)
      ) ^^ string ".") ^/^
@@ -201,7 +201,7 @@ let print_step print_steps : step -> PP.document = let open PP in function
   | `Xpurefun (f, h_f, `Lambda (params, expr)) ->
     group (string "Xpurefun" ^/^ string f ^/^ string h_f ^/^
            Expr.print (`Lambda (params, (expr :> Expr.t))) ^^ string ".")
-  | `Case (l, h_l, cases) ->
+  | `Case (_, l, h_l, cases) ->
     group (string "case" ^/^ string l ^/^ string "as" ^/^ braces (
        flow_map (string " |" ^^ break 1) (fun (vars, _) -> separate_map space string vars) cases
      ) ^/^ string "eqn:" ^^ string h_l ^^ string ".") ^^

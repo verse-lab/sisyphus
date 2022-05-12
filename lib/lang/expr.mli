@@ -2,6 +2,8 @@ open Containers
 module StringMap : module type of Map.Make(String)
 module StringSet : module type of Set.Make(String)
 
+type program_id = int
+
 type 'a simple_shape = 'a constraint 'a =
     [> `App of string * 'a simple_shape list
     | `Constructor of string * 'a simple_shape list

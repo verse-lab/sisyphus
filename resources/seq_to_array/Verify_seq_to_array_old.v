@@ -29,5 +29,6 @@ Proof using.
          )    . { admit. } { admit. } { admit. }
     xmatch.
     (* unification point 2 *)
+    xmatch.
     xvals. { admit. }
 Admitted.

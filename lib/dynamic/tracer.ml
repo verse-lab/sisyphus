@@ -231,11 +231,11 @@ let annotate ({ prelude; name; args; body }: Lang.Expr.t Lang.Program.t) : Parse
       wrap (fun () -> encode_expr vl)
     | `EmptyArray ->
       wrap (fun () -> AH.Exp.array [])
-    | `LetExp (`Var (_, Lang.Type.Unit), expr, body) ->
+    | `LetExp (`Var (_, Lang.Type.Unit), _, expr, body) ->
       wrap (fun () -> AH.Exp.let_ Nonrecursive [ AH.Vb.mk (AH.Pat.any ()) (encode_expr expr) ]
               (encode_stmt ~observe env body)
            )
-    | `LetExp (args, expr, body) ->
+    | `LetExp (args, _, expr, body) ->
       let env = add_param args env in
       wrap (fun () -> AH.Exp.let_ Nonrecursive [ AH.Vb.mk (encode_param args) (encode_expr expr) ]
               (encode_stmt ~observe env body))

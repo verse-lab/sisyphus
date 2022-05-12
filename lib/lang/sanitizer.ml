@@ -34,12 +34,19 @@ let rec convert_typ (ty: Parsetree.core_type) : Type.t =
   | Parsetree.Ptyp_constr ({txt=Lident "int"}, []) ->
     Int
   | Parsetree.Ptyp_constr ({txt=Lident user}, ity) ->
-    let conv = List.find_map (fun (attr: Parsetree.attribute) ->
-      match attr.attr_name.txt, attr.attr_payload with
-      | "collection", PStr [{pstr_desc=Pstr_eval ({pexp_desc=Pexp_ident {txt=lident; _}; _}, _); _}] ->
-        Some (Longident.flatten lident |> String.concat ".")
-      | _ -> None
-    ) ty.ptyp_attributes in
+    let conv =
+      List.find_map (fun (attr: Parsetree.attribute) ->
+        match attr.attr_name.txt, attr.attr_payload with
+        | "collection", PStr [{pstr_desc=Pstr_eval ({pexp_desc=Pexp_ident {txt=lident; _}; _}, _); _}] ->
+          Some (Longident.flatten lident |> String.concat ".")
+        | _ ->
+          None
+      ) ty.ptyp_attributes
+       (* TODO: this is a hack to get around limitation of CFML that
+          adding annotations cause crashes. As such, we assume
+          Common.of_list will always be the conversion function *)
+      |> Option.or_ ~else_:(Some ("Common.of_list"))
+    in
     ADT (user, List.map convert_typ ity, conv)
   | Ptyp_poly (_, ty) -> convert_typ ty
   | _ ->
@@ -99,6 +106,17 @@ let fresh_var ?(hint="tmp") ctx =
   then loop 0
   else (hint, StringSet.add hint ctx)
 
+let extract_rewrite_hint (attrs: Parsetree.attributes) =
+  List.find_map (function
+    | Parsetree.{ attr_name={txt="rewrite";_}; attr_payload; _ } ->
+      begin
+        match attr_payload with
+        | Parsetree.PStr [{ pstr_desc=Pstr_eval ({pexp_desc=Pexp_ident {txt=name}; _}, _); pstr_loc }] ->
+          Some (Longident.flatten name |> String.concat ".")
+        |  _ -> failwith "unexpected structure for rewrite hint"
+      end
+    | _ -> None
+  ) attrs
 
 let rec convert_stmt (ctx: StringSet.t) (expr: Parsetree.expression) : _ Program.stmt =
   match expr with
@@ -108,6 +126,7 @@ let rec convert_stmt (ctx: StringSet.t) (expr: Parsetree.expression) : _ Program
     let ctx = StringSet.add param ctx in
     let rest = convert_stmt ctx rest in
     `LetLambda (param, expr, rest)
+  (* when we have a let of a function application *)
   | {pexp_desc=Pexp_let (Nonrecursive, [{
     pvb_pat;
     pvb_expr={
@@ -116,31 +135,40 @@ let rec convert_stmt (ctx: StringSet.t) (expr: Parsetree.expression) : _ Program
       }, args)}}], rest)} ->
     let fn = lident fn in
     let param = convert_pat pvb_pat in
+    (* extract rewrite hint from binding *)
+    let rewrite_hint = extract_rewrite_hint pvb_pat.ppat_attributes in
+    (* create a kont that when given arguments to lambda + rest of code, returns the structure *)
+    let kont = fun (args,rest) -> `LetExp (param, rewrite_hint, `App (fn, List.rev args), rest) in
     let ctx = add_pat_args ctx param in
+    (* fold through the arguments to replace higher order functions with preceding let bindings *)
     let kont, ctx = List.fold_left (fun (kont, ctx) ->
       function
+      (* if argument is a function *)
       | (Asttypes.Nolabel, (Parsetree.{pexp_desc=Pexp_fun _ } as e)) ->
         let lambda = convert_lambda ctx e in
         let param, ctx =  fresh_var ctx in
+        (* update kontinuation to be preceded by a let lambda binding *)
         let kont = (fun (args, rest) ->
           `LetLambda (param, lambda, kont (`Var param :: args, rest))
         ) in
         (kont, ctx)
+      (* otherwise,  *)
       | (Asttypes.Nolabel, e) ->
         let e = convert_expr e in
         let kont = (fun (args, rest) -> kont (e :: args, rest)) in
         (kont, ctx)
-    )  ((fun (args,rest) ->
-      `LetExp (param, `App (fn, List.rev args), rest)
-    ), ctx) (List.rev args) in
+    ) (kont, ctx) (List.rev args) in
+    (* convert rest of code *)
     let rest = convert_stmt ctx rest in
+    (* finally, call constructed continuation *)
     kont ([], rest)
   | {pexp_desc=Pexp_let (Nonrecursive, [{pvb_pat; pvb_expr}], rest)} ->
     let param = convert_pat pvb_pat in
     let expr = convert_expr pvb_expr in
     let ctx = add_pat_args ctx param in
     let rest = convert_stmt ctx rest in
-    `LetExp (param, expr, rest)
+    let rewrite_hint = extract_rewrite_hint pvb_pat.ppat_attributes in
+    `LetExp (param, rewrite_hint, expr, rest)
   | {pexp_desc=Pexp_match (e, cases)} ->
     let e = convert_expr e in
     let cases = List.map (convert_case ctx) cases in

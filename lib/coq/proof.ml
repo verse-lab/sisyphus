@@ -3,6 +3,31 @@ module SP = Serapi.Serapi_protocol
 
 include Context
 
+module type PROOF = sig
+
+  val size : unit -> int
+
+  val reset : unit -> unit
+
+  val add : string -> unit
+
+  val cancel : count:int -> unit
+
+  val cancel_last : unit -> unit
+
+  val parse : ?at:int -> string -> Vernacexpr.vernac_control option
+
+  val query : ?at:int ->
+    Serapi.Serapi_protocol.query_cmd ->
+    Serapi.Serapi_protocol.coq_object list option
+
+  val exec : unit -> unit
+
+  val debug_current_goal: unit -> string
+
+end
+
+
 module Make(C: Context.CONFIG) = struct
   module Ctx = Context.Make(C)
 
@@ -63,3 +88,9 @@ module Make(C: Context.CONFIG) = struct
     |> Option.value ~default:"EMPTY-CONTEXT"
 
 end
+
+let make ?(verbose=false) libs =
+  (module Make(struct
+       let verbose = verbose
+       let libs = libs
+       end) : PROOF)

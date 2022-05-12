@@ -1,36 +1,10 @@
 (library (name proof_parser)
- (libraries sedlex menhirLib containers)
+ (libraries sedlex containers proof_spec lang coq)
  (modules (:standard \ "main"))
  (preprocess (pps sedlex.ppx ppx_deriving.std)))
 
-(menhir
- (modules raw_parser_pre)
- (flags --table --inspection --dump --explain --require-aliases))
-
 (executable (name main)
  (modules "main")
- (libraries proof_parser containers))
-
-(rule (target raw_parser_pre.mly)
-  (deps raw_parser.mly)
- (action
-   (copy raw_parser.mly raw_parser_pre.mly)
- ))
-
-(rule
- (target raw_parser.ml)
- (deps raw_parser_pre.ml)
- (action
-  (with-stdout-to raw_parser.ml
-   (pipe-stdout (cat raw_parser_pre.ml)
-     (bash "sed -e '/type token =/!b' -e ':a' -e 'n' -e '/^[\\w \\t]*[^\\t\\w ]\\+.*$/ba' -e \"$(printf 'i\\\\[@@deriving show, eq]')\"")
-   ))))
-
-(rule
- (target raw_parser.mli)
- (deps raw_parser_pre.mli)
- (action
-  (with-stdout-to raw_parser.mli
-   (pipe-stdout (cat raw_parser_pre.mli)
-     (bash "sed -e '/type token =/!b' -e ':a' -e 'n' -e '/^[\\w \\t]*[^\\t\\w ]\\+.*$/ba' -e \"$(printf 'i\\\\[@@deriving show, eq]')\"")
-   ))))
+ (flags -rectypes)
+ (libraries proof_parser containers iter))
+ 

@@ -1,4 +1,33 @@
-* Construct AST to represent programs
-** represent comments
-* TODO Work on simplifying proof script
-* TODO Define agnostic representation of functions
+* Tasks
+** DONE Extract forall sequence to a sequence of args + properties + body
+CLOSED: [2022-05-11 Wed 04:37]
+** DONE Calculate parameters to instantiate by dropping implicit arguments 
+CLOSED: [2022-05-11 Wed 04:48]
+** DONE First parameters are arguments.
+CLOSED: [2022-05-11 Wed 06:43]
+** DONE If body is pure, last argument is function, evars for all intermediate arguments. 
+CLOSED: [2022-05-11 Wed 06:43]
+** DONE Print expressions in Coq format
+CLOSED: [2022-05-11 Wed 08:53]
+** DONE Look at pattern of let-exp - if complex (tuple), then emit destruct w.names, 
+CLOSED: [2022-05-11 Wed 10:15]
+** DONE update sanitiser with annotations for patterns 
+CLOSED: [2022-05-12 Thu 03:46]
+** DONE if annotations w. patterns, then rewrite
+CLOSED: [2022-05-12 Thu 03:56]
+** DONE sepsplittuple if pattern was tuple
+CLOSED: [2022-05-12 Thu 04:02]
+** DONE if match, emit a case on match argument
+CLOSED: [2022-05-12 Thu 05:00]
+** DONE for each branch, 
+CLOSED: [2022-05-12 Thu 05:00]
+*** emit xmatch
+*** solve body
+** DONE if value [| |] then xvalemptyarr
+CLOSED: [2022-05-12 Thu 05:00]
+** DONE let of alloc then xalloc
+CLOSED: [2022-05-12 Thu 05:00]
+** DONE if let then xletopaque
+CLOSED: [2022-05-12 Thu 05:00]
+** TODO Convert Coq terms to internal spec....
+** 

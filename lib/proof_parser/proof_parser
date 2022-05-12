@@ -1,0 +1,13 @@
+  /Users/mayank/Desktop/Sisyphus/proof-repair/lib/proof_parser:
+  total used in directory 80 available 15.4 GiB
+  drwxr-xr-x  11 mayank  staff   352 May  6 18:16   .
+  drwxr-xr-x   9 mayank  staff   288 May  6 16:42   ..
+  -rw-r--r--   1 mayank  staff   119 May  6 16:42   command.ml
+  -rw-r--r--   1 mayank  staff  1021 May  6 16:42   dune.disabled
+  -rw-r--r--   1 mayank  staff  6270 May  6 16:42   lexer.ml
+  -rw-r--r--   1 mayank  staff  1885 May  6 18:16   main.ml
+  -rw-r--r--   1 mayank  staff     0 May  6 16:42   out.messages
+  -rw-r--r--   1 mayank  staff   367 May  6 16:42   parser.ml
+  -rw-r--r--   1 mayank  staff  2098 May  6 16:42   proof.ml
+  -rw-r--r--   1 mayank  staff   221 May  6 16:42   proof_parser.ml
+  -rw-r--r--   1 mayank  staff  7013 May  6 16:42   raw_parser.mly

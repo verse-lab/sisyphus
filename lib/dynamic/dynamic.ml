@@ -1,5 +1,3 @@
-open Containers
-
 module Tracer = Tracer
 
 module Runtime = Runtime
@@ -15,10 +13,7 @@ let build_alignment ?compilation_env ?scorers ~deps ~old_program ~new_program ()
     match compilation_env with
     | Some env -> env
     | None -> Tracer.CompilationContext.init () in
-  let load file =
-    IO.with_in file Evaluator.raw_parse_channel
-    |> Lang.Sanitizer.convert in
   let old_trace, new_trace =
     Tracer.bitrace compilation_env
-      (deps, load old_program) (deps, load new_program) () in
+      (deps, old_program) (deps, new_program) () in
   Matcher.build ?scorers old_trace new_trace
