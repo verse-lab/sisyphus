@@ -473,11 +473,89 @@ let unwrap_cref sexp =
     let _, [_; List [Atom "Id"; Atom cref]] = unwrap_tagged v in
     cref
 
+let or_exn name sexp f =
+  try f () with
+  | Match_failure (pos,st,ed) ->
+    failwith @@ Format.sprintf "unexpected form for %s (at %s:%d:%d): %a"
+                  name pos st ed Sexplib.Sexp.pp_hum sexp
+
+let rec unwrap_ty sexp : Lang.Type.t =
+  let open Sexplib.Sexp in
+  match unwrap_tagged sexp with
+  | "CRef", _ ->
+    begin match unwrap_cref sexp with
+    | "func" -> Func
+    | "int" -> Int
+    | "loc" -> Loc
+    | "unit" -> Unit
+    | var -> Var var
+    end
+  | "CApp", [fname; args] ->
+    let fname = 
+      let fname, _ = unwrap_value_with_loc fname in
+      unwrap_cref fname in
+    let args = 
+      let args = unwrap_list args
+                 |> List.map (function List [data; _] ->
+                   unwrap_value_with_loc data
+                   |> fst
+                   |> unwrap_ty
+                 ) in
+      args in
+    begin match fname, args with
+    | "list", [ty] -> List ty
+    | "array", [ty] -> Array ty
+    | "ref", [ty] -> Ref ty
+    | adt, args -> ADT (adt, args)
+    end
+  | "CNotation", _ ->
+    failwith @@ Format.sprintf "todo: implement support for product sexps: %a" Sexplib.Sexp.pp_hum sexp
+[@@warning "-8"]
+
+
+let unwrap_ty sexp =
+  let open Sexplib.Sexp in
+  or_exn "lambda type" sexp @@ fun () -> unwrap_ty sexp
+
+let unwrap_lambda_arg sexp =
+  let open Sexplib.Sexp in
+  or_exn "lambda arg" sexp @@ fun () ->
+  match unwrap_tagged sexp with
+  | "CLocalAssum", [name; _; ty] ->
+    let "Name", [List [Atom "Id"; Atom name]] =
+      let [name] = unwrap_list name in
+      unwrap_value_with_loc name
+      |> fst
+      |> unwrap_tagged in
+    let ty =
+      let ty, _ = unwrap_value_with_loc ty in
+      unwrap_ty ty in
+    (name, ty)
+[@@warning "-8"]
+
+
+let unwrap_clambda sexp = 
+  match[@warning "-8"] unwrap_tagged sexp with
+  | "CLambdaN", [args; body] ->
+    let args = unwrap_list args
+               |> List.map unwrap_lambda_arg in
+
+    let body, _ = unwrap_value_with_loc body in
+    args, body
+  | _ -> failwith "found unexpected structure for "
+
 let unwrap_expr sexp  =
   let open Sexplib.Sexp in
   match unwrap_tagged sexp with
-  | "CRef", _ -> `Var (unwrap_cref sexp)
-  | "CLambdaN", _ -> 
+  | "CRef", _ -> `Expr (`Var (unwrap_cref sexp))
+  | "CLambdaN", _ -> `Spec (unwrap_clambda sexp)
+  | tag, _ -> failwith @@ "found unhandled expr tag " ^ tag
+
+let unwrap_spec_arg sexp  =
+  let open Sexplib.Sexp in
+  match unwrap_tagged sexp with
+  | "CRef", _ -> `Expr (`Var (unwrap_cref sexp))
+  | "CLambdaN", _ -> `Spec (unwrap_clambda sexp)
   | tag, _ -> failwith @@ "found unhandled expr tag " ^ tag
 
 
@@ -495,14 +573,4 @@ let unwrap_tac_capp sexp =
                   unwrap_value_with_loc binding |> fst)
    in
    fname, args
-
-
-
-
-
-
-
-
-
-
 
