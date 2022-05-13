@@ -535,29 +535,82 @@ let unwrap_lambda_arg sexp =
 
 
 let unwrap_clambda sexp = 
-  match[@warning "-8"] unwrap_tagged sexp with
+  match unwrap_tagged sexp with
   | "CLambdaN", [args; body] ->
     let args = unwrap_list args
                |> List.map unwrap_lambda_arg in
 
     let body, _ = unwrap_value_with_loc body in
     args, body
-  | _ -> failwith "found unexpected structure for "
+  | _ ->
+    failwith @@ Format.sprintf "found invalid structure for clambda expression: %a" Sexplib.Sexp.pp_hum sexp
 
-let unwrap_expr sexp  =
+let unwrap_int_literal sexp : int =
   let open Sexplib.Sexp in
   match unwrap_tagged sexp with
-  | "CRef", _ -> `Expr (`Var (unwrap_cref sexp))
-  | "CLambdaN", _ -> `Spec (unwrap_clambda sexp)
-  | tag, _ -> failwith @@ "found unhandled expr tag " ^ tag
+  | "Number", [List [Atom "SPlus"; List [List [Atom "int"; Atom n]; _frac; _exp]]] -> int_of_string n
+  | _ ->
+    failwith @@ Format.sprintf "found invalid structure for literal: %a" Sexplib.Sexp.pp_hum sexp
+  
+let rec unwrap_expr sexp : Lang.Expr.t =
+  let open Sexplib.Sexp in
+  match unwrap_tagged sexp with
+  | "CRef", _ -> `Var (unwrap_cref sexp)
+  | "CPrim", [num] -> `Int (unwrap_int_literal num)
+  | "CNotation", [_; List[Atom "InConstrEntry"; Atom "( _ , _ , .. , _ )"]; List (List [fst'] :: List [List rest] :: _)] ->
+    let elts = fst' :: rest in
+    let elts = List.map (fun v -> unwrap_value_with_loc v |> fst |> unwrap_expr) elts in
+    `Tuple elts
+  | "CApp", [fname; args] ->
+    let fname = fname |> unwrap_value_with_loc |> fst |> unwrap_cref in
+    let args = unwrap_list args
+               |> List.map (function
+                   List [data; _] ->
+                   unwrap_value_with_loc data
+                   |> fst
+                   |> unwrap_expr
+                 | sexp -> failwith @@ Format.sprintf "found unexpected lambda structure in CApp %a"
+                                      Sexplib.Sexp.pp_hum sexp
+               ) in
+    let is_uppercase c = Char.equal c (Char.uppercase_ascii c) in
+    begin if String.get fname 0 |> is_uppercase
+      then `Constructor (fname, args)
+      else `App (fname, args)
+    end
+  | "CNotation", [_; List[Atom "InConstrEntry"; Atom ("_ ++ _" | "_ + _" | "_ - _" as op)]; List (List [l; r] :: _)] ->
+    let l = unwrap_value_with_loc l |> fst |> unwrap_expr in
+    let r = unwrap_value_with_loc r |> fst |> unwrap_expr in
+    begin match op with
+    | "_ ++ _" -> `App ("++", [l;r])
+    | "_ + _" -> `App ("+", [l;r])
+    | "_ - _" -> `App ("-", [l;r])
+    | _ -> failwith "invalid assumptions"
+    end
+  (* lambdas.... CLambdaN not supported *)
+  | tag, _ -> failwith @@ Format.sprintf "found unhandled expr (tag: %s): %a" tag Sexplib.Sexp.pp_hum sexp
 
+let unwrap_assertion sexp : Proof_spec.Heap.Assertion.t =
+  let open Sexplib.Sexp in
+  match unwrap_tagged sexp with
+  | "CNotation", [_; List[Atom "InConstrEntry"; Atom "_ ~> _"]; List (List [vl; body] :: _)] ->
+    let vl = unwrap_value_with_loc vl |> fst |> unwrap_cref in
+    let body =
+      let body, _ = unwrap_value_with_loc body in
+      unwrap_expr body in
+    Proof_spec.Heap.(Assertion.emp |> Assertion.add_heaplet (PointsTo (vl, body)))
+  | "CNotation", [_; List[Atom "InConstrEntry"; Atom notation]; _] ->
+    failwith @@ Format.sprintf "found unknown notation %s" notation
+  | tag, _ -> failwith @@ Format.sprintf "found unhandled assertion tag %s: %a" tag Sexplib.Sexp.pp_hum sexp
+  
 let unwrap_spec_arg sexp  =
   let open Sexplib.Sexp in
   match unwrap_tagged sexp with
   | "CRef", _ -> `Expr (`Var (unwrap_cref sexp))
-  | "CLambdaN", _ -> `Spec (unwrap_clambda sexp)
+  | "CLambdaN", _ ->
+    let args, body = unwrap_clambda sexp in
+    let body = unwrap_assertion body in
+    `Spec (args, body)
   | tag, _ -> failwith @@ "found unhandled expr tag " ^ tag
-
 
 let unwrap_tac_capp sexp =
   let open Sexplib.Sexp in
@@ -573,4 +626,3 @@ let unwrap_tac_capp sexp =
                   unwrap_value_with_loc binding |> fst)
    in
    fname, args
-
