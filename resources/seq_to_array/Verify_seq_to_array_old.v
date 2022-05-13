@@ -25,9 +25,8 @@ Proof using.
     xalloc arr data Hdata.
     xletopaque f Hf.
     xapp (iteri_spec f s l
-                     (fun ls => arr ~> Array (ls ++ (make (length l - length ls) x)) )
+                     (fun (ls: list A) => arr ~> Array (ls ++ (make (length l - length ls) x)) )
          )    . { admit. } { admit. } { admit. }
-    xmatch.
     (* unification point 2 *)
     xmatch.
     xvals. { admit. }
