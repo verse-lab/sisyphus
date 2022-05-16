@@ -95,7 +95,7 @@ type step = [
      ------------------------ XPureFun (f,Hf, lam)
      Γ, {P} let f = fun args -> body in e  {res ↠ Q}
   *)
-  | `Xapp of Lang.Expr.program_id * string * spec_arg list * string list
+  | `Xapp of Lang.Expr.program_id * string * spec_arg list
   (**
      spec = ∀ v1..vn, {Pf} f args res => {res ↠ res = vl, Qf1...Qfm; Hf}
      {P} ⊫ {Pf}[ai/vi]  vl' = vl[ai/vi]
@@ -179,20 +179,23 @@ xval  *)
   | `Xseq of string 
 ]
 
-let print_step print_steps : step -> PP.document = let open PP in function
+let print_step print_steps : step -> PP.document =
+  let open PP in
+  let ppid pid = string_of_int pid ^ ": " in
+  function
   | `SepSplitTuple str  ->
     (string @@ str ^ ".")
-  | `Xvals (_, str) ->
-    (string @@ str ^ ".")
-  | `Xvalemptyarr (_, str) ->
-    (string @@ str ^ ".")
+  | `Xvals (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
+  | `Xvalemptyarr (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
   | `Xcf str -> string @@ str ^ "."
   | `Xdestruct str ->
     (string @@ str ^  ".")
-  | `Xalloc (_, str) ->
-    (string @@ str ^ "." )
-  | `Xletopaque (_, str) ->
-    (string @@ str ^ ".")
+  | `Xalloc (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
+  | `Xletopaque (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
   | `Rewrite str ->
     (string @@ str ^  ".")
   | `Xpullpure str ->
@@ -209,17 +212,15 @@ let print_step print_steps : step -> PP.document = let open PP in function
     (string @@ str ^ ".")
   | `Xseq str ->
     (string @@ str ^ ".")
-  | `Xapp (_, fn, args, intrs) ->
-    group (string "Xapp" ^/^ parens (
+  | `Xapp (pid, fn, args) ->
+    group (string (ppid pid ^ "Xapp") ^/^ parens (
        string fn ^/^ group (break 1 ^^ separate_map space print_spec_arg args)
-     ) ^^ string ".") ^/^
-    (if List.is_empty intrs then empty else
-       group (string "intros" ^/^ group (break 1 ^^ separate_map space string intrs) ^^ string "."))
+     ) ^^ string ".")
   | `Xpurefun (f, h_f, `Lambda (params, expr)) ->
     group (string "Xpurefun" ^/^ string f ^/^ string h_f ^/^
            Expr.print (`Lambda (params, (expr :> Expr.t))) ^^ string ".")
-  | `Case (_, l, h_l, cases) ->
-    group (string "case" ^/^ string l ^/^ string "as" ^/^ braces (
+  | `Case (pid, l, h_l, cases) ->
+    group (string (ppid pid ^ "case") ^/^ string l ^/^ string "as" ^/^ braces (
        flow_map (string " |" ^^ break 1) (fun (vars, _) -> separate_map space string vars) cases
      ) ^/^ string "eqn:" ^^ string h_l ^^ string ".") ^^
     nest 2 (break 1 ^^ separate_map (hardline) (fun (_, prf) -> group (string " - " ^^ align (print_steps prf))) cases)
