@@ -26,7 +26,7 @@ Proof using.
     xletopaque f Hf.
     xseq.
     xapp (iteri_spec f s l
-                     (fun ls => arr ~> Array (ls ++ (make (length l - length ls) x)) )
+                     (fun (ls : list A) => arr ~> Array (ls ++ (make (length l - length ls) x)) )
          )    . { admit. } { admit. } { admit. } 
     (* unification point 2 *)
     xvals. { admit. }
