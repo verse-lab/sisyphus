@@ -174,16 +174,14 @@ xval  *)
   *)
   | `Apply of  string
   | `Intros of string
-  | `Admitted of  string
-  | `Qed of string
-  | `Xseq of string 
+  | `Xseq of string
 ]
 
 let print_step print_steps : step -> PP.document =
   let open PP in
   let ppid pid = string_of_int pid ^ ": " in
   function
-  | `SepSplitTuple str  ->
+  | `SepSplitTuple str ->
     (string @@ str ^ ".")
   | `Xvals (pid, str) ->
     (string @@ ppid pid ^ str ^ ".")
