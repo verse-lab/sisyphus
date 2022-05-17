@@ -81,8 +81,8 @@ type simple = Expr.simple_t
 let pp_simple = Expr.pp_simple
 
 type step = [
-  | `Xcf
-  | `Xpullpure of string list
+  | `Xcf of string
+  | `Xpullpure of string
   (**
     Γ ∪ {x1: P1 ᠁ xn: Pn} {P; H} C {res ↠ Q}
      ------------------------ XPullPure (x1,...,xn)
@@ -95,7 +95,7 @@ type step = [
      ------------------------ XPureFun (f,Hf, lam)
      Γ, {P} let f = fun args -> body in e  {res ↠ Q}
   *)
-  | `Xapp of Lang.Expr.program_id * string * spec_arg list * string list
+  | `Xapp of Lang.Expr.program_id * string * spec_arg list
   (**
      spec = ∀ v1..vn, {Pf} f args res => {res ↠ res = vl, Qf1...Qfm; Hf}
      {P} ⊫ {Pf}[ai/vi]  vl' = vl[ai/vi]
@@ -103,21 +103,21 @@ type step = [
      ------------------------ XApp (spec, a1...an, e,e1..em)
      Γ, {P} let f = f args in e  {res ↠ Q}
   *)
-  | `Xdestruct of string list
+  | `Xdestruct of string
   (**
      pure_expr(e_s)
      Γ ∪ {∀ i, vi: τi} ∪ {H: (v1,..,vn) = e_s}, {P} e {res ↠ Q}    
      ------------------------ XDestruct (v1,..,vn,H)
      Γ, {P} let (v1,..,vn) = e_s in e  {res ↠ Q}    
   *)
-  | `Rewrite of string * string
+  | `Rewrite of string
   (**
      pure_expr(e_s)
      Γ ∪ {Hfrom: e1 = e2, Hin: e3[e2/e1]}, {P} e {res ↠ Q}    
      ------------------------ Rewrite (Hfrom,Hin)
      Γ ∪ {Hfrom: e1 = e2, Hin: e3}, {P} e {res ↠ Q}    
-  *)
-  | `SepSplitTuple of string * string list
+xval  *)
+  | `SepSplitTuple of string
   (**
      pure_expr(e_s)
      Γ ∪ {∀ i, Hi: eli = eri}, {P} e {res ↠ Q}    
@@ -129,11 +129,11 @@ type step = [
      τ = C1 a11..a1m | ... | Cn an1 ... anm
 
      ∀ i,
-     Γ ∪ {ail : τ1,..., aim : τm, H: l = Ci ail..aim}, {P} e {res ↠ Q}    
+     Γ ∪ {ail : τ1,..., aim : τm, H: l = Ci ail..aim}, {P} e {res ↠ Q}
      ------------------------ Case(l,H)
-     Γ ∪ {l : τ}, {P} e {res ↠ Q}    
+     Γ ∪ {l : τ}, {P} e {res ↠ Q}
   *)
-  | `Xmatchcase of Lang.Expr.program_id * int * string list
+  | `Xmatchcase of string
   (**
      τ = C1 a11..a1m | ... | Cn an1 ... anm
      Γ, {P} ⊫ e = Ci x1 ... xn
@@ -141,20 +141,20 @@ type step = [
      ------------------------ XMatchCase(i,x1,...,xn)
      Γ, {P} match e with C1 a1...am -> e1 | ... | Cn an1 ... anm -> en  {res ↠ Q}    
   *)
-  | `Xvalemptyarr of Lang.Expr.program_id
+  | `Xvalemptyarr of Lang.Expr.program_id * string
   (**
      Γ, {P} ⊫ Q * res → Array []
      ------------------------ XValEmptyArr
      Γ, {P} [| |] {res ↠ Q * res → Array ls}
   *)
-  | `Xalloc of Lang.Expr.program_id *  string * string * string
+  | `Xalloc of Lang.Expr.program_id * string
   (**
      Γ ∪ {vl: τ, arr: loc, data: list τ, Hdata: data = repeat sz vl},
        {P * arr  → Array data} e {res ↠ Q}
      ------------------------ XAlloc(arr,data,Hdata)
      Γ ∪ {vl: τ}, {P} let arr = Array.make sz vl in e {res ↠ Q}
   *)
-  | `Xletopaque of Lang.Expr.program_id * string * string
+  | `Xletopaque of Lang.Expr.program_id * string
   (**
      simple_expr(ev)
      Γ ∪ {v: τ, Hv: v = ev}, {P} e {res ↠ Q}
@@ -166,43 +166,55 @@ type step = [
      ------------------------ XLetOpaque(v,Hv)
      Γ, {P} let v = ev in e {res ↠ Q}
   *)
-  | `Xvals of Lang.Expr.program_id
+  | `Xvals of Lang.Expr.program_id * string
   (**
      Γ ∪ {P} ⊫ {Q[v/res]}
      ------------------------ XLetOpaque(v,Hv)
      Γ, {P} v {res ↠ Q}
   *)
+  | `Apply of  string
+  | `Intros of string
+  | `Xseq of string
 ]
 
-let print_step print_steps : step -> PP.document = let open PP in function
-  | `SepSplitTuple (h, vars) ->
-    (string "SepSplittuple" ^/^ string h ^^ group (break 1 ^^ separate_map space string vars) ^^ string ".")
-  | `Xvals _ -> string "Xvals."
-  | `Xvalemptyarr _ -> string "Xvalemptyarr."
-  | `Xcf -> string "xcf."
-  | `Xdestruct vars ->
-    (string "Xdestruct" ^^ group (break 1 ^^ separate_map space string vars) ^^ string ".")
-  | `Xalloc (_, arr,data,h_data) ->
-    (string "Xalloc" ^^ group (space ^^ string arr ^/^ string data ^/^ string h_data) ^^ string ".")      
-  | `Xletopaque (_, f,h_f) ->
-    (string "Xletopaque" ^^ group (space ^^ string f ^/^ string h_f) ^^ string ".")      
-  | `Rewrite (lemma, h) ->
-    (string "rewrite" ^^ group (space ^^ string lemma ^/^ string "in" ^/^ string h) ^^ string ".")      
-  | `Xpullpure vars ->
-    (group (string "Xpullpure" ^^ align (group (space ^^ separate_map space string vars)) ^^ string "."))
-  | `Xmatchcase (_, i, vars)  ->
-    (string ("Xmatch_case_" ^ Int.to_string i) ^/^ group (break 1 ^^ separate_map space string vars) ^^ string ".")        
-  | `Xapp (_, fn, args, intrs) ->
-    group (string "Xapp" ^/^ parens (
+let print_step print_steps : step -> PP.document =
+  let open PP in
+  let ppid pid = string_of_int pid ^ ": " in
+  function
+  | `SepSplitTuple str ->
+    (string @@ str ^ ".")
+  | `Xvals (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
+  | `Xvalemptyarr (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
+  | `Xcf str -> string @@ str ^ "."
+  | `Xdestruct str ->
+    (string @@ str ^  ".")
+  | `Xalloc (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
+  | `Xletopaque (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
+  | `Rewrite str ->
+    (string @@ str ^  ".")
+  | `Xpullpure str ->
+    (string @@ str ^ ".")
+  | `Xmatchcase str  ->
+    (string @@ str ^ ".")
+  | `Apply  str ->
+    (string @@ str ^ ".")
+  | `Intros str ->
+    (string @@ str ^ ".")
+  | `Xseq str ->
+    (string @@ str ^ ".")
+  | `Xapp (pid, fn, args) ->
+    group (string (ppid pid ^ "Xapp") ^/^ parens (
        string fn ^/^ group (break 1 ^^ separate_map space print_spec_arg args)
-     ) ^^ string ".") ^/^
-    (if List.is_empty intrs then empty else
-       group (string "intros" ^/^ group (break 1 ^^ separate_map space string intrs) ^^ string "."))
+     ) ^^ string ".")
   | `Xpurefun (f, h_f, `Lambda (params, expr)) ->
     group (string "Xpurefun" ^/^ string f ^/^ string h_f ^/^
            Expr.print (`Lambda (params, (expr :> Expr.t))) ^^ string ".")
-  | `Case (_, l, h_l, cases) ->
-    group (string "case" ^/^ string l ^/^ string "as" ^/^ braces (
+  | `Case (pid, l, h_l, cases) ->
+    group (string (ppid pid ^ "case") ^/^ string l ^/^ string "as" ^/^ braces (
        flow_map (string " |" ^^ break 1) (fun (vars, _) -> separate_map space string vars) cases
      ) ^/^ string "eqn:" ^^ string h_l ^^ string ".") ^^
     nest 2 (break 1 ^^ separate_map (hardline) (fun (_, prf) -> group (string " - " ^^ align (print_steps prf))) cases)
@@ -215,4 +227,19 @@ let print_step = print_step (fun _ -> PP.string "...")
 let pp_step fmt vl = PP.ToFormatter.pretty 10.99 80 fmt (print_step vl)
 let show_step vl = Format.to_string pp_step vl
 let pp_steps fmt vl = PP.ToFormatter.pretty 0.99 80 fmt (print_steps vl)
-let show_steps vl = Format.to_string pp_steps vl                        
+let show_steps vl = Format.to_string pp_steps vl
+
+type proof = step list
+type script = {
+  prelude: string;
+  import: string * string;
+  spec: string;
+  proof: proof;
+}
+let show_parsed_script script =
+  let pre, file = script.import in
+
+  Format.sprintf "%s\n%s %s\n%s\n%s" script.prelude pre file script.spec (show_steps script.proof)
+
+let pp_parsed_script script =
+    print_endline @@ show_parsed_script script;
