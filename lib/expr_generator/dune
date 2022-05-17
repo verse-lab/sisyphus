@@ -1,0 +1,8 @@
+(library (name expr_generator)
+ (libraries sedlex containers lang)
+ (modules (:standard \ "main"))
+ (preprocess (pps sedlex.ppx ppx_deriving.std)))
+
+(executable (name main)
+ (modules main)
+ (libraries expr_generator containers iter))
