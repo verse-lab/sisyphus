@@ -232,3 +232,18 @@ let pp_step fmt vl = PP.ToFormatter.pretty 10.99 80 fmt (print_step vl)
 let show_step vl = Format.to_string pp_step vl
 let pp_steps fmt vl = PP.ToFormatter.pretty 0.99 80 fmt (print_steps vl)
 let show_steps vl = Format.to_string pp_steps vl
+
+type proof = step list
+type script = {
+  prelude: string;
+  import: string * string;
+  spec: string;
+  proof: proof;
+}
+let show_parsed_script script =
+  let pre, file = script.import in
+
+  Format.sprintf "%s\n%s %s\n%s\n%s" script.prelude pre file script.spec (show_steps script.proof)
+
+let pp_parsed_script script =
+    print_endline @@ show_parsed_script script;
