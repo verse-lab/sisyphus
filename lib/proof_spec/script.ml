@@ -204,10 +204,6 @@ let print_step print_steps : step -> PP.document =
     (string @@ str ^ ".")
   | `Intros str ->
     (string @@ str ^ ".")
-  | `Admitted  str ->
-    (string @@ str ^ ".")
-  | `Qed str ->
-    (string @@ str ^ ".")
   | `Xseq str ->
     (string @@ str ^ ".")
   | `Xapp (pid, fn, args) ->
