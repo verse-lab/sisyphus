@@ -10,6 +10,11 @@ let to_list f =
     | Cons (h, f) -> loop (h :: acc) f in
   loop [] f
 
+let rec of_list ls () =
+  match ls with
+  | [] -> Nil
+  | h :: t -> Cons (h, of_list t)
+
 let rec fold f acc res = match res () with
   | Nil -> acc
   | Cons (s, cont) -> fold f (f acc s) cont

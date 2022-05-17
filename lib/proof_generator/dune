@@ -1,0 +1,10 @@
+(library (name proof_generator)
+ (modules (:standard \ "main"))
+ (flags  -rectypes)
+ (libraries coq lang dynamic containers)
+)
+
+(executable (name main)
+ (modules main)
+ (flags  -rectypes)
+ (libraries proof_generator lang dynamic containers))

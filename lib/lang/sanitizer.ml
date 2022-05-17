@@ -15,6 +15,11 @@ let raw_parse_expr_channel chan = parse_raw_expr (Lexing.from_channel ~with_posi
 let raw_parse_str str = parse_raw (Lexing.from_string ~with_positions:true str)
 let raw_parse_channel chan = parse_raw (Lexing.from_channel ~with_positions:true chan)
 
+let lident (ident: Longident.t) =
+  match ident with
+  | Longident.Lident id -> id
+  | _ -> Format.sprintf "%a" Pprintast.longident ident
+
 let rec convert_typ (ty: Parsetree.core_type) : Type.t =
   match ty.ptyp_desc with
   | Parsetree.Ptyp_var v -> Var ("'" ^ v)
@@ -28,16 +33,25 @@ let rec convert_typ (ty: Parsetree.core_type) : Type.t =
     Ref (convert_typ ty)
   | Parsetree.Ptyp_constr ({txt=Lident "int"}, []) ->
     Int
-  | Parsetree.Ptyp_constr ({txt=Lident user}, ty) ->
-    ADT (user, List.map convert_typ ty)
+  | Parsetree.Ptyp_constr ({txt=Lident user}, ity) ->
+    let conv =
+      List.find_map (fun (attr: Parsetree.attribute) ->
+        match attr.attr_name.txt, attr.attr_payload with
+        | "collection", PStr [{pstr_desc=Pstr_eval ({pexp_desc=Pexp_ident {txt=lident; _}; _}, _); _}] ->
+          Some (Longident.flatten lident |> String.concat ".")
+        | _ ->
+          None
+      ) ty.ptyp_attributes
+       (* TODO: this is a hack to get around limitation of CFML that
+          adding annotations cause crashes. As such, we assume
+          Common.of_list will always be the conversion function *)
+      |> Option.or_ ~else_:(Some ("Common.of_list"))
+    in
+    ADT (user, List.map convert_typ ity, conv)
   | Ptyp_poly (_, ty) -> convert_typ ty
   | _ ->
     failwith @@ Format.sprintf "unsupported type %a"
                   Pprintast.core_type ty
-
-
-
-
 
 let rec convert_pat (pat: Parsetree.pattern) : Expr.typed_param =
   match pat with
@@ -62,7 +76,7 @@ let rec convert_expr (expr: Parsetree.expression) : Expr.t =
   | {pexp_desc=Pexp_constant (Pconst_integer (i, _)) } -> `Int (Int.of_string_exn i)
   | {pexp_desc=Pexp_tuple ts}  -> `Tuple (List.map convert_expr ts)
   | {pexp_desc=Pexp_apply ({pexp_desc=Pexp_ident ({txt=fn})}, args)} ->
-    let fn = Format.to_string Pprintast.longident fn in
+    let fn = lident fn in
     let args = List.map (fun (Asttypes.Nolabel, expr) -> convert_expr expr) args in
     `App (fn, args)
   | {pexp_desc=Pexp_construct ({txt=Lident cons}, Some {pexp_desc=Pexp_tuple ts})} ->
@@ -92,6 +106,17 @@ let fresh_var ?(hint="tmp") ctx =
   then loop 0
   else (hint, StringSet.add hint ctx)
 
+let extract_rewrite_hint (attrs: Parsetree.attributes) =
+  List.find_map (function
+    | Parsetree.{ attr_name={txt="rewrite";_}; attr_payload; _ } ->
+      begin
+        match attr_payload with
+        | Parsetree.PStr [{ pstr_desc=Pstr_eval ({pexp_desc=Pexp_ident {txt=name}; _}, _); pstr_loc }] ->
+          Some (Longident.flatten name |> String.concat ".")
+        |  _ -> failwith "unexpected structure for rewrite hint"
+      end
+    | _ -> None
+  ) attrs
 
 let rec convert_stmt (ctx: StringSet.t) (expr: Parsetree.expression) : _ Program.stmt =
   match expr with
@@ -101,39 +126,49 @@ let rec convert_stmt (ctx: StringSet.t) (expr: Parsetree.expression) : _ Program
     let ctx = StringSet.add param ctx in
     let rest = convert_stmt ctx rest in
     `LetLambda (param, expr, rest)
+  (* when we have a let of a function application *)
   | {pexp_desc=Pexp_let (Nonrecursive, [{
     pvb_pat;
     pvb_expr={
       pexp_desc=Pexp_apply ({
         pexp_desc=Pexp_ident {txt=fn}
       }, args)}}], rest)} ->
-    let fn = Format.to_string Pprintast.longident fn in
+    let fn = lident fn in
     let param = convert_pat pvb_pat in
+    (* extract rewrite hint from binding *)
+    let rewrite_hint = extract_rewrite_hint pvb_pat.ppat_attributes in
+    (* create a kont that when given arguments to lambda + rest of code, returns the structure *)
+    let kont = fun (args,rest) -> `LetExp (param, rewrite_hint, `App (fn, List.rev args), rest) in
     let ctx = add_pat_args ctx param in
+    (* fold through the arguments to replace higher order functions with preceding let bindings *)
     let kont, ctx = List.fold_left (fun (kont, ctx) ->
       function
+      (* if argument is a function *)
       | (Asttypes.Nolabel, (Parsetree.{pexp_desc=Pexp_fun _ } as e)) ->
         let lambda = convert_lambda ctx e in
         let param, ctx =  fresh_var ctx in
+        (* update kontinuation to be preceded by a let lambda binding *)
         let kont = (fun (args, rest) ->
           `LetLambda (param, lambda, kont (`Var param :: args, rest))
         ) in
         (kont, ctx)
+      (* otherwise,  *)
       | (Asttypes.Nolabel, e) ->
         let e = convert_expr e in
         let kont = (fun (args, rest) -> kont (e :: args, rest)) in
         (kont, ctx)
-    )  ((fun (args,rest) ->
-      `LetExp (param, `App (fn, List.rev args), rest)
-    ), ctx) (List.rev args) in
+    ) (kont, ctx) (List.rev args) in
+    (* convert rest of code *)
     let rest = convert_stmt ctx rest in
+    (* finally, call constructed continuation *)
     kont ([], rest)
   | {pexp_desc=Pexp_let (Nonrecursive, [{pvb_pat; pvb_expr}], rest)} ->
     let param = convert_pat pvb_pat in
     let expr = convert_expr pvb_expr in
     let ctx = add_pat_args ctx param in
     let rest = convert_stmt ctx rest in
-    `LetExp (param, expr, rest)
+    let rewrite_hint = extract_rewrite_hint pvb_pat.ppat_attributes in
+    `LetExp (param, rewrite_hint, expr, rest)
   | {pexp_desc=Pexp_match (e, cases)} ->
     let e = convert_expr e in
     let cases = List.map (convert_case ctx) cases in
@@ -177,38 +212,21 @@ and convert_lambda ctx e =
   collect_params ctx [] e 
 
 let split_last ls =
-  let rec loop acc last = function
+  let rec loop acc last =
+    function
     | [] -> (List.rev acc, last)
     | h :: t -> loop (last :: acc) h t in
   match[@warning "-8"] ls with
   | h :: t ->
     loop [] h t
 
-let collect_converters ls =
-  let collect_converters (si: Parsetree.structure_item) : (string * string) option =
-    match si.pstr_desc with
-    | Parsetree.Pstr_type (_, ((ty :: _) as tys)) ->
-      let ty' = ty.ptype_name.txt in
-      List.find_map (fun ty ->
-        List.find_map (fun (attr: Parsetree.attribute) ->
-          match attr.attr_name.txt,           attr.attr_payload with
-          | "listgen", PStr [{pstr_desc=Pstr_eval ({pexp_desc=Pexp_ident {txt=Lident fn}}, _)}] ->
-            Some (ty', fn)
-          | _ -> None) ty.Parsetree.ptype_attributes
-      ) tys
-    | _ -> None in
-  List.filter_map collect_converters ls
-
-let to_str str = Format.to_string (Pprintast.structure) str
-
 let convert : Parsetree.structure -> 'a Program.t = function
   | pats ->
-    let pres, {
+    let prelude, {
       pstr_desc=Pstr_value (Nonrecursive,
                             [{pvb_pat={ppat_desc=Ppat_var {txt=name}};
                               pvb_expr}])} = split_last pats in
-    let prelude = to_str pres in
-    let converters = collect_converters pres in
+    (* let prelude = to_str pres in *)
     let rec collect_params acc : Parsetree.expression -> _ = function
       | {pexp_desc=
            Pexp_fun (_, _, {
@@ -222,7 +240,7 @@ let convert : Parsetree.structure -> 'a Program.t = function
         let body = convert_stmt ctx body in
         (params, body) in
     let args, body = collect_params [] pvb_expr in
-    {converters; prelude; name;args;body}
+    {prelude;name;args;body}
 
 let parse_lambda_str str = raw_parse_expr_str str |> convert_lambda StringSet.empty
 let parse_expr_str str = raw_parse_expr_str str |> convert_expr
