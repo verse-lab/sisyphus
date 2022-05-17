@@ -18,7 +18,7 @@ let pp_map f fmt vl =
     ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ")
     Format.pp_print_string
     f fmt vl
-    
+
 type 'a condition = {
   quantified_over: (string * ty) list; (* list of variables being quantified over *)
   assumptions: (expr * expr) list;     (* list of assumed equalities *)
@@ -46,6 +46,30 @@ type verification_condition = {
   conditions: vc list;
 } [@@deriving show]
 
+let is_coq_eq fn = String.(Constr.destInd fn |> fst |> fst |> Names.MutInd.label |> Names.Label.to_string = "eq")
+
+let is_ind_eq str fn =
+  Constr.isInd fn &&
+  String.equal str
+    (Constr.destInd fn |> fst |> fst |> Names.MutInd.to_string)
+
+let rec extract_typ (c: Constr.t) : Lang.Type.t =
+  match Constr.kind c with
+  | Constr.Ind ((name, _), univ) -> begin
+      match Names.MutInd.to_string name with
+      | "Coq.Numbers.BinNums.Z" -> Int
+      | _ -> Format.ksprintf ~f:failwith "found unknown type %s" (Names.MutInd.to_string name)
+    end
+  | Constr.App (fname, [|ty|]) when is_ind_eq "Coq.Init.Datatypes.list" fname -> 
+      List (extract_typ ty)
+  | Constr.App (fname, args) when is_ind_eq "Coq.Init.Datatypes.prod" fname ->
+    Product (Array.to_iter args |> Iter.map extract_typ |> Iter.to_list)
+  | Constr.Var name -> Var (Names.Id.to_string name)
+  | _ ->
+    Format.ksprintf ~f:failwith "found unhandled Coq term (%s) that could not be converted to a type"
+      (Proof_debug.constr_to_string c)
+
+
 
 let build_verification_condition (t: Proof_context.t) : verification_condition =
   List.iter (fun (name, o_vl, vl) ->
@@ -56,7 +80,7 @@ let build_verification_condition (t: Proof_context.t) : verification_condition =
      *   (ostr Proof_debug.constr_to_string_pretty @@ o_vl)
      *   (Proof_debug.constr_to_string_pretty vl); *)
 
-    let is_coq_eq fn = String.(Constr.destInd fn |> fst |> fst |> Names.MutInd.label |> Names.Label.to_string = "eq") in
+
     begin match Constr.kind vl with
 
     | Constr.Sort _ ->
@@ -64,21 +88,23 @@ let build_verification_condition (t: Proof_context.t) : verification_condition =
       ()
     | Constr.App (fn, [| ty; l; r |])
       when Constr.isInd fn && is_coq_eq fn ->
-      Format.printf "found %s: %s =(%s) %s@." name
-      Proof_debug.(constr_to_string_pretty l)
-      Proof_debug.(constr_to_string_pretty ty)
-      Proof_debug.(constr_to_string_pretty r)
+      Format.ksprintf ~f:print_endline "found %s: %s =(%s) %s@." name
+        Proof_debug.(constr_to_string_pretty l)
+        Proof_debug.(constr_to_string_pretty ty)
+        Proof_debug.(constr_to_string_pretty r);
+      let _ty = extract_typ ty in
+      ()
 
     | Constr.App (fn, args) ->
-      
+
       Format.printf "found %s[%s](%d): %s.... =====> %s[%s]@." name
         Proof_debug.(tag fn)
         (Array.length args)
-      Proof_debug.(constr_to_string fn)
-      Proof_debug.(constr_to_string_pretty fn)
-      (Array.to_string Proof_debug.constr_to_string_pretty args)
-      
-      (* list A, and eq, and others *)
+        Proof_debug.(constr_to_string fn)
+        Proof_debug.(constr_to_string_pretty fn)
+        (Array.to_string Proof_debug.constr_to_string_pretty args)
+
+    (* list A, and eq, and others *)
     | Constr.Ind _              (* credits? *)
     | Constr.Var _              (* init: A *)
     | Constr.Const _ -> ()
