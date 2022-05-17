@@ -1,9 +1,8 @@
 open Containers
 
-open Proof_spec.Script
-open Coq_exec
-open Print_utils
-open Parser_utils
+let to_vernac = let open Serapi.Serapi_protocol in function [@warning "-8"]
+    | CoqAst {v = {control; attrs; expr}; _} -> Some expr
+    | _ -> None
 
 (* parser state *)
 type state = {
@@ -36,7 +35,7 @@ let handle_decs asts  =
     | _ -> false
   in
   let decs, rest = List.partition is_dec asts in
-  let decs = List.map string_of_coq_obj decs in 
+  let decs = List.map Print_utils.string_of_coq_obj decs in 
 
   let last_idx = List.length decs - 1 in
   let prelude, import = List.take last_idx decs, List.nth decs last_idx in
@@ -47,17 +46,17 @@ let handle_decs asts  =
   prelude_str, import, rest
 
 let handle_spec asts =
-  string_of_coq_obj @@ List.hd asts, List.tl asts
+  Print_utils.string_of_coq_obj @@ List.hd asts, List.tl asts
 
-let get_tactic name args state : step =
-  let vexpr_str = string_of_vexp (List.hd state.asts) in
+let get_tactic name args state : Proof_spec.Script.step =
+  let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
   match name with
   | "xcf" ->
     `Xcf vexpr_str
   | "xpullpure" -> `Xpullpure vexpr_str
   | "xapp" ->
     let+ id = with_current_pid state in
-    let fname, spec_args = unwrap_xapp (List.hd args) in
+    let fname, spec_args = Parser_utils.unwrap_xapp (List.hd args) in
     `Xapp (id, fname, spec_args)
   | "xdestruct" -> `Xdestruct vexpr_str
   | "rewrite" -> `Rewrite vexpr_str
@@ -82,7 +81,8 @@ let get_tactic name args state : step =
   | _ -> assert false
 
 
-(* partitions based on bullet; assumes single-level case / destruct only; assume that a bullet immediately follows case *)
+(* partitions based on bullet; assumes single-level case / destruct
+   only; assume that a bullet immediately follows case *)
 let partition_cases asts =
   let rec part_cases_aux asts curr acc =
     match asts with
@@ -95,7 +95,7 @@ let partition_cases asts =
   List.rev (part_cases_aux (List.tl asts) [] [])
 
 let rec handle_case name args state =
-  let destr_id, eqn, vars = unwrap_case args in
+  let destr_id, eqn, vars = Parser_utils.unwrap_case args in
 
   let parts = partition_cases (List.tl state.asts) in
   let parts_steps = List.map (fun part -> parse_proof { pid = state.pid; asts = part }) parts in
@@ -104,7 +104,7 @@ let rec handle_case name args state =
   `Case (state.pid, destr_id, eqn, parts_steps_names)
 
 and get_prim_tactic name args state =
-  let vexpr_str = string_of_vexp (List.hd state.asts) in
+  let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
   match name with
   | "apply" ->
     let+ _ = with_current_ast state in
@@ -121,25 +121,25 @@ and get_prim_tactic name args state =
 
 and unwrap_tactic sexp state =
   let open Sexplib.Sexp in
-  match [@warning "-8"] unwrap_tagged sexp with
+  match [@warning "-8"] Parser_utils.unwrap_tagged sexp with
   | "TacAlias", _ ->
-    let name, args = unwrap_tacalias sexp in
+    let name, args = Parser_utils.unwrap_tacalias sexp in
     let step = get_tactic name args state in
     let+ _ = with_current_ast state in
     Some step
   | "TacAtom", _ ->
-    let name, args = unwrap_tacatom sexp in
+    let name, args = Parser_utils.unwrap_tacatom sexp in
     let step = get_prim_tactic name args state in
     Some step
   | "TacThen", tac_bindings ->
-    let texp = List.hd tac_bindings |> unwrap_value_with_loc |> fst in
+    let texp = List.hd tac_bindings |> Parser_utils.unwrap_value_with_loc |> fst in
     unwrap_tactic texp state
   | "TacArg", _ ->
     (* admit / admitted*)
     None
 
 and parse_step sexp vexp state  =
-  let sexp = sexp |> unwrap_genarg |> snd in
+  let sexp = sexp |> Parser_utils.unwrap_genarg |> snd in
   unwrap_tactic sexp state
 
 and parse_proof state =
@@ -174,12 +174,24 @@ and parse_proof state =
   steps
 
 let handle_script rest =
-  let rest = List.filter_map Coq_exec.to_vernac rest in
+  let rest = List.filter_map to_vernac rest in
   let state = { pid = 0; asts = rest } in
   parse_proof state
 
-let parse proof_str dir : script =
-  let asts = send_to_coq dir proof_str false in
+let retrieve_ast (module Ctx: Coq.Proof.PROOF) proof_str =
+  Ctx.reset ();
+  Ctx.add proof_str;
+  let start = Ctx.size() - 1 in
+
+  let query start  =
+    Iter.int_range_by ~step:(-1) start 0
+    |> Iter.filter_map (fun at -> Ctx.query ~at Serapi.Serapi_protocol.Ast)
+    |> Iter.flat_map_l Fun.id in
+
+  query start |> Iter.to_list
+
+let parse ctx proof_str : Proof_spec.Script.script =
+  let asts = retrieve_ast ctx proof_str in
 
   let prelude, import, rest = handle_decs asts in
   let spec_str, rest = handle_spec rest in

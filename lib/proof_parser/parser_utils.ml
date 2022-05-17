@@ -87,7 +87,7 @@ let rec unwrap_ty sexp : Lang.Type.t =
       | "list", [ty] -> List ty
       | "array", [ty] -> Array ty
       | "ref", [ty] -> Ref ty
-      | adt, args -> ADT (adt, args)
+      | adt, args -> ADT (adt, args, None)
     end
   | "CNotation", _ ->
     failwith @@ Format.sprintf "todo: implement support for product sexps: %a" Sexplib.Sexp.pp_hum sexp
