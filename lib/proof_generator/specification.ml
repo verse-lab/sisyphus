@@ -45,3 +45,45 @@ type verification_condition = {
   initial: initial_vc;
   conditions: vc list;
 } [@@deriving show]
+
+
+let build_verification_condition (t: Proof_context.t) : verification_condition =
+  List.iter (fun (name, o_vl, vl) ->
+    let name = (List.map Names.Id.to_string name |> String.concat ".") in
+    (* Format.printf "hyp: %s[%s] (%s) : %s @."
+     *   (List.map Names.Id.to_string name |> String.concat ".")
+     *   Proof_debug.(tag vl)
+     *   (ostr Proof_debug.constr_to_string_pretty @@ o_vl)
+     *   (Proof_debug.constr_to_string_pretty vl); *)
+
+    let is_coq_eq fn = String.(Constr.destInd fn |> fst |> fst |> Names.MutInd.label |> Names.Label.to_string = "eq") in
+    begin match Constr.kind vl with
+
+    | Constr.Sort _ ->
+      (* represents things like A: Type *)
+      ()
+    | Constr.App (fn, [| ty; l; r |])
+      when Constr.isInd fn && is_coq_eq fn ->
+      Format.printf "found %s: %s =(%s) %s@." name
+      Proof_debug.(constr_to_string_pretty l)
+      Proof_debug.(constr_to_string_pretty ty)
+      Proof_debug.(constr_to_string_pretty r)
+
+    | Constr.App (fn, args) ->
+      
+      Format.printf "found %s[%s](%d): %s.... =====> %s[%s]@." name
+        Proof_debug.(tag fn)
+        (Array.length args)
+      Proof_debug.(constr_to_string fn)
+      Proof_debug.(constr_to_string_pretty fn)
+      (Array.to_string Proof_debug.constr_to_string_pretty args)
+      
+      (* list A, and eq, and others *)
+    | Constr.Ind _              (* credits? *)
+    | Constr.Var _              (* init: A *)
+    | Constr.Const _ -> ()
+    | _ ->
+      Format.printf "ignoring %s[%s]: %s@." name (Proof_debug.tag vl) (Proof_debug.constr_to_string_pretty vl);
+    end
+  ) (Proof_context.current_goal t).hyp;
+  assert false

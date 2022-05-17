@@ -86,3 +86,4 @@ let extract_spec pre =
   let params, body = extract_spec pre in
   let params, invariants = split [] params in
   (params, invariants, body)
+
