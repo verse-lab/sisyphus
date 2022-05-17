@@ -76,6 +76,22 @@ let env {ctx; _} =
   | Some v -> v
   | None -> failwith "unable to obtain proof env - serapi returned None."
 
+let typeof {ctx; _} txt =
+  let module Ctx = (val ctx) in
+  Ctx.query Serapi.Serapi_protocol.(TypeOf txt)
+  |> Option.flat_map Serapi.Serapi_protocol.(function
+    |[CoqConstr constr] -> Some constr
+    | _ -> None    
+  )
+
+let definition_of {ctx; _} txt =
+  let module Ctx = (val ctx) in
+  Ctx.query Serapi.Serapi_protocol.(TypeOf txt)
+  |> Option.flat_map Serapi.Serapi_protocol.(function
+    |[CoqMInd (name, def)] -> Some def
+    | _ -> None    
+  )
+
 let search t query =
   let env = env t in
   let evd = Evd.from_env env in
