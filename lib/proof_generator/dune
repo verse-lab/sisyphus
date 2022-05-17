@@ -1,6 +1,7 @@
 (library (name proof_generator)
  (modules (:standard \ "main"))
  (flags  -rectypes)
+ (preprocess (pps ppx_deriving.std))
  (libraries coq lang dynamic containers)
 )
 

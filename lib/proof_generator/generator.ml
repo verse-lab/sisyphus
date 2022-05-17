@@ -145,6 +145,11 @@ let init ~prelude ~spec ~alignment ~ctx =
     current_program_id=Lang.Id.init
   }
 
+type constr = Constr.constr
+let pp_constr fmt v =
+  Format.pp_print_string fmt @@ Proof_debug.constr_to_string v
+
+let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
 let rec symexec t env (body: Lang.Expr.t Lang.Program.stmt) =
   match body with
@@ -313,11 +318,13 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   end;
   symexec t env rest
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
+  pretty_print_current_goal t;
   debug_print_current_goal t;
+  let (pre, post) = Proof_cfml.extract_cfml_goal (current_goal t).ty in
+  print_endline @@ show_preheap pre;
   (* work out the name of function being called and the spec for it *)
   let (f_name, raw_spec) =
     (* extract the proof script name for the function being called *)
-    let (_, post) = Proof_cfml.extract_cfml_goal (current_goal t).ty in
     let f_app = Proof_cfml.extract_x_app_fun post in
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
