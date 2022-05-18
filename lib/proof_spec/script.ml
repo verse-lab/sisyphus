@@ -77,6 +77,9 @@ let print_spec_arg = let open PP in function
     group (group (fancystring "∀" 1 ^/^ group (flow_map space print_spec_param params)) ^^ string "," ^/^
            Heap.Assertion.print spec)
 
+let show_spec_arg vl = Format.to_string pp_spec_arg vl
+
+
 type simple = Expr.simple_t
 let pp_simple = Expr.pp_simple
 
