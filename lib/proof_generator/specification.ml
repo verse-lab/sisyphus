@@ -99,21 +99,24 @@ let is_constr_pos_xh fn =
     && (Constr.destConstruct fn |> fst |> snd) = 3
 
 
-let rec extract_typ (c: Constr.t) : Lang.Type.t =
-  match Constr.kind c with
-  | Constr.Ind ((name, _), univ) -> begin
+let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
+  match Constr.kind c, rel with
+  | Constr.Ind ((name, _), univ), _ -> begin
       match Names.MutInd.to_string name with
       | "Coq.Numbers.BinNums.Z" -> Int
       | _ -> Format.ksprintf ~f:failwith "found unknown type %s" (Names.MutInd.to_string name)
     end
-  | Constr.App (fname, [|ty|]) when is_ind_eq "Coq.Init.Datatypes.list" fname -> 
-      List (extract_typ ty)
-  | Constr.App (fname, args) when is_ind_eq "Coq.Init.Datatypes.prod" fname ->
-    Product (Array.to_iter args |> Iter.map extract_typ |> Iter.to_list)
-  | Constr.Var name -> Var (Names.Id.to_string name)
+  | Constr.App (fname, [|ty|]), _ when is_ind_eq "Coq.Init.Datatypes.list" fname -> 
+      List (extract_typ ?rel ty)
+  | Constr.App (fname, args), _ when is_ind_eq "Coq.Init.Datatypes.prod" fname ->
+    Product (Array.to_iter args |> Iter.map (extract_typ ?rel) |> Iter.to_list)
+  | Constr.Var name, _ -> Var (Names.Id.to_string name)
+  | Constr.Rel i, Some f -> f i
   | _ ->
-    Format.ksprintf ~f:failwith "found unhandled Coq term (%s) that could not be converted to a type"
+    Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a type"
       (Proof_debug.constr_to_string c)
+      (Proof_debug.tag c)
+      (Proof_debug.constr_to_string_pretty c)
 
 let extract_const_int (c: Constr.t) : Lang.Expr.t =
   let rec extract_int c =
@@ -138,6 +141,29 @@ let extract_const_int (c: Constr.t) : Lang.Expr.t =
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s) that could not be converted to a constant int expr"
       (Proof_debug.constr_to_string c)
 
+let is_type (c: Constr.t) = Constr.is_Type c
+
+let extract_fun_typ  =
+  let rec extract_foralls acc c =
+    match Constr.kind c with
+    | Constr.Prod ({binder_name=Name name;_}, ty, rest) when is_type ty ->
+      extract_foralls ((Names.Id.to_string name) :: acc) rest
+    | ity -> List.rev acc, c in
+  let rec extract_types foralls acc c =
+    let rel id =
+      let id = id - 1 in
+      let id = id - List.length acc  in
+      let ind = (List.length foralls - id - 1) in
+      Lang.Type.Var (List.nth foralls ind) in
+    match Constr.kind c with
+    | Constr.Prod ({binder_name=Name _;_}, ty, rest) ->
+      extract_types foralls ((extract_typ ~rel ty) :: acc) rest
+    | _ -> List.rev (extract_typ ~rel c :: acc) in
+  fun c ->
+    let qf, c = extract_foralls [] c in
+    let c = extract_types qf [] c in
+    Lang.Type.Forall (qf,c)
+
 let rec extract_expr ctx (c: Constr.t) : Lang.Expr.t =
   match Constr.kind c with
   | Constr.Var v -> `Var (Names.Id.to_string v)
@@ -161,7 +187,13 @@ let rec extract_expr ctx (c: Constr.t) : Lang.Expr.t =
   | Constr.App (fname, [| l; r |]) when is_const_eq "Coq.ZArith.BinInt.Z.mul" fname ->
     `App ("*", [extract_expr ctx l; extract_expr ctx r])    
   | Constr.App (fname, args) when Constr.isConst fname ->
-    let args = Array.to_iter args |> Iter.drop 1 |> Iter.map (extract_expr ctx) |> Iter.to_list in
+    let no_foralls = 
+      let fname, _ = Constr.destConst fname in
+      let ty = Proof_context.typeof ctx (Names.Constant.to_string fname)
+               |> Option.get_exn_or ("could not resolve type for function " ^ (Names.Constant.to_string fname)) in
+      let Lang.Type.(Forall (qfs, _)) = extract_fun_typ ty in
+      List.length qfs in
+    let args = Array.to_iter args |> Iter.drop no_foralls |> Iter.map (extract_expr ctx) |> Iter.to_list in
     let fname, _ = Constr.destConst fname in
     `App (Names.Constant.to_string fname, args)
   | _ ->
@@ -189,9 +221,9 @@ let build_verification_condition (t: Proof_context.t) : verification_condition =
     ) (Proof_context.current_goal t).hyp in
 
   List.iter (fun (ty, l, r) ->
-    Format.printf "%a = %a (%a)@."
-      Lang.Expr.pp l 
-      Lang.Expr.pp r 
-      Lang.Type.pp ty
+    Format.printf "%s = %s (%s)@."
+      Lang.Expr.(show l)
+      Lang.Expr.(show r)
+      Lang.Type.(show ty)
   ) assumptions;
   assert false
