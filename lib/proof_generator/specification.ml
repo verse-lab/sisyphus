@@ -290,6 +290,38 @@ let extract_impure_heaplet ctx (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
 
 let build_hole_var id = (`Var (Format.sprintf "S__hole_%d" id))
 
+let extract_xapp (t: Proof_context.t) (c: Constr.t) =
+  let check_or_fail name pred v = 
+    if pred v then v
+    else Format.ksprintf ~f:failwith "failed to find %s in goal %s" name (Proof_debug.constr_to_string c) in
+
+  let unwrap_app_const name c =
+    c
+    |> check_or_fail "App" Constr.isApp 
+    |> Constr.destApp
+    |> check_or_fail name Fun.(is_const_eq name % fst) in
+
+  let unwrap_wptag c =
+    c
+    |> unwrap_app_const "CFML.WPLifted.Wptag"
+    |> Fun.(flip Array.get 0 % snd) in
+    
+  let app =
+    c
+    |> unwrap_wptag
+    |> check_or_fail "App under wptag" Constr.isApp 
+    |> Constr.destApp
+    |> check_or_fail "wpgen let term" Fun.(is_const_eq "CFML.WPLifted.Wpgen_let_trm" % fst)
+    |> Fun.(flip Array.get 0 % snd)
+    |> unwrap_wptag
+    |> unwrap_app_const "CFML.WPLifted.Wpgen_app"
+    |> snd
+    |> check_or_fail "wpgen_app args" Fun.((=) 4 % Array.length)
+  in
+
+  Format.ksprintf ~f:failwith "found unhandled Coq term (%s) that could not be converted to a heaplet"
+    (Array.to_string Proof_debug.constr_to_string_pretty app) 
+
 let build_verification_condition (t: Proof_context.t) (env: def_map) : verification_condition =
   let poly_vars, env = extract_env t in
   let assumptions = extract_assumptions t in
@@ -319,7 +351,10 @@ let build_verification_condition (t: Proof_context.t) (env: def_map) : verificat
     )
     |> List.split in
   let initial_values = Array.of_list initial_values in
-
   print_endline @@ show_preheap pre;
+
+  Format.printf "%s@." (Proof_debug.constr_to_string post);
+
+  let _ = extract_xapp t post in
 
   assert false
