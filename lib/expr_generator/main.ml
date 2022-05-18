@@ -10,18 +10,19 @@ type pat =
   ]
 [@@deriving eq, ord]
 
-type expr = [
+module Constants = struct
+  (* assumption: no strings use *)
+  type t = [
   | `Int of int
   | `Func of string
-]
+] [@@deriving eq, show, ord]
+end
 
-let show_expr = function
-  | `Int i -> string_of_int i
-  | `Func fname -> fname
+module ConstantSet = Set.Make (Constants)
 
-(* assumption: no strings used*)
-let rec collect_expr : Lang.Expr.t -> expr list = function
-  | `Int _ as e -> [e]
+
+let rec collect_expr: Lang.Expr.t -> Constants.t list = function
+  | `Int i  -> [`Int i]
   | `App (fname, exps)  ->
     [`Func fname] @ List.flat_map collect_expr exps
   | `Constructor (_, es) ->
@@ -37,13 +38,11 @@ let collect = let open Proof_spec.Heap in function
        List.flat_map collect_heaplet (Assertion.sigma asn)
     | `Hole -> failwith "holes not supported"
 
-let collect_in =
+let rec collect_in =
   function
-  | `Xapp (_, _, args) ->
-    List.iter (fun x -> print_endline @@ Proof_spec.Script.show_spec_arg x) args;
-    let ls = List.flat_map collect args in
-    print_endline @@ string_of_int @@ List.length ls;
-    ls
+  | `Xapp (_, _, args) -> List.flat_map collect args
+  | `Case (_, _, _, cases) ->
+    List.flatten @@ List.flat_map (fun (_, steps) -> List.map collect_in steps) cases
   | _ ->
     []
 
@@ -57,17 +56,20 @@ let collect_constants from_id to_id (steps: Proof_spec.Script.step list)  =
         | _ -> -1 (* assume: from_id >= 0 *)
       in
 
-      print_endline @@ string_of_int curr;
+      let is_case = function
+        | `Case (_, _, _, _) -> true
+        | _ -> false
+      in
 
-      if curr >= from_id && curr <= to_id
+      if (curr >= from_id && curr <= to_id) || is_case h
       then
         (collect_in h) @ cc_aux t
       else cc_aux t
   in
-  cc_aux steps
+  cc_aux steps |> ConstantSet.of_list |> ConstantSet.to_list
 
 
-let () =
+let steps =
   let proof_str = IO.with_in "../../resources/seq_to_array/Verify_seq_to_array_old.v" IO.read_all in
   let dir = "../../_build/default/resources/seq_to_array" in
   let module Ctx =
@@ -81,23 +83,9 @@ let () =
     end) in
 
   let parsed_script = Proof_parser.Parser.parse (module Ctx) proof_str in
-  Proof_spec.Script.pp_parsed_script parsed_script;
+  parsed_script.proof
 
-  let steps = parsed_script.proof in
-  let case = List.nth steps 5 in
-
-  let steps = match [@warning "-8"] case with
-    | `Case (_, _, _, (_ :: (_, steps) :: _)) -> steps
-  in
-
-  let xapp = List.nth steps 4 in
-  print_endline @@ Proof_spec.Script.show_step xapp;
-
-  let cc  = collect_constants 0 10 [xapp] in
-  List.iter (fun x -> print_endline @@ show_expr x) cc;
+let () =
+  let cc  = collect_constants 4 4 steps in
+  List.iter (fun x -> print_endline @@ Constants.show x) cc;
   ()
-
-
-
-
-
