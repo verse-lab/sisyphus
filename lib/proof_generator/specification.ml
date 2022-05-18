@@ -1,4 +1,5 @@
 open Containers
+module IntSet = Set.Make(Int)
 module StringMap = Map.Make(String)
 
 let () =
@@ -7,13 +8,14 @@ let () =
     | _ -> None
   )
 
+type def_map = [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ] StringMap.t
 type expr = Lang.Expr.t
 type holy_expr = expr -> expr
 type ty = Lang.Type.t
 type 'a map = 'a StringMap.t
 
 let pp_expr = Lang.Expr.pp
-let pp_ty = Lang.Type.pp
+let pp_ty = Printer.pp_ty
 let pp_holy_expr fmt v =
   pp_expr fmt (v (`Var "??"))
 let pp_map f fmt vl =
@@ -25,30 +27,24 @@ let pp_map f fmt vl =
     Format.pp_print_string
     f fmt vl
 
-type 'a condition = {
-  quantified_over: (string * ty) list; (* list of variables being quantified over *)
-  assumptions: (expr * expr) list;     (* list of assumed equalities *)
-  goal: 'a;                             (* expression to be proved *)
-} [@@deriving show]
-
 type initial_vc = {
-  assumptions: (expr * expr) list; (* assumptions *)
   expr_values: expr array; (* values for variables *)
-  param_values: expr map;  (* initial values for invariant parameters *)
+  param_values: expr list;  (* initial values for invariant parameters *)
 } [@@deriving show]
 
 type vc = {
   qf: (string * ty) list;
 
-  param_values: expr map;
+  param_values: expr list;
   assumptions: (expr * expr) list;
 
-  post_param_values: expr map;
+  post_param_values: expr list;
   expr_values: holy_expr array;
 } [@@deriving show]
 
 type verification_condition = {
   env: (string * ty) list;
+  assumptions: (expr * expr) list; (* assumptions *)
   initial: initial_vc;
   conditions: vc list;
 } [@@deriving show]
@@ -120,6 +116,9 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
   | Constr.App (fname, args), _ when is_ind_eq "Coq.Init.Datatypes.prod" fname ->
     Product (Array.to_iter args |> Iter.map (extract_typ ?rel) |> Iter.to_list)
   | Constr.Var name, _ -> Var (Names.Id.to_string name)
+  | Constr.Const _, _ when is_const_eq "CFML.Semantics.loc" c -> Loc
+  | Constr.Const _, _ when is_const_eq "CFML.WPBuiltin.func" c -> Func
+  | Constr.Const _, _ when is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hprop" c -> Var "HPROP"
   | Constr.Rel i, Some f -> f i
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a type"
@@ -161,24 +160,32 @@ let extract_const_int (c: Constr.t) : Lang.Expr.t =
 let is_type (c: Constr.t) = Constr.is_Type c
 
 let extract_fun_typ  =
-  let rec extract_foralls acc c =
+  let rec extract_foralls implicits pos acc c =
     match Constr.kind c with
     | Constr.Prod ({binder_name=Name name;_}, ty, rest) when is_type ty ->
-      extract_foralls ((Names.Id.to_string name) :: acc) rest
-    | ity -> List.rev acc, c in
-  let rec extract_types foralls acc c =
+      let acc = ((Names.Id.to_string name) :: acc) in
+      extract_foralls implicits (pos + 1) acc rest
+    | ity -> List.rev acc, c, pos in
+  let rec extract_types implicits pos no_foralls foralls acc c =
     let rel id =
-      let id = id - 1 in
-      let id = id - List.length acc  in
-      let ind = (List.length foralls - id - 1) in
+      Format.printf "looking up %d"  id;
+      let id = id - pos in
+      Format.printf "-> %d"  id;
+      let ind = (no_foralls - id - 1) in
+      Format.printf "-> %d@."  ind;
       Lang.Type.Var (List.nth foralls ind) in
+    let acc ty =
+      if IntSet.mem pos implicits
+      then acc
+      else ((extract_typ ~rel ty) :: acc) in
     match Constr.kind c with
     | Constr.Prod ({binder_name=Name _;_}, ty, rest) ->
-      extract_types foralls ((extract_typ ~rel ty) :: acc) rest
-    | _ -> List.rev (extract_typ ~rel c :: acc) in
-  fun c ->
-    let qf, c = extract_foralls [] c in
-    let c = extract_types qf [] c in
+      extract_types implicits (pos + 1) no_foralls foralls (acc ty) rest
+    | _ -> List.rev (acc c) in
+  fun name c ->
+    let implicits = Proof_utils.get_implicits_for_fun name in
+    let qf, c, pos = extract_foralls implicits 0 [] c in
+    let c = extract_types implicits pos pos qf [] c in
     Lang.Type.Forall (qf,c)
 
 let rec extract_expr ctx (c: Constr.t) : Lang.Expr.t =
@@ -204,19 +211,12 @@ let rec extract_expr ctx (c: Constr.t) : Lang.Expr.t =
   | Constr.App (fname, [| l; r |]) when is_const_eq "Coq.ZArith.BinInt.Z.mul" fname ->
     `App ("*", [extract_expr ctx l; extract_expr ctx r])    
   | Constr.App (fname, args) when Constr.isConst fname ->
-    let no_foralls = 
-      let fname, _ = Constr.destConst fname in
-      let ty = Proof_context.typeof ctx (Names.Constant.to_string fname)
-               |> Option.get_exn_or ("could not resolve type for function " ^ (Names.Constant.to_string fname)) in
-      let Lang.Type.(Forall (qfs, _)) = extract_fun_typ ty in
-      List.length qfs in
-    let args = Array.to_iter args |> Iter.drop no_foralls |> Iter.map (extract_expr ctx) |> Iter.to_list in
     let fname, _ = Constr.destConst fname in
+    let args = Proof_utils.drop_implicits fname (Array.to_list args) |> List.map (extract_expr ctx) in
     `App (Names.Constant.to_string fname, args)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a expr"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
-
 
 let extract_env (t: Proof_context.t) =
   List.filter_map (fun (name, o_vl, vl) ->
@@ -250,7 +250,6 @@ let extract_env (t: Proof_context.t) =
     | (name, `Val ty) -> `Right (name, ty)
   )
 
-
 let extract_assumptions t =
   List.filter_map (fun (name, o_vl, vl) ->
     let _name = (List.map Names.Id.to_string name |> String.concat ".") in
@@ -269,13 +268,35 @@ let extract_assumptions t =
     end
   ) @@ List.rev (Proof_context.current_goal t).hyp
 
-let build_verification_condition (t: Proof_context.t) : verification_condition =
+type constr = Constr.t
+let pp_constr fmt vl = Format.pp_print_string fmt (Proof_debug.constr_to_string_pretty vl)
+let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
+
+let extract_impure_heaplet ctx (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
+  let check_or_fail name pred v = 
+      if pred v then v
+      else Format.ksprintf ~f:failwith "failed to find %s in heaplet %s" name (Proof_debug.constr_to_string c) in
+  match Constr.kind c with
+  | Constr.App (fname, [| ty; body; var |]) when is_const_eq "CFML.SepBase.SepBasicSetup.HS.repr" fname ->
+    let var =
+      check_or_fail "variable" Constr.isVar var
+      |> Constr.destVar |> Names.Id.to_string in
+    let _ty = extract_typ ty in
+    let body = extract_expr ctx body in
+    PointsTo (var, body)
+  | _ ->
+    Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a heaplet"
+      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)  
+
+let build_hole_var id = (`Var (Format.sprintf "S__hole_%d" id))
+
+let build_verification_condition (t: Proof_context.t) (env: def_map) : verification_condition =
   let poly_vars, env = extract_env t in
   let assumptions = extract_assumptions t in
   List.iter (function
     | (name, ty) ->
       Format.printf "%s: %s@."
-      name ( Printer.show_ty ty )
+        name ( Printer.show_ty ty )
   ) env;
   List.iter (fun (ty, l, r) ->
     Format.printf "%s = %s (%s)@."
@@ -283,4 +304,22 @@ let build_verification_condition (t: Proof_context.t) : verification_condition =
       Lang.Expr.(show r)
       Lang.Type.(show ty)
   ) assumptions;
+  let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
+  let sym_heap, initial_values =
+    let hole_count = ref 0 in
+    List.filter_map
+      (function `Impure heaplet -> Some (extract_impure_heaplet t heaplet) | _ -> None)
+      (match pre with | `Empty -> [] | `NonEmpty ls -> ls)
+    |> List.map Proof_spec.Heap.Heaplet.(function
+      | PointsTo (var, `App (fname, [arg])) ->
+        let id = !hole_count in
+        incr hole_count;
+        PointsTo (var, `App (fname, [build_hole_var id])), arg
+      | _ -> failwith "unsupported heaplet"
+    )
+    |> List.split in
+  let initial_values = Array.of_list initial_values in
+
+  print_endline @@ show_preheap pre;
+
   assert false

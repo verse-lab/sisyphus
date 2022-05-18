@@ -197,7 +197,7 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* Proof_context.pretty_print_current_goal t;
    * Proof_context.debug_print_current_goal t; *)
-  let vc = Specification.build_verification_condition t in
+  let vc = Specification.build_verification_condition t env in
   print_endline @@ Specification.show_verification_condition vc;
   let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
   print_endline @@ show_preheap pre;
