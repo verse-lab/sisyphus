@@ -1,8 +1,10 @@
 (library (name expr_generator)
- (libraries sedlex containers lang)
+ (libraries sedlex containers lang proof_spec proof_parser coq)
  (modules (:standard \ "main"))
+ (flags -rectypes)
  (preprocess (pps sedlex.ppx ppx_deriving.std)))
 
 (executable (name main)
  (modules main)
+ (flags -rectypes)
  (libraries expr_generator containers iter))
