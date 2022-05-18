@@ -2,9 +2,11 @@
  (libraries sedlex containers lang proof_spec proof_parser coq)
  (modules (:standard \ "main"))
  (flags -rectypes)
- (preprocess (pps sedlex.ppx ppx_deriving.std)))
+ (preprocess (pps sedlex.ppx ppx_deriving.std ppx_deriving.ord)))
 
 (executable (name main)
  (modules main)
  (flags -rectypes)
- (libraries expr_generator containers iter))
+ (libraries expr_generator containers iter)
+ (preprocess (pps sedlex.ppx ppx_deriving.std ppx_deriving.ord)))
+
