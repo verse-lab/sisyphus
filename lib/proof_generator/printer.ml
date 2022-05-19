@@ -6,6 +6,7 @@ let rec pp_ty fmt (ty: Lang.Type.t) =
   | Lang.Type.Var var ->
     let str = if String.prefix ~pre:"'" var then (String.drop 1 (String.uppercase_ascii var)) else var in
     Format.fprintf fmt "%s" str
+  | Lang.Type.Val -> Format.fprintf fmt "val" 
   | Lang.Type.Int -> Format.fprintf fmt "int" 
   | Lang.Type.Func -> Format.fprintf fmt "func"
   | Lang.Type.Loc -> Format.fprintf fmt "loc"

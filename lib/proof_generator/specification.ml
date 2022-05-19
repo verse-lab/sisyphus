@@ -107,6 +107,7 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
   | Constr.Ind ((name, _), univ), _ -> begin
       match Names.MutInd.to_string name with
       | "Coq.Numbers.BinNums.Z" -> Int
+      | "CFML.Semantics.val" -> Var "val"
       | _ -> Format.ksprintf ~f:failwith "found unknown type %s" (Names.MutInd.to_string name)
     end
   | Constr.App (fname, [|ty|]), _ when is_ind_eq "Coq.Init.Datatypes.list" fname -> 
@@ -290,6 +291,51 @@ let extract_impure_heaplet ctx (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
 
 let build_hole_var id = (`Var (Format.sprintf "S__hole_%d" id))
 
+let unwrap_inductive_list (c: Constr.t) =
+  let rec loop acc c = 
+    match Constr.kind c with
+    | Constr.App (const, [|ty; h; tl|]) when is_constr_cons const ->
+      loop (h :: acc) tl
+    | Constr.App (const, [|ty|]) when is_constr_nil const ->
+      List.rev acc
+    | _ ->
+      Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a list"
+        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) in
+  loop [] c
+
+let extract_dyn_var ctx (c: Constr.t) =
+  match Constr.kind c with
+  | Constr.App (const, [| ty; _enc; vl |]) when is_constr_eq "CFML.SepLifted.dyn" const ->
+    (extract_expr ctx vl, extract_typ ty)
+  | _ ->
+    Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a dyn"
+      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
+
+(** [extract_xapp t c] when given a CFML goal with a letapp of a function
+   application, extracts the function and the arguments.
+
+    Example:
+
+        - Goal:
+
+    {[
+      PRE (..)
+      CODE (Wpgen_let_trm
+            (`(Wpgen_app credits List_ml.fold_left
+                 ((Dyn ftmp) :: (Dyn idx) :: (Dyn rest) :: nil)))
+            (fun x2__ : credits =>
+             `(Wpgen_match (`Case x2__ is p0__ {p0__} Then 
+                               Val arr
+                             Else
+                               Done))))
+      POST (..)
+    ]}
+
+    produces:
+
+    {[ List_ml.fold_left, [`Var ftmp; `Var idx; `Var rest] ]}
+    
+*)
 let extract_xapp (t: Proof_context.t) (c: Constr.t) =
   let check_or_fail name pred v = 
     if pred v then v
@@ -316,11 +362,16 @@ let extract_xapp (t: Proof_context.t) (c: Constr.t) =
     |> unwrap_wptag
     |> unwrap_app_const "CFML.WPLifted.Wpgen_app"
     |> snd
-    |> check_or_fail "wpgen_app args" Fun.((=) 4 % Array.length)
-  in
+    |> check_or_fail "wpgen_app args" Fun.((=) 4 % Array.length) in
 
-  Format.ksprintf ~f:failwith "found unhandled Coq term (%s) that could not be converted to a heaplet"
-    (Array.to_string Proof_debug.constr_to_string_pretty app) 
+  let fn_name = app.(2)
+                |> check_or_fail "a function name" Constr.isConst
+                |> Constr.destConst
+                |> fst in
+  let args =
+    unwrap_inductive_list app.(3)
+    |> List.map (extract_dyn_var t) in
+  (fn_name, args)
 
 let build_verification_condition (t: Proof_context.t) (env: def_map) : verification_condition =
   let poly_vars, env = extract_env t in

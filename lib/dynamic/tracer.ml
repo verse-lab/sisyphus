@@ -24,6 +24,7 @@ let rec type_ (ty: Lang.Type.t) : Parsetree.core_type =
   | Lang.Type.ADT (name, args, _) -> AH.Typ.constr (str @@ Longident.Lident name) (List.map type_ args)
   | Lang.Type.Loc -> failwith "locations not supported"
   | Lang.Type.Func -> failwith "higher order functions not supported"
+  | Lang.Type.Val -> failwith "opaque vals not supported"
 
 (* [encode_list exprs] given a list of AST expressions [exprs] returns
    an AST expression representing a list of those expressions *)
@@ -80,6 +81,7 @@ let build_enc_fun v =
     | Lang.Type.Int ->
       Some (fun_ @@ fun v -> AH.Exp.variant "Int" (Some v))
     | Lang.Type.Func -> None
+    | Lang.Type.Val -> None
     | Lang.Type.Loc -> None
     | Lang.Type.List ty ->
       let+ ty_enc_fun = build_enc_fun ty in

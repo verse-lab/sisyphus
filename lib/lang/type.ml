@@ -10,6 +10,7 @@ type t =
   | Ref of t
   | Product of t list
   | ADT of string * t list * string option
+  | Val
 [@@deriving eq, ord]
 
 type fn =
@@ -21,6 +22,7 @@ module PP = PPrint
 let rec print =
   let open PP in
   function
+  | Val -> string "val"
   | Unit -> string "unit"
   | Var v -> string v
   | Int -> string "int"
