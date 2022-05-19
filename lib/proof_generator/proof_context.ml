@@ -76,13 +76,12 @@ let env {ctx; _} =
   | Some v -> v
   | None -> failwith "unable to obtain proof env - serapi returned None."
 
-let typeof {ctx; _} txt =
-  let module Ctx = (val ctx) in
-  Ctx.query Serapi.Serapi_protocol.(TypeOf txt)
-  |> Option.flat_map Serapi.Serapi_protocol.(function
-    |[CoqConstr constr] -> Some constr
-    | _ -> None    
-  )
+let typeof t expr =
+  append t "pose proof (%s)." expr;
+  let (_, _, ty) = List.hd (current_goal t).hyp in
+  let module Ctx = (val t.ctx) in
+  Ctx.cancel_last ();
+  ty
 
 let definition_of {ctx; _} txt =
   let module Ctx = (val ctx) in

@@ -197,16 +197,15 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* Proof_context.pretty_print_current_goal t;
    * Proof_context.debug_print_current_goal t; *)
-  let vc = Specification.build_verification_condition t env in
-  print_endline @@ Specification.show_verification_condition vc;
   let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
-  print_endline @@ show_preheap pre;
   (* work out the name of function being called and the spec for it *)
   let (f_name, raw_spec) =
     (* extract the proof script name for the function being called *)
     let f_app = Proof_cfml.extract_x_app_fun post in
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
+  let vc = Specification.build_verification_condition t env f_name in
+  print_endline @@ Specification.show_verification_condition vc;
 
   print_endline @@ Printf.sprintf "lemma is %s, spec is %s"
                      (Names.Constant.to_string f_name)

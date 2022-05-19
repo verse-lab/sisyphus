@@ -373,21 +373,14 @@ let extract_xapp (t: Proof_context.t) (c: Constr.t) =
     |> List.map (extract_dyn_var t) in
   (fn_name, args)
 
-let build_verification_condition (t: Proof_context.t) (env: def_map) : verification_condition =
+let build_verification_condition (t: Proof_context.t) (env: def_map) (spec: Names.Constant.t) : verification_condition =
+  (* extract polymorphic variables and typing env *)
   let poly_vars, env = extract_env t in
+  (* extract initial equalities in the context *)
   let assumptions = extract_assumptions t in
-  List.iter (function
-    | (name, ty) ->
-      Format.printf "%s: %s@."
-        name ( Printer.show_ty ty )
-  ) env;
-  List.iter (fun (ty, l, r) ->
-    Format.printf "%s = %s (%s)@."
-      Lang.Expr.(show l)
-      Lang.Expr.(show r)
-      Lang.Type.(show ty)
-  ) assumptions;
+  (* extract CFML goal *)
   let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
+  (* from the pre condition, build a symbolic heap and a set of initial expressions *)
   let sym_heap, initial_values =
     let hole_count = ref 0 in
     List.filter_map
@@ -402,10 +395,18 @@ let build_verification_condition (t: Proof_context.t) (env: def_map) : verificat
     )
     |> List.split in
   let initial_values = Array.of_list initial_values in
-  print_endline @@ show_preheap pre;
-
   Format.printf "%s@." (Proof_debug.constr_to_string post);
+  (* extract the Coq-name for the function being called, and the arguments being passed to it *)
+  let (fname, args) = extract_xapp t post in
 
-  let _ = extract_xapp t post in
+  (* instantiate specification *)
+  let instantiated_spec =
+    Format.ksprintf ~f:(Proof_context.typeof t) "%s %s"
+      (Names.Constant.to_string spec)
+      (List.map (fun (vl,_) -> "(" ^ Printer.show_expr vl ^ ")") args
+       |> String.concat " ") in
+  Proof_context.pretty_print_current_goal t;
+  Format.printf "type of invariant instantiated is %s@." (Proof_debug.constr_to_string_pretty instantiated_spec);
+
 
   assert false
