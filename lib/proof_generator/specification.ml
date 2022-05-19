@@ -1,6 +1,9 @@
 open Containers
 module IntSet = Set.Make(Int)
+module IntMap = Map.Make(Int)
 module StringMap = Map.Make(String)
+module StringSet = Set.Make(String)
+
 
 let () =
   Printexc.register_printer (function
@@ -36,7 +39,7 @@ type vc = {
   qf: (string * ty) list;
 
   param_values: expr list;
-  assumptions: (expr * expr) list;
+  assumptions: [`Eq of (ty * expr * expr) | `Assert of expr ] list;
 
   post_param_values: expr list;
   expr_values: holy_expr array;
@@ -44,7 +47,7 @@ type vc = {
 
 type verification_condition = {
   env: (string * ty) list;
-  assumptions: (expr * expr) list; (* assumptions *)
+  assumptions: (ty * expr * expr) list; (* assumptions *)
   initial: initial_vc;
   conditions: vc list;
 } [@@deriving show]
@@ -290,7 +293,7 @@ let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a heaplet"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)  
 
-let build_hole_var id = (`Var (Format.sprintf "S__hole_%d" id))
+let build_hole_var id = ((Format.sprintf "S__hole_%d" id))
 
 let unwrap_inductive_list (c: Constr.t) =
   let rec loop acc c = 
@@ -304,10 +307,10 @@ let unwrap_inductive_list (c: Constr.t) =
         (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) in
   loop [] c
 
-let extract_dyn_var (c: Constr.t) =
+let extract_dyn_var ?rel (c: Constr.t) =
   match Constr.kind c with
   | Constr.App (const, [| ty; _enc; vl |]) when is_constr_eq "CFML.SepLifted.dyn" const ->
-    (extract_expr vl, extract_typ ty)
+    (extract_expr ?rel vl, extract_typ ty)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a dyn"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
@@ -405,41 +408,212 @@ let unwrap_eq ?rel (c: Constr.t) =
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
     
 
-let unwrap_invariant_spec no_formals (c: Constr.t) =
+let gen_product =
+  let (let+) x f= List.(>>=) x f in
+  let rec loop = function
+    | h :: t ->
+      let+ h_elt = h in
+      let+ t_elt = loop t in
+      List.return (h_elt :: t_elt)
+    | _ -> List.return [] in
+  fun ls -> loop ls
+  
+  
+
+let unwrap_invariant_spec formals
+      (env: def_map)
+      (hole_binding: int StringMap.t)
+      (sym_heap: Proof_spec.Heap.Heap.t) no_conditions (c: Constr.t) =
+  let check_or_fail name pred v = 
+    if pred v then v
+    else Format.ksprintf ~f:failwith "failed to find %s  within goal %s" name
+           (Proof_debug.constr_to_string_pretty c) in
+  let no_formals = List.length formals in
   let rec collect_params acc c = 
-        let rel ind =
-          let ind = ind - 1 in
-          let ind = ind - no_formals in
-          snd (List.nth acc ind) in
-        match Constr.kind c with
-        | Constr.Prod ({binder_name=Name name; _}, ty, rest) ->
-          collect_params ((Names.Id.to_string name, extract_typ ~rel ty) :: acc) rest
-        | Constr.Prod (_, _, _) -> collect_assumptions acc [] c
-        | _ -> 
-          Format.ksprintf ~f:failwith
-            "found unhandled Coq term (%s)[%s] in (%s) which was expected to be a invariant spec (forall ..., eqns, SPEC (_), _)"
-            (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+    let rel ind =
+      let ind = ind - 1 in
+      let ind = ind - no_conditions in
+      let ind = ind - no_formals in
+      snd (List.nth acc ind) in
+    match Constr.kind c with
+    | Constr.Prod ({binder_name=Name name; _}, ty, rest) ->
+      collect_params ((Names.Id.to_string name, extract_typ ~rel ty) :: acc) rest
+    | Constr.Prod (_, _, _) -> collect_assumptions acc [] c
+    | _ -> 
+      Format.ksprintf ~f:failwith
+        "found unhandled Coq term (%s)[%s] in (%s) which was expected \
+         to be a invariant spec (forall ..., eqns, SPEC (_), _)"
+        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
   and collect_assumptions params acc c = 
-        match Constr.kind c with
-        | Constr.Prod (_, ty, rest) ->
-          let rel ind =
-            let ind = ind - 1 in
-            let ind = ind - List.length acc in
-            fst (List.nth params ind) in
-          let assum = unwrap_eq ~rel ty in
-          collect_assumptions params (assum :: acc) rest
-        | Constr.App (fname, _) when is_const_eq "CFML.SepLifted.Triple" fname ->
-          collect_spec params acc c
-        | _ ->
-          Format.ksprintf ~f:failwith
-          "found unhandled Coq term (%s)[%s] in (%s) which was \
-           expected to be a invariant spec. Expecting (eqns, SPEC (_), \
-           _)" (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+    match Constr.kind c with
+    | Constr.Prod (_, ty, rest) ->
+      let rel ind =
+        let ind = ind - 1 in
+        let ind = ind - List.length acc in
+        fst (List.nth params ind) in
+      let assum = unwrap_eq ~rel ty in
+      collect_assumptions params (assum :: acc) rest
+    | Constr.App (fname, _) when is_const_eq "CFML.SepLifted.Triple" fname ->
+      collect_spec params acc c
+    | _ ->
+      Format.ksprintf ~f:failwith
+        "found unhandled Coq term (%s)[%s] in (%s) which was \
+         expected to be a invariant spec. Expecting (eqns, SPEC (_), \
+         _)" (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
   and collect_spec params assums c =
     match Constr.kind c with
-    | Constr.App (fname, [| pre; _; _; f_app; post |]) when is_const_eq "CFML.SepLifted.Triple" fname ->
-      Format.printf "%s@." (Proof_debug.constr_to_string_pretty c);
-      failwith "here"
+    | Constr.App (fname, [| f_app; _; _; pre; post |]) when is_const_eq "CFML.SepLifted.Triple" fname ->
+      let rel ind =
+        let ind = ind - 1 in
+        let ind = ind - List.length assums in
+        fst (List.nth params ind) in
+
+      let f_name, f_args = 
+        let f_app, args =
+          check_or_fail "app" Constr.isApp f_app
+          |> Constr.destApp
+          |> check_or_fail "Trm Apps" Fun.(is_const_eq "CFML.SepLifted.Trm_apps" % fst)
+          |> snd
+          |> fun arr -> (arr.(0), arr.(1)) in
+        let f_app =
+          check_or_fail "var function ref" Constr.isVar f_app
+          |> Constr.destVar
+          |> Names.Id.to_string in
+        let args = unwrap_inductive_list args
+                   |> List.to_iter
+                   |> Iter.map (extract_dyn_var ~rel)
+                   |> Iter.to_list in
+        f_app, args in
+
+      let _, init_param_values = 
+        let inv, args =
+          pre
+          |> check_or_fail "pre-condition invariant app" Constr.isApp
+          |> Constr.destApp in
+        let inv: (string * Lang.Type.t list) =
+          inv 
+          |> check_or_fail "local invariant" Constr.isRel
+          |> Constr.destRel
+          |> (fun r -> r - 1)
+          |> check_or_fail "reference to local invariant greater than assums" ((<=) List.(length assums))
+          |> (fun r -> r - List.length assums)
+          |> check_or_fail "reference to local invariant greater than params" ((<=) List.(length params))
+          |> (fun r -> r - List.length params)
+          |> check_or_fail "reference to local invariant greater than no_conditions" ((<=) no_conditions)
+          |> (fun r -> r - no_conditions)
+          |> List.nth formals in
+        let args = Array.to_iter args |> Iter.map (extract_expr ~rel) |> Iter.to_list in
+        inv, args in
+
+      let post_name, _, _, post_args = 
+        let (name, ty, body) =
+          post
+          |> check_or_fail "fun post condition" Constr.isLambda
+          |> Constr.destLambda in
+        let name =
+          name
+          |> (fun name -> name.binder_name)
+          |> check_or_fail "named function arg" Names.Name.is_name
+          |> (function[@warning "-8"] Names.Name.Name name -> Names.Id.to_string name) in
+        let ty =
+          let rel ind =
+            let ind = ind - 1 in
+            let ind = ind - List.length assums in
+            snd (List.nth params ind) in
+          extract_typ ~rel ty in
+        let rel ind =
+          let ind = ind - 1 in
+          if ind = 0
+          then name
+          else let ind = ind - 1 in
+            let ind = ind - List.length assums in
+            fst (List.nth params ind) in
+        let inv, args =
+          body
+          |> check_or_fail "single invariant application in post" Constr.isApp
+          |> Constr.destApp in
+        let inv: (string * Lang.Type.t list) =
+          inv 
+          |> check_or_fail "local invariant" Constr.isRel
+          |> Constr.destRel
+          |> (fun r -> r - 1)   (* subtract 1 for 1 indexing *)
+          |> (fun r -> r - 1)   (* subtract 1 for the fun _ => .. *)
+          |> check_or_fail "reference to local invariant greater than assums" ((<=) List.(length assums))
+          |> (fun r -> r - List.length assums)
+          |> check_or_fail "reference to local invariant greater than params" ((<=) List.(length params))
+          |> (fun r -> r - List.length params)
+          |> check_or_fail "reference to local invariant greater than no_conditions" ((<=) no_conditions)
+          |> (fun r -> r - no_conditions)
+          |> List.nth formals in
+        let args = Array.to_iter args |> Iter.map (extract_expr ~rel) |> Iter.to_list in
+        name, ty, inv, args in
+      let post_param_values, expr_values, constraints =
+        let (`Lambda (params, body)) = StringMap.find f_name env in
+        let env = List.combine params f_args
+                  |> List.map (function
+                    | `Var (name, _), value -> (name, value)
+                    | _ -> failwith "tuple parameters in higher order functions not supported")
+                  |> StringMap.of_list in
+
+        let rec eval_expr (env: (Lang.Expr.t * Lang.Type.t) StringMap.t) (sym_heap: Proof_spec.Heap.Heap.t)
+                  (body: Lang.Expr.t) =
+          Lang.Expr.subst Fun.(Option.map fst % flip StringMap.find_opt env) body in
+
+        let rec eval_stmt (env: (Lang.Expr.t * Lang.Type.t) StringMap.t)
+                  (sym_heap: Proof_spec.Heap.Heap.t) constraints (body: Lang.Expr.t Lang.Program.stmt) =
+          match body with
+          | `Write (arr, i, vl, rest) ->
+            let vl = eval_expr env sym_heap vl in
+            let i = eval_expr env sym_heap (`Var i) in
+            let arr_vl = Proof_spec.Heap.Heap.get arr sym_heap in
+            let c1 : Lang.Expr.t list = [`App ("<", [i; `App ("TLC.LibListZ.length", [arr_vl])])] in
+            let sym_heap =
+              let arr_vl = `App ("Array.set", [arr_vl; i; vl]) in
+              Proof_spec.Heap.Heap.add_heaplet
+                (Proof_spec.Heap.Heaplet.PointsTo (arr, arr_vl)) sym_heap in
+            eval_stmt env sym_heap (c1 @ constraints) rest
+          | `Value expr ->
+            let res = eval_expr env sym_heap expr in
+            res, constraints, sym_heap
+          | _ -> failwith (Format.sprintf "unsupported higher order function body %s" (Lang.Program.show_stmt
+                                                                                         Lang.Expr.print_simple
+                                                                                         body)) in
+        let (res, constraints, sym_heap) = eval_stmt env sym_heap [] body in
+        let post_expr_values =
+          Proof_spec.Heap.Heap.to_list sym_heap
+          |> List.map (fun (Proof_spec.Heap.Heaplet.PointsTo (var, expr)) -> StringMap.find var hole_binding, expr)
+          |> List.map (fun (id, expr) ->
+            let var_id = build_hole_var id in
+            id, fun hole ->
+              Lang.Expr.subst (function
+                | s when String.equal var_id s -> Some hole
+                | _ -> None
+              ) expr
+          )
+          |> fun mapping ->
+          let imap = IntMap.of_list mapping in
+          let len = fst (IntMap.max_binding imap) + 1 in
+          Array.init len (Fun.flip IntMap.find imap) in
+
+        let post_param_values =
+          let subst expr =
+            Lang.Expr.subst (function
+                | s when String.equal post_name s -> Some res
+                | _ -> None
+              ) expr in
+          post_args
+          |> List.map subst in
+        let constraints = List.map (fun v -> `Assert v) constraints in
+        post_param_values, post_expr_values, constraints in
+      let assumptions = constraints @ List.map (fun (ty, l, r) -> `Eq (ty, l, r)) assums in
+      let res : vc = {
+        qf=params;
+        param_values=init_param_values;
+        assumptions;
+        post_param_values;
+        expr_values;
+      } in
+      res
     | _ ->
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] in (%s) which was \
@@ -450,37 +624,41 @@ let unwrap_invariant_spec no_formals (c: Constr.t) =
   collect_params [] c
 
 
-let unwrap_instantiated_specification (t: Proof_context.t) (c: Constr.t) =
-  let rec loop = function
-    | `State1 acc -> fun c ->
-      begin match Constr.kind c with
-      | Constr.Prod ({binder_name=Name name;_}, ty, rest) when is_unnamed_prod ty ->
-        loop (`State1 ((Names.Id.to_string name, unwrap_invariant_type ty) :: acc)) rest
-      | Constr.Prod (_, ty, _) when not @@ is_unnamed_prod ty ->
-        loop (`State2 (acc, [])) c
-      | _ -> 
-        Format.ksprintf ~f:failwith
-          "found unhandled Coq term (%s)[%s] \
-           in (%s) which was expected to be \
-           a specification"
-          (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
-      end
-    | `State2 (formals, acc) -> fun c ->
-      begin match Constr.kind c with
-      | Constr.Prod (_, ty, rest) ->
-        loop (`State2 (formals, (unwrap_invariant_spec (List.length acc) ty) :: acc)) rest
-      | _ -> 
-        Format.ksprintf ~f:failwith
-          "found unhandled Coq term (%s)[%s] \
-           in (%s) which was expected to be \
-           a specification (expecting \
-           specification invariants)"
-          (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
-      end in
-  loop (`State1 []) c
+let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_heap (c: Constr.t) =
+  let rec collect_invariants acc c = 
+    match Constr.kind c with
+    | Constr.Prod ({binder_name=Name name;_}, ty, rest) when is_unnamed_prod ty ->
+      collect_invariants ((Names.Id.to_string name, unwrap_invariant_type ty) :: acc) rest
+    | Constr.Prod (_, ty, _) when not @@ is_unnamed_prod ty ->
+      collect_invariant_conditions acc [] c
+    | _ -> 
+      Format.ksprintf ~f:failwith
+        "found unhandled Coq term (%s)[%s] \
+         in (%s) which was expected to be \
+         a specification"
+        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
+  and collect_invariant_conditions formals acc c =
+    match Constr.kind c with
+    | Constr.Prod (_, ty, rest) ->
+      collect_invariant_conditions formals
+        ((unwrap_invariant_spec formals env hole_binding sym_heap (List.length acc) ty) :: acc) rest
+    | Constr.App (triple, [| term; _; _; pre; post |]) when is_const_eq "CFML.SepLifted.Triple" triple ->
+      let initial_inv_args = 
+        let _, args = pre |> Constr.destApp in
+        Array.to_iter args |> Iter.map extract_expr |> Iter.to_list in
+      acc, initial_inv_args
+    | _ -> 
+      Format.ksprintf ~f:failwith
+        "found unhandled Coq term (%s)[%s] \
+         in (%s) which was expected to be \
+         a specification (expecting \
+         specification invariants)"
+        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
+  in
+  collect_invariants [] c
 
 
-let build_verification_condition (t: Proof_context.t) (env: def_map) (spec: Names.Constant.t) : verification_condition =
+let build_verification_condition (t: Proof_context.t) (defs: def_map) (spec: Names.Constant.t) : verification_condition =
   (* extract polymorphic variables and typing env *)
   let poly_vars, env = extract_env t in
   (* extract initial equalities in the context *)
@@ -488,7 +666,7 @@ let build_verification_condition (t: Proof_context.t) (env: def_map) (spec: Name
   (* extract CFML goal *)
   let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
   (* from the pre condition, build a symbolic heap and a set of initial expressions *)
-  let sym_heap, initial_values =
+  let sym_heap, (initial_values, hole_binding) =
     let hole_count = ref 0 in
     List.filter_map
       (function `Impure heaplet -> Some (extract_impure_heaplet heaplet) | _ -> None)
@@ -497,10 +675,12 @@ let build_verification_condition (t: Proof_context.t) (env: def_map) (spec: Name
       | PointsTo (var, `App (fname, [arg])) ->
         let id = !hole_count in
         incr hole_count;
-        PointsTo (var, `App (fname, [build_hole_var id])), arg
+        PointsTo (var, `App (fname, [`Var (build_hole_var id)])), (arg, (var, id))
       | _ -> failwith "unsupported heaplet"
     )
-    |> List.split in
+    |> List.split
+    |> Pair.map_snd (List.split) in
+  let hole_binding = StringMap.of_list hole_binding in
   let initial_values = Array.of_list initial_values in
   (* extract the Coq-name for the function being called, and the arguments being passed to it *)
   let (fname, args) = extract_app_full t post in
@@ -512,11 +692,18 @@ let build_verification_condition (t: Proof_context.t) (env: def_map) (spec: Name
        |> String.concat " ")
       ~f:(Proof_context.typeof t) in
 
-  let _ = unwrap_instantiated_specification t instantiated_spec in
+  let sym_heap = Proof_spec.Heap.Heap.of_list sym_heap in
+  let conditions, args = unwrap_instantiated_specification t defs hole_binding sym_heap instantiated_spec in
 
+  let res : verification_condition = {
+    env;
+    assumptions;
+    initial={
+      expr_values=initial_values;
+      param_values=args;
+    };
+    conditions;
+  } in
 
   Format.printf "type of invariant instantiated is %s@." (Proof_debug.constr_to_string_pretty instantiated_spec);
-
-
-
-  assert false
+  res
