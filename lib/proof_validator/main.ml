@@ -31,3 +31,8 @@ let data = Proof_validator.Verification_condition.{
        expr_values = [|fun exp -> `App ("Array.set", [(`App ("CFML.WPArray.Array", [exp])); `Var "acc"; `Var "v"])|] }
     ]
 } 
+
+
+let () =
+  let ctx = Z3.mk_context [] in
+  print_endline "hello world"

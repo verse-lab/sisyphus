@@ -1,4 +1,5 @@
 (library (name proof_generator)
+ (public_name sisyphus.proof_generator)
  (modules (:standard \ "main"))
  (flags  -rectypes)
  (preprocess (pps ppx_deriving.std))
