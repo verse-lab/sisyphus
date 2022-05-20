@@ -85,7 +85,35 @@ let steps =
   let parsed_script = Proof_parser.Parser.parse (module Ctx) proof_str in
   parsed_script.proof
 
+
+type func = (Lang.Type.t list) * Lang.Type.t [@@deriving show]
+module StringMap = Map.Make (String)
+type func_map = func StringMap.t
+
 let () =
   let cc  = collect_constants 4 4 steps in
   List.iter (fun x -> print_endline @@ Constants.show x) cc;
+
+  let env = StringMap.empty in
+
+  let open Lang.Type in
+  let t_app  = [List (Var "A"); List Unit], List Unit in
+  let t_make  = [Int; Unit], List Unit in
+  let t_length = [List Unit], Int in
+  let t_sub = [Int; Int], Int in
+  let t_drop = [Int; List Unit], List Unit in 
+  let map =
+    env
+    |> StringMap.add "++" t_app
+    |> StringMap.add "make" t_make
+    |> StringMap.add "length" t_length
+    |> StringMap.add "-" t_sub
+    |> StringMap.add "drop" t_drop
+  in
+
+  StringMap.iter (fun k v -> print_endline @@ k ^ " " ^ show_func v) map;
+
+  let pats = Expr_generator.Patgen.pat_gen map steps in
+  List.iter (fun ty_p -> print_endline @@ Expr_generator.Patgen.show_tag_pat ty_p ) pats;
+
   ()
