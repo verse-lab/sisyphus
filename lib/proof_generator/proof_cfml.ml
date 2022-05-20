@@ -227,6 +227,8 @@ let extract_env (t: Proof_context.t) =
     begin match Constr.kind vl with
     | Constr.Sort _ -> Some (name, `Type) (* represents (A: Type) *)
     | Constr.App (fn, [| ty; l; r |]) when Utils.is_coq_eq fn -> None
+    | Constr.Ind _ when Utils.is_ind_eq "CFML.Semantics.val" vl ->
+      Some (name, `Val Lang.Type.Val)
     | Constr.Const _ when Utils.is_const_eq "CFML.Semantics.loc" vl ->
       Some (name, `Val Lang.Type.Loc)
     | Constr.Const _ when Utils.is_const_eq "CFML.WPBuiltin.func" vl ->
