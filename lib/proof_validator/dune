@@ -1,0 +1,9 @@
+(library (name proof_validator)
+ (modules (:standard \ "main"))
+ (preprocess (pps ppx_deriving.std))
+ (libraries lang proof_spec containers))
+
+(executable (name main)
+ (modules main)
+ (flags  -rectypes)
+ (libraries proof_validator containers))

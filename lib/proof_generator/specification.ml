@@ -3,56 +3,16 @@ module IntSet = Set.Make(Int)
 module IntMap = Map.Make(Int)
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
+
 module PU = Proof_utils
 module PCFML = Proof_cfml
+module PV = Proof_validator.Verification_condition
 
 let () =
   Printexc.register_printer (function
       Failure msg -> Some msg
     | _ -> None
   )
-
-type def_map = [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ] StringMap.t
-type expr = Lang.Expr.t
-type holy_expr = expr -> expr
-type ty = Lang.Type.t
-type 'a map = 'a StringMap.t
-
-let pp_expr = Lang.Expr.pp
-let pp_ty = Printer.pp_ty
-let pp_holy_expr fmt v =
-  pp_expr fmt (v (`Var "??"))
-let pp_map f fmt vl =
-  StringMap.pp
-    ~pp_start:(fun fmt () -> Format.fprintf fmt "{")
-    ~pp_stop:(fun fmt () -> Format.fprintf fmt "}")
-    ~pp_arrow:(fun fmt () -> Format.fprintf fmt " -> ")
-    ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ")
-    Format.pp_print_string
-    f fmt vl
-
-type initial_vc = {
-  expr_values: expr array; (* values for variables *)
-  param_values: expr list;  (* initial values for invariant parameters *)
-} [@@deriving show]
-
-type vc = {
-  qf: (string * ty) list;
-
-  param_values: expr list;
-  assumptions: [`Eq of (ty * expr * expr) | `Assert of expr ] list;
-
-  post_param_values: expr list;
-  expr_values: holy_expr array;
-} [@@deriving show]
-
-type verification_condition = {
-  poly_vars: string list;
-  env: (string * ty) list;
-  assumptions: (ty * expr * expr) list; (* assumptions *)
-  initial: initial_vc;
-  conditions: vc list;
-} [@@deriving show]
 
 type constr = Constr.t
 let pp_constr fmt vl = Format.pp_print_string fmt (Proof_debug.constr_to_string_pretty vl)
@@ -61,7 +21,7 @@ let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure
 let build_hole_var id = ((Format.sprintf "S__hole_%d" id))
 
 let unwrap_invariant_spec formals
-      (env: def_map)
+      (env: PV.def_map)
       (hole_binding: int StringMap.t)
       (sym_heap: Proof_spec.Heap.Heap.t) no_conditions (c: Constr.t) =
   let check_or_fail name pred v = 
@@ -246,7 +206,7 @@ let unwrap_invariant_spec formals
         let constraints = List.map (fun v -> `Assert v) constraints in
         post_param_values, post_expr_values, constraints in
       let assumptions = constraints @ List.map (fun (ty, l, r) -> `Eq (ty, l, r)) assums in
-      let res : vc = {
+      let res : PV.vc = {
         qf=params;
         param_values=init_param_values;
         assumptions;
@@ -301,7 +261,7 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
    Coq context [ctx], builds a verification condition that can be used
    to filter candidate expressions for any higher order invariants for
    the specification. *)
-let build_verification_condition (t: Proof_context.t) (defs: def_map) (spec: Names.Constant.t) : verification_condition =
+let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: Names.Constant.t) : PV.verification_condition =
   (* extract CFML goal *)
   let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
   (* extract the Coq-name for the function being called, and the arguments being passed to it *)
