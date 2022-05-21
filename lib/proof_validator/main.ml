@@ -1094,8 +1094,9 @@ type ctx = {
   solver: Z3.Solver.solver;
   int_sort: Z3.Sort.sort;
   poly_var_map: (string, Z3.Sort.sort) Hashtbl.t;
+  update_map: (Lang.Type.t, Z3.FuncDecl.func_decl) Hashtbl.t;
   type_map: (Lang.Type.t, Z3.Sort.sort) Hashtbl.t;
-  fun_map: (string, (Lang.Type.t list * Z3.FuncDecl.func_decl) list) Hashtbl.t
+  fun_map: (string, Lang.Type.t list * (Lang.Type.t list * Z3.FuncDecl.func_decl) list) Hashtbl.t
 }
 
 type env = {
@@ -1153,7 +1154,7 @@ let rec eval_type (ctx: ctx) (ty: Lang.Type.t) : Z3.Sort.sort =
     | ADT (_, _, _) 
     | Val 
     | Func ->
-      Format.printf "treating to type %s as opaque Z3 sort@." (Lang.Type.show ty);
+      Format.printf "treating type %s as opaque Z3 sort@." (Lang.Type.show ty);
       Z3.Sort.mk_uninterpreted_s ctx.ctx ((Lang.Type.show ty))
   )
 
@@ -1178,6 +1179,22 @@ let rec eval_expr ?(ty: Lang.Type.t option)
       end |> Iter.map (fun (expr, ty) -> eval_expr ?ty ctx env expr)
       |> Iter.to_list in
     Z3.FuncDecl.apply mk exprs
+  | (`App ("TLC.LibOrder.le", [l;r]), _) ->
+    let l = eval_expr ctx env l in
+    let r = eval_expr ctx env r in
+    Z3.Arithmetic.mk_le ctx.ctx l r
+  | (`App ("TLC.LibOrder.lt", [l;r]), _) ->
+    let l = eval_expr ctx env l in
+    let r = eval_expr ctx env r in
+    Z3.Arithmetic.mk_lt ctx.ctx l r
+  | (`App ("TLC.LibOrder.ge", [l;r]), _) ->
+    let l = eval_expr ctx env l in
+    let r = eval_expr ctx env r in
+    Z3.Arithmetic.mk_ge ctx.ctx l r
+  | (`App ("TLC.LibOrder.gt", [l;r]), _) ->
+    let l = eval_expr ctx env l in
+    let r = eval_expr ctx env r in
+    Z3.Arithmetic.mk_gt ctx.ctx l r
   | (`App ("+", [l;r]), _) ->
     let l = eval_expr ctx env l in
     let r = eval_expr ctx env r in
@@ -1186,38 +1203,76 @@ let rec eval_expr ?(ty: Lang.Type.t option)
     let l = eval_expr ctx env l in
     let r = eval_expr ctx env r in
     Z3.Arithmetic.mk_sub ctx.ctx [l;r]
+  | (`App ("Array.set", [`App ("CFML.WPArray.Array", [ls]);ind;vl]), ty)
+  | (`App ("TLC.LibContainer.update", [ls;ind;vl]), ty) ->
+    let ty =
+      match ty with
+      | Some (List ty) -> Some ty
+      | _ ->
+        Option.or_lazy ~else_:(fun () -> typeof env.types vl)
+          (Option.bind (typeof env.types ls) (function (List ty) -> Some ty | _ -> None)) in
+    let ty = Option.get_exn_or "could not extract type of update" ty in
+    let fdecl = Hashtbl.find_opt ctx.update_map ty
+                |> Option.get_exn_or (Format.sprintf "found application of update to unsupported type %s"
+                                     (Lang.Type.show ty)) in
+    Z3.Expr.mk_app ctx.ctx fdecl [
+      eval_expr ~ty:(List ty) ctx env ls;
+      eval_expr ~ty:Int ctx env ind;
+      eval_expr ~ty ctx env vl;
+    ]
   | (`App (fname, args), _) ->
     begin match Hashtbl.find ctx.fun_map fname with
-    | [_, fapp] ->
-      let args = List.map (eval_expr ctx env) args in
+    | args_tys, [ptys, fapp] ->
+      let arg_ty_map =
+        let tbl = Hashtbl.create 10 in
+        List.combine args_tys args
+        |> List.iter (fun (aty, arg) ->
+          Option.iter (fun ty ->
+            Hashtbl.add tbl aty ty
+          ) (typeof env.types arg)
+        );
+        tbl in
+      let args = List.map (fun (ty, arg) ->
+        let ty = Hashtbl.find_opt arg_ty_map ty in
+        eval_expr ?ty ctx env arg
+      ) (List.combine args_tys args) in
       Z3.Expr.mk_app ctx.ctx fapp args
     | _ ->
       failwith (Format.sprintf
                   "found multiple polymorphic instantiations for function %s (not supported atm)"
                   fname)
+    | exception e ->
+      failwith (Format.sprintf
+                  "found use of unknown function %s (error %s)" fname (Printexc.to_string e))
     end
   | (`Constructor ("::", [h; t]), None) when Option.is_some (typeof env.types h) ->
     let ty = Lang.Type.List (typeof env.types h |> Option.get_exn_or "invalid type") in
     let cons = Z3.Z3List.get_cons_decl (Hashtbl.find ctx.type_map ty) in
-    let h = eval_expr ctx env h in
-    let t = eval_expr ctx env t in
+    let h =
+      let ty = match ty with Lang.Type.List ty -> Some ty | _ -> None in
+      eval_expr ?ty ctx env h in
+    let t = eval_expr ~ty ctx env t in
     Z3.Expr.mk_app ctx.ctx cons [h;t]
   | (`Constructor ("::", [h; t]), None) when Option.is_some (typeof env.types t) ->
     let ty = typeof env.types t |> Option.get_exn_or "invalid type" in
     let cons = Z3.Z3List.get_cons_decl (Hashtbl.find ctx.type_map ty) in
-    let h = eval_expr ctx env h in
-    let t = eval_expr ctx env t in
+    let h =
+      let ty = match ty with Lang.Type.List ty -> Some ty | _ -> None in
+      eval_expr ?ty ctx env h in
+    let t = eval_expr ~ty ctx env t in
     Z3.Expr.mk_app ctx.ctx cons [h;t]
   | (`Constructor ("::", [h; t]), Some ty) ->
     let cons = Z3.Z3List.get_cons_decl (Hashtbl.find ctx.type_map ty) in
-    let h = eval_expr ctx env h in
-    let t = eval_expr ctx env t in
+    let t = eval_expr ~ty ctx env t in
+    let h =
+      let ty = match ty with Lang.Type.List ty -> Some ty | _ -> None in
+      eval_expr ?ty ctx env h in
     Z3.Expr.mk_app ctx.ctx cons [h;t]
   | (`Constructor ("[]", []), Some ty) ->
     let nil = Z3.Z3List.get_nil_decl (Hashtbl.find ctx.type_map ty) in
     Z3.Expr.mk_app ctx.ctx nil []
   | (`Lambda _, _)
-  | (`Constructor _, _) -> failwith (Format.sprintf "attempt to convert unsupported expression %s to Z3"
+  | (`Constructor _, _) -> invalid_arg (Format.sprintf "attempt to convert unsupported expression %s to Z3"
                                        (Lang.Expr.show expr))
 
 let embed (data: Proof_validator.Verification_condition.verification_condition) =
@@ -1233,7 +1288,11 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
     List.map Fun.(Pair.dup_map @@ Z3.Sort.mk_uninterpreted ctx % Z3.Symbol.mk_string ctx) data.poly_vars
     |> Hashtbl.of_list in
   let int_sort = Z3.Arithmetic.Integer.mk_sort ctx in
-  let ctx = {ctx; solver; int_sort; poly_var_map; type_map=Hashtbl.create 10; fun_map=Hashtbl.create 10} in
+
+  let ctx = {ctx; solver; int_sort; poly_var_map;
+             type_map=Hashtbl.create 10;
+             fun_map=Hashtbl.create 10;
+             update_map=Hashtbl.create 10; } in
   let type_map = StringMap.of_list data.env in
   let env =
     data.env
@@ -1242,8 +1301,21 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
     |> Iter.map Fun.(Pair.dup_map @@ uncurry @@ Z3.Expr.mk_fresh_const ctx.ctx)
     |> Iter.map Pair.(map_fst fst)
     |> StringMap.of_iter in
+
+  List.iter (fun (name, sort) ->
+    let fdecl = 
+    Z3.FuncDecl.mk_fresh_func_decl ctx.ctx
+      (Format.sprintf "TLC.LibContainer.update(%s)" name) [
+        eval_type ctx (List (Var name));
+        eval_type ctx (Int);
+        eval_type ctx (Var name)
+      ]  (eval_type ctx (List (Var name)) ) in
+    Hashtbl.add ctx.update_map (Var name) fdecl
+  ) (Hashtbl.to_list poly_var_map);
+
   List.iter (fun (fname, Lang.Type.Forall (vars, sign)) ->
     let (let+) x f = List.(>>=) x f in
+    let param_tys = split_last sign |> Option.get_exn_or "unexpected func signature" |> fst in
     let bindings = 
       let+ vars = List.map_product_l (fun v -> List.map Pair.(make v) data.poly_vars) vars in
       let fname = fname ^ "(" ^ String.concat "," (List.map snd vars) ^ ")" in
@@ -1257,16 +1329,62 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
       let args, ret = split_last sign |> Option.get_exn_or "empty signature" in
       let fb = Z3.FuncDecl.mk_func_decl ctx.ctx fname args ret in
       [List.map (fun (_, v) -> Lang.Type.Var v) vars, fb] in
-    Hashtbl.add ctx.fun_map fname bindings;
+    Hashtbl.add ctx.fun_map fname (param_tys, bindings);
   ) data.functions;
   let env = {values=env; types=type_map} in
   let assumptions = 
-  List.map (fun (ty, l, r) ->
-    let l = eval_expr ~ty ctx env l in
-    let r = eval_expr ~ty ctx env r in
-    Z3.Boolean.mk_eq ctx.ctx l r
+    List.map (fun (ty, l, r) ->
+      let l = eval_expr ~ty ctx env l in
+      let r = eval_expr ~ty ctx env r in
+      Z3.Boolean.mk_eq ctx.ctx l r
     ) data.assumptions in
   Z3.Solver.add solver assumptions;
+  List.iter (fun (name, (poly_vars, params, assumptions, (ty, l, r))) ->
+    List.map_product_l (fun v -> List.map Pair.(make v) data.poly_vars) poly_vars
+    |> List.iter (fun vars ->
+      try
+        let ty_instantiation =
+          List.map (fun (v, poly_var) -> (v, Lang.Type.Var poly_var)) vars
+          |> StringMap.of_list in
+        let env, params = List.fold_map (fun env (name, ty) ->
+          let ty = Lang.Type.subst ty_instantiation ty in
+          let sort = eval_type ctx ty in
+          let var = Z3.Expr.mk_const_s ctx.ctx name sort in
+          {types=StringMap.add name ty env.types;
+           values=StringMap.add name var env.values}, var
+        ) env params in
+        let body =
+          let assumptions =
+            List.map (function
+                `Eq (ty, l, r) ->
+                let ty = Lang.Type.subst ty_instantiation ty in
+                let l = eval_expr ~ty ctx env l in
+                let r = eval_expr ~ty ctx env r in
+                Z3.Boolean.mk_eq ctx.ctx l r              
+              | `Assert expr ->
+                eval_expr ctx env expr
+            ) assumptions
+            |> Z3.Boolean.mk_and ctx.ctx in
+          let concl =
+            let l = eval_expr ~ty ctx env l in
+            let r = eval_expr ~ty ctx env r in
+            Z3.Boolean.mk_eq ctx.ctx l r in
+          Z3.Boolean.mk_implies ctx.ctx
+            assumptions
+            concl
+        in
+        Z3.Solver.add solver [
+          Z3.Quantifier.expr_of_quantifier @@
+          Z3.Quantifier.mk_forall_const ctx.ctx params body None [] [] None None
+        ]
+      with (Z3.Error _ | Invalid_argument _) as _e ->
+        (* Format.printf "adding %s ==> " name;
+         * Format.printf "failed %s@." ( Printexc.to_string e ); *)
+        ()
+    );
+  ) data.properties;
+
+  print_endline @@ Format.sprintf "Z3 model is %s" (Z3.Solver.to_string solver);
 
   (* once Z3 context initialised, return a generator function that can be used to validate candidate expressions *)
   fun (gen_pred, gen_values) ->
@@ -1311,9 +1429,9 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
                 |> List.fold_left (fun env (name, ty) ->
                   let sort = eval_type ctx ty in
                   {values = StringMap.add
-                               name (Z3.Expr.mk_const_s ctx.ctx name sort)
-                               env.values;
-                    types = StringMap.add name ty env.types}
+                              name (Z3.Expr.mk_const_s ctx.ctx name sort)
+                              env.values;
+                   types = StringMap.add name ty env.types}
                 ) env in
       let assumptions = 
         List.map (function
@@ -1335,7 +1453,7 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
       Z3.Solver.add solver [user_post_pred];
 
       (* 2nd. check user generated post values (with post param values) are equal to
-          user generated pre values symbolically evaluated *)
+         user generated pre values symbolically evaluated *)
       let user_post_values = gen_values vc.post_param_values |> Array.to_list in
       let user_preval_values = 
         let user_pre_values = gen_values vc.param_values |> Array.to_list in
