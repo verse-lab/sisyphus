@@ -220,3 +220,14 @@ let rec downcast : t -> simple_t = function
   | `App (f, args) -> `App (f, List.map downcast args)
   | `Constructor (f, args) -> `Constructor (f, List.map downcast args)
   | `Lambda _ -> failwith "invalid arg"
+
+let rec functions (funs: StringSet.t) : t -> StringSet.t = function
+  |`Constructor (_, elts)
+  | `Tuple elts ->
+    List.fold_left functions funs elts
+  | `Var _ 
+  | `Int _ -> funs
+  | `App (fname, args) ->
+      List.fold_left functions (StringSet.add fname funs) args
+  | `Lambda (_, body) -> functions funs body
+

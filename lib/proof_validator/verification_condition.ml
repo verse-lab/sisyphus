@@ -42,8 +42,10 @@ type vc = {
 
 type verification_condition = {
   poly_vars: string list;
+  functions: (string * Lang.Type.fn) list;
   env: (string * ty) list;
   assumptions: (ty * expr * expr) list; (* assumptions *)
+  invariant: string * Lang.Type.t list;
   initial: initial_vc;
   conditions: vc list;
 } [@@deriving show]

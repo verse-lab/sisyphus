@@ -1,3 +1,5 @@
+open Containers
+module StringMap = Map.Make(String)
 
 type t =
   | Unit
@@ -52,3 +54,12 @@ let show_fn vl =
   let buf = Buffer.create 10 in
   PP.ToBuffer.compact buf (print_fn vl);
   Buffer.contents buf
+
+let rec subst map = function
+  | (Var name) as ty ->  StringMap.find_opt name map |> Option.value ~default:ty
+  | Ref t -> Ref (subst map t)
+  | Array t -> Array (subst map t)
+  | List t -> List (subst map t)
+  | Product elts -> Product (List.map (subst map) elts)
+  | ADT (name, args, cons) -> ADT (name, List.map (subst map) args, cons)
+  | ty -> ty

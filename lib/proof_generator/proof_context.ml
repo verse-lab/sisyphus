@@ -91,6 +91,26 @@ let definition_of {ctx; _} txt =
     | _ -> None    
   )
 
+let names {ctx; _} txt =
+  let module Ctx = (val ctx) in
+  Ctx.query Serapi.Serapi_protocol.(Names txt)
+  |> Option.flat_map Serapi.Serapi_protocol.(function
+    | CoqGlobRef name :: _ -> Some name
+    | _ -> None    
+  )
+  
+let constant t txt =
+  names t txt |> Option.map begin function
+  | Names.GlobRef.ConstRef c -> c
+
+  | Names.GlobRef.VarRef _ ->
+    failwith (Format.sprintf "name %s resolved to var when expecting a const." txt)
+  | Names.GlobRef.IndRef _ ->
+    failwith (Format.sprintf "name %s resolved to ind when expecting a const." txt)
+  | Names.GlobRef.ConstructRef _ ->
+    failwith (Format.sprintf "name %s resolved to a constructor when expecting a const." txt)
+  end
+
 let search t query =
   let env = env t in
   let evd = Evd.from_env env in

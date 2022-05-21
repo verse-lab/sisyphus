@@ -245,7 +245,7 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
       let initial_inv_args = 
         let _, args = pre |> Constr.destApp in
         Array.to_iter args |> Iter.map PCFML.extract_expr |> Iter.to_list in
-      acc, initial_inv_args
+      formals, acc, initial_inv_args
     | _ -> 
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] \
@@ -296,9 +296,42 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
   let hole_binding = StringMap.of_list hole_binding in
   let initial_values = Array.of_list initial_values in
   let sym_heap = Proof_spec.Heap.Heap.of_list sym_heap in
-  let conditions, args = unwrap_instantiated_specification t defs hole_binding sym_heap instantiated_spec in
+  let invariants, conditions, args = unwrap_instantiated_specification t defs hole_binding sym_heap instantiated_spec in
+  (* only 1 invariant supported for now *)
+  assert (List.length invariants = 1);
+
+  let functions =
+    List.fold_left (fun funs (_,l, r) ->
+      Lang.Expr.functions (Lang.Expr.functions funs l) r) StringSet.empty assumptions
+    |> Fun.flip (Array.fold Lang.Expr.functions) initial_values
+    |> Fun.flip (List.fold_left Lang.Expr.functions) args
+    |> Fun.flip (List.fold_left (fun funs (condition: PV.vc) ->
+      List.fold_left Lang.Expr.functions funs condition.param_values
+      |> Fun.flip (List.fold_left Lang.Expr.functions) condition.post_param_values
+      |> Fun.flip (List.fold_left
+                     (fun funs -> function
+                        | `Eq (_, l, r) ->
+                          Lang.Expr.functions (Lang.Expr.functions funs l) r
+                        |`Assert bool ->
+                          Lang.Expr.functions funs bool))
+           condition.assumptions
+      |> Fun.flip (Array.fold (fun funs hexpr -> Lang.Expr.functions funs (hexpr (`Var "??"))))
+            condition.expr_values
+    )) conditions
+    |> StringSet.to_list in
+  let functions = List.filter_map (function
+      ("-" | "+" | "*" | "Array.set" | "CFML.WPArray.Array") -> None
+    | fn ->
+      let typ = Proof_context.typeof t fn in
+      let name = Libnames.qualid_of_string fn |> Nametab.locate_constant in
+      let typ = Proof_cfml.extract_fun_typ name typ in
+      Some (fn, typ)
+  ) functions in
+
   {
     poly_vars;
+    functions;
+    invariant=List.hd invariants;
     env;
     assumptions;
     initial={
