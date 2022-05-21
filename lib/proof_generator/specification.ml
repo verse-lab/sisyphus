@@ -14,42 +14,6 @@ let () =
     | _ -> None
   )
 
-type tty = Lang.Type.t
-let rec pp_tty fmt : Lang.Type.t -> unit = function
-  | Lang.Type.Unit -> Format.pp_print_string fmt "Lang.Type.Unit"
-  | Lang.Type.Var v -> Format.fprintf fmt "Lang.Type.Var \"%s\"" v
-  | Lang.Type.Int -> Format.pp_print_string fmt "Lang.Type.Int"
-  | Lang.Type.Func -> Format.pp_print_string fmt "Lang.Type.Func"
-  | Lang.Type.Loc -> Format.pp_print_string fmt "Lang.Type.Loc"
-  | Lang.Type.List t -> Format.fprintf fmt "Lang.Type.List (%a)" pp_tty t
-  | Lang.Type.Array t -> Format.fprintf fmt "Lang.Type.Array (%a)" pp_tty t
-  | Lang.Type.Ref t -> Format.fprintf fmt "Lang.Type.Ref (%a)" pp_tty t
-  | Lang.Type.Product elts ->
-    Format.fprintf fmt "Lang.Type.Product (%a)"
-      (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") pp_tty) elts
-  | Lang.Type.ADT (name, args, Some constr) ->
-    Format.fprintf fmt "Lang.Type.ADT (\"%s\", %a, Some \"%s\")" name
-      (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") pp_tty) args
-      constr
-  | Lang.Type.ADT (name, args, None) ->
-    Format.fprintf fmt "Lang.Type.ADT (\"%s\", %a, None)" name
-      (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") pp_tty) args
-  | Lang.Type.Val -> Format.pp_print_string fmt "Lang.Type.Val"
-
-type expr = [
-    `Var of string
-  | `Int of int
-  | `Tuple of expr list
-  | `App of string * expr list
-  | `Constructor of string * expr list
-  | `Lambda of [`Var of (string * tty) | `Tuple of (string * tty) list ] list * expr
-] [@@deriving show]
-
-
-type property = string list * (string * tty) list *
-                [`Assert of expr | `Eq of (tty * expr * expr)] list *
-                (tty * expr * expr) 
-[@@deriving show]
 
 let rec extract_property acc (c: Constr.t) =
   match Constr.kind c with
@@ -451,14 +415,10 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
     |> StringSet.to_list in
   let functions = List.filter_map (function
       ("-" | "+" | "*" | "Array.set" | "CFML.WPArray.Array") -> None
-    | fn ->
-      let typ = Proof_context.typeof t fn in
-      let name = Libnames.qualid_of_string fn |> Nametab.locate_constant in
-      let typ = Proof_cfml.extract_fun_typ name typ in
-      Some (fn, typ)
+    | fn -> Some fn
   ) functions in
 
-  let () =
+  let properties =
     let eq_query = 
       let eq = Libnames.qualid_of_string "Coq.Init.Logic.eq" |> Nametab.locate in
       true, Search.(GlobSearchLiteral
@@ -471,7 +431,7 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
                       (GlobSearchSubPattern (
                          Vernacexpr.InConcl, false, Pattern.PRef (Names.GlobRef.ConstRef fn)
                        ))) in
-    Fun.flip List.iter functions @@ fun (name, _) ->
+    Fun.flip List.flat_map functions @@ fun name ->
     Proof_context.search t [
       eq_query;
       query name;
@@ -480,50 +440,65 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
       extract_property constr
       |> Option.map (Pair.make name)
     )
-    |> List.iteri (fun ind (name, constr) ->
-      let name = match name with
+    |> List.filter (function
+        (name, (_, _, _, (Lang.Type.Var "HPROP", _, _))) -> false
+      | _ -> true)
+  in
+
+  let functions =
+    List.fold_left (fun s (_, p) -> PV.property_functions s p) (StringSet.of_list functions) properties
+    |> StringSet.to_list in
+
+
+  Format.printf "functions: %s@." (List.to_string Fun.id (functions));
+
+
+  let functions = List.filter_map (function
+      ("-" | "+" | "*" | "Array.set" | "CFML.WPArray.Array" | "TLC.LibContainer.update"
+      | "TLC.LibOrder.ge" | "TLC.LibOrder.gt" | "TLC.LibOrder.lt" | "TLC.LibOrder.le") -> None
+    | fn ->
+      let typ = Proof_context.typeof t fn in
+      let name = Libnames.qualid_of_string fn |> Nametab.locate_constant in
+      try
+        let typ = Proof_cfml.extract_fun_typ name typ in
+        Some (fn, typ)
+      with _ -> None
+  ) functions in
+
+  let supported_functions =
+    List.map (fun (name, _) -> name) functions
+    |> StringSet.of_list
+    |> StringSet.union (StringSet.of_list [
+      "-" ; "+" ; "*" ;
+      "Array.set" ;
+      "CFML.WPArray.Array";
+      "TLC.LibContainer.update";
+      "TLC.LibOrder.ge";
+      "TLC.LibOrder.gt";
+      "TLC.LibOrder.lt";
+      "TLC.LibOrder.le"
+    ]) in
+
+  let properties = 
+    properties
+    |> List.filter (fun (_, prop) -> PV.property_only_uses_functions_in supported_functions prop)
+    |> List.map (Pair.map_fst (function
         | Names.GlobRef.VarRef v -> Names.Id.to_string v
         | Names.GlobRef.ConstRef c -> Names.Constant.to_string c
         | Names.GlobRef.IndRef (i, _) -> Names.MutInd.to_string i 
-        | Names.GlobRef.ConstructRef ((c, _), _) -> Names.MutInd.to_string c in
-      Format.printf "search[%d] result==>%s: %s@." ind name (show_property constr)
-    );
-  in
-
+        | Names.GlobRef.ConstructRef ((c, _), _) -> Names.MutInd.to_string c)) in
 
   (* let () =
-   *   let eq_query = 
-   *     let eq = Libnames.qualid_of_string "Coq.Init.Logic.eq" |> Nametab.locate in
-   *     true, Search.(GlobSearchLiteral
-   *                     (GlobSearchSubPattern (
-   *                        Vernacexpr.InConcl, false, Pattern.PRef eq
-   *                      ))) in
-   *   let query v =
-   *     let fn = Libnames.qualid_of_string v |> Nametab.locate_constant in
-   *     true, Search.(GlobSearchLiteral
-   *                     (GlobSearchSubPattern (
-   *                        Vernacexpr.InConcl, false, Pattern.PRef (Names.GlobRef.ConstRef fn)
-   *                      ))) in
-   *   Fun.flip List.iter functions @@ fun (name, _) ->
-   *   Proof_context.search t [
-   *     eq_query;
-   *     (\* query "Coq.Init.Logic.eq"; *\)
-   *     query name;
-   *   ]
-   *   |> List.iteri (fun ind (name, _, constr) ->
-   *     let name = match name with
-   *       | Names.GlobRef.VarRef v -> Names.Id.to_string v
-   *       | Names.GlobRef.ConstRef c -> Names.Constant.to_string c
-   *       | Names.GlobRef.IndRef (i, _) -> Names.MutInd.to_string i 
-   *       | Names.GlobRef.ConstructRef ((c, _), _) -> Names.MutInd.to_string c in
-   *     Format.printf "search[%d] result==>%s[%s] = %s@." ind name
-   *       (Proof_debug.tag constr)
-   *       (Proof_debug.constr_to_string_pretty constr);
+   *   properties
+   *   |> List.iteri (fun ind (name, constr) ->
+   *     Format.printf "search[%d] result==>%s: %s@." ind name (PV.show_property constr)
    *   );
    * in *)
+
   {
     poly_vars;
     functions;
+    properties;
     invariant=List.hd invariants;
     env;
     assumptions;

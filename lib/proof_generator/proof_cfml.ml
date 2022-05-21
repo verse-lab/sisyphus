@@ -18,14 +18,15 @@ let is_wp_gen_let_trm const = is_const_named "Wpgen_let_trm" const
 let is_wp_gen_app const = is_const_named "Wpgen_app" const
 
 (** [extract_typ ?rel c] extracts a Type from a Coq term. [rel] if
-   provided is a function that coq's de-brujin indices to a concrete
-   type. *)
+    provided is a function that coq's de-brujin indices to a concrete
+    type. *)
 let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
   match Constr.kind c, rel with
   | Constr.Ind ((name, _), univ), _ -> begin
       match Names.MutInd.to_string name with
       | "Coq.Numbers.BinNums.Z" -> Int
       | "CFML.Semantics.val" -> Val
+      | "Coq.Init.Datatypes.nat" -> Int
       | _ -> Format.ksprintf ~f:failwith "found unknown type %s" (Names.MutInd.to_string name)
     end
   | Constr.App (fname, [|ty|]), _ when Utils.is_ind_eq "Coq.Init.Datatypes.list" fname -> 
@@ -47,8 +48,8 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
       (Proof_debug.constr_to_string_pretty c)
 
 (** [extract_typ_opt ?rel c] is the same as [extract_typ], but returns
-   None when the constructor can not be represented as an internal
-   type. *)
+    None when the constructor can not be represented as an internal
+    type. *)
 let extract_typ_opt ?rel c =
   try
     Some (extract_typ ?rel c)
@@ -57,44 +58,44 @@ let extract_typ_opt ?rel c =
     None
 
 (** [extract_fun_typ name c], given a function name [name] and Coq
-   term [c] representing [name]'s type, returns an internal encoding
-   of the function's type.  *)
-let extract_fun_typ  =
+    term [c] representing [name]'s type, returns an internal encoding
+    of the function's type.  *)
+let extract_fun_typ name c' =
   let rec extract_foralls implicits pos acc c =
     match Constr.kind c with
     | Constr.Prod ({binder_name=Name name;_}, ty, rest) when Constr.is_Type ty ->
       let acc = ((Names.Id.to_string name) :: acc) in
       extract_foralls implicits (pos + 1) acc rest
-    | ity -> List.rev acc, c, pos in
-  let rec extract_types implicits pos no_foralls foralls acc c =
+    | ity -> acc, c, pos in
+  let rec extract_types implicits pos foralls acc c =
     let rel id =
-      let id = id - pos in
-      let ind = (no_foralls - id - 1) in
-      Lang.Type.Var (List.nth foralls ind) in
+      let id = pos - id in
+      Lang.Type.Var (List.nth foralls id) in
     let acc ty =
       if IntSet.mem pos implicits
       then acc
       else ((extract_typ ~rel ty) :: acc) in
     match Constr.kind c with
     | Constr.Prod ({binder_name=Name _;_}, ty, rest) ->
-      extract_types implicits (pos + 1) no_foralls foralls (acc ty) rest
+      extract_types implicits (pos + 1) foralls (acc ty) rest
     | _ -> List.rev (acc c) in
-  fun name c ->
-    (* first, retrieve implicits - we will be ignoring them *)
-    let implicits = Utils.get_implicits_for_fun name in
-    (* extract forall quantified types *)
-    let qf, c, pos = extract_foralls implicits 0 [] c in
-    (* extract remaining types *)
-    let c = extract_types implicits pos pos qf [] c in
-    Lang.Type.Forall (qf,c)
+  (* first, retrieve implicits - we will be ignoring them *)
+  let implicits = Utils.get_implicits_for_fun name in
+  (* extract forall quantified types *)
+  let qf, c, pos = extract_foralls implicits 0 [] c' in
+  (* extract remaining types *)
+  let c = extract_types implicits pos qf [] c in
+  Lang.Type.Forall (List.rev qf,c)
 
 (** [extract_expr ?rel c] extracts an expression from a Coq term
-   [c]. [rel] is a function that maps Coq's de-bruijin indices to the
-   corresponding terms in the wider typing environment. *)
+    [c]. [rel] is a function that maps Coq's de-bruijin indices to the
+    corresponding terms in the wider typing environment. *)
 let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
   match Constr.kind c, rel with
   | Constr.Rel ind, Some f -> `Var (f ind)
   | Constr.Var v, _ -> `Var (Names.Id.to_string v)
+  | Constr.App (value, [| c |]), _ when Proof_utils.is_const_eq "CFML.Semantics.trms_vals" value ->
+    extract_expr ?rel c
   | Constr.App (value, [| c |]), _ when Proof_utils.is_constr_eq "CFML.Semantics.val" value ->
     extract_expr ?rel c
   | Constr.App (const, [|ty; h; tl|]), _ when Proof_utils.is_constr_cons const ->
@@ -127,7 +128,7 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
 (** [extract_cfml_goal goal] when given an intermediate CFML [goal],
-   extracts the pre and post condition.  *)
+    extracts the pre and post condition.  *)
 let extract_cfml_goal goal =
   let[@warning "-8"] himpl, [pre; post] = Constr.decompose_app goal in
   assert begin
@@ -166,8 +167,8 @@ let extract_cfml_goal goal =
   (pre, post)
 
 (** [extract_xapp_fun c] given a coq term [c] representing a reified
-   CFML encoding of an OCaml program with a let of a function as the
-   next statement, extracts the function being calle'ds arguments *)
+    CFML encoding of an OCaml program with a let of a function as the
+    next statement, extracts the function being calle'ds arguments *)
 let extract_x_app_fun pre =
   let extract_app_enforce name f n pre =
     match Constr.kind pre with
@@ -188,12 +189,12 @@ let extract_x_app_fun pre =
     Failure _ -> failwith ("extract_f_app failed because unsupported context: " ^ (Proof_debug.constr_to_string pre))
 
 (** [extract spec c] given a Coq term [c] representing a CFML
-   specification, returns a triple of the parameters (named
-   arguments), invariants (assumptions) and the body (assertion).
+    specification, returns a triple of the parameters (named
+    arguments), invariants (assumptions) and the body (assertion).
 
     Note: assumes that a CFML spec is of the form of a sequence of
-   named arguments, followed by a sequence of unnamed parameters and
-   finally a non-product body. *)
+    named arguments, followed by a sequence of unnamed parameters and
+    finally a non-product body. *)
 let extract_spec pre =
   let extract_spec pre =
     let rec loop acc pre = 
@@ -214,7 +215,7 @@ let extract_spec pre =
   (params, invariants, body)
 
 (** [extract_dyn_var ?rel c] given a Coq term [c] of the form {[Dyn
-   v]}, extracts the corresponding expression and type.  *)
+                                                                  v]}, extracts the corresponding expression and type.  *)
 let extract_dyn_var ?rel (c: Constr.t) =
   match Constr.kind c with
   | Constr.App (const, [| ty; _enc; vl |]) when Proof_utils.is_constr_eq "CFML.SepLifted.dyn" const ->
@@ -224,7 +225,7 @@ let extract_dyn_var ?rel (c: Constr.t) =
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
 (** [extract_env ctx] given a Coq context [ctx] extracts the typing
-   env of the current proof goal.  *)
+    env of the current proof goal.  *)
 let extract_env (t: Proof_context.t) =
   List.filter_map (fun (name, o_vl, vl) ->
     let name = (List.map Names.Id.to_string name |> String.concat ".") in
@@ -260,7 +261,7 @@ let extract_env (t: Proof_context.t) =
   )
 
 (** [extract assumptions ctx] given a Coq context [ctx] extracts the
-   list of assumptions (equalities) in the current proof goal. *)
+    list of assumptions (equalities) in the current proof goal. *)
 let extract_assumptions t =
   List.filter_map (fun (name, o_vl, vl) ->
     let _name = (List.map Names.Id.to_string name |> String.concat ".") in
@@ -281,29 +282,29 @@ let extract_assumptions t =
 
 
 (** [extract_app_full t c] when given a CFML goal with a letapp of a function
-   application, extracts the function and the arguments.
+    application, extracts the function and the arguments.
 
     Example:
 
-        - Goal:
+    - Goal:
 
     {[
       PRE (..)
-      CODE (Wpgen_let_trm
-            (`(Wpgen_app credits List_ml.fold_left
-                 ((Dyn ftmp) :: (Dyn idx) :: (Dyn rest) :: nil)))
-            (fun x2__ : credits =>
-             `(Wpgen_match (`Case x2__ is p0__ {p0__} Then 
-                               Val arr
-                             Else
-                               Done))))
-      POST (..)
+        CODE (Wpgen_let_trm
+                (`(Wpgen_app credits List_ml.fold_left
+                     ((Dyn ftmp) :: (Dyn idx) :: (Dyn rest) :: nil)))
+                (fun x2__ : credits =>
+                  `(Wpgen_match (`Case x2__ is p0__ {p0__} Then 
+                                   Val arr
+                                   Else
+                                   Done))))
+        POST (..)
     ]}
 
     produces:
 
     {[ List_ml.fold_left, [`Var ftmp; `Var idx; `Var rest] ]}
-    
+
 *)
 let extract_app_full (t: Proof_context.t) (c: Constr.t) =
   let check_or_fail name pred v = 
@@ -320,7 +321,7 @@ let extract_app_full (t: Proof_context.t) (c: Constr.t) =
     c
     |> unwrap_app_const "CFML.WPLifted.Wptag"
     |> Fun.(flip Array.get 0 % snd) in
-    
+
   let app =
     c
     |> unwrap_wptag
@@ -343,24 +344,24 @@ let extract_app_full (t: Proof_context.t) (c: Constr.t) =
   (fn_name, args)
 
 (** [unwrap_invariant_type c] when given a Coq term [c] representing
-   the type signature of an invariant (e.g. {[I: int -> List A ->
-   hprop]}), extracts a list of the types of the arguments of the invariant.  *)
+    the type signature of an invariant (e.g. {[I: int -> List A ->
+      hprop]}), extracts a list of the types of the arguments of the invariant.  *)
 let unwrap_invariant_type (c: Constr.t) =
   let rec loop acc c = 
-  match Constr.kind c with
-  | Constr.Prod (_, ty, rest) ->
-    loop ((extract_typ ty) :: acc) rest
-  | Constr.Const _ when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hprop" c ->
-    List.rev acc
-  | _ -> 
-    Format.ksprintf ~f:failwith
-      "found unhandled Coq term (%s)[%s] in (%s) which was expected to be a invariant type (_  -> .. -> hprop)"
-      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)  in
+    match Constr.kind c with
+    | Constr.Prod (_, ty, rest) ->
+      loop ((extract_typ ty) :: acc) rest
+    | Constr.Const _ when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hprop" c ->
+      List.rev acc
+    | _ -> 
+      Format.ksprintf ~f:failwith
+        "found unhandled Coq term (%s)[%s] in (%s) which was expected to be a invariant type (_  -> .. -> hprop)"
+        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)  in
   loop [] c
 
 (** [unwrap_eq ?rel c] when given a Coq term [c] representing an
-   propositional equality, extracts the left and right hand sides of
-   the equality. *)
+    propositional equality, extracts the left and right hand sides of
+    the equality. *)
 let unwrap_eq ?rel (c: Constr.t) =
   match Constr.kind c with
   | Constr.App (fname, [| ty; l; r |]) when Utils.is_ind_eq "Coq.Init.Logic.eq" fname ->
@@ -374,11 +375,11 @@ let unwrap_eq ?rel (c: Constr.t) =
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
 (** [extract_impure_heaplet c] when given a Coq term representing a
-   CFML heaplet, extracts an internal representation of the heaplet. *)
+    CFML heaplet, extracts an internal representation of the heaplet. *)
 let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
   let check_or_fail name pred v = 
-      if pred v then v
-      else Format.ksprintf ~f:failwith "failed to find %s in heaplet %s" name (Proof_debug.constr_to_string c) in
+    if pred v then v
+    else Format.ksprintf ~f:failwith "failed to find %s in heaplet %s" name (Proof_debug.constr_to_string c) in
   match Constr.kind c with
   | Constr.App (fname, [| ty; body; var |]) when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.HS.repr" fname ->
     let var =
