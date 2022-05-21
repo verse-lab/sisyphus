@@ -1354,7 +1354,7 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
            values=StringMap.add name var env.values}, var
         ) env params in
         let body =
-          let assumptions =
+          let assumptions' =
             List.map (function
                 `Eq (ty, l, r) ->
                 let ty = Lang.Type.subst ty_instantiation ty in
@@ -1369,9 +1369,12 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
             let l = eval_expr ~ty ctx env l in
             let r = eval_expr ~ty ctx env r in
             Z3.Boolean.mk_eq ctx.ctx l r in
-          Z3.Boolean.mk_implies ctx.ctx
-            assumptions
-            concl
+          if List.is_empty assumptions
+          then concl
+          else
+            Z3.Boolean.mk_implies ctx.ctx
+              assumptions'
+              concl
         in
         Z3.Solver.add solver [
           Z3.Quantifier.expr_of_quantifier @@
