@@ -14,6 +14,136 @@ let () =
     | _ -> None
   )
 
+type tty = Lang.Type.t
+let rec pp_tty fmt : Lang.Type.t -> unit = function
+  | Lang.Type.Unit -> Format.pp_print_string fmt "Lang.Type.Unit"
+  | Lang.Type.Var v -> Format.fprintf fmt "Lang.Type.Var \"%s\"" v
+  | Lang.Type.Int -> Format.pp_print_string fmt "Lang.Type.Int"
+  | Lang.Type.Func -> Format.pp_print_string fmt "Lang.Type.Func"
+  | Lang.Type.Loc -> Format.pp_print_string fmt "Lang.Type.Loc"
+  | Lang.Type.List t -> Format.fprintf fmt "Lang.Type.List (%a)" pp_tty t
+  | Lang.Type.Array t -> Format.fprintf fmt "Lang.Type.Array (%a)" pp_tty t
+  | Lang.Type.Ref t -> Format.fprintf fmt "Lang.Type.Ref (%a)" pp_tty t
+  | Lang.Type.Product elts ->
+    Format.fprintf fmt "Lang.Type.Product (%a)"
+      (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") pp_tty) elts
+  | Lang.Type.ADT (name, args, Some constr) ->
+    Format.fprintf fmt "Lang.Type.ADT (\"%s\", %a, Some \"%s\")" name
+      (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") pp_tty) args
+      constr
+  | Lang.Type.ADT (name, args, None) ->
+    Format.fprintf fmt "Lang.Type.ADT (\"%s\", %a, None)" name
+      (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") pp_tty) args
+  | Lang.Type.Val -> Format.pp_print_string fmt "Lang.Type.Val"
+
+type expr = [
+    `Var of string
+  | `Int of int
+  | `Tuple of expr list
+  | `App of string * expr list
+  | `Constructor of string * expr list
+  | `Lambda of [`Var of (string * tty) | `Tuple of (string * tty) list ] list * expr
+] [@@deriving show]
+
+
+type property = string list * (string * tty) list *
+                [`Assert of expr | `Eq of (tty * expr * expr)] list *
+                (tty * expr * expr) 
+[@@deriving show]
+
+let rec extract_property acc (c: Constr.t) =
+  match Constr.kind c with
+  | Constr.Prod ({binder_name=Name n; _}, ty, c) when Constr.is_Type ty ->
+    extract_property (Names.Id.to_string n :: acc) c
+  | Constr.Prod (_, _, _) ->
+    extract_params acc [] c
+  | _ ->
+    failwith (Format.sprintf "(extract property) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
+and extract_params tys acc (c: Constr.t) =
+  match Constr.kind c with
+  | Constr.Prod ({binder_name=Name n; _}, ty, rest) ->
+    let rel ind =
+      let ind = ind - 1 in
+      if ind < List.length acc
+      then List.nth acc ind |> snd
+      else List.nth tys (ind - List.length acc) |> (fun v -> Lang.Type.Var v) in
+    let n = Names.Id.to_string n in
+    let ty = PCFML.extract_typ_opt ~rel ty in
+    begin match ty with
+    | Some ty -> extract_params tys ((n, ty) :: acc) rest
+    | None -> extract_assertions tys acc [] rest
+    end
+  | _ -> extract_assertions tys acc [] c
+  (* | _ ->
+   *   failwith (Format.sprintf "(extract params) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c)) *)
+and extract_assertions tys params acc (c: Constr.t) =
+  let rel ind =
+    let ind = ind - 1 in
+    if ind < List.length acc then
+      failwith (Format.sprintf "(extract assertions) found dependent types");
+    let ind = ind - List.length acc in
+    if ind < List.length params
+    then List.nth params ind |> snd
+    else List.nth tys (ind - List.length params) |> (fun v -> Lang.Type.Var v) in
+  let rel_exp ind =
+    let ind = ind - 1 in
+    if ind < List.length acc then
+      failwith (Format.sprintf "(extract assertions) found dependent types");
+    let ind = ind - List.length acc in
+    if ind < List.length params
+    then List.nth params ind |> fst
+    else failwith "(extract assertions) attempt to index out of bounds" in
+  match Constr.kind c with
+  | Constr.Prod (_, exp, c) when Constr.isApp exp && Constr.destApp exp |> fst |> PU.is_coq_eq ->
+    let[@warning "-8"] _, [| ty; l; r |] = Constr.destApp exp in
+    let ty = PCFML.extract_typ ~rel ty in
+    let l = PCFML.extract_expr ~rel:rel_exp l in
+    let r = PCFML.extract_expr ~rel:rel_exp r in
+    extract_assertions tys params (`Eq (ty, l, r) :: acc) c
+  | Constr.Prod (_, exp, c) ->
+    let exp = PCFML.extract_expr ~rel:rel_exp exp in
+    extract_assertions tys params (`Assert exp :: acc) c
+  | Constr.App _ ->
+    extract_equality tys params acc c
+  | _ ->
+    failwith (Format.sprintf "(extract assertions) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
+and extract_equality tys params assertions (c: Constr.t) =
+  let rel ind =
+    let ind = ind - 1 in
+    if ind < List.length assertions then
+      failwith (Format.sprintf "(extract equality) found dependent types");
+    let ind = ind - List.length assertions in
+    if ind < List.length params
+    then List.nth params ind |> snd
+    else
+      let ind = ind - List.length params in
+      if ind < 0 then
+        failwith (Format.sprintf "(extract equality) found dependent types");
+      List.nth tys ind  |> (fun v -> Lang.Type.Var v) in
+  let rel_exp ind =
+    let ind = ind - 1 in
+    if ind < List.length assertions then
+      failwith (Format.sprintf "(extract equality) found dependent types");
+    let ind = ind - List.length assertions in
+    if ind < List.length params
+    then List.nth params ind |> fst
+    else failwith (Format.sprintf "(extract equality) attempt to index out of bounds") in
+  match Constr.kind c with
+  | Constr.App (fname, [| ty; l; r |]) when PU.is_coq_eq fname ->
+    let ty = PCFML.extract_typ ~rel ty in
+    let l = PCFML.extract_expr ~rel:rel_exp l in
+    let r = PCFML.extract_expr ~rel:rel_exp r in
+    (List.rev tys, List.rev params, List.rev assertions, (ty, l, r))
+  | _ ->
+    failwith (Format.sprintf "(extract equality) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
+
+let extract_property c =
+  try Some (extract_property [] c) with
+  | Failure msg ->
+    (* Format.eprintf "failed to parse type %s, due to %s@.@." (Proof_debug.constr_to_string_pretty c) msg; *)
+    None
+  | _ -> None
+
 type constr = Constr.t
 let pp_constr fmt vl = Format.pp_print_string fmt (Proof_debug.constr_to_string_pretty vl)
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
@@ -328,6 +458,69 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
       Some (fn, typ)
   ) functions in
 
+  let () =
+    let eq_query = 
+      let eq = Libnames.qualid_of_string "Coq.Init.Logic.eq" |> Nametab.locate in
+      true, Search.(GlobSearchLiteral
+                      (GlobSearchSubPattern (
+                         Vernacexpr.InConcl, false, Pattern.PRef eq
+                       ))) in
+    let query v =
+      let fn = Libnames.qualid_of_string v |> Nametab.locate_constant in
+      true, Search.(GlobSearchLiteral
+                      (GlobSearchSubPattern (
+                         Vernacexpr.InConcl, false, Pattern.PRef (Names.GlobRef.ConstRef fn)
+                       ))) in
+    Fun.flip List.iter functions @@ fun (name, _) ->
+    Proof_context.search t [
+      eq_query;
+      query name;
+    ]
+    |> List.filter_map (fun (name, _, constr) ->
+      extract_property constr
+      |> Option.map (Pair.make name)
+    )
+    |> List.iteri (fun ind (name, constr) ->
+      let name = match name with
+        | Names.GlobRef.VarRef v -> Names.Id.to_string v
+        | Names.GlobRef.ConstRef c -> Names.Constant.to_string c
+        | Names.GlobRef.IndRef (i, _) -> Names.MutInd.to_string i 
+        | Names.GlobRef.ConstructRef ((c, _), _) -> Names.MutInd.to_string c in
+      Format.printf "search[%d] result==>%s: %s@." ind name (show_property constr)
+    );
+  in
+
+
+  (* let () =
+   *   let eq_query = 
+   *     let eq = Libnames.qualid_of_string "Coq.Init.Logic.eq" |> Nametab.locate in
+   *     true, Search.(GlobSearchLiteral
+   *                     (GlobSearchSubPattern (
+   *                        Vernacexpr.InConcl, false, Pattern.PRef eq
+   *                      ))) in
+   *   let query v =
+   *     let fn = Libnames.qualid_of_string v |> Nametab.locate_constant in
+   *     true, Search.(GlobSearchLiteral
+   *                     (GlobSearchSubPattern (
+   *                        Vernacexpr.InConcl, false, Pattern.PRef (Names.GlobRef.ConstRef fn)
+   *                      ))) in
+   *   Fun.flip List.iter functions @@ fun (name, _) ->
+   *   Proof_context.search t [
+   *     eq_query;
+   *     (\* query "Coq.Init.Logic.eq"; *\)
+   *     query name;
+   *   ]
+   *   |> List.iteri (fun ind (name, _, constr) ->
+   *     let name = match name with
+   *       | Names.GlobRef.VarRef v -> Names.Id.to_string v
+   *       | Names.GlobRef.ConstRef c -> Names.Constant.to_string c
+   *       | Names.GlobRef.IndRef (i, _) -> Names.MutInd.to_string i 
+   *       | Names.GlobRef.ConstructRef ((c, _), _) -> Names.MutInd.to_string c in
+   *     Format.printf "search[%d] result==>%s[%s] = %s@." ind name
+   *       (Proof_debug.tag constr)
+   *       (Proof_debug.constr_to_string_pretty constr);
+   *   );
+   * in *)
   {
     poly_vars;
     functions;

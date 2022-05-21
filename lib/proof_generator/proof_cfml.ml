@@ -95,10 +95,14 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
   match Constr.kind c, rel with
   | Constr.Rel ind, Some f -> `Var (f ind)
   | Constr.Var v, _ -> `Var (Names.Id.to_string v)
+  | Constr.App (value, [| c |]), _ when Proof_utils.is_constr_eq "CFML.Semantics.val" value ->
+    extract_expr ?rel c
   | Constr.App (const, [|ty; h; tl|]), _ when Proof_utils.is_constr_cons const ->
     `Constructor ("::", [extract_expr ?rel h; extract_expr ?rel tl])
   | Constr.App (const, [|ty|]), _ when Utils.is_constr_nil const ->
     `Constructor ("[]", [])
+  | Constr.Construct _, _ when Utils.is_constr_z0 c ->
+    `Int 0
   | Constr.App (const, _), _ when Utils.is_constr_eq "Coq.Numbers.BinNums.Z" const ->
     `Int (Utils.extract_const_int c)
   | Constr.App (const, args), _ when Utils.is_constr_eq "Coq.Init.Datatypes.prod" const ->
