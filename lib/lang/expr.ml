@@ -121,16 +121,16 @@ let subst_simple_var_nonfix : 'a .
   (string -> string option) ->
   'a simple_shape -> 'a simple_shape =
   fun subst_simple_var default map  exp -> match exp with
-  | `Var v ->  map v
-               |> Option.map (fun v -> `Var v)
-               |> Option.value ~default:(`Var v)
-  | `Int i -> `Int i
-  | `Constructor (cons, t) -> `Constructor (cons, List.map (subst_simple_var map) t)
-  | `Tuple t -> `Tuple (List.map (subst_simple_var map) t)
-  | `App (f,args) ->
-    let f = match map f with None -> f | Some v -> v in
-    `App (f, List.map (subst_simple_var map) args)
-  | e -> default map e
+    | `Var v ->  map v
+                 |> Option.map (fun v -> `Var v)
+                 |> Option.value ~default:(`Var v)
+    | `Int i -> `Int i
+    | `Constructor (cons, t) -> `Constructor (cons, List.map (subst_simple_var map) t)
+    | `Tuple t -> `Tuple (List.map (subst_simple_var map) t)
+    | `App (f,args) ->
+      let f = match map f with None -> f | Some v -> v in
+      `App (f, List.map (subst_simple_var map) args)
+    | e -> default map e
 let rec subst_simple_var map exp = subst_simple_var_nonfix subst_simple_var (fun _ exp -> exp) map exp
 
 let simple_vars_nonfix : 'a .
@@ -138,14 +138,14 @@ let simple_vars_nonfix : 'a .
   (?with_funs:bool -> StringSet.t -> 'a simple_shape -> StringSet.t) ->
   ?with_funs:bool -> StringSet.t -> 'a simple_shape -> StringSet.t =
   fun vars default ?(with_funs=false) map -> function
-  | `Var v -> StringSet.add v map
-  | `Int _ -> map
-  | `Constructor (_, t)
-  | `Tuple t -> List.fold_left (vars ~with_funs) map t
-  | `App (f, args) ->
-    let map = if with_funs then StringSet.add f map else map in
-    List.fold_left (vars ~with_funs) map args
-  | e -> default ~with_funs map e
+    | `Var v -> StringSet.add v map
+    | `Int _ -> map
+    | `Constructor (_, t)
+    | `Tuple t -> List.fold_left (vars ~with_funs) map t
+    | `App (f, args) ->
+      let map = if with_funs then StringSet.add f map else map in
+      List.fold_left (vars ~with_funs) map args
+    | e -> default ~with_funs map e
 let rec simple_vars ?with_funs map exp =
   simple_vars_nonfix simple_vars (fun ?with_funs:_ map _ -> map) ?with_funs map exp
 
@@ -156,7 +156,7 @@ let rec print ~needs_parens exp =
   print_simple_nonfix print_simple' ~needs_parens PP.(fun ~needs_parens:_ -> function
     | `Lambda (params, body) -> group @@
       parens (string "fun" ^/^ flow_map space print_typed_param params ^/^ string "->" ^/^
-      nest 2 (print ~needs_parens:false body) )
+              nest 2 (print ~needs_parens:false body) )
     | _ -> PP.string "(??)"
   ) exp
 let print exp = print ~needs_parens:false exp
@@ -228,6 +228,18 @@ let rec functions (funs: StringSet.t) : t -> StringSet.t = function
   | `Var _ 
   | `Int _ -> funs
   | `App (fname, args) ->
-      List.fold_left functions (StringSet.add fname funs) args
+    List.fold_left functions (StringSet.add fname funs) args
   | `Lambda (_, body) -> functions funs body
+
+
+let rec subst_functions (f: string -> string option) : t -> t = function
+  | `Tuple elts -> `Tuple (List.map (subst_functions f) elts)
+  |`Constructor (fname,args) ->
+    `Constructor (fname, List.map (subst_functions f) args)
+  | `App (fname, args) ->
+    let fname = Option.value ~default:fname (f fname) in
+    `App (fname, List.map (subst_functions f) args)
+  | `Lambda (params, body) -> `Lambda (params, subst_functions f body)
+  | `Int _
+  | `Var _ as v -> v
 

@@ -1,6 +1,7 @@
 open Containers
 
 module StringMap = Map.Make(String)
+module StringSet = Set.Make(String)
 
 let split_last =
   let rec loop (acc, last) = function
@@ -9,6 +10,58 @@ let split_last =
   function
   | [] -> None
   | h :: t -> Some (loop ([], h) t)
+
+let normalize =
+  let update s =
+    if String.prefix ~pre:"TLC.LibListZ." s
+    then Some ("TLC.LibList." ^ String.drop (String.length "TLC.LibListZ.") s)
+    else None in
+  let update_expr e = Lang.Expr.subst_functions update e in
+  let update_assertion = function
+      `Eq (ty, l, r) ->
+      `Eq (ty, update_expr l, update_expr r)
+    | `Assert prop -> `Assert (update_expr prop) in
+  fun (data: Proof_validator.Verification_condition.verification_condition) ->
+    let functions =
+      data.functions
+      |> List.fold_map (fun fns (name, sg) ->
+        let name = Option.value ~default:name @@ update name in
+        if StringSet.mem name fns
+        then (fns, None)
+        else
+          let fns = StringSet.add name fns in
+          (fns, Some (name, sg))
+      ) StringSet.empty
+      |> snd
+      |> List.filter_map Fun.id in
+
+    let properties =
+      List.map (fun (pname, (qfs, params, assums, (ty, l, r))) ->
+        let assums = List.map update_assertion assums in
+        (pname, (qfs, params, assums, (ty, update_expr l, update_expr r)))) data.properties in
+    let assumptions =
+      List.map (fun (ty, l, r) -> (ty, update_expr l, update_expr r)) data.assumptions in
+
+    let initial : Proof_validator.Verification_condition.initial_vc =  {
+      expr_values=Array.map update_expr data.initial.expr_values;
+      param_values=List.map update_expr data.initial.param_values;
+    } in
+    let conditions = List.map (fun (vc: Proof_validator.Verification_condition.vc) ->
+      {vc
+        with param_values=List.map update_expr vc.param_values;
+             assumptions=List.map update_assertion vc.assumptions;
+             post_param_values=List.map update_expr vc.post_param_values;
+             expr_values=Array.map (fun f -> fun e -> update_expr (f e)) vc.expr_values;
+      }
+    ) data.conditions in
+    {data with
+     functions;
+     properties;
+     assumptions;
+     initial;
+     conditions=conditions;
+    }
+      
 
 let data = Proof_validator.Verification_condition.{
   poly_vars = ["A"];
@@ -1276,6 +1329,7 @@ let rec eval_expr ?(ty: Lang.Type.t option)
                                        (Lang.Expr.show expr))
 
 let embed (data: Proof_validator.Verification_condition.verification_condition) =
+  let data = normalize data in
   let ctx = Z3.mk_context ["model", "false"; "proof", "false"; "timeout", "1000"] in
   let solver = Z3.Solver.mk_solver ctx None in
   Z3.Solver.set_parameters solver (
@@ -1478,5 +1532,5 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
 
 
 let () =
-  let _ctx = embed data in
+  let _t = embed data in
   print_endline "hello world"

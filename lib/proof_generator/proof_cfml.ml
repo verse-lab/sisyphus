@@ -113,8 +113,12 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
                |> Iter.map (extract_expr ?rel)
                |> Iter.to_list in
     `Tuple (args)
+  | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Nat.sub" fname ->
+    `App ("-", [extract_expr ?rel l; extract_expr ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.sub" fname ->
     `App ("-", [extract_expr ?rel l; extract_expr ?rel r])    
+  | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Nat.add" fname ->
+    `App ("+", [extract_expr ?rel l; extract_expr ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.add" fname ->
     `App ("+", [extract_expr ?rel l; extract_expr ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.mul" fname ->
