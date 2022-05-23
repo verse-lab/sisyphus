@@ -30,9 +30,9 @@ let rec pp_ty fmt : Lang.Type.t -> unit = function
 type fn = Lang.Type.fn
 let pp_fn fmt (Lang.Type.Forall (qf, tys)) =
   Format.fprintf fmt "Lang.Type.Forall ([%a], [%a])"
-      (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "; ") String.pp) qf
-      (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "; ") pp_ty) tys
-    
+    (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "; ") String.pp) qf
+    (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "; ") pp_ty) tys
+
 
 type expr = [
     `Var of string
@@ -63,16 +63,24 @@ let pp_map f fmt vl =
 
 type property = string list * (string * ty) list *
                 [`Assert of expr | `Eq of (ty * expr * expr)] list *
-                (ty * expr * expr) 
+                [`Assert of expr | `Eq of (ty * expr * expr)]
 [@@deriving show]
 
-let property_functions s (_, _, assertions, (_, l, r)) =
-  List.fold_left (fun s -> function
-    | `Assert b -> Lang.Expr.functions s b
-    | `Eq (_, l, r) -> Lang.Expr.functions (Lang.Expr.functions s l) r
-  ) s assertions
-  |> Fun.flip Lang.Expr.functions l
-  |> Fun.flip Lang.Expr.functions r  
+let property_functions s (_, _, assertions, prop) =
+  match prop with
+  | `Eq (_, l, r) ->
+    List.fold_left (fun s -> function
+      | `Assert b -> Lang.Expr.functions s b
+      | `Eq (_, l, r) -> Lang.Expr.functions (Lang.Expr.functions s l) r
+    ) s assertions
+    |> Fun.flip Lang.Expr.functions l
+    |> Fun.flip Lang.Expr.functions r  
+  |`Assert b ->
+    List.fold_left (fun s -> function
+      | `Assert b -> Lang.Expr.functions s b
+      | `Eq (_, l, r) -> Lang.Expr.functions (Lang.Expr.functions s l) r
+    ) s assertions
+    |> Fun.flip Lang.Expr.functions b
 
 let property_only_uses_functions_in s prop =
   StringSet.subset (property_functions StringSet.empty prop) s

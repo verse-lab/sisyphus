@@ -36,9 +36,9 @@ let normalize =
       |> List.filter_map Fun.id in
 
     let properties =
-      List.map (fun (pname, (qfs, params, assums, (ty, l, r))) ->
+      List.map (fun (pname, (qfs, params, assums, concl)) ->
         let assums = List.map update_assertion assums in
-        (pname, (qfs, params, assums, (ty, update_expr l, update_expr r)))) data.properties in
+        (pname, (qfs, params, assums, update_assertion concl))) data.properties in
     let assumptions =
       List.map (fun (ty, l, r) -> (ty, update_expr l, update_expr r)) data.assumptions in
 
@@ -63,1016 +63,12 @@ let normalize =
     }
       
 
-let data = Proof_validator.Verification_condition.{
-  poly_vars = ["A"];
-  properties =
-  [("Proofs.Verify_seq_to_array_utils.case_rev_split",
-    (["A"],
-     [("xs", Lang.Type.List (Lang.Type.Var "A")); ("v", Lang.Type.Var "A");
-       ("l", Lang.Type.List (Lang.Type.Var "A"));
-       ("r", Lang.Type.List (Lang.Type.Var "A"))],
-     [`Eq ((Lang.Type.List (Lang.Type.Var "A"),
-            `App (("TLC.LibList.rev", [`Var ("xs")])),
-            `App (("TLC.LibList.app",
-                   [`Var ("l");
-                     `Constructor (("::", [`Var ("v"); `Var ("r")]))]))))
-       ],
-     (Lang.Type.List (Lang.Type.Var "A"), `Var ("xs"),
-      `App (("TLC.LibList.app",
-             [`App (("TLC.LibList.rev", [`Var ("r")]));
-               `Constructor (("::",
-                              [`Var ("v");
-                                `App (("TLC.LibList.rev", [`Var ("l")]))]))
-               ])))));
-    ("CFML.Semantics.app_trms_vals_rev_cons",
-     ([],
-      [("v", Lang.Type.Val); ("vs", Lang.Type.List (Lang.Type.Val));
-        ("ts", Lang.Type.List (Lang.Type.Val))],
-      [],
-      (Lang.Type.List (Lang.Type.Val),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.rev",
-                      [`Constructor (("::", [`Var ("v"); `Var ("vs")]))]));
-                `Var ("ts")])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.rev", [`Var ("vs")]));
-                `Constructor (("::", [`Var ("v"); `Var ("ts")]))])))));
-    ("TLC.LibListZ.sum_app",
-     ([],
-      [("l1", Lang.Type.List (Lang.Type.Int));
-        ("l2", Lang.Type.List (Lang.Type.Int))],
-      [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.sum",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
-       `App (("+",
-              [`App (("TLC.LibListZ.sum", [`Var ("l1")]));
-                `App (("TLC.LibListZ.sum", [`Var ("l2")]))])))));
-    ("TLC.LibListZ.list_eq_take_app_drop",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.le",
-                       [`Var ("n");
-                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibListZ.take", [`Var ("n"); `Var ("l")]));
-                `App (("TLC.LibListZ.drop", [`Var ("n"); `Var ("l")]))])),
-       `Var ("l"))));
-    ("TLC.LibListZ.drop_app_length",
-     (["A"],
-      [("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.drop",
-              [`App (("TLC.LibListZ.length", [`Var ("l")]));
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `Var ("l'"))));
-    ("TLC.LibListZ.drop_app_r",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.ge",
-                       [`Var ("n");
-                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.drop",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibListZ.drop",
-              [`App (("-",
-                      [`Var ("n");
-                        `App (("TLC.LibListZ.length", [`Var ("l")]))]));
-                `Var ("l'")])))));
-    ("TLC.LibListZ.drop_app_l",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.le",
-                       [`Var ("n");
-                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.drop",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibListZ.drop", [`Var ("n"); `Var ("l")]));
-                `Var ("l'")])))));
-    ("TLC.LibListZ.take_prefix_length",
-     (["A"],
-      [("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.take",
-              [`App (("TLC.LibListZ.length", [`Var ("l")]));
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `Var ("l"))));
-    ("TLC.LibListZ.take_app_r",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.ge",
-                       [`Var ("n");
-                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.take",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibList.app",
-              [`Var ("l");
-                `App (("TLC.LibListZ.take",
-                       [`App (("-",
-                               [`Var ("n");
-                                 `App (("TLC.LibListZ.length", [`Var ("l")]))
-                                 ]));
-                         `Var ("l'")]))
-                ])))));
-    ("TLC.LibListZ.take_app_l",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.le",
-                       [`Var ("n");
-                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.take",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibListZ.take", [`Var ("n"); `Var ("l")])))));
-    ("TLC.LibListZ.make_succ_r",
-     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
-      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.make",
-              [`App (("+", [`Var ("n"); `Int (1)])); `Var ("v")])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")]));
-                `Constructor (("::", [`Var ("v"); `Constructor (("[]", []))]))
-                ])))));
-    ("TLC.LibListZ.update_middle",
-     (["A"],
-      [("i", Lang.Type.Int); ("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A")); ("v", Lang.Type.Var "A");
-        ("w", Lang.Type.Var "A")],
-      [`Eq ((Lang.Type.Int, `Var ("i"),
-             `App (("TLC.LibListZ.length", [`Var ("l1")]))))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibContainer.update",
-              [`App (("TLC.LibList.app",
-                      [`Var ("l1");
-                        `Constructor (("::", [`Var ("w"); `Var ("l2")]))]));
-                `Var ("i"); `Var ("v")])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.app",
-                      [`Var ("l1");
-                        `Constructor (("::",
-                                       [`Var ("v"); `Constructor (("[]", []))
-                                         ]))
-                        ]));
-                `Var ("l2")])))));
-    ("TLC.LibListZ.update_app_r",
-     (["A"],
-      [("l2", Lang.Type.List (Lang.Type.Var "A")); ("j", Lang.Type.Int);
-        ("l1", Lang.Type.List (Lang.Type.Var "A")); ("i", Lang.Type.Int);
-        ("ij", Lang.Type.Int); ("v", Lang.Type.Var "A")],
-      [`Eq ((Lang.Type.Int, `Var ("i"),
-             `App (("TLC.LibListZ.length", [`Var ("l1")]))));
-        `Assert (`App (("TLC.LibOrder.le", [`Int (0); `Var ("j")])));
-        `Eq ((Lang.Type.Int, `Var ("ij"),
-              `App (("+", [`Var ("i"); `Var ("j")]))))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibContainer.update",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]));
-                `Var ("ij"); `Var ("v")])),
-       `App (("TLC.LibList.app",
-              [`Var ("l1");
-                `App (("TLC.LibContainer.update",
-                       [`Var ("l2"); `Var ("j"); `Var ("v")]))
-                ])))));
-    ("TLC.LibListZ.length_last",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibList.app",
-                      [`Var ("l");
-                        `Constructor (("::",
-                                       [`Var ("x"); `Constructor (("[]", []))
-                                         ]))
-                        ]))
-                ])),
-       `App (("+", [`Int (1); `App (("TLC.LibListZ.length", [`Var ("l")]))])))));
-    ("TLC.LibListZ.length_app",
-     (["A"],
-      [("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
-       `App (("+",
-              [`App (("TLC.LibListZ.length", [`Var ("l1")]));
-                `App (("TLC.LibListZ.length", [`Var ("l2")]))])))));
-    ("TLC.LibList.list_eq_take_app_drop",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.le",
-                       [`Var ("n");
-                         `App (("TLC.LibList.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.take", [`Var ("n"); `Var ("l")]));
-                `App (("TLC.LibList.drop", [`Var ("n"); `Var ("l")]))])),
-       `Var ("l"))));
-    ("TLC.LibList.drop_app_length",
-     (["A"],
-      [("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.drop",
-              [`App (("TLC.LibList.length", [`Var ("l")]));
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `Var ("l'"))));
-    ("TLC.LibList.drop_app_r",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.ge",
-                       [`Var ("n");
-                         `App (("TLC.LibList.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.drop",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibList.drop",
-              [`App (("Coq.Init.Nat.sub",
-                      [`Var ("n");
-                        `App (("TLC.LibList.length", [`Var ("l")]))]));
-                `Var ("l'")])))));
-    ("TLC.LibList.drop_app_l",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.le",
-                       [`Var ("n");
-                         `App (("TLC.LibList.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.drop",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.drop", [`Var ("n"); `Var ("l")]));
-                `Var ("l'")])))));
-    ("TLC.LibList.take_prefix_length",
-     (["A"],
-      [("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.take",
-              [`App (("TLC.LibList.length", [`Var ("l")]));
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `Var ("l"))));
-    ("TLC.LibList.take_app_r",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.ge",
-                       [`Var ("n");
-                         `App (("TLC.LibList.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.take",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibList.app",
-              [`Var ("l");
-                `App (("TLC.LibList.take",
-                       [`App (("Coq.Init.Nat.sub",
-                               [`Var ("n");
-                                 `App (("TLC.LibList.length", [`Var ("l")]))]));
-                         `Var ("l'")]))
-                ])))));
-    ("TLC.LibList.take_app_l",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.le",
-                       [`Var ("n");
-                         `App (("TLC.LibList.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.take",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibList.take", [`Var ("n"); `Var ("l")])))));
-    ("TLC.LibList.split_last",
-     (["A"; "B"],
-      [("x", Lang.Type.Var "A"); ("y", Lang.Type.Var "B");
-        ("l",
-         Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])));
-        ("r", Lang.Type.List (Lang.Type.Var "A"));
-        ("s", Lang.Type.List (Lang.Type.Var "B"))],
-      [`Eq ((Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
-             `Tuple ([`Var ("r"); `Var ("s")]),
-             `App (("TLC.LibList.split", [`Var ("l")]))))
-        ],
-      (Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
-       `App (("TLC.LibList.split",
-              [`App (("TLC.LibList.app",
-                      [`Var ("l");
-                        `Constructor (("::",
-                                       [`Tuple ([`Var ("x"); `Var ("y")]);
-                                         `Constructor (("[]", []))]))
-                        ]))
-                ])),
-       `Tuple ([`App (("TLC.LibList.app",
-                       [`Var ("r");
-                         `Constructor (("::",
-                                        [`Var ("x");
-                                          `Constructor (("[]", []))]))
-                         ]));
-                 `App (("TLC.LibList.app",
-                        [`Var ("s");
-                          `Constructor (("::",
-                                         [`Var ("y");
-                                           `Constructor (("[]", []))]))
-                          ]))
-                 ]))));
-    ("TLC.LibList.split_app",
-     (["A"; "B"],
-      [("l1",
-        Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])));
-        ("l2",
-         Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])));
-        ("r1", Lang.Type.List (Lang.Type.Var "A"));
-        ("r2", Lang.Type.List (Lang.Type.Var "A"));
-        ("s1", Lang.Type.List (Lang.Type.Var "B"));
-        ("s2", Lang.Type.List (Lang.Type.Var "B"))],
-      [`Eq ((Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
-             `Tuple ([`Var ("r1"); `Var ("s1")]),
-             `App (("TLC.LibList.split", [`Var ("l1")]))));
-        `Eq ((Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
-              `Tuple ([`Var ("r2"); `Var ("s2")]),
-              `App (("TLC.LibList.split", [`Var ("l2")]))))
-        ],
-      (Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
-       `App (("TLC.LibList.split",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
-       `Tuple ([`App (("TLC.LibList.app", [`Var ("r1"); `Var ("r2")]));
-                 `App (("TLC.LibList.app", [`Var ("s1"); `Var ("s2")]))]))));
-    ("TLC.LibList.combine_last",
-     (["A"; "B"],
-      [("x", Lang.Type.Var "A"); ("r", Lang.Type.List (Lang.Type.Var "A"));
-        ("y", Lang.Type.Var "B"); ("s", Lang.Type.List (Lang.Type.Var "B"))],
-      [`Eq ((Lang.Type.Int, `App (("TLC.LibList.length", [`Var ("r")])),
-             `App (("TLC.LibList.length", [`Var ("s")]))))
-        ],
-      (Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])),
-       `App (("TLC.LibList.combine",
-              [`App (("TLC.LibList.app",
-                      [`Var ("r");
-                        `Constructor (("::",
-                                       [`Var ("x"); `Constructor (("[]", []))
-                                         ]))
-                        ]));
-                `App (("TLC.LibList.app",
-                       [`Var ("s");
-                         `Constructor (("::",
-                                        [`Var ("y");
-                                          `Constructor (("[]", []))]))
-                         ]))
-                ])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.combine", [`Var ("r"); `Var ("s")]));
-                `Constructor (("::",
-                               [`Tuple ([`Var ("x"); `Var ("y")]);
-                                 `Constructor (("[]", []))]))
-                ])))));
-    ("TLC.LibList.combine_app",
-     (["A"; "B"],
-      [("r1", Lang.Type.List (Lang.Type.Var "A"));
-        ("r2", Lang.Type.List (Lang.Type.Var "A"));
-        ("s1", Lang.Type.List (Lang.Type.Var "B"));
-        ("s2", Lang.Type.List (Lang.Type.Var "B"))],
-      [`Eq ((Lang.Type.Int, `App (("TLC.LibList.length", [`Var ("r1")])),
-             `App (("TLC.LibList.length", [`Var ("s1")]))))
-        ],
-      (Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])),
-       `App (("TLC.LibList.combine",
-              [`App (("TLC.LibList.app", [`Var ("r1"); `Var ("r2")]));
-                `App (("TLC.LibList.app", [`Var ("s1"); `Var ("s2")]))])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.combine", [`Var ("r1"); `Var ("s1")]));
-                `App (("TLC.LibList.combine", [`Var ("r2"); `Var ("s2")]))])))));
-    ("TLC.LibList.concat_last",
-     (["A"],
-      [("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("m", Lang.Type.List (Lang.Type.List (Lang.Type.Var "A")))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.concat",
-              [`App (("TLC.LibList.app",
-                      [`Var ("m");
-                        `Constructor (("::",
-                                       [`Var ("l"); `Constructor (("[]", []))
-                                         ]))
-                        ]))
-                ])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.concat", [`Var ("m")])); `Var ("l")])))));
-    ("TLC.LibList.concat_app",
-     (["A"],
-      [("m1", Lang.Type.List (Lang.Type.List (Lang.Type.Var "A")));
-        ("m2", Lang.Type.List (Lang.Type.List (Lang.Type.Var "A")))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.concat",
-              [`App (("TLC.LibList.app", [`Var ("m1"); `Var ("m2")]))])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.concat", [`Var ("m1")]));
-                `App (("TLC.LibList.concat", [`Var ("m2")]))])))));
-    ("TLC.LibList.concat_cons",
-     (["A"],
-      [("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("m", Lang.Type.List (Lang.Type.List (Lang.Type.Var "A")))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.concat",
-              [`Constructor (("::", [`Var ("l"); `Var ("m")]))])),
-       `App (("TLC.LibList.app",
-              [`Var ("l"); `App (("TLC.LibList.concat", [`Var ("m")]))])))));
-    ("TLC.LibList.rev_last",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.rev",
-              [`App (("TLC.LibList.app",
-                      [`Var ("l");
-                        `Constructor (("::",
-                                       [`Var ("x"); `Constructor (("[]", []))
-                                         ]))
-                        ]))
-                ])),
-       `Constructor (("::",
-                      [`Var ("x"); `App (("TLC.LibList.rev", [`Var ("l")]))])))));
-    ("TLC.LibList.rev_cons",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.rev",
-              [`Constructor (("::", [`Var ("x"); `Var ("l")]))])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.rev", [`Var ("l")]));
-                `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))
-                ])))));
-    ("TLC.LibList.rev_app",
-     (["A"],
-      [("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.rev",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.rev", [`Var ("l2")]));
-                `App (("TLC.LibList.rev", [`Var ("l1")]))])))));
-    ("TLC.LibList.length_app",
-     (["A"],
-      [("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.Int,
-       `App (("TLC.LibList.length",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
-       `App (("Coq.Init.Nat.add",
-              [`App (("TLC.LibList.length", [`Var ("l1")]));
-                `App (("TLC.LibList.length", [`Var ("l2")]))])))));
-    ("TLC.LibList.last_app",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]));
-                `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))
-                ])),
-       `App (("TLC.LibList.app",
-              [`Var ("l1");
-                `App (("TLC.LibList.app",
-                       [`Var ("l2");
-                         `Constructor (("::",
-                                        [`Var ("x");
-                                          `Constructor (("[]", []))]))
-                         ]))
-                ])))));
-    ("TLC.LibList.last_one",
-     (["A"], [("x", Lang.Type.Var "A"); ("y", Lang.Type.Var "A")], [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]));
-                `Constructor (("::", [`Var ("y"); `Constructor (("[]", []))]))
-                ])),
-       `Constructor (("::",
-                      [`Var ("x");
-                        `Constructor (("::",
-                                       [`Var ("y"); `Constructor (("[]", []))
-                                         ]))
-                        ])))));
-    ("TLC.LibList.last_cons",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("y", Lang.Type.Var "A");
-        ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`Constructor (("::", [`Var ("x"); `Var ("l")]));
-                `Constructor (("::", [`Var ("y"); `Constructor (("[]", []))]))
-                ])),
-       `Constructor (("::",
-                      [`Var ("x");
-                        `App (("TLC.LibList.app",
-                               [`Var ("l");
-                                 `Constructor (("::",
-                                                [`Var ("y");
-                                                  `Constructor (("[]", []))]))
-                                 ]))
-                        ])))));
-    ("TLC.LibList.last_nil",
-     (["A"], [("x", Lang.Type.Var "A")], [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`Constructor (("[]", []));
-                `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))
-                ])),
-       `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))])))));
-    ("TLC.LibList.app_last_r",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`Var ("l1");
-                `App (("TLC.LibList.app",
-                       [`Var ("l2");
-                         `Constructor (("::",
-                                        [`Var ("x");
-                                          `Constructor (("[]", []))]))
-                         ]))
-                ])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]));
-                `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))
-                ])))));
-    ("TLC.LibList.app_last_l",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.app",
-                      [`Var ("l1");
-                        `Constructor (("::",
-                                       [`Var ("x"); `Constructor (("[]", []))
-                                         ]))
-                        ]));
-                `Var ("l2")])),
-       `App (("TLC.LibList.app",
-              [`Var ("l1"); `Constructor (("::", [`Var ("x"); `Var ("l2")]))])))));
-    ("TLC.LibList.app_cons_one_l",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`Var ("l");
-                `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))
-                ])),
-       `App (("TLC.LibList.app",
-              [`Var ("l");
-                `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))
-                ])))));
-    ("TLC.LibList.app_cons_one_r",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]));
-                `Var ("l")])),
-       `Constructor (("::", [`Var ("x"); `Var ("l")])))));
-    ("TLC.LibList.app_cons_r",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`Var ("l1"); `Constructor (("::", [`Var ("x"); `Var ("l2")]))])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.app",
-                      [`Var ("l1");
-                        `Constructor (("::",
-                                       [`Var ("x"); `Constructor (("[]", []))
-                                         ]))
-                        ]));
-                `Var ("l2")])))));
-    ("TLC.LibList.app_assoc",
-     (["A"],
-      [("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"));
-        ("l3", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]));
-                `Var ("l3")])),
-       `App (("TLC.LibList.app",
-              [`Var ("l1");
-                `App (("TLC.LibList.app", [`Var ("l2"); `Var ("l3")]))])))));
-    ("TLC.LibList.app_nil_r",
-     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app", [`Var ("l"); `Constructor (("[]", []))])),
-       `Var ("l"))));
-    ("TLC.LibList.app_nil_l",
-     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app", [`Constructor (("[]", [])); `Var ("l")])),
-       `Var ("l"))));
-    ("TLC.LibList.app_cons_l",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.app",
-              [`Constructor (("::", [`Var ("x"); `Var ("l1")])); `Var ("l2")])),
-       `Constructor (("::",
-                      [`Var ("x");
-                        `App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))
-                        ])))));
-    ("Proofs.Verify_seq_to_array_utils.case_rev_split",
-     (["A"],
-      [("xs", Lang.Type.List (Lang.Type.Var "A")); ("v", Lang.Type.Var "A");
-        ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("r", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Eq ((Lang.Type.List (Lang.Type.Var "A"),
-             `App (("TLC.LibList.rev", [`Var ("xs")])),
-             `App (("TLC.LibList.app",
-                    [`Var ("l");
-                      `Constructor (("::", [`Var ("v"); `Var ("r")]))]))))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"), `Var ("xs"),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.rev", [`Var ("r")]));
-                `Constructor (("::",
-                               [`Var ("v");
-                                 `App (("TLC.LibList.rev", [`Var ("l")]))]))
-                ])))));
-    ("CFML.Semantics.app_trms_vals_rev_cons",
-     ([],
-      [("v", Lang.Type.Val); ("vs", Lang.Type.List (Lang.Type.Val));
-        ("ts", Lang.Type.List (Lang.Type.Val))],
-      [],
-      (Lang.Type.List (Lang.Type.Val),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.rev",
-                      [`Constructor (("::", [`Var ("v"); `Var ("vs")]))]));
-                `Var ("ts")])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.rev", [`Var ("vs")]));
-                `Constructor (("::", [`Var ("v"); `Var ("ts")]))])))));
-    ("TLC.LibListZ.length_rev",
-     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibList.rev", [`Var ("l")]))])),
-       `App (("TLC.LibListZ.length", [`Var ("l")])))));
-    ("TLC.LibList.combine_rev",
-     (["A"; "B"],
-      [("r", Lang.Type.List (Lang.Type.Var "A"));
-        ("s", Lang.Type.List (Lang.Type.Var "B"))],
-      [`Eq ((Lang.Type.Int, `App (("TLC.LibList.length", [`Var ("r")])),
-             `App (("TLC.LibList.length", [`Var ("s")]))))
-        ],
-      (Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])),
-       `App (("TLC.LibList.combine",
-              [`App (("TLC.LibList.rev", [`Var ("r")]));
-                `App (("TLC.LibList.rev", [`Var ("s")]))])),
-       `App (("TLC.LibList.rev",
-              [`App (("TLC.LibList.combine", [`Var ("r"); `Var ("s")]))])))));
-    ("TLC.LibList.length_rev",
-     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
-      (Lang.Type.Int,
-       `App (("TLC.LibList.length",
-              [`App (("TLC.LibList.rev", [`Var ("l")]))])),
-       `App (("TLC.LibList.length", [`Var ("l")])))));
-    ("TLC.LibList.rev_rev",
-     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.rev", [`App (("TLC.LibList.rev", [`Var ("l")]))])),
-       `Var ("l"))));
-    ("TLC.LibList.rev_last",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.rev",
-              [`App (("TLC.LibList.app",
-                      [`Var ("l");
-                        `Constructor (("::",
-                                       [`Var ("x"); `Constructor (("[]", []))
-                                         ]))
-                        ]))
-                ])),
-       `Constructor (("::",
-                      [`Var ("x"); `App (("TLC.LibList.rev", [`Var ("l")]))])))));
-    ("TLC.LibList.rev_one",
-     (["A"], [("x", Lang.Type.Var "A")], [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.rev",
-              [`Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))
-                ])),
-       `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))])))));
-    ("TLC.LibList.rev_cons",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.rev",
-              [`Constructor (("::", [`Var ("x"); `Var ("l")]))])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.rev", [`Var ("l")]));
-                `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))
-                ])))));
-    ("TLC.LibList.rev_app",
-     (["A"],
-      [("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibList.rev",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibList.rev", [`Var ("l2")]));
-                `App (("TLC.LibList.rev", [`Var ("l1")]))])))));
-    ("Proofs.Verify_seq_to_array_utils.drop_last",
-     (["A"],
-      [("xs", Lang.Type.List (Lang.Type.Var "A"));
-        ("rst", Lang.Type.List (Lang.Type.Var "A"));
-        ("lst", Lang.Type.Var "A")],
-      [`Eq ((Lang.Type.List (Lang.Type.Var "A"),
-             `App (("TLC.LibList.rev", [`Var ("xs")])),
-             `Constructor (("::", [`Var ("lst"); `Var ("rst")]))))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.drop",
-              [`App (("-",
-                      [`App (("TLC.LibListZ.length", [`Var ("xs")]));
-                        `Int (1)]));
-                `Var ("xs")])),
-       `Constructor (("::", [`Var ("lst"); `Constructor (("[]", []))])))));
-    ("TLC.LibListZ.length_drop",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.le",
-                       [`Var ("n");
-                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibListZ.drop", [`Var ("n"); `Var ("l")]))])),
-       `App (("Coq.ZArith.BinInt.Z.min",
-              [`App (("TLC.LibListZ.length", [`Var ("l")]));
-                `App (("-",
-                       [`App (("TLC.LibListZ.length", [`Var ("l")]));
-                         `Var ("n")]))
-                ])))));
-    ("TLC.LibListZ.length_take",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.le",
-                       [`Var ("n");
-                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibListZ.take", [`Var ("n"); `Var ("l")]))])),
-       `App (("Coq.ZArith.BinInt.Z.max", [`Int (0); `Var ("n")])))));
-    ("TLC.LibListZ.drop_at_length",
-     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.drop",
-              [`App (("TLC.LibListZ.length", [`Var ("l")])); `Var ("l")])),
-       `Constructor (("[]", [])))));
-    ("TLC.LibListZ.drop_app_length",
-     (["A"],
-      [("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.drop",
-              [`App (("TLC.LibListZ.length", [`Var ("l")]));
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `Var ("l'"))));
-    ("TLC.LibListZ.drop_app_r",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.ge",
-                       [`Var ("n");
-                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.drop",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibListZ.drop",
-              [`App (("-",
-                      [`Var ("n");
-                        `App (("TLC.LibListZ.length", [`Var ("l")]))]));
-                `Var ("l'")])))));
-    ("TLC.LibListZ.take_full_length",
-     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.take",
-              [`App (("TLC.LibListZ.length", [`Var ("l")])); `Var ("l")])),
-       `Var ("l"))));
-    ("TLC.LibListZ.take_prefix_length",
-     (["A"],
-      [("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.take",
-              [`App (("TLC.LibListZ.length", [`Var ("l")]));
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `Var ("l"))));
-    ("TLC.LibListZ.take_app_r",
-     (["A"],
-      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
-        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
-      [`Assert (`App (("TLC.LibOrder.ge",
-                       [`Var ("n");
-                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
-        ],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.take",
-              [`Var ("n");
-                `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
-       `App (("TLC.LibList.app",
-              [`Var ("l");
-                `App (("TLC.LibListZ.take",
-                       [`App (("-",
-                               [`Var ("n");
-                                 `App (("TLC.LibListZ.length", [`Var ("l")]))
-                                 ]));
-                         `Var ("l'")]))
-                ])))));
-    ("TLC.LibListZ.length_rev",
-     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibList.rev", [`Var ("l")]))])),
-       `App (("TLC.LibListZ.length", [`Var ("l")])))));
-    ("TLC.LibListZ.length_make",
-     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
-      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")]))])),
-       `Var ("n"))));
-    ("TLC.LibListZ.length_update",
-     (["A"],
-      [("l", Lang.Type.List (Lang.Type.Var "A")); ("i", Lang.Type.Int);
-        ("v", Lang.Type.Var "A")],
-      [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibContainer.update",
-                      [`Var ("l"); `Var ("i"); `Var ("v")]))
-                ])),
-       `App (("TLC.LibListZ.length", [`Var ("l")])))));
-    ("TLC.LibListZ.length_last",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibList.app",
-                      [`Var ("l");
-                        `Constructor (("::",
-                                       [`Var ("x"); `Constructor (("[]", []))
-                                         ]))
-                        ]))
-                ])),
-       `App (("+", [`Int (1); `App (("TLC.LibListZ.length", [`Var ("l")]))])))));
-    ("TLC.LibListZ.length_app",
-     (["A"],
-      [("l1", Lang.Type.List (Lang.Type.Var "A"));
-        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
-       `App (("+",
-              [`App (("TLC.LibListZ.length", [`Var ("l1")]));
-                `App (("TLC.LibListZ.length", [`Var ("l2")]))])))));
-    ("TLC.LibListZ.length_one",
-     (["A"], [("x", Lang.Type.Var "A")], [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))
-                ])),
-       `Int (1))));
-    ("TLC.LibListZ.length_cons",
-     (["A"],
-      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
-      [],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`Constructor (("::", [`Var ("x"); `Var ("l")]))])),
-       `App (("+", [`Int (1); `App (("TLC.LibListZ.length", [`Var ("l")]))])))));
-    ("TLC.LibListZ.length_eq",
-     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
-      (Lang.Type.Int, `App (("TLC.LibListZ.length", [`Var ("l")])),
-       `App (("TLC.LibInt.nat_to_Z",
-              [`App (("TLC.LibList.length", [`Var ("l")]))])))));
-    ("TLC.LibListZ.make_eq_cons_make_pred",
-     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
-      [`Assert (`App (("TLC.LibOrder.lt", [`Int (0); `Var ("n")])))],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")])),
-       `Constructor (("::",
-                      [`Var ("v");
-                        `App (("TLC.LibListZ.make",
-                               [`App (("-", [`Var ("n"); `Int (1)]));
-                                 `Var ("v")]))
-                        ])))));
-    ("TLC.LibListZ.make_succ_r",
-     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
-      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.make",
-              [`App (("+", [`Var ("n"); `Int (1)])); `Var ("v")])),
-       `App (("TLC.LibList.app",
-              [`App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")]));
-                `Constructor (("::", [`Var ("v"); `Constructor (("[]", []))]))
-                ])))));
-    ("TLC.LibListZ.make_succ_l",
-     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
-      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.make",
-              [`App (("+", [`Var ("n"); `Int (1)])); `Var ("v")])),
-       `Constructor (("::",
-                      [`Var ("v");
-                        `App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")]))
-                        ])))));
-    ("TLC.LibListZ.make_zero",
-     (["A"], [("v", Lang.Type.Var "A")], [],
-      (Lang.Type.List (Lang.Type.Var "A"),
-       `App (("TLC.LibListZ.make", [`Int (0); `Var ("v")])),
-       `Constructor (("[]", [])))));
-    ("TLC.LibListZ.length_make",
-     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
-      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
-      (Lang.Type.Int,
-       `App (("TLC.LibListZ.length",
-              [`App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")]))])),
-       `Var ("n"))))
-    ];
+let data = Proof_validator.Verification_condition.{ poly_vars = ["A"];
   functions =
-  [("Coq.Init.Nat.add",
+  [("Coq.ZArith.BinInt.Z.max",
     Lang.Type.Forall ([], [Lang.Type.Int; Lang.Type.Int; Lang.Type.Int]));
-    ("Coq.Init.Nat.sub",
-     Lang.Type.Forall ([], [Lang.Type.Int; Lang.Type.Int; Lang.Type.Int]));
-    ("Coq.ZArith.BinInt.Z.max",
-     Lang.Type.Forall ([], [Lang.Type.Int; Lang.Type.Int; Lang.Type.Int]));
     ("Coq.ZArith.BinInt.Z.min",
      Lang.Type.Forall ([], [Lang.Type.Int; Lang.Type.Int; Lang.Type.Int]));
-    ("TLC.LibInt.nat_to_Z",
-     Lang.Type.Forall ([], [Lang.Type.Int; Lang.Type.Int]));
     ("TLC.LibList.app",
      Lang.Type.Forall (["A"], [Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "A")]));
     ("TLC.LibList.combine",
@@ -1083,6 +79,8 @@ let data = Proof_validator.Verification_condition.{
      Lang.Type.Forall (["A"], [Lang.Type.Int; Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "A")]));
     ("TLC.LibList.length",
      Lang.Type.Forall (["A"], [Lang.Type.List (Lang.Type.Var "A"); Lang.Type.Int]));
+    ("TLC.LibList.remove",
+     Lang.Type.Forall (["A"], [Lang.Type.Var "A"; Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "A")]));
     ("TLC.LibList.rev",
      Lang.Type.Forall (["A"], [Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "A")]));
     ("TLC.LibList.split",
@@ -1100,47 +98,1112 @@ let data = Proof_validator.Verification_condition.{
     ("TLC.LibListZ.take",
      Lang.Type.Forall (["A"], [Lang.Type.Int; Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "A")]))
     ];
-  invariant = ("I", [List (Var "A"); Int]);
-  (* define fresh variables + make env map for  *)
+  properties =
+  [("Proofs.Verify_seq_to_array_utils.case_rev_split",
+    (["A"],
+     [("xs", Lang.Type.List (Lang.Type.Var "A")); ("v", Lang.Type.Var "A");
+       ("l", Lang.Type.List (Lang.Type.Var "A"));
+       ("r", Lang.Type.List (Lang.Type.Var "A"))],
+     [`Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.rev", [`Var ("xs")])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l");
+                     `Constructor (("::", [`Var ("v"); `Var ("r")]))]))))
+       ],
+     `Eq ((Lang.Type.List (Lang.Type.Var "A"), `Var ("xs"),
+           `App (("TLC.LibList.app",
+                  [`App (("TLC.LibList.rev", [`Var ("r")]));
+                    `Constructor (("::",
+                                   [`Var ("v");
+                                     `App (("TLC.LibList.rev", [`Var ("l")]))
+                                     ]))
+                    ]))))));
+    ("CFML.Semantics.app_trms_vals_rev_cons",
+     ([],
+      [("v", Lang.Type.Val); ("vs", Lang.Type.List (Lang.Type.Val));
+        ("ts", Lang.Type.List (Lang.Type.Val))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Val),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.rev",
+                           [`Constructor (("::", [`Var ("v"); `Var ("vs")]))]));
+                     `Var ("ts")])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.rev", [`Var ("vs")]));
+                     `Constructor (("::", [`Var ("v"); `Var ("ts")]))]))))));
+    ("TLC.LibListZ.sum_app",
+     ([],
+      [("l1", Lang.Type.List (Lang.Type.Int));
+        ("l2", Lang.Type.List (Lang.Type.Int))],
+      [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.sum",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
+            `App (("+",
+                   [`App (("TLC.LibListZ.sum", [`Var ("l1")]));
+                     `App (("TLC.LibListZ.sum", [`Var ("l2")]))]))))));
+    ("TLC.LibListZ.list_eq_take_app_drop",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.le",
+                       [`Var ("n");
+                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibListZ.take", [`Var ("n"); `Var ("l")]));
+                     `App (("TLC.LibListZ.drop", [`Var ("n"); `Var ("l")]))])),
+            `Var ("l")))));
+    ("TLC.LibListZ.drop_app_length",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.drop",
+                   [`App (("TLC.LibListZ.length", [`Var ("l")]));
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `Var ("l'")))));
+    ("TLC.LibListZ.drop_app_r",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.ge",
+                       [`Var ("n");
+                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.drop",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibListZ.drop",
+                   [`App (("-",
+                           [`Var ("n");
+                             `App (("TLC.LibListZ.length", [`Var ("l")]))]));
+                     `Var ("l'")]))))));
+    ("TLC.LibListZ.drop_app_l",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.le",
+                       [`Var ("n");
+                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.drop",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibListZ.drop", [`Var ("n"); `Var ("l")]));
+                     `Var ("l'")]))))));
+    ("TLC.LibListZ.take_prefix_length",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.take",
+                   [`App (("TLC.LibListZ.length", [`Var ("l")]));
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `Var ("l")))));
+    ("TLC.LibListZ.take_app_r",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.ge",
+                       [`Var ("n");
+                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.take",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l");
+                     `App (("TLC.LibListZ.take",
+                            [`App (("-",
+                                    [`Var ("n");
+                                      `App (("TLC.LibListZ.length",
+                                             [`Var ("l")]))
+                                      ]));
+                              `Var ("l'")]))
+                     ]))))));
+    ("TLC.LibListZ.take_app_l",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.le",
+                       [`Var ("n");
+                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.take",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibListZ.take", [`Var ("n"); `Var ("l")]))))));
+    ("TLC.LibListZ.make_succ_r",
+     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
+      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.make",
+                   [`App (("+", [`Var ("n"); `Int (1)])); `Var ("v")])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")]));
+                     `Constructor (("::",
+                                    [`Var ("v"); `Constructor (("[]", []))]))
+                     ]))))));
+    ("TLC.LibListZ.update_middle",
+     (["A"],
+      [("i", Lang.Type.Int); ("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A")); ("v", Lang.Type.Var "A");
+        ("w", Lang.Type.Var "A")],
+      [`Eq ((Lang.Type.Int, `Var ("i"),
+             `App (("TLC.LibListZ.length", [`Var ("l1")]))))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibContainer.update",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("l1");
+                             `Constructor (("::", [`Var ("w"); `Var ("l2")]))
+                             ]));
+                     `Var ("i"); `Var ("v")])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("l1");
+                             `Constructor (("::",
+                                            [`Var ("v");
+                                              `Constructor (("[]", []))]))
+                             ]));
+                     `Var ("l2")]))))));
+    ("TLC.LibListZ.update_app_r",
+     (["A"],
+      [("l2", Lang.Type.List (Lang.Type.Var "A")); ("j", Lang.Type.Int);
+        ("l1", Lang.Type.List (Lang.Type.Var "A")); ("i", Lang.Type.Int);
+        ("ij", Lang.Type.Int); ("v", Lang.Type.Var "A")],
+      [`Eq ((Lang.Type.Int, `Var ("i"),
+             `App (("TLC.LibListZ.length", [`Var ("l1")]))));
+        `Assert (`App (("TLC.LibOrder.le", [`Int (0); `Var ("j")])));
+        `Eq ((Lang.Type.Int, `Var ("ij"),
+              `App (("+", [`Var ("i"); `Var ("j")]))))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibContainer.update",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]));
+                     `Var ("ij"); `Var ("v")])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l1");
+                     `App (("TLC.LibContainer.update",
+                            [`Var ("l2"); `Var ("j"); `Var ("v")]))
+                     ]))))));
+    ("TLC.LibListZ.length_last",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("l");
+                             `Constructor (("::",
+                                            [`Var ("x");
+                                              `Constructor (("[]", []))]))
+                             ]))
+                     ])),
+            `App (("+",
+                   [`Int (1); `App (("TLC.LibListZ.length", [`Var ("l")]))]))))));
+    ("TLC.LibListZ.length_app",
+     (["A"],
+      [("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
+            `App (("+",
+                   [`App (("TLC.LibListZ.length", [`Var ("l1")]));
+                     `App (("TLC.LibListZ.length", [`Var ("l2")]))]))))));
+    ("TLC.LibList.list_eq_take_app_drop",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.le",
+                       [`Var ("n");
+                         `App (("TLC.LibList.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.take", [`Var ("n"); `Var ("l")]));
+                     `App (("TLC.LibList.drop", [`Var ("n"); `Var ("l")]))])),
+            `Var ("l")))));
+    ("TLC.LibList.drop_app_length",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.drop",
+                   [`App (("TLC.LibList.length", [`Var ("l")]));
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `Var ("l'")))));
+    ("TLC.LibList.drop_app_r",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.ge",
+                       [`Var ("n");
+                         `App (("TLC.LibList.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.drop",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibList.drop",
+                   [`App (("-",
+                           [`Var ("n");
+                             `App (("TLC.LibList.length", [`Var ("l")]))]));
+                     `Var ("l'")]))))));
+    ("TLC.LibList.drop_app_l",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.le",
+                       [`Var ("n");
+                         `App (("TLC.LibList.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.drop",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.drop", [`Var ("n"); `Var ("l")]));
+                     `Var ("l'")]))))));
+    ("TLC.LibList.take_prefix_length",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.take",
+                   [`App (("TLC.LibList.length", [`Var ("l")]));
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `Var ("l")))));
+    ("TLC.LibList.take_app_r",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.ge",
+                       [`Var ("n");
+                         `App (("TLC.LibList.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.take",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l");
+                     `App (("TLC.LibList.take",
+                            [`App (("-",
+                                    [`Var ("n");
+                                      `App (("TLC.LibList.length",
+                                             [`Var ("l")]))
+                                      ]));
+                              `Var ("l'")]))
+                     ]))))));
+    ("TLC.LibList.take_app_l",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.le",
+                       [`Var ("n");
+                         `App (("TLC.LibList.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.take",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibList.take", [`Var ("n"); `Var ("l")]))))));
+    ("TLC.LibList.split_last",
+     (["A"; "B"],
+      [("x", Lang.Type.Var "A"); ("y", Lang.Type.Var "B");
+        ("l",
+         Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])));
+        ("r", Lang.Type.List (Lang.Type.Var "A"));
+        ("s", Lang.Type.List (Lang.Type.Var "B"))],
+      [`Eq ((Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
+             `Tuple ([`Var ("r"); `Var ("s")]),
+             `App (("TLC.LibList.split", [`Var ("l")]))))
+        ],
+      `Eq ((Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
+            `App (("TLC.LibList.split",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("l");
+                             `Constructor (("::",
+                                            [`Tuple ([`Var ("x"); `Var ("y")]);
+                                              `Constructor (("[]", []))]))
+                             ]))
+                     ])),
+            `Tuple ([`App (("TLC.LibList.app",
+                            [`Var ("r");
+                              `Constructor (("::",
+                                             [`Var ("x");
+                                               `Constructor (("[]", []))]))
+                              ]));
+                      `App (("TLC.LibList.app",
+                             [`Var ("s");
+                               `Constructor (("::",
+                                              [`Var ("y");
+                                                `Constructor (("[]", []))]))
+                               ]))
+                      ])))));
+    ("TLC.LibList.split_app",
+     (["A"; "B"],
+      [("l1",
+        Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])));
+        ("l2",
+         Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])));
+        ("r1", Lang.Type.List (Lang.Type.Var "A"));
+        ("r2", Lang.Type.List (Lang.Type.Var "A"));
+        ("s1", Lang.Type.List (Lang.Type.Var "B"));
+        ("s2", Lang.Type.List (Lang.Type.Var "B"))],
+      [`Eq ((Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
+             `Tuple ([`Var ("r1"); `Var ("s1")]),
+             `App (("TLC.LibList.split", [`Var ("l1")]))));
+        `Eq ((Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
+              `Tuple ([`Var ("r2"); `Var ("s2")]),
+              `App (("TLC.LibList.split", [`Var ("l2")]))))
+        ],
+      `Eq ((Lang.Type.Product ([Lang.Type.List (Lang.Type.Var "A"); Lang.Type.List (Lang.Type.Var "B")]),
+            `App (("TLC.LibList.split",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
+            `Tuple ([`App (("TLC.LibList.app", [`Var ("r1"); `Var ("r2")]));
+                      `App (("TLC.LibList.app", [`Var ("s1"); `Var ("s2")]))])))));
+    ("TLC.LibList.combine_last",
+     (["A"; "B"],
+      [("x", Lang.Type.Var "A"); ("r", Lang.Type.List (Lang.Type.Var "A"));
+        ("y", Lang.Type.Var "B"); ("s", Lang.Type.List (Lang.Type.Var "B"))],
+      [`Eq ((Lang.Type.Int, `App (("TLC.LibList.length", [`Var ("r")])),
+             `App (("TLC.LibList.length", [`Var ("s")]))))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])),
+            `App (("TLC.LibList.combine",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("r");
+                             `Constructor (("::",
+                                            [`Var ("x");
+                                              `Constructor (("[]", []))]))
+                             ]));
+                     `App (("TLC.LibList.app",
+                            [`Var ("s");
+                              `Constructor (("::",
+                                             [`Var ("y");
+                                               `Constructor (("[]", []))]))
+                              ]))
+                     ])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.combine", [`Var ("r"); `Var ("s")]));
+                     `Constructor (("::",
+                                    [`Tuple ([`Var ("x"); `Var ("y")]);
+                                      `Constructor (("[]", []))]))
+                     ]))))));
+    ("TLC.LibList.combine_app",
+     (["A"; "B"],
+      [("r1", Lang.Type.List (Lang.Type.Var "A"));
+        ("r2", Lang.Type.List (Lang.Type.Var "A"));
+        ("s1", Lang.Type.List (Lang.Type.Var "B"));
+        ("s2", Lang.Type.List (Lang.Type.Var "B"))],
+      [`Eq ((Lang.Type.Int, `App (("TLC.LibList.length", [`Var ("r1")])),
+             `App (("TLC.LibList.length", [`Var ("s1")]))))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])),
+            `App (("TLC.LibList.combine",
+                   [`App (("TLC.LibList.app", [`Var ("r1"); `Var ("r2")]));
+                     `App (("TLC.LibList.app", [`Var ("s1"); `Var ("s2")]))])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.combine", [`Var ("r1"); `Var ("s1")]));
+                     `App (("TLC.LibList.combine", [`Var ("r2"); `Var ("s2")]))
+                     ]))))));
+    ("TLC.LibList.concat_last",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("m", Lang.Type.List (Lang.Type.List (Lang.Type.Var "A")))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.concat",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("m");
+                             `Constructor (("::",
+                                            [`Var ("l");
+                                              `Constructor (("[]", []))]))
+                             ]))
+                     ])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.concat", [`Var ("m")])); `Var ("l")]))))));
+    ("TLC.LibList.concat_app",
+     (["A"],
+      [("m1", Lang.Type.List (Lang.Type.List (Lang.Type.Var "A")));
+        ("m2", Lang.Type.List (Lang.Type.List (Lang.Type.Var "A")))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.concat",
+                   [`App (("TLC.LibList.app", [`Var ("m1"); `Var ("m2")]))])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.concat", [`Var ("m1")]));
+                     `App (("TLC.LibList.concat", [`Var ("m2")]))]))))));
+    ("TLC.LibList.concat_cons",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("m", Lang.Type.List (Lang.Type.List (Lang.Type.Var "A")))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.concat",
+                   [`Constructor (("::", [`Var ("l"); `Var ("m")]))])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l"); `App (("TLC.LibList.concat", [`Var ("m")]))]))))));
+    ("TLC.LibList.rev_last",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.rev",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("l");
+                             `Constructor (("::",
+                                            [`Var ("x");
+                                              `Constructor (("[]", []))]))
+                             ]))
+                     ])),
+            `Constructor (("::",
+                           [`Var ("x");
+                             `App (("TLC.LibList.rev", [`Var ("l")]))]))))));
+    ("TLC.LibList.rev_cons",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.rev",
+                   [`Constructor (("::", [`Var ("x"); `Var ("l")]))])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.rev", [`Var ("l")]));
+                     `Constructor (("::",
+                                    [`Var ("x"); `Constructor (("[]", []))]))
+                     ]))))));
+    ("TLC.LibList.rev_app",
+     (["A"],
+      [("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.rev",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.rev", [`Var ("l2")]));
+                     `App (("TLC.LibList.rev", [`Var ("l1")]))]))))));
+    ("TLC.LibList.length_app",
+     (["A"],
+      [("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibList.length",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
+            `App (("+",
+                   [`App (("TLC.LibList.length", [`Var ("l1")]));
+                     `App (("TLC.LibList.length", [`Var ("l2")]))]))))));
+    ("TLC.LibList.last_app",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]));
+                     `Constructor (("::",
+                                    [`Var ("x"); `Constructor (("[]", []))]))
+                     ])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l1");
+                     `App (("TLC.LibList.app",
+                            [`Var ("l2");
+                              `Constructor (("::",
+                                             [`Var ("x");
+                                               `Constructor (("[]", []))]))
+                              ]))
+                     ]))))));
+    ("TLC.LibList.last_one",
+     (["A"], [("x", Lang.Type.Var "A"); ("y", Lang.Type.Var "A")], [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`Constructor (("::",
+                                   [`Var ("x"); `Constructor (("[]", []))]));
+                     `Constructor (("::",
+                                    [`Var ("y"); `Constructor (("[]", []))]))
+                     ])),
+            `Constructor (("::",
+                           [`Var ("x");
+                             `Constructor (("::",
+                                            [`Var ("y");
+                                              `Constructor (("[]", []))]))
+                             ]))))));
+    ("TLC.LibList.last_cons",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("y", Lang.Type.Var "A");
+        ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`Constructor (("::", [`Var ("x"); `Var ("l")]));
+                     `Constructor (("::",
+                                    [`Var ("y"); `Constructor (("[]", []))]))
+                     ])),
+            `Constructor (("::",
+                           [`Var ("x");
+                             `App (("TLC.LibList.app",
+                                    [`Var ("l");
+                                      `Constructor (("::",
+                                                     [`Var ("y");
+                                                       `Constructor (
+                                                       ("[]", []))]))
+                                      ]))
+                             ]))))));
+    ("TLC.LibList.last_nil",
+     (["A"], [("x", Lang.Type.Var "A")], [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`Constructor (("[]", []));
+                     `Constructor (("::",
+                                    [`Var ("x"); `Constructor (("[]", []))]))
+                     ])),
+            `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))))));
+    ("TLC.LibList.app_last_r",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`Var ("l1");
+                     `App (("TLC.LibList.app",
+                            [`Var ("l2");
+                              `Constructor (("::",
+                                             [`Var ("x");
+                                               `Constructor (("[]", []))]))
+                              ]))
+                     ])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]));
+                     `Constructor (("::",
+                                    [`Var ("x"); `Constructor (("[]", []))]))
+                     ]))))));
+    ("TLC.LibList.app_last_l",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("l1");
+                             `Constructor (("::",
+                                            [`Var ("x");
+                                              `Constructor (("[]", []))]))
+                             ]));
+                     `Var ("l2")])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l1");
+                     `Constructor (("::", [`Var ("x"); `Var ("l2")]))]))))));
+    ("TLC.LibList.app_cons_one_l",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`Var ("l");
+                     `Constructor (("::",
+                                    [`Var ("x"); `Constructor (("[]", []))]))
+                     ])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l");
+                     `Constructor (("::",
+                                    [`Var ("x"); `Constructor (("[]", []))]))
+                     ]))))));
+    ("TLC.LibList.app_cons_one_r",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`Constructor (("::",
+                                   [`Var ("x"); `Constructor (("[]", []))]));
+                     `Var ("l")])),
+            `Constructor (("::", [`Var ("x"); `Var ("l")]))))));
+    ("TLC.LibList.app_cons_r",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`Var ("l1");
+                     `Constructor (("::", [`Var ("x"); `Var ("l2")]))])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("l1");
+                             `Constructor (("::",
+                                            [`Var ("x");
+                                              `Constructor (("[]", []))]))
+                             ]));
+                     `Var ("l2")]))))));
+    ("TLC.LibList.app_assoc",
+     (["A"],
+      [("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"));
+        ("l3", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]));
+                     `Var ("l3")])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l1");
+                     `App (("TLC.LibList.app", [`Var ("l2"); `Var ("l3")]))]))))));
+    ("TLC.LibList.app_nil_r",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app", [`Var ("l"); `Constructor (("[]", []))])),
+            `Var ("l")))));
+    ("TLC.LibList.app_nil_l",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app", [`Constructor (("[]", [])); `Var ("l")])),
+            `Var ("l")))));
+    ("TLC.LibList.app_cons_l",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.app",
+                   [`Constructor (("::", [`Var ("x"); `Var ("l1")]));
+                     `Var ("l2")])),
+            `Constructor (("::",
+                           [`Var ("x");
+                             `App (("TLC.LibList.app",
+                                    [`Var ("l1"); `Var ("l2")]))
+                             ]))))));
+    ("Proofs.Verify_seq_to_array_utils.case_rev_split",
+     (["A"],
+      [("xs", Lang.Type.List (Lang.Type.Var "A")); ("v", Lang.Type.Var "A");
+        ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("r", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Eq ((Lang.Type.List (Lang.Type.Var "A"),
+             `App (("TLC.LibList.rev", [`Var ("xs")])),
+             `App (("TLC.LibList.app",
+                    [`Var ("l");
+                      `Constructor (("::", [`Var ("v"); `Var ("r")]))]))))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"), `Var ("xs"),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.rev", [`Var ("r")]));
+                     `Constructor (("::",
+                                    [`Var ("v");
+                                      `App (("TLC.LibList.rev", [`Var ("l")]))
+                                      ]))
+                     ]))))));
+    ("CFML.Semantics.app_trms_vals_rev_cons",
+     ([],
+      [("v", Lang.Type.Val); ("vs", Lang.Type.List (Lang.Type.Val));
+        ("ts", Lang.Type.List (Lang.Type.Val))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Val),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.rev",
+                           [`Constructor (("::", [`Var ("v"); `Var ("vs")]))]));
+                     `Var ("ts")])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.rev", [`Var ("vs")]));
+                     `Constructor (("::", [`Var ("v"); `Var ("ts")]))]))))));
+    ("TLC.LibListZ.length_rev",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibList.rev", [`Var ("l")]))])),
+            `App (("TLC.LibListZ.length", [`Var ("l")]))))));
+    ("TLC.LibList.combine_rev",
+     (["A"; "B"],
+      [("r", Lang.Type.List (Lang.Type.Var "A"));
+        ("s", Lang.Type.List (Lang.Type.Var "B"))],
+      [`Eq ((Lang.Type.Int, `App (("TLC.LibList.length", [`Var ("r")])),
+             `App (("TLC.LibList.length", [`Var ("s")]))))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Product ([Lang.Type.Var "A"; Lang.Type.Var "B"])),
+            `App (("TLC.LibList.combine",
+                   [`App (("TLC.LibList.rev", [`Var ("r")]));
+                     `App (("TLC.LibList.rev", [`Var ("s")]))])),
+            `App (("TLC.LibList.rev",
+                   [`App (("TLC.LibList.combine", [`Var ("r"); `Var ("s")]))]))))));
+    ("TLC.LibList.length_rev",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibList.length",
+                   [`App (("TLC.LibList.rev", [`Var ("l")]))])),
+            `App (("TLC.LibList.length", [`Var ("l")]))))));
+    ("TLC.LibList.rev_rev",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.rev",
+                   [`App (("TLC.LibList.rev", [`Var ("l")]))])),
+            `Var ("l")))));
+    ("TLC.LibList.rev_last",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.rev",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("l");
+                             `Constructor (("::",
+                                            [`Var ("x");
+                                              `Constructor (("[]", []))]))
+                             ]))
+                     ])),
+            `Constructor (("::",
+                           [`Var ("x");
+                             `App (("TLC.LibList.rev", [`Var ("l")]))]))))));
+    ("TLC.LibList.rev_one",
+     (["A"], [("x", Lang.Type.Var "A")], [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.rev",
+                   [`Constructor (("::",
+                                   [`Var ("x"); `Constructor (("[]", []))]))
+                     ])),
+            `Constructor (("::", [`Var ("x"); `Constructor (("[]", []))]))))));
+    ("TLC.LibList.rev_cons",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.rev",
+                   [`Constructor (("::", [`Var ("x"); `Var ("l")]))])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.rev", [`Var ("l")]));
+                     `Constructor (("::",
+                                    [`Var ("x"); `Constructor (("[]", []))]))
+                     ]))))));
+    ("TLC.LibList.rev_app",
+     (["A"],
+      [("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibList.rev",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibList.rev", [`Var ("l2")]));
+                     `App (("TLC.LibList.rev", [`Var ("l1")]))]))))));
+    ("Proofs.Verify_seq_to_array_utils.drop_last",
+     (["A"],
+      [("xs", Lang.Type.List (Lang.Type.Var "A"));
+        ("rst", Lang.Type.List (Lang.Type.Var "A"));
+        ("lst", Lang.Type.Var "A")],
+      [`Eq ((Lang.Type.List (Lang.Type.Var "A"),
+             `App (("TLC.LibList.rev", [`Var ("xs")])),
+             `Constructor (("::", [`Var ("lst"); `Var ("rst")]))))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.drop",
+                   [`App (("-",
+                           [`App (("TLC.LibListZ.length", [`Var ("xs")]));
+                             `Int (1)]));
+                     `Var ("xs")])),
+            `Constructor (("::", [`Var ("lst"); `Constructor (("[]", []))]))))));
+    ("TLC.LibListZ.length_drop",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.le",
+                       [`Var ("n");
+                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibListZ.drop", [`Var ("n"); `Var ("l")]))])),
+            `App (("Coq.ZArith.BinInt.Z.min",
+                   [`App (("TLC.LibListZ.length", [`Var ("l")]));
+                     `App (("-",
+                            [`App (("TLC.LibListZ.length", [`Var ("l")]));
+                              `Var ("n")]))
+                     ]))))));
+    ("TLC.LibListZ.length_take",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.le",
+                       [`Var ("n");
+                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibListZ.take", [`Var ("n"); `Var ("l")]))])),
+            `App (("Coq.ZArith.BinInt.Z.max", [`Int (0); `Var ("n")]))))));
+    ("TLC.LibListZ.drop_at_length",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.drop",
+                   [`App (("TLC.LibListZ.length", [`Var ("l")])); `Var ("l")])),
+            `Constructor (("[]", []))))));
+    ("TLC.LibListZ.drop_app_length",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.drop",
+                   [`App (("TLC.LibListZ.length", [`Var ("l")]));
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `Var ("l'")))));
+    ("TLC.LibListZ.drop_app_r",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.ge",
+                       [`Var ("n");
+                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.drop",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibListZ.drop",
+                   [`App (("-",
+                           [`Var ("n");
+                             `App (("TLC.LibListZ.length", [`Var ("l")]))]));
+                     `Var ("l'")]))))));
+    ("TLC.LibListZ.take_full_length",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.take",
+                   [`App (("TLC.LibListZ.length", [`Var ("l")])); `Var ("l")])),
+            `Var ("l")))));
+    ("TLC.LibListZ.take_prefix_length",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.take",
+                   [`App (("TLC.LibListZ.length", [`Var ("l")]));
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `Var ("l")))));
+    ("TLC.LibListZ.take_app_r",
+     (["A"],
+      [("n", Lang.Type.Int); ("l", Lang.Type.List (Lang.Type.Var "A"));
+        ("l'", Lang.Type.List (Lang.Type.Var "A"))],
+      [`Assert (`App (("TLC.LibOrder.ge",
+                       [`Var ("n");
+                         `App (("TLC.LibListZ.length", [`Var ("l")]))])))
+        ],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.take",
+                   [`Var ("n");
+                     `App (("TLC.LibList.app", [`Var ("l"); `Var ("l'")]))])),
+            `App (("TLC.LibList.app",
+                   [`Var ("l");
+                     `App (("TLC.LibListZ.take",
+                            [`App (("-",
+                                    [`Var ("n");
+                                      `App (("TLC.LibListZ.length",
+                                             [`Var ("l")]))
+                                      ]));
+                              `Var ("l'")]))
+                     ]))))));
+    ("TLC.LibListZ.length_remove",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A")); ("a", Lang.Type.Var "A")],
+      [],
+      `Assert (`App (("TLC.LibOrder.le",
+                      [`App (("TLC.LibListZ.length",
+                              [`App (("TLC.LibList.remove",
+                                      [`Var ("a"); `Var ("l")]))
+                                ]));
+                        `App (("TLC.LibListZ.length", [`Var ("l")]))])))));
+    ("TLC.LibListZ.length_rev",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibList.rev", [`Var ("l")]))])),
+            `App (("TLC.LibListZ.length", [`Var ("l")]))))));
+    ("TLC.LibListZ.length_make",
+     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
+      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")]))])),
+            `Var ("n")))));
+    ("TLC.LibListZ.length_update",
+     (["A"],
+      [("l", Lang.Type.List (Lang.Type.Var "A")); ("i", Lang.Type.Int);
+        ("v", Lang.Type.Var "A")],
+      [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibContainer.update",
+                           [`Var ("l"); `Var ("i"); `Var ("v")]))
+                     ])),
+            `App (("TLC.LibListZ.length", [`Var ("l")]))))));
+    ("TLC.LibListZ.Unnamed_thm",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Assert (`App (("TLC.LibOrder.le",
+                      [`Int (0); `App (("TLC.LibListZ.length", [`Var ("l")]))
+                        ])))));
+    ("TLC.LibListZ.length_last",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibList.app",
+                           [`Var ("l");
+                             `Constructor (("::",
+                                            [`Var ("x");
+                                              `Constructor (("[]", []))]))
+                             ]))
+                     ])),
+            `App (("+",
+                   [`Int (1); `App (("TLC.LibListZ.length", [`Var ("l")]))]))))));
+    ("TLC.LibListZ.length_app",
+     (["A"],
+      [("l1", Lang.Type.List (Lang.Type.Var "A"));
+        ("l2", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibList.app", [`Var ("l1"); `Var ("l2")]))])),
+            `App (("+",
+                   [`App (("TLC.LibListZ.length", [`Var ("l1")]));
+                     `App (("TLC.LibListZ.length", [`Var ("l2")]))]))))));
+    ("TLC.LibListZ.length_one",
+     (["A"], [("x", Lang.Type.Var "A")], [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`Constructor (("::",
+                                   [`Var ("x"); `Constructor (("[]", []))]))
+                     ])),
+            `Int (1)))));
+    ("TLC.LibListZ.length_cons",
+     (["A"],
+      [("x", Lang.Type.Var "A"); ("l", Lang.Type.List (Lang.Type.Var "A"))],
+      [],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`Constructor (("::", [`Var ("x"); `Var ("l")]))])),
+            `App (("+",
+                   [`Int (1); `App (("TLC.LibListZ.length", [`Var ("l")]))]))))));
+    ("TLC.LibListZ.length_nonneg",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Assert (`App (("TLC.LibOrder.le",
+                      [`Int (0); `App (("TLC.LibListZ.length", [`Var ("l")]))
+                        ])))));
+    ("TLC.LibListZ.length_eq",
+     (["A"], [("l", Lang.Type.List (Lang.Type.Var "A"))], [],
+      `Eq ((Lang.Type.Int, `App (("TLC.LibListZ.length", [`Var ("l")])),
+            `App (("TLC.LibList.length", [`Var ("l")]))))));
+    ("TLC.LibListZ.make_eq_cons_make_pred",
+     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
+      [`Assert (`App (("TLC.LibOrder.lt", [`Int (0); `Var ("n")])))],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")])),
+            `Constructor (("::",
+                           [`Var ("v");
+                             `App (("TLC.LibListZ.make",
+                                    [`App (("-", [`Var ("n"); `Int (1)]));
+                                      `Var ("v")]))
+                             ]))))));
+    ("TLC.LibListZ.make_succ_r",
+     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
+      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.make",
+                   [`App (("+", [`Var ("n"); `Int (1)])); `Var ("v")])),
+            `App (("TLC.LibList.app",
+                   [`App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")]));
+                     `Constructor (("::",
+                                    [`Var ("v"); `Constructor (("[]", []))]))
+                     ]))))));
+    ("TLC.LibListZ.make_succ_l",
+     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
+      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.make",
+                   [`App (("+", [`Var ("n"); `Int (1)])); `Var ("v")])),
+            `Constructor (("::",
+                           [`Var ("v");
+                             `App (("TLC.LibListZ.make",
+                                    [`Var ("n"); `Var ("v")]))
+                             ]))))));
+    ("TLC.LibListZ.make_zero",
+     (["A"], [("v", Lang.Type.Var "A")], [],
+      `Eq ((Lang.Type.List (Lang.Type.Var "A"),
+            `App (("TLC.LibListZ.make", [`Int (0); `Var ("v")])),
+            `Constructor (("[]", []))))));
+    ("TLC.LibListZ.length_make",
+     (["A"], [("n", Lang.Type.Int); ("v", Lang.Type.Var "A")],
+      [`Assert (`App (("TLC.LibOrder.ge", [`Var ("n"); `Int (0)])))],
+      `Eq ((Lang.Type.Int,
+            `App (("TLC.LibListZ.length",
+                   [`App (("TLC.LibListZ.make", [`Var ("n"); `Var ("v")]))])),
+            `Var ("n")))))
+    ];
   env =
-    [("l", List (Var "A")); ("s", Func); ("v", Loc); ("tmp", Val);
-     ("len", Var "Coq.Numbers.BinNums.Z"); ("ls", List (Var "A")); ("init", Var "A");
-     ("rest", List (Var "A")); ("a", Array (Var "A")); ("data", List (Var "A"));
-     ("idx", Var "Coq.Numbers.BinNums.Z"); ("tmp0", Val)];
-  (* evaluate and assert equalities for all assumptions *)
+  [("l", Lang.Type.List (Lang.Type.Var "A")); ("s", Lang.Type.Func);
+    ("v", Lang.Type.Loc); ("tmp", Lang.Type.Val);
+    ("len", Lang.Type.Var "Coq.Numbers.BinNums.Z");
+    ("ls", Lang.Type.List (Lang.Type.Var "A")); ("init", Lang.Type.Var "A");
+    ("rest", Lang.Type.List (Lang.Type.Var "A"));
+    ("a", Lang.Type.Array (Lang.Type.Var "A"));
+    ("data", Lang.Type.List (Lang.Type.Var "A"));
+    ("idx", Lang.Type.Var "Coq.Numbers.BinNums.Z"); ("tmp0", Lang.Type.Val)];
   assumptions =
-    [(List (Var "A"), `Var "ls", `Constructor ("::", [`Var "init"; `Var "rest"]));
-     (Product [Int; List (Var "A")],
-      `Tuple [`Var "len"; `Constructor ("::", [`Var "init"; `Var "rest"])],
-      `Tuple [`App ("TLC.LibListZ.length", [`Var "l"]); `App ("TLC.LibList.rev", [`Var "l"])]);
-     (List (Var "A"), `Constructor ("::", [`Var "init"; `Var "rest"]), `App ("TLC.LibList.rev", [`Var "l"]));
-     (Int, `Var "len", `App ("TLC.LibListZ.length", [`Var "l"]));
-     (List (Var "A"), `Var "data", `App ("TLC.LibListZ.make", [`Var "len"; `Var "init"]));
-     (Int, `Var "idx", `App ("-", [`Var "len"; `Int 2]))];
-
-  (* user provides input expression (Expr.t list -> Expr.t) & (Expr.t list -> Expr.t array)  *)
-  initial = { expr_values = [|`Var "data"|]; param_values = [`Constructor ("[]", []); `Var "idx"] };
-
+  [(Lang.Type.List (Lang.Type.Var "A"), `Var ("ls"),
+    `Constructor (("::", [`Var ("init"); `Var ("rest")])));
+    (Lang.Type.Product ([Lang.Type.Int; Lang.Type.List (Lang.Type.Var "A")]),
+     `Tuple ([`Var ("len");
+               `Constructor (("::", [`Var ("init"); `Var ("rest")]))]),
+     `Tuple ([`App (("TLC.LibListZ.length", [`Var ("l")]));
+               `App (("TLC.LibList.rev", [`Var ("l")]))]));
+    (Lang.Type.List (Lang.Type.Var "A"),
+     `Constructor (("::", [`Var ("init"); `Var ("rest")])),
+     `App (("TLC.LibList.rev", [`Var ("l")])));
+    (Lang.Type.Int, `Var ("len"),
+     `App (("TLC.LibListZ.length", [`Var ("l")])));
+    (Lang.Type.List (Lang.Type.Var "A"), `Var ("data"),
+     `App (("TLC.LibListZ.make", [`Var ("len"); `Var ("init")])));
+    (Lang.Type.Int, `Var ("idx"), `App (("-", [`Var ("len"); `Int (2)])))];
+  invariant = ("I", [Lang.Type.List (Lang.Type.Var "A"); Lang.Type.Int]);
+  initial =
+  { expr_values = [|`Var ("data")|];
+    param_values = [`Constructor (("[]", [])); `Var ("idx")] };
   conditions =
-    [
-      (* define fresh variables + make env map for qf *)
-      { qf =
-         [("r", List (Var "A")); ("t", List (Var "A")); ("v", Var "A"); ("acc", Int)];
-        (* evaluate and assert equalities for assumptions *)
-       assumptions = [`Eq ((List (Var "A"),
-                            `Var "rest",
-                            `App ("TLC.LibList.app", [`Var "t"; `Constructor ("::", [`Var "v"; `Var "r"])])))];
-        (* param values *)
-       param_values = [`Var "t"; `Var "acc"];
-
-       post_param_values = [
-         `App ("TLC.LibList.app",
-               [`Var "t"; `Constructor ("::", [`Var "v"; `Constructor ("[]", [])])]);
-         `App ("-", [`Var "acc"; `Int 1])
+  [{ qf =
+     [("r", Lang.Type.List (Lang.Type.Var "A"));
+       ("t", Lang.Type.List (Lang.Type.Var "A")); ("v", Lang.Type.Var "A");
+       ("acc", Lang.Type.Int)];
+     param_values = [`Var ("t"); `Var ("acc")];
+     assumptions =
+     [`Eq ((Lang.Type.List (Lang.Type.Var "A"), `Var ("rest"),
+            `App (("TLC.LibList.app",
+                   [`Var ("t");
+                     `Constructor (("::", [`Var ("v"); `Var ("r")]))]))))
        ];
-       expr_values = [|fun exp -> `App ("Array.set", [(`App ("CFML.WPArray.Array", [exp])); `Var "acc"; `Var "v"])|] }
+     post_param_values =
+     [`App (("TLC.LibList.app",
+             [`Var ("t");
+               `Constructor (("::", [`Var ("v"); `Constructor (("[]", []))]))
+               ]));
+       `App (("-", [`Var ("acc"); `Int (1)]))];
+     expr_values =
+     [|fun expr -> `App (("Array.set",
+              [`App (("CFML.WPArray.Array", [expr])); `Var ("acc");
+                `Var ("v")]))
+       |]
+     }
     ]
-}
+  }
 
 type ctx = {
   ctx: Z3.context;
@@ -1393,7 +1456,7 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
       Z3.Boolean.mk_eq ctx.ctx l r
     ) data.assumptions in
   Z3.Solver.add solver assumptions;
-  List.iter (fun (name, (poly_vars, params, assumptions, (ty, l, r))) ->
+  List.iter (fun (name, (poly_vars, params, assumptions, concl)) ->
     List.map_product_l (fun v -> List.map Pair.(make v) data.poly_vars) poly_vars
     |> List.iter (fun vars ->
       try
@@ -1420,9 +1483,14 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
             ) assumptions
             |> Z3.Boolean.mk_and ctx.ctx in
           let concl =
-            let l = eval_expr ~ty ctx env l in
-            let r = eval_expr ~ty ctx env r in
-            Z3.Boolean.mk_eq ctx.ctx l r in
+            match concl with
+            | `Eq (ty, l, r) ->
+              let l = eval_expr ~ty ctx env l in
+              let r = eval_expr ~ty ctx env r in
+              Z3.Boolean.mk_eq ctx.ctx l r
+            | `Assert b ->
+              eval_expr ctx env b
+          in
           if List.is_empty assumptions
           then concl
           else

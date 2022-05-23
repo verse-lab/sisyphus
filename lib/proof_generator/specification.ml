@@ -14,6 +14,11 @@ let () =
     | _ -> None
   )
 
+let globref_to_string = function
+  | Names.GlobRef.VarRef v -> Names.Id.to_string v
+  | Names.GlobRef.ConstRef c -> Names.Constant.to_string c
+  | Names.GlobRef.IndRef (i, _) -> Names.MutInd.to_string i 
+  | Names.GlobRef.ConstructRef ((c, _), _) -> Names.MutInd.to_string c
 
 let rec extract_property acc (c: Constr.t) =
   match Constr.kind c with
@@ -38,8 +43,6 @@ and extract_params tys acc (c: Constr.t) =
     | None -> extract_assertions tys acc [] rest
     end
   | _ -> extract_assertions tys acc [] c
-  (* | _ ->
-   *   failwith (Format.sprintf "(extract params) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c)) *)
 and extract_assertions tys params acc (c: Constr.t) =
   let rel ind =
     let ind = ind - 1 in
@@ -68,10 +71,10 @@ and extract_assertions tys params acc (c: Constr.t) =
     let exp = PCFML.extract_expr ~rel:rel_exp exp in
     extract_assertions tys params (`Assert exp :: acc) c
   | Constr.App _ ->
-    extract_equality tys params acc c
+    extract_conclusion tys params acc c
   | _ ->
     failwith (Format.sprintf "(extract assertions) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
-and extract_equality tys params assertions (c: Constr.t) =
+and extract_conclusion tys params assertions (c: Constr.t) =
   let rel ind =
     let ind = ind - 1 in
     if ind < List.length assertions then
@@ -97,16 +100,21 @@ and extract_equality tys params assertions (c: Constr.t) =
     let ty = PCFML.extract_typ ~rel ty in
     let l = PCFML.extract_expr ~rel:rel_exp l in
     let r = PCFML.extract_expr ~rel:rel_exp r in
-    (List.rev tys, List.rev params, List.rev assertions, (ty, l, r))
+    (List.rev tys, List.rev params, List.rev assertions, `Eq (ty, l, r))
+  | Constr.App (fname, _) when PU.is_const_eq "TLC.LibOrder.le" fname
+                             || PU.is_const_eq "TLC.LibOrder.lt" fname
+                             || PU.is_const_eq "TLC.LibOrder.ge" fname
+                             || PU.is_const_eq "TLC.LibOrder.gt" fname ->
+    (List.rev tys, List.rev params, List.rev assertions, `Assert (PCFML.extract_expr ~rel:rel_exp c))
   | _ ->
-    failwith (Format.sprintf "(extract equality) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
+    failwith (Format.sprintf "(extract equality) found unsupported assertion %s"
+                (Proof_debug.constr_to_string_pretty c))
 
 let extract_property c =
-  try Some (extract_property [] c) with
+  try Ok (extract_property [] c) with
   | Failure msg ->
-    (* Format.eprintf "failed to parse type %s, due to %s@.@." (Proof_debug.constr_to_string_pretty c) msg; *)
-    None
-  | _ -> None
+    Error (Format.sprintf "failed to parse type %s, due to %s" (Proof_debug.constr_to_string_pretty c) msg)
+  | e -> Error (Printexc.to_string e)
 
 type constr = Constr.t
 let pp_constr fmt vl = Format.pp_print_string fmt (Proof_debug.constr_to_string_pretty vl)
@@ -425,6 +433,20 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
                       (GlobSearchSubPattern (
                          Vernacexpr.InConcl, false, Pattern.PRef eq
                        ))) in
+    let cmp_query cmp = 
+      let eq = Libnames.qualid_of_string ("TLC.LibOrder." ^ cmp) |> Nametab.locate in
+      false, Search.(GlobSearchLiteral
+                      (GlobSearchSubPattern (
+                         Vernacexpr.Anywhere, false, Pattern.PRef eq
+                       ))) in
+    let prop_query =
+      true, Search.GlobSearchDisjConj [
+        [eq_query];
+        [cmp_query "lt"];
+        [cmp_query "gt"];        
+        [cmp_query "ge"];
+        [cmp_query "gt"];
+      ] in
     let query v =
       let fn = Libnames.qualid_of_string v |> Nametab.locate_constant in
       true, Search.(GlobSearchLiteral
@@ -433,15 +455,18 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
                        ))) in
     Fun.flip List.flat_map functions @@ fun name ->
     Proof_context.search t [
-      eq_query;
+      prop_query;
       query name;
     ]
     |> List.filter_map (fun (name, _, constr) ->
-      extract_property constr
-      |> Option.map (Pair.make name)
+      match extract_property constr with
+      | Ok prop -> Some (name, prop)
+      | Error e ->
+        (* Format.printf "failed to extract %s (%s) @.@." (globref_to_string name) e; *)
+        None
     )
     |> List.filter (function
-        (name, (_, _, _, (Lang.Type.Var "HPROP", _, _))) -> false
+        (name, (_, _, _, `Eq (Lang.Type.Var "HPROP", _, _))) -> false
       | _ -> true)
   in
 
@@ -482,11 +507,7 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
   let properties = 
     properties
     |> List.filter (fun (_, prop) -> PV.property_only_uses_functions_in supported_functions prop)
-    |> List.map (Pair.map_fst (function
-        | Names.GlobRef.VarRef v -> Names.Id.to_string v
-        | Names.GlobRef.ConstRef c -> Names.Constant.to_string c
-        | Names.GlobRef.IndRef (i, _) -> Names.MutInd.to_string i 
-        | Names.GlobRef.ConstructRef ((c, _), _) -> Names.MutInd.to_string c)) in
+    |> List.map (Pair.map_fst globref_to_string) in
 
   (* let () =
    *   properties

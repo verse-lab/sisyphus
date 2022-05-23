@@ -96,6 +96,8 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
   | Constr.Var v, _ -> `Var (Names.Id.to_string v)
   | Constr.App (value, [| c |]), _ when Proof_utils.is_const_eq "CFML.Semantics.trms_vals" value ->
     extract_expr ?rel c
+  | Constr.App (value, [| c |]), _ when Proof_utils.is_const_eq "TLC.LibInt.nat_to_Z" value ->
+    extract_expr ?rel c
   | Constr.App (value, [| c |]), _ when Proof_utils.is_constr_eq "CFML.Semantics.val" value ->
     extract_expr ?rel c
   | Constr.App (const, [|ty; h; tl|]), _ when Proof_utils.is_constr_cons const ->
