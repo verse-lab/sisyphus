@@ -29,13 +29,13 @@ let env : Expr_generator.Expgen.env =
   let open Lang.Type in
   let tA = Var "A" in
   function
-    | "++" -> [List tA; List tA], List tA
-    | "make" -> [Int; tA], List tA
-    | "length" -> [List tA], Int
-    | "drop" -> [Int; List tA], List tA
-    | "-" -> [Int; Int], Int
-    | "+" -> [Int; Int], Int
-    | _ -> failwith "env typing unknown"
+  | "++" -> [List tA; List tA], List tA
+  | "make" -> [Int; tA], List tA
+  | "length" -> [List tA], Int
+  | "drop" -> [Int; List tA], List tA
+  | "-" -> [Int; Int], Int
+  | "+" -> [Int; Int], Int
+  | _ -> failwith "env typing unknown"
 
 
 let extend_env env fname ty: Expr_generator.Expgen.env =
@@ -70,7 +70,7 @@ let handle_funcs env consts =
       in
       List.iter print_funcs funcs;
     )
-  (TypeMap.to_list map);
+    (TypeMap.to_list map);
 
   map
 
@@ -95,7 +95,7 @@ let () =
   let open Lang.Type in
 
   let vars: (string * Lang.Type.t) list = [("l", List (Var "A")); ("init", Var "A"); ("i", Int)] in 
-  let consts = TypeMap.of_list [(Int, [`Int 1; `Int 2])] in
+  let consts = TypeMap.of_list [(Int, [`Int 1])] in
   let consts_in_script = handle_constants () in
   let consts = List.fold_left
       (fun acc x ->
@@ -110,7 +110,7 @@ let () =
     ) consts vars
   in
 
- (* let show_const = function | `Int i -> string_of_int i | `Var str -> str in *)
+  (* let show_const = function | `Int i -> string_of_int i | `Var str -> str in *)
   (* let show_consts = List.fold_on_map ~f:show_const ~reduce:(fun a x -> a ^ x ^ ", ") "" in *)
   (* List.iter (fun (k, v) -> print_endline @@ Lang.Type.show k ^ ": " ^ show_consts v) (Expr_generator.Expgen.TypeMap.to_list consts); *)
 
@@ -127,6 +127,19 @@ let () =
 
   print_endline "Results";
   print_endline @@ string_of_int @@ List.length exps;
+
+  let expr: Lang.Expr.t = `App ("++", [
+      `App ("make", [
+          `App ("+", [`Var "i"; `Int 1])
+        ; `Var "init"
+        ])
+    ; `App ("drop", [
+          `App ("+", [`Var "i"; `Int 1])
+         ; `Var "l"
+        ])
+    ]) in
+
+  print_endline @@ string_of_bool @@ List.exists (fun x -> Lang.Expr.equal expr x) exps;
   List.iter (fun x -> print_endline @@ Lang.Expr.show x ^ "\n") exps;
 
   ()

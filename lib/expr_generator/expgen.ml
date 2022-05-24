@@ -40,17 +40,19 @@ let rec gen_exp (ctx: ctx) (env: env) ~max_fuel ~fuel (ty: Lang.Type.t): Lang.Ex
     begin
       if fuel = max_fuel
       then
-        let pats = TypeMap.find_opt ty ctx.pats |> Option.value ~default:[] in
+        let pats = List.rev @@ (TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
         let pats = List.flat_map (instantiate_pat ctx env ~max_fuel ~fuel:(fuel)) pats in
         pats
       else
         begin
+          let consts = TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[] in
+
           let funcs = TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
           let funcs =  List.flat_map (fun (fname, args) ->
               let+ args = List_utils.mapM (gen_exp ctx env ~max_fuel ~fuel:(fuel - 1)) args in
               List.return (`App (fname, args))
             ) funcs in
-          funcs
+          consts @ funcs
         end
     end
   else
@@ -58,10 +60,11 @@ let rec gen_exp (ctx: ctx) (env: env) ~max_fuel ~fuel (ty: Lang.Type.t): Lang.Ex
     consts
 
 
+
 and instantiate_pat ctx env ~max_fuel ~fuel pat : Lang.Expr.t list  =
   match pat with
   | `App (fname, args) ->
-    List.map_product_l (instantiate_pat ctx env ~max_fuel ~fuel:(fuel)) args
+    List.map_product_l (instantiate_pat ctx env ~max_fuel ~fuel:(fuel - 1)) args
     |> List.map (fun args -> `App (fname, args))
   | `Constructor (name, args) ->
     List.map_product_l (instantiate_pat ctx env ~max_fuel ~fuel:(fuel - 1)) args
@@ -74,5 +77,5 @@ and instantiate_pat ctx env ~max_fuel ~fuel pat : Lang.Expr.t list  =
     else List.map (fun x -> `Tuple x) ls
   | `Var v as e when fuel = 0 -> [e]
   | `PatVar (str, ty) ->
-    gen_exp ctx env ~max_fuel ~fuel:(fuel - 1) ty
+    gen_exp ctx env ~max_fuel ~fuel:(fuel) ty
   |  _ -> []
