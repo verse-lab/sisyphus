@@ -1,73 +1,6 @@
 open Containers
 
-type pat =
-  [ `App of string * pat list
-  | `Constructor of string * pat list
-  | `Int of int
-  | `Tuple of pat list
-  | `Var of string
-  | `PatVar of string * Lang.Type.t
-  ]
-[@@deriving eq, ord]
-
-module Constants = struct
-  (* assumption: no strings use *)
-  type t = [
-  | `Int of int
-  | `Func of string
-] [@@deriving eq, show, ord]
-end
-
-module ConstantSet = Set.Make (Constants)
-
-
-let rec collect_expr: Lang.Expr.t -> Constants.t list = function
-  | `Int i  -> [`Int i]
-  | `App (fname, exps)  ->
-    [`Func fname] @ List.flat_map collect_expr exps
-  | `Constructor (_, es) ->
-    List.flat_map collect_expr es
-  | _ ->
-    []
-
-let collect = let open Proof_spec.Heap in function
-    | `Expr e -> collect_expr e
-    | `Spec (_, asn) ->
-      let collect_heaplet = function
-        | Heaplet.PointsTo (_, e) ->  collect_expr e in
-       List.flat_map collect_heaplet (Assertion.sigma asn)
-    | `Hole -> failwith "holes not supported"
-
-let rec collect_in =
-  function
-  | `Xapp (_, _, args) -> List.flat_map collect args
-  | `Case (_, _, _, cases) ->
-    List.flatten @@ List.flat_map (fun (_, steps) -> List.map collect_in steps) cases
-  | _ ->
-    []
-
-let collect_constants from_id to_id (steps: Proof_spec.Script.step list)  =
-  let rec cc_aux steps =
-    match steps with
-    | [] -> []
-    | h :: t ->
-      let curr = match h with
-        | `Xapp (id, _, _) | `Case (id, _, _, _) | `Xvalemptyarr (id, _)  | `Xalloc (id, _) | `Xletopaque (id, _)  | `Xvals (id, _) -> id
-        | _ -> -1 (* assume: from_id >= 0 *)
-      in
-
-      let is_case = function
-        | `Case (_, _, _, _) -> true
-        | _ -> false
-      in
-
-      if (curr >= from_id && curr <= to_id) || is_case h
-      then
-        (collect_in h) @ cc_aux t
-      else cc_aux t
-  in
-  cc_aux steps |> ConstantSet.of_list |> ConstantSet.to_list
-
+module TypeMap = Expr_generator.Expgen.TypeMap
 
 let steps =
   let proof_str = IO.with_in "../../resources/seq_to_array/Verify_seq_to_array_old.v" IO.read_all in
@@ -83,37 +16,117 @@ let steps =
     end) in
 
   let parsed_script = Proof_parser.Parser.parse (module Ctx) proof_str in
+  print_endline @@ Proof_spec.Script.show_steps parsed_script.proof;
   parsed_script.proof
 
 
-type func = (Lang.Type.t list) * Lang.Type.t [@@deriving show]
-module StringMap = Map.Make (String)
-type func_map = func StringMap.t
+let handle_constants () =
+  let consts = Expr_generator.Collector.collect_constants 3 10 steps in
+  List.iter (fun x -> print_endline @@ Expr_generator.Collector.Constants.show x) consts;
+  consts
 
-let () =
-  let cc  = collect_constants 4 4 steps in
-  List.iter (fun x -> print_endline @@ Constants.show x) cc;
-
-  let env = StringMap.empty in
-
+let env : Expr_generator.Expgen.env =
   let open Lang.Type in
-  let t_app  = [List (Var "A"); List Unit], List Unit in
-  let t_make  = [Int; Unit], List Unit in
-  let t_length = [List Unit], Int in
-  let t_sub = [Int; Int], Int in
-  let t_drop = [Int; List Unit], List Unit in 
-  let map =
-    env
-    |> StringMap.add "++" t_app
-    |> StringMap.add "make" t_make
-    |> StringMap.add "length" t_length
-    |> StringMap.add "-" t_sub
-    |> StringMap.add "drop" t_drop
+  let tA = Var "A" in
+  function
+    | "++" -> [List tA; List tA], List tA
+    | "make" -> [Int; tA], List tA
+    | "length" -> [List tA], Int
+    | "drop" -> [Int; List tA], List tA
+    | "-" -> [Int; Int], Int
+    | "+" -> [Int; Int], Int
+    | _ -> failwith "env typing unknown"
+
+
+let extend_env env fname ty: Expr_generator.Expgen.env =
+  fun str ->
+  try env str with
+  | Failure _  when String.equal fname str -> ty
+
+let handle_pats env =
+  let pats = Expr_generator.Patgen.pat_gen env steps in
+  List.iter (fun x -> print_endline @@ Expr_generator.Expgen.show_tag_pat x) pats;
+  pats
+
+let handle_funcs env consts =
+  let open Expr_generator.Expgen in
+  let add_to_map map = function
+    | `Func fname ->
+      let input_types, ret_type = env fname in
+      let ty = fname, input_types in
+      TypeMap.update ret_type (function Some ls -> Some (ty :: ls) | None -> Some [ty]) map
+    | _ -> map
   in
 
-  StringMap.iter (fun k v -> print_endline @@ k ^ " " ^ show_func v) map;
+  let init = TypeMap.of_list Lang.Type.[
+      Int, [("-", [Int; Int]);  ("+", [Int; Int])]
+    ]
+  in
+  let map: (string * Lang.Type.t list) list TypeMap.t = List.fold_left add_to_map init consts in
+  List.iter (fun (ty, funcs) ->
+      print_endline @@ "--" ^ Lang.Type.show ty;
+      let print_funcs (fname, inputs) =
+        print_endline @@ fname ^ ": " ^ (List.fold_on_map ~f:Lang.Type.show ~reduce:(^) "" inputs);
+      in
+      List.iter print_funcs funcs;
+    )
+  (TypeMap.to_list map);
 
-  let pats = Expr_generator.Patgen.pat_gen map steps in
-  List.iter (fun ty_p -> print_endline @@ Expr_generator.Patgen.show_tag_pat ty_p ) pats;
+  map
+
+let update_binding env ty vl =
+  TypeMap.update ty
+    (fun v ->
+       Option.value ~default:[] v
+       |> List.cons vl
+       |> Option.some)
+    env
+
+
+let add_ps_consts consts ty_map =
+  let add_type type_map = function
+    | `Int i  as e  ->
+      TypeMap.update (Int) (function Some  ls -> Some (e :: ls) | None -> Some [e]) type_map
+    | _ -> type_map
+  in
+  List.fold_left add_type ty_map consts
+
+let () =
+  let open Lang.Type in
+
+  let vars: (string * Lang.Type.t) list = [("l", List (Var "A")); ("init", Var "A"); ("i", Int)] in 
+  let consts = TypeMap.of_list [(Int, [`Int 1; `Int 2])] in
+  let consts_in_script = handle_constants () in
+  let consts = List.fold_left
+      (fun acc x ->
+         match x with
+           `Int i -> update_binding acc Int (`Int i)
+         | _ -> acc
+      ) consts
+      consts_in_script
+  in
+  let consts = List.fold_left (fun acc (vname, ty) ->
+      update_binding acc ty (`Var vname)
+    ) consts vars
+  in
+
+ (* let show_const = function | `Int i -> string_of_int i | `Var str -> str in *)
+  (* let show_consts = List.fold_on_map ~f:show_const ~reduce:(fun a x -> a ^ x ^ ", ") "" in *)
+  (* List.iter (fun (k, v) -> print_endline @@ Lang.Type.show k ^ ": " ^ show_consts v) (Expr_generator.Expgen.TypeMap.to_list consts); *)
+
+  let pats = handle_pats env in
+  let pats = Expr_generator.Patgen.get_pat_type_map env pats in
+  (* List.iter (fun (k, v) -> print_endline @@ Lang.Type.show k; List.iter (fun x -> print_endline @@ Expr_generator.Patgen.show_pat x) v) (Expr_generator.Expgen.TypeMap.to_list pats); *)
+
+  let funcs = handle_funcs env consts_in_script in
+
+  let ctx : Expr_generator.Expgen.ctx = { consts; pats; funcs } in
+  let max_fuel = 3 in
+  let fuel = max_fuel in
+  let exps = Expr_generator.Expgen.gen_exp ctx env ~max_fuel ~fuel (List (Var "A")) in
+
+  print_endline "Results";
+  print_endline @@ string_of_int @@ List.length exps;
+  List.iter (fun x -> print_endline @@ Lang.Expr.show x ^ "\n") exps;
 
   ()
