@@ -26,6 +26,8 @@ let rec extract_property acc (c: Constr.t) =
     extract_property (Names.Id.to_string n :: acc) c
   | Constr.Prod (_, _, _) ->
     extract_params acc [] c
+  | Constr.App (eq, [| _; _; _ |]) when PU.is_coq_eq eq ->
+    extract_conclusion acc [] [] c
   | _ ->
     failwith (Format.sprintf "(extract property) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
 and extract_params tys acc (c: Constr.t) =
