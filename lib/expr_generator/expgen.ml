@@ -34,6 +34,32 @@ type ctx = {
 
 let (let+) x f = List.(>>=) x f
 
+let get_fuels ctx fname fuel args =
+  let open Lang.Type in
+  let has_no_func arg =
+    match TypeMap.find_opt arg ctx.funcs with
+    | Some (_ :: _) -> false
+    | _ ->
+      print_endline @@ fname ^ " " ^ "Found";
+      true
+  in
+
+  let has_missing_func = List.exists has_no_func args in
+
+  let get_fuel i arg =
+    let curr_fuel =
+    if i = 0 && has_missing_func
+    then fuel
+    else fuel - 1
+    in
+
+    match arg with
+    | List (Var "A") ->  arg, curr_fuel - 1
+    | _ -> arg, curr_fuel
+  in
+
+  List.mapi get_fuel args
+
 let rec gen_exp (ctx: ctx) (env: env) ~max_fuel ~fuel (ty: Lang.Type.t): Lang.Expr.t list =
   if fuel > 0
   then
@@ -49,33 +75,31 @@ let rec gen_exp (ctx: ctx) (env: env) ~max_fuel ~fuel (ty: Lang.Type.t): Lang.Ex
 
           let funcs = TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
           let funcs =  List.flat_map (fun (fname, args) ->
-              let+ args = List_utils.mapM (gen_exp ctx env ~max_fuel ~fuel:(fuel - 1)) args in
+              let arg_with_fuels = get_fuels ctx fname fuel args in
+              let+ args = List_utils.mapM (fun (arg, fuel) -> gen_exp ctx env ~max_fuel ~fuel:fuel arg) arg_with_fuels in
               List.return (`App (fname, args))
             ) funcs in
-          consts @ funcs
+          funcs @ consts
         end
     end
   else
-    let consts = TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[] in
-    consts
-
-
+    []
 
 and instantiate_pat ctx env ~max_fuel ~fuel pat : Lang.Expr.t list  =
   match pat with
   | `App (fname, args) ->
-    List.map_product_l (instantiate_pat ctx env ~max_fuel ~fuel:(fuel - 1)) args
+    List.map_product_l (instantiate_pat ctx env ~max_fuel ~fuel:(fuel)) args
     |> List.map (fun args -> `App (fname, args))
   | `Constructor (name, args) ->
     List.map_product_l (instantiate_pat ctx env ~max_fuel ~fuel:(fuel - 1)) args
     |>  List.map (fun args -> `Constructor (name, args))
-  | `Int i as e when fuel = 0 -> [e]
+  | `Int i as e -> [e]
   | `Tuple ls ->
     let ls = List.map (instantiate_pat ctx env ~max_fuel ~fuel:(fuel - 1)) ls in
     if List.exists (fun xs -> List.length xs = 0) ls
     then []
     else List.map (fun x -> `Tuple x) ls
-  | `Var v as e when fuel = 0 -> [e]
+  | `Var v as e -> [e]
   | `PatVar (str, ty) ->
-    gen_exp ctx env ~max_fuel ~fuel:(fuel) ty
+    gen_exp ctx env ~max_fuel ~fuel:(fuel - 1) ty
   |  _ -> []
