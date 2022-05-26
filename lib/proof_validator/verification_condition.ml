@@ -110,3 +110,61 @@ type verification_condition = {
   initial: initial_vc;
   conditions: vc list;
 } [@@deriving show]
+
+
+(** [normalize vc] returns a copy of vc where discrepancies between
+   LibList and LibListZ functions have been ignored.  *)
+let normalize (data: verification_condition) =
+  let update s =
+    if String.prefix ~pre:"TLC.LibListZ." s
+    then Some ("TLC.LibList." ^ String.drop (String.length "TLC.LibListZ.") s)
+    else None in
+  let update_expr e = Lang.Expr.subst_functions update e in
+  let update_assertion = function
+      `Eq (ty, l, r) ->
+      `Eq (ty, update_expr l, update_expr r)
+    | `Assert prop -> `Assert (update_expr prop) in
+
+  (* update functions *)
+  let functions =
+    let update_binding fns (name, sg) =
+      let name = Option.value ~default:name @@ update name in
+      let fns' = StringSet.add name fns in
+      (fns', Option.return_if Equal.(not @@ physical fns fns') (name, sg)) in
+    data.functions
+    |> List.fold_map update_binding StringSet.empty
+    |> snd
+    |> List.filter_map Fun.id in
+
+  (* update properties *)
+  let properties =
+    List.map (fun (pname, (qfs, params, assums, concl)) ->
+      let assums = List.map update_assertion assums in
+      (pname, (qfs, params, assums, update_assertion concl))) data.properties in
+
+  (* update assumptions *)
+  let assumptions =
+    List.map (fun (ty, l, r) -> (ty, update_expr l, update_expr r)) data.assumptions in
+
+  (* update initial verification condition *)
+  let initial : initial_vc =  {
+    expr_values=Array.map update_expr data.initial.expr_values;
+    param_values=List.map update_expr data.initial.param_values;
+  } in
+
+  (* update post conditions *)
+  let conditions = List.map (fun (vc: vc) ->
+    {vc
+     with param_values=List.map update_expr vc.param_values;
+          assumptions=List.map update_assertion vc.assumptions;
+          post_param_values=List.map update_expr vc.post_param_values;
+          expr_values=Array.map (fun f -> fun e -> update_expr (f e)) vc.expr_values;
+    }
+  ) data.conditions in
+  {data with
+   functions;
+   properties;
+   assumptions;
+   initial;
+   conditions=conditions;
+  }
