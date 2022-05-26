@@ -39,9 +39,7 @@ let get_fuels ctx fname fuel args =
   let has_no_func arg =
     match TypeMap.find_opt arg ctx.funcs with
     | Some (_ :: _) -> false
-    | _ ->
-      print_endline @@ fname ^ " " ^ "Found";
-      true
+    | _ -> true
   in
 
   let has_missing_func = List.exists has_no_func args in
@@ -102,4 +100,3 @@ and instantiate_pat ctx env ~max_fuel ~fuel pat : Lang.Expr.t list  =
   | `Var v as e -> [e]
   | `PatVar (str, ty) ->
     gen_exp ctx env ~max_fuel ~fuel:(fuel - 1) ty
-  |  _ -> []
