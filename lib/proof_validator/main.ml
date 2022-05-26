@@ -3,8 +3,6 @@ open Containers
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
-let should_print = ref false
-
 exception Invalid of bool option * string
 
 let () =
@@ -20,29 +18,6 @@ let split_last =
   function
   | [] -> None
   | h :: t -> Some (loop ([], h) t)
-
-
-let send_to_z3 query =
-  if !should_print then
-    print_endline query;
-  let open Bos in
-  OS.Cmd.run_io Cmd.(v "z3" % "-in") OS.Cmd.(in_string query)
-  |> OS.Cmd.out_string
-  |> Result.get_exn
-  |> fst
-  |> function
-  | "sat" -> Some true
-  | "unsat" -> Some false
-  | "unknown" -> None
-  | e -> failwith (Format.sprintf "unexpected output from z3 \"%s\"@.query:@.%s@." e query)
-
-let check ?(timeout=10_000) solver expr =
-  send_to_z3 (Format.sprintf {|
-                (set-option :timeout %d)
-                %s
-                (assert %s)
-                (check-sat)
-|} timeout Z3.Solver.(to_string solver) Z3.Expr.(to_string expr)) 
 
 
 let normalize =
@@ -483,12 +458,12 @@ let check_verification_condition ctx env prove solver
   |> List.iter assert_holds;
   print_endline "done!"
 
-let solver_params ctx timeout =
+let set_solver_timeout ctx solver timeout =
   let params = Z3.Params.mk_params ctx in
   Z3.Params.add_int params (Z3.Symbol.mk_string ctx "timeout") timeout;
   (* Z3.Params.add_bool params (Z3.Symbol.mk_string ctx "model") false;
    * Z3.Params.add_symbol params (Z3.Symbol.mk_string ctx "logic") (Z3.Symbol.mk_string ctx "ALL"); *)
-  params
+  Z3.Solver.set_parameters solver params
 
 
 let embed (data: Proof_validator.Verification_condition.verification_condition) =
@@ -497,10 +472,7 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
   Z3.Params.set_print_mode ctx Z3enums.PRINT_SMTLIB_FULL;
   let solver = Z3.Solver.mk_solver_t ctx (Z3.Tactic.mk_tactic ctx "default") in
 
-  let params = solver_params ctx 150_000 in
-  Z3.Solver.set_parameters solver params;
-
-  (* print_endline @@ (Z3.Solver.get_param_descrs solver |> Z3.Params.ParamDescrs.to_string); *)
+  set_solver_timeout ctx solver 100;
 
   let poly_var_map = 
     List.map Fun.(Pair.dup_map @@ Z3.Sort.mk_uninterpreted ctx % Z3.Symbol.mk_string ctx) data.poly_vars
@@ -564,7 +536,6 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
   Z3.Solver.add solver assumptions;
 
   List.iter (fun (name, ((poly_vars, params, assumptions, concl) as p)) ->
-    print_endline @@ "\t - adding " ^ name ;
     let qfs = eval_property_bound ctx env data.poly_vars name p in
     Z3.Solver.add solver qfs;
   ) begin data.properties end;
@@ -578,26 +549,15 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
      * print_endline "pushed"; *)
     let (let-!) x f = match x with Some true -> f () | v -> Z3.Solver.pop solver 1; v in 
     let negate x = Z3.Boolean.mk_not ctx.ctx x in
-    let check ?timeout x =
-      begin match timeout with
-      | Some timeout ->
-        Z3.Params.add_int params (Z3.Symbol.mk_string ctx.ctx "timeout") timeout;
-        Z3.Solver.set_parameters solver params;
-      | _ -> ()
-      end;
+    let check x =
       (* check ?timeout solver x *)
       (* Format.printf "Z3 model for %s is %s@." (Z3.Expr.to_string x) (Z3.Solver.to_string solver); *)
-      Z3.Solver.set_parameters solver params;
+      (* Z3.Solver.set_parameters solver params; *)
       match Z3.Solver.check solver [x] with
         Z3.Solver.UNSATISFIABLE -> Some false
       | SATISFIABLE -> Some true
       | UNKNOWN -> None in
-    let prove x =
-      if !should_print then begin
-        Format.printf "Z3MODEL\n==================================\n%s\n(assert %s)\n(check-sat)\n@."
-          (Z3.Solver.to_string solver) (Z3.Expr.to_string (negate x));
-      end;
-      Option.map not @@ check (negate x) in
+    let prove x = Option.map not @@ check (negate x) in
 
     let rec all_hold = function
       | [] -> Some true
@@ -632,11 +592,7 @@ let embed (data: Proof_validator.Verification_condition.verification_condition) 
       |> all_hold in
     print_endline "proved";
 
-    (* clear the context *)
-    (* Z3.Solver.pop solver 1; *)
-    let params = solver_params ctx.ctx 150_000 in
-    Z3.Solver.set_parameters solver params;
-
+    set_solver_timeout ctx.ctx solver 150_000;
 
     try
       (* for each remaining invariant verification condition  *)
