@@ -11,7 +11,7 @@ type pat =
 [@@deriving eq, ord, show]
 
 type tag_pat = Lang.Type.t * pat
-[@@deriving show]
+[@@deriving eq, ord, show]
 
 module StringMap = Map.Make (String)
 module TypeMap = Map.Make (Lang.Type)
