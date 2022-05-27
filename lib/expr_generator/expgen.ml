@@ -14,10 +14,7 @@ type tag_pat = Lang.Type.t * pat
 [@@deriving show]
 
 module StringMap = Map.Make (String)
-
-module TypeMap = Map.Make (struct
-    type t = Lang.Type.t [@@deriving eq, ord]
-  end )
+module TypeMap = Map.Make (Lang.Type)
 
 type func_type = (Lang.Type.t list) * Lang.Type.t [@@deriving show]
 type env_type =
@@ -32,56 +29,42 @@ type ctx = {
   funcs: (string * Lang.Type.t list) list TypeMap.t;
 }
 
-let (let+) x f = List.(>>=) x f
-
 let get_fuels ctx fname fuel args =
   let open Lang.Type in
   let has_no_func arg =
     match TypeMap.find_opt arg ctx.funcs with
     | Some (_ :: _) -> false
-    | _ -> true
-  in
-
-  let has_missing_func = List.exists has_no_func args in
+    | _ -> true in
 
   let get_fuel i arg =
     let curr_fuel =
-    if i = 0 && has_missing_func
-    then fuel
-    else fuel - 1
-    in
-
+      if i = 0 && List.exists has_no_func args
+      then fuel
+      else fuel - 1 in
     match arg with
     | List (Var "A") ->  arg, curr_fuel - 1
-    | _ -> arg, curr_fuel
-  in
+    | _ -> arg, curr_fuel in
 
   List.mapi get_fuel args
 
 let rec gen_exp (ctx: ctx) (env: env) ~max_fuel ~fuel (ty: Lang.Type.t): Lang.Expr.t list =
-  if fuel > 0
-  then
-    begin
-      if fuel = max_fuel
-      then
-        let pats = List.rev @@ (TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
-        let pats = List.flat_map (instantiate_pat ctx env ~max_fuel ~fuel:(fuel)) pats in
-        pats
-      else
-        begin
-          let consts = TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[] in
-
-          let funcs = TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
-          let funcs =  List.flat_map (fun (fname, args) ->
-              let arg_with_fuels = get_fuels ctx fname fuel args in
-              let+ args = List_utils.mapM (fun (arg, fuel) -> gen_exp ctx env ~max_fuel ~fuel:fuel arg) arg_with_fuels in
-              List.return (`App (fname, args))
-            ) funcs in
-          funcs @ consts
-        end
-    end
-  else
-    []
+  match fuel with
+  | fuel when fuel = max_fuel ->
+    let pats = List.rev @@ (TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
+    let pats = List.flat_map (instantiate_pat ctx env ~max_fuel ~fuel:(fuel)) pats in
+    pats
+  | fuel when fuel > 0 ->
+    let consts = TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[] in
+    let funcs = TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
+    let funcs =  List.flat_map (fun (fname, args) ->
+      let arg_with_fuels = get_fuels ctx fname fuel args in
+      List.map_product_l (fun (arg, fuel) ->
+        gen_exp ctx env ~max_fuel ~fuel:fuel arg
+      ) arg_with_fuels
+      |> List.map (fun args -> `App (fname, args))
+    ) funcs in
+    funcs @ consts
+  | _ -> []
 
 and instantiate_pat ctx env ~max_fuel ~fuel pat : Lang.Expr.t list  =
   match pat with
