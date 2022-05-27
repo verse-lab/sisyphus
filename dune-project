@@ -33,3 +33,4 @@
 (homepage https://github.com/verse-lab/proof-repair)
 (authors "..")
 (maintainers "kirang@comp.nus.edu.sg")
+(documentation sisyphus)

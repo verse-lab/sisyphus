@@ -69,3 +69,5 @@ val vars : ?with_funs:bool -> StringSet.t -> 'a shape -> StringSet.t
 
 val upcast : simple_t -> t
 val downcast : t -> simple_t
+val functions: StringSet.t -> t -> StringSet.t
+val subst_functions: (string -> string option) -> t -> t

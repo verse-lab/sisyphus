@@ -29,5 +29,9 @@ CLOSED: [2022-05-12 Thu 05:00]
 CLOSED: [2022-05-12 Thu 05:00]
 ** DONE if let then xletopaque
 CLOSED: [2022-05-12 Thu 05:00]
-** TODO Convert Coq terms to internal spec....
-** 
+** DONE Define VC data structure
+CLOSED: [2022-05-17 Tue 04:42]
+** DONE Write function to pretty print VC
+CLOSED: [2022-05-17 Tue 05:12]
+** TODO Write function to extract vc from coq ctxt
+** TODO Write function to convert VC to a Z3-checkable VC

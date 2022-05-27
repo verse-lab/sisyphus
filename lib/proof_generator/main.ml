@@ -40,8 +40,8 @@ let () =
   let ctx = (Coq.Proof.make ~verbose:false [
     Coq.Coqlib.make ~path:(Fpath.of_string "../../_build/default/resources/seq_to_array/" |> Result.get_exn) "Proofs"
   ]) in
-  let generator = Proof_generator.Generator.init ~prelude ~spec ~alignment ~ctx in
+  let ctx = Proof_generator.Proof_context.init ~prelude ~spec ~alignment ~ctx in
 
-  print_endline @@ Proof_generator.Generator.generate generator new_program
+  print_endline @@ Proof_generator.Generator.generate ctx new_program
 
 

@@ -1,7 +1,9 @@
 (library (name proof_generator)
+ (public_name sisyphus.proof_generator)
  (modules (:standard \ "main"))
  (flags  -rectypes)
- (libraries coq lang dynamic containers)
+ (preprocess (pps ppx_deriving.std))
+ (libraries coq lang proof_validator proof_spec dynamic containers)
 )
 
 (executable (name main)

@@ -1,4 +1,5 @@
 (library (name proof_parser)
+ (public_name sisyphus.proof_parser)
  (libraries sedlex containers proof_spec lang coq)
  (modules (:standard \ "main"))
  (flags  -rectypes)
