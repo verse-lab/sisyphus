@@ -46,7 +46,7 @@ let get_consts_and_funcs steps ~from_id ~to_id ~env ~ints ~vars ~funcs=
 
   consts, handle_funcs env consts_in_script
 
-let get_pats steps env =
-  let pats = Patgen.pat_gen env steps in
+let get_pats steps ~from_id ~to_id ~env =
+  let pats = Patgen.gen_pats steps ~from_id ~to_id ~env in
   Patgen.get_pat_type_map env pats
 
