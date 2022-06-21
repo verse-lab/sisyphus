@@ -1,0 +1,45 @@
+(library (name vec_filter)
+  (modules common)
+)
+
+(coq.theory
+ (name VecProofs)
+ (modules
+   Common_ml
+   Verify_vec_filter_utils
+   Vec_filter_old_ml Verify_vec_filter_old
+   Vec_filter_new_ml Verify_vec_filter_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (target Common_ml.v)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target vec_filter_old.sisyphus.ml)
+ (deps vec_filter_old.ml)
+ (action (with-stdout-to vec_filter_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" vec_filter_old.ml))))
+
+(rule
+ (target Vec_filter_old_ml.v)
+ (deps vec_filter_old.sisyphus.ml common.ml Common_ml.v)
+ (action (run cfmlc -o ./Vec_filter_old_ml.v vec_filter_old.sisyphus.ml)))
+
+(rule
+ (target vec_filter_new.sisyphus.ml)
+ (deps vec_filter_new.ml)
+ (action (with-stdout-to vec_filter_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./vec_filter_new.ml))))
+
+(rule
+ (target Vec_filter_new_ml.v)
+ (deps vec_filter_new.sisyphus.ml common.ml Common_ml.v)
+ (action (run cfmlc -o ./Vec_filter_new_ml.v vec_filter_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))

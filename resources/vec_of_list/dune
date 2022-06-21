@@ -1,0 +1,45 @@
+(library (name vec_of_list)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsVecList)
+ (modules
+   Common_ml
+   Verify_vec_of_list_utils
+   vec_of_list_old_ml Verify_vec_of_list_old
+   vec_of_list_new_ml Verify_vec_of_list_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (targets Common_ml.v common.cmj)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target vec_of_list_old.sisyphus.ml)
+ (deps vec_of_list_old.ml)
+ (action (with-stdout-to vec_of_list_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" vec_of_list_old.ml))))
+
+(rule
+ (target vec_of_list_old_ml.v)
+ (deps vec_of_list_old.sisyphus.ml common.ml common.cmj)
+ (action (run cfmlc -o ./vec_of_list_old_ml.v vec_of_list_old.sisyphus.ml)))
+
+(rule
+ (target vec_of_list_new.sisyphus.ml)
+ (deps vec_of_list_new.ml)
+ (action (with-stdout-to vec_of_list_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./vec_of_list_new.ml))))
+
+(rule
+ (target vec_of_list_new_ml.v)
+ (deps vec_of_list_new.sisyphus.ml common.ml common.cmj Common_ml.v)
+ (action (run cfmlc -o ./vec_of_list_new_ml.v vec_of_list_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))
