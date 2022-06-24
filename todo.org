@@ -37,8 +37,10 @@ CLOSED: [2022-05-17 Tue 05:12]
 CLOSED: [2022-06-24 Fri 09:50]
 ** DONE Write function to convert VC to a Z3-checkable VC
 CLOSED: [2022-06-24 Fri 09:50]
-** TODO Refactor proof reduction plugin to be customisable
-*** TODO Update plugin to setup proof reduction
+** DONE Refactor proof reduction plugin to be customisable
+CLOSED: [2022-06-24 Fri 13:50]
+*** DONE Update plugin to setup proof reduction
+CLOSED: [2022-06-24 Fri 13:50]
 ** TODO Build binding of program variables to concrete values
 *** TODO Update dynamic tracer to return bindings
 *** TODO Fix proof generator state to update program point tracking correctly
