@@ -53,8 +53,8 @@ let is_constant_blacklisted cnst =
   let label_str = Names.Label.to_string label in
   match mod_path_str, label_str with
   | "Coq.Init.Wf", "Acc_rect" -> `Blacklisted ((mod_path_str, label_str), false)
-  | "TLC.LibAxioms", "fun_ext_dep" -> `Subst (fun_ext_def)
-  | "TLC.LibAxioms", "prop_ext" -> `Subst (prop_ext_def)
+  (* | "TLC.LibAxioms", "fun_ext_dep" -> `Subst (fun_ext_def)
+   * | "TLC.LibAxioms", "prop_ext" -> `Subst (prop_ext_def) *)
   | "ProofIrrelevance", "proof_irrelevance" -> `Subst (proof_irrelevance_def)
   | _ -> `Blacklisted ((mod_path_str, label_str), not @@ StringSet.mem mod_path_str whitelisted_modules)
 

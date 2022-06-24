@@ -1,5 +1,6 @@
 -R ../../_build/default/resources/seq_to_array Proofs
 
+-I ../../_build/default/lib/proof_reduction
 -I ../../_build/default/lib/plugin
 
 ../../lib/plugin/printreduced.ml
