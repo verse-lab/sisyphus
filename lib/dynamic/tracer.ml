@@ -212,7 +212,7 @@ let rec encode_expr (expr: Lang.Expr.t) =
       AH.Exp.fun_ Nolabel None pat body  in
     List.fold_right encode_fun args (encode_expr body)
 
-let annotate ({ prelude; name; args; body }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
+let annotate ?(deep=false) ({ prelude; name; args; body }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
   let add_param (param: Lang.Expr.typed_param) env =
     match param with
@@ -223,8 +223,8 @@ let annotate ({ prelude; name; args; body }: Lang.Expr.t Lang.Program.t) : Parse
     fun () -> let vl = !id in incr id; vl in
   let rec encode_stmt ~observe env (stmt: Lang.Expr.t Lang.Program.stmt) =
     let wrap then_ =
+      let id = id () in
       if observe then
-        let id = id () in
         wrap_with_observe env ~at:id
           ~then_:(then_ ())
       else (then_ ()) in
@@ -246,7 +246,7 @@ let annotate ({ prelude; name; args; body }: Lang.Expr.t Lang.Program.t) : Parse
         [ AH.Vb.mk (AH.Pat.var (str var)) (
             let env = List.fold_left (fun env param -> add_param param env) env params in
             List.fold_right (fun param exp -> AH.Exp.fun_ Nolabel None (encode_param param) exp) params @@
-            encode_stmt ~observe:false env lambody) ]
+            encode_stmt ~observe:(if deep then true else false) env lambody) ]
         (let env = env @ [var, Func] in
          encode_stmt ~observe env body)
     | `Match (exp, cases) ->
@@ -406,19 +406,20 @@ module CompilationContext = struct
       env.evaluation_env <- Evaluator.dyn_load_module_from_file env.evaluation_env file
     end
 
-  (** [eval_definition_with_annotations env ~deps ~prog] dynamically
-     loads all the dependencies [dep] of program [prog] and returns a
-     unique name to identify the function. *)
+  (** [eval_definition_with_annotations ?deep env ~deps ~prog]
+     dynamically loads all the dependencies [dep] of program [prog]
+     and returns a unique name to identify the function. If [deep],
+     then observations are also generated within nested functions.  *)
   let eval_definition_with_annotations =
     let fresh_mod_name =
       let trace_id = ref 0 in
       fun () ->
         incr trace_id;
         Printf.sprintf "Sisyphus_temporary_module_%d" !trace_id in
-    fun env ~deps ~prog ->
+    fun ?deep env ~deps ~prog ->
       List.iter (compile env) deps;
       let mod_name = fresh_mod_name () in
-      let ast = annotate prog in
+      let ast = annotate ?deep prog in
       env.evaluation_env <-
         Evaluator.dyn_load_definition_as_module
           env.evaluation_env ~mod_name ~ast;
@@ -431,8 +432,8 @@ end
 
 type program = string list * Lang.Expr.t Lang.Program.t
 
-let compile env ~deps ~prog =
-  CompilationContext.eval_definition_with_annotations
+let compile ?deep env ~deps ~prog =
+  CompilationContext.eval_definition_with_annotations ?deep
     env ~deps ~prog
 
 let generate_trace env prog input =
@@ -442,7 +443,11 @@ let generate_trace env prog input =
                   AH.Exp.(apply (ident (str Longident.(Lident "ignore"))) [
                     Nolabel, apply (ident (str prog)) (List.map (fun v -> (AT.Nolabel, v)) input)
                   ])))
-  
+
+(* let extract_trace_values (vls: Sisyphus_tracing.trace) =
+ *   List.fold_left
+ *     IntMap.empty *)
+
 let bitrace env (deps1, prog1) (deps2, prog2) =
   let schema = Generator.extract_schema prog1 in
   assert (List.equal Generator.equal_arg_schema schema (Generator.extract_schema prog2));
@@ -453,3 +458,11 @@ let bitrace env (deps1, prog1) (deps2, prog2) =
     let trace1 = generate_trace env prog1 input in
     let trace2 = generate_trace env prog2 input in
     (trace1, trace2)
+
+let execution_trace env (deps1, prog1) =
+  let schema = Generator.extract_schema prog1 in
+  let prog1 = CompilationContext.eval_definition_with_annotations ~deep:true env ~deps:deps1 ~prog:prog1 in
+  fun () -> 
+    let input = Generator.sample schema in
+    let trace1 = generate_trace env prog1 input in
+    trace1

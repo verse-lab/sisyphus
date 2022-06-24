@@ -42,7 +42,8 @@ CLOSED: [2022-06-24 Fri 13:50]
 *** DONE Update plugin to setup proof reduction
 CLOSED: [2022-06-24 Fri 13:50]
 ** TODO Build binding of program variables to concrete values
-*** TODO Update dynamic tracer to return bindings
+*** DONE Update dynamic tracer to return bindings
+CLOSED: [2022-06-24 Fri 14:51]
 *** TODO Fix proof generator state to update program point tracking correctly
 *** TODO Map proof variables to program variables to concrete values 
 ** TODO Work on proof analysis
