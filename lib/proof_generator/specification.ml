@@ -6,7 +6,7 @@ module StringSet = Set.Make(String)
 
 module PU = Proof_utils
 module PCFML = Proof_cfml
-module PV = Proof_validator.Verification_condition
+module PV = Proof_validator.VerificationCondition
 
 let () =
   Printexc.register_printer (function

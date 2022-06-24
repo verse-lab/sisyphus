@@ -205,7 +205,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
   let vc = Specification.build_verification_condition t env f_name in
-  print_endline @@ Proof_validator.Verification_condition.show_verification_condition vc;
+  print_endline @@ Proof_validator.VerificationCondition.show_verification_condition vc;
 
   print_endline @@ Printf.sprintf "lemma is %s, spec is %s"
                      (Names.Constant.to_string f_name)
