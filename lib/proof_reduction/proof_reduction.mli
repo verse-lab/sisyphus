@@ -1,15 +1,19 @@
-(* proof_reduction.mli is derived from coq/tactics/tactics.mli, extended with support for evaluating through opaque constants   *)
-(************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
-(*  v      *         Copyright INRIA, CNRS and contributors             *)
-(* <O___,, * (see version control and CREDITS file for authors & dates) *)
-(*   \VV/  **************************************************************)
-(*    //   *    This file is distributed under the terms of the         *)
-(*         *     GNU Lesser General Public License Version 2.1          *)
-(*         *     (see LICENSE file for the text of the license)         *)
-(************************************************************************)
+type filter =
+  path:string ->
+  label:string ->
+  [ `Unfold | `KeepOpaque | `Subst of Names.Constant.t ]
+(** a [filter] is a function that informs the reduction mechanism how
+   to handle opaque constants:
 
+     - [`Unfold] the constant by retrieving its definition if it
+       exists.
 
-(** {6 Reduction tactics. } *)
+     - [`KeepOpaque] and don't expand the constant
 
-val reduce: ?cbv:bool -> Environ.env -> Evd.evar_map -> Evd.econstr -> Evd.evar_map * Evd.econstr
+     - [`Subst replacement] replace the constant with a replacement
+       constant that is transparent instead.  *)
+
+val reduce :
+  ?filter:filter ->
+  ?cbv:bool ->
+  Environ.env -> Evd.evar_map -> Evd.econstr -> Evd.evar_map * Evd.econstr
