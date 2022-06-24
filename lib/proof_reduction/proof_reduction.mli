@@ -1,4 +1,4 @@
-(* ultimate_tactics.mli is derived from coq/tactics/tactics.mli, extended with support for evaluating through opaque constants   *)
+(* proof_reduction.mli is derived from coq/tactics/tactics.mli, extended with support for evaluating through opaque constants   *)
 (************************************************************************)
 (*         *   The Coq Proof Assistant / The Coq Development Team       *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)

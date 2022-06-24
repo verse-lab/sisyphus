@@ -1021,11 +1021,11 @@ let is_transparent e k =
 
 type conversion_test = Constraints.t -> Constraints.t
 
-let pb_is_equal pb = pb == Reduction.CONV
+let pb_is_equal pb = pb == Ultimate_reduction.CONV
 
 let pb_equal = function
-  | Reduction.CUMUL -> Reduction.CONV
-  | Reduction.CONV -> Reduction.CONV
+  | Ultimate_reduction.CUMUL -> Ultimate_reduction.CONV
+  | Ultimate_reduction.CONV -> Ultimate_reduction.CONV
 
 (* NOTE: We absorb anomalies happening in the conversion tactic, which
    is a bit ugly. This is mostly due to efficiency both in tactics and
@@ -1052,19 +1052,19 @@ let report_anomaly (e, info) =
 
 let f_conv ?l2r ?reds env ?evars x y =
   let inj = EConstr.Unsafe.to_constr in
-  Reduction.conv ?l2r ?reds env ?evars (inj x) (inj y)
+  Ultimate_reduction.conv ?l2r ?reds env ?evars (inj x) (inj y)
 
 let f_conv_leq ?l2r ?reds env ?evars x y =
   let inj = EConstr.Unsafe.to_constr in
-  Reduction.conv_leq ?l2r ?reds env ?evars (inj x) (inj y)
+  Ultimate_reduction.conv_leq ?l2r ?reds env ?evars (inj x) (inj y)
 
-let test_trans_conversion (f: constr Reduction.extended_conversion_function) reds env sigma x y =
+let test_trans_conversion (f: constr Ultimate_reduction.extended_conversion_function) reds env sigma x y =
   try
     let evars ev = existential_opt_value0 sigma ev in
     let env = Environ.set_universes (Evd.universes sigma) env in
     let _ = f ~reds env ~evars x y in
     true
-  with Reduction.NotConvertible -> false
+  with Ultimate_reduction.NotConvertible -> false
     | e ->
       let e = Exninfo.capture e in
       report_anomaly e
@@ -1072,17 +1072,17 @@ let test_trans_conversion (f: constr Reduction.extended_conversion_function) red
 let is_conv ?(reds=TransparentState.full) env sigma = test_trans_conversion f_conv reds env sigma
 let is_conv_leq ?(reds=TransparentState.full) env sigma = test_trans_conversion f_conv_leq reds env sigma
 let is_fconv ?(reds=TransparentState.full) = function
-  | Reduction.CONV -> is_conv ~reds
-  | Reduction.CUMUL -> is_conv_leq ~reds
+  | Ultimate_reduction.CONV -> is_conv ~reds
+  | Ultimate_reduction.CUMUL -> is_conv_leq ~reds
 
-let check_conv ?(pb=Reduction.CUMUL) ?(ts=TransparentState.full) env sigma x y =
+let check_conv ?(pb=Ultimate_reduction.CUMUL) ?(ts=TransparentState.full) env sigma x y =
   let f = match pb with
-    | Reduction.CONV -> f_conv
-    | Reduction.CUMUL -> f_conv_leq
+    | Ultimate_reduction.CONV -> f_conv
+    | Ultimate_reduction.CUMUL -> f_conv_leq
   in
     let env = Environ.set_universes (Evd.universes sigma) env in
     try f ~reds:ts env ~evars:(existential_opt_value0 sigma) x y; true
-    with Reduction.NotConvertible -> false
+    with Ultimate_reduction.NotConvertible -> false
     | Univ.UniverseInconsistency _ -> false
     | e ->
       let e = Exninfo.capture e in
@@ -1090,35 +1090,35 @@ let check_conv ?(pb=Reduction.CUMUL) ?(ts=TransparentState.full) env sigma x y =
 
 let sigma_compare_sorts env pb s0 s1 sigma =
   match pb with
-  | Reduction.CONV -> Evd.set_eq_sort env sigma s0 s1
-  | Reduction.CUMUL -> Evd.set_leq_sort env sigma s0 s1
+  | Ultimate_reduction.CONV -> Evd.set_eq_sort env sigma s0 s1
+  | Ultimate_reduction.CUMUL -> Evd.set_leq_sort env sigma s0 s1
 
 let sigma_compare_instances ~flex i0 i1 sigma =
   try Evd.set_eq_instances ~flex sigma i0 i1
   with Evd.UniversesDiffer
      | Univ.UniverseInconsistency _ ->
-        raise Reduction.NotConvertible
+        raise Ultimate_reduction.NotConvertible
 
 let sigma_check_inductive_instances cv_pb variance u1 u2 sigma =
   match Evarutil.compare_cumulative_instances cv_pb variance u1 u2 sigma with
   | Inl sigma -> sigma
   | Inr _ ->
-    raise Reduction.NotConvertible
+    raise Ultimate_reduction.NotConvertible
 
 let sigma_univ_state =
-  let open Reduction in
+  let open Ultimate_reduction in
   { compare_sorts = sigma_compare_sorts;
     compare_instances = sigma_compare_instances;
     compare_cumul_instances = sigma_check_inductive_instances; }
 
-let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Reduction.CUMUL)
+let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Ultimate_reduction.CUMUL)
     ?(ts=TransparentState.full) env sigma x y =
   (* FIXME *)
   try
       let ans = match pb with
-      | Reduction.CUMUL ->
+      | Ultimate_reduction.CUMUL ->
           EConstr.leq_constr_universes env sigma x y
-      | Reduction.CONV ->
+      | CONV ->
           EConstr.eq_constr_universes env sigma x y
       in
       let ans = match ans with
@@ -1138,19 +1138,19 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Reduction.CUMUL)
             env (sigma, sigma_univ_state) x y in
         Some sigma'
   with
-  | Reduction.NotConvertible -> None
+  | Ultimate_reduction.NotConvertible -> None
   | Univ.UniverseInconsistency _ when catch_incon -> None
   | e ->
     let e = Exninfo.capture e in
     report_anomaly e
 
 let infer_conv = infer_conv_gen (fun pb ~l2r sigma ->
-      Reduction.generic_conv pb ~l2r (existential_opt_value0 sigma))
+      Ultimate_reduction.generic_conv pb ~l2r (existential_opt_value0 sigma))
 
 (* This reference avoids always having to link C code with the kernel *)
 let vm_infer_conv = ref (infer_conv ~catch_incon:true ~ts:TransparentState.full)
 let set_vm_infer_conv f = vm_infer_conv := f
-let vm_infer_conv ?(pb=Reduction.CUMUL) env t1 t2 =
+let vm_infer_conv ?(pb=Ultimate_reduction.CUMUL) env t1 t2 =
   !vm_infer_conv ~pb env t1 t2
 
 (********************************************************************)
@@ -1303,7 +1303,7 @@ let splay_arity env sigma c =
   let l, c = splay_prod env sigma c in
   match EConstr.kind sigma c with
     | Sort s -> l,s
-    | _ -> raise Reduction.NotArity
+    | _ -> raise Ultimate_reduction.NotArity
 
 let sort_of_arity env sigma c = snd (splay_arity env sigma c)
 

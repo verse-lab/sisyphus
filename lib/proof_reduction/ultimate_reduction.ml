@@ -205,7 +205,7 @@ exception NotConvertible
     and this holds whatever Set is predicative or impredicative
 *)
 
-type conv_pb =
+type conv_pb = Reduction.conv_pb =
   | CONV
   | CUMUL
 
