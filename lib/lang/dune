@@ -1,4 +1,5 @@
 (library (name lang)
+ (public_name sisyphus.lang)
  (preprocess (pps ppx_deriving.std ppx_deriving.ord))
  (modules (:standard \ "main"))
  (libraries compiler-libs.common containers iter pprint))

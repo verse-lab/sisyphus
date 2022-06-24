@@ -29,6 +29,13 @@ let tag ty =
 
 let constr_to_string s = Format.sprintf "%a" Pp.pp_with (Constr.debug_print s)
 
+let constr_to_string_pretty s =
+  coqobj_to_string Serapi.Serapi_protocol.(CoqConstr s)
+  
+let universe_to_string u =
+  Format.to_string Pp.pp_with @@
+  Univ.Universe.pr u
+
 let ast ?at (module Ctx: Coq.Proof.PROOF)  =
   Ctx.query ?at Serapi.Serapi_protocol.Ast
   |> Option.flat_map (function

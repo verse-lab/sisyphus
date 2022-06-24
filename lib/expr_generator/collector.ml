@@ -31,14 +31,16 @@ let collect_spec_arg cs =
     List.fold_left collect_heaplet cs (Assertion.sigma asn)
   | `Hole -> failwith "holes not supported"
 
-let collect_step cs : PS.Script.step -> _ = function
-  | `Xapp (_, _, spec_args) ->
-    List.fold_left collect_spec_arg cs spec_args
-  | `SepSplitTuple _ | `Xmatchcase _ |`Intros _ |`Xpurefun _ |`Xvals _
-  | `Xvalemptyarr _ |`Case _ |`Xletopaque _ |`Xdestruct _ |`Xalloc _
-  |`Apply _ |`Xseq _ |`Rewrite _ |`Xcf _ |`Xpullpure _ -> cs
 
-let collect_constants from_id to_id (steps: Proof_spec.Script.step list)  =
+let collect_constants from_id to_id (steps: Proof_spec.Script.step list) =
+  let collect_step cs : PS.Script.step -> _ = function
+    | `Xapp (_, _, spec_args) ->
+      List.fold_left collect_spec_arg cs spec_args
+    | `SepSplitTuple _ | `Xmatchcase _ |`Intros _ |`Xpurefun _ |`Xvals _
+    | `Xvalemptyarr _ |`Case _ |`Xletopaque _ |`Xdestruct _ |`Xalloc _
+    |`Apply _ |`Xseq _ |`Rewrite _ |`Xcf _ |`Xpullpure _ -> cs
+  in
+
   PS.Script.fold_proof_script ~start:from_id ~stop:to_id
     collect_step ConstantSet.empty steps
-  |> ConstantSet.to_list
+           |> ConstantSet.to_list

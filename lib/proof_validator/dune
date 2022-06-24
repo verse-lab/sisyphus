@@ -1,0 +1,10 @@
+(library (name proof_validator)
+ (public_name sisyphus.proof_validator)
+ (modules (:standard \ "main"))
+ (preprocess (pps ppx_deriving.std))
+ (libraries bos z3 lang proof_spec containers))
+
+(executable (name main)
+ (modules main)
+ (flags  -rectypes)
+ (libraries proof_validator z3 containers))

@@ -35,18 +35,18 @@ let env : Expr_generator.Expgen.env =
 
 let get_ctx steps ~from_id ~to_id ~env ~ints ~vars ~funcs : Expr_generator.Expgen.ctx =
   let consts, funcs = Expr_generator.Typemap_utils.get_consts_and_funcs steps ~from_id ~to_id ~env ~ints ~vars ~funcs in
-  let pats = Expr_generator.Typemap_utils.get_pats steps env in
+  let pats = Expr_generator.Typemap_utils.get_pats steps ~from_id ~to_id ~env in
   { consts; pats; funcs}
 
 let () =
-  let open Lang.Type in 
+  let open Lang.Type in
   let ints = [(Int, [`Int 1])] in
   let vars: (string * Lang.Type.t) list = [("l", List (Var "A")); ("init", Var "A"); ("i", Int)] in
   let funcs = Lang.Type.[
       Int, [("-", [Int; Int]);  ("+", [Int; Int])]
-    ] in 
+    ] in
 
-  let ctx = get_ctx steps ~from_id:3 ~to_id:5 ~env ~ints ~vars ~funcs in
+  let ctx = get_ctx steps ~from_id:0 ~to_id:10 ~env ~ints ~vars ~funcs in
   let max_fuel = 3 in
   let fuel = max_fuel in
   let exps = Expr_generator.Expgen.gen_exp ctx env ~max_fuel ~fuel (List (Var "A")) in

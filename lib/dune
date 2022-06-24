@@ -1,4 +1,7 @@
 (library
- (name proof_repair)
+ (name sisyphus)
+ (public_name sisyphus)
  (preprocess (pps ppx_deriving.std))
- (libraries containers z3 bos proof_parser))
+ (libraries proof_parser proof_spec proof_generator proof_validator lang containers))
+
+(documentation)
