@@ -228,6 +228,9 @@ let annotate ?(deep=false) ({ prelude; name; args; body }: Lang.Expr.t Lang.Prog
         wrap_with_observe env ~at:id
           ~then_:(then_ ())
       else (then_ ()) in
+    (* Format.printf "current program id is %d: %s@."
+     *   (!__raw_id)
+     *   (Lang.Program.show_stmt_line Lang.Expr.print stmt |> String.replace ~sub:"\n" ~by:" "); *)
     match stmt with
     | `Value vl ->
       wrap (fun () -> encode_expr vl)

@@ -28,7 +28,32 @@ let pp_constr fmt v =
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
+let rec update_program_id_over_lambda (t: Proof_context.t)
+      (`Lambda (_, body): [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ])  =
+  let rec loop (body: Lang.Expr.t Lang.Program.stmt) = match body with
+    | `Match (_, cases) -> 
+      t.current_program_id <- Lang.Id.incr t.current_program_id;
+      List.iter (fun (_, _, body) -> loop body) cases
+    | `Write (_, _, _, body) ->
+      t.current_program_id <- Lang.Id.incr t.current_program_id;
+      loop body
+    | `LetLambda (_, lambody, body) ->
+      update_program_id_over_lambda t lambody;
+      loop body
+    | `LetExp (_, _, _, body) ->
+      t.current_program_id <- Lang.Id.incr t.current_program_id;
+      loop body
+    | `EmptyArray ->
+      t.current_program_id <- Lang.Id.incr t.current_program_id
+    | `Value _ ->
+      t.current_program_id <- Lang.Id.incr t.current_program_id in
+  loop body
+
+
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
+  (* Format.printf "current program id is %s: %s@."
+   *   (t.Proof_context.current_program_id |>  Lang.Id.show)
+   *   (Lang.Program.show_stmt_line Lang.Expr.print body |> String.replace ~sub:"\n" ~by:" "); *)
   match body with
   | `LetLambda (name, body, rest) ->
     symexec_lambda t env name body rest
@@ -64,6 +89,7 @@ and symexec_lambda t env name body rest =
   let h_fname = Proof_context.fresh ~base:("H" ^ name) t in
   Proof_context.append t "xletopaque %s %s." fname h_fname;
   let env = StringMap.add name body env in
+  update_program_id_over_lambda t body;
   symexec t env rest
 and symexec_alloc t env pat rest =
   let prog_arr = match pat with
