@@ -49,6 +49,21 @@ let rec update_program_id_over_lambda (t: Proof_context.t)
       t.current_program_id <- Lang.Id.incr t.current_program_id in
   loop body
 
+let initial_env = StringMap.empty
+
+let is_pure_lambda env v =
+  StringMap.find_opt v env
+  |> Option.exists (fun (_, body) -> Program_utils.is_pure body)
+
+let add_lambda_def (t: Proof_context.t) env name body =
+  StringMap.add name (t.current_program_id, body) env
+
+let find_pure_lambda_def env name =
+  StringMap.find_opt name env
+  |> Option.flat_map (Option.if_ (fun (_, body) -> Program_utils.is_pure body))
+
+let env_to_defmap env =
+  StringMap.map snd env
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   (* Format.printf "current program id is %s: %s@."
@@ -64,7 +79,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
       symexec_alloc t env pat rest
     | `App (_, prog_args)
       when List.exists (function
-        |`Var v -> StringMap.find_opt v env |> Option.exists Program_utils.is_pure
+        |`Var v -> is_pure_lambda env v
         | _ -> false
       ) prog_args ->
       symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest      
@@ -88,7 +103,7 @@ and symexec_lambda t env name body rest =
   let fname = Proof_context.fresh ~base:name t in
   let h_fname = Proof_context.fresh ~base:("H" ^ name) t in
   Proof_context.append t "xletopaque %s %s." fname h_fname;
-  let env = StringMap.add name body env in
+  let env = add_lambda_def t env name body in
   update_program_id_over_lambda t body;
   symexec t env rest
 and symexec_alloc t env pat rest =
@@ -172,9 +187,9 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
     ) [] evar_params |> List.rev in
 
   (* emit xapp call *)
-  let fn_body =
+  let observation_id, fn_body =
     List.find_map (function
-        `Var v -> StringMap.find_opt v env |> Option.flat_map (Option.if_ Program_utils.is_pure)
+        `Var v -> find_pure_lambda_def env v (* StringMap.find_opt v env |> Option.flat_map (Option.if_ Program_utils.is_pure) *)
       | _ -> None) prog_args
     |> Option.get_exn_or "invalid assumptions" in
 
@@ -233,8 +248,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     let f_app = Proof_cfml.extract_x_app_fun post in
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
-  let vc = Specification.build_verification_condition t env f_name in
-  print_endline @@ Proof_validator.VerificationCondition.show_verification_condition vc;
+  let _vc = Specification.build_verification_condition t (env_to_defmap env) f_name in
 
   print_endline @@ Printf.sprintf "lemma is %s, spec is %s"
                      (Names.Constant.to_string f_name)
@@ -268,6 +282,6 @@ let generate t (prog: Lang.Expr.t Lang.Program.t) =
     Proof_context.append t "xpullpure %s." pat;
   | _ -> ()
   end;
-  symexec t StringMap.empty prog.body;
+  symexec t initial_env prog.body;
   Proof_context.extract_proof_script t
 

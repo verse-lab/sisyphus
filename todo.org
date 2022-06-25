@@ -44,8 +44,11 @@ CLOSED: [2022-06-24 Fri 13:50]
 ** TODO Build binding of program variables to concrete values
 *** DONE Update dynamic tracer to return bindings
 CLOSED: [2022-06-24 Fri 14:51]
-*** TODO Fix proof generator state to update program point tracking correctly
+*** DONE Fix proof generator state to update program point tracking correctly
+CLOSED: [2022-06-25 Sat 04:50]
 *** TODO Map proof variables to program variables to concrete values 
+**** TODO Store Observation id at start of lambda in function
+**** TODO Print out the concrete values at the current lambda state
 ** TODO Work on proof analysis
 *** TODO generate evars for arguments
 *** TODO call print reduced tactic on argument to retrieve reduced proof term 
