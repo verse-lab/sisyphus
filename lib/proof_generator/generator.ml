@@ -28,11 +28,12 @@ let pp_constr fmt v =
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
-let rec symexec t env (body: Lang.Expr.t Lang.Program.stmt) =
+let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   match body with
   | `LetLambda (name, body, rest) ->
     symexec_lambda t env name body rest
   | `LetExp (pat, rewrite_hint, body, rest) ->
+    t.current_program_id <- Lang.Id.incr t.current_program_id;
     begin match body with
     | `App ("Array.make", [_; _]) ->
       symexec_alloc t env pat rest
@@ -51,8 +52,10 @@ let rec symexec t env (body: Lang.Expr.t Lang.Program.stmt) =
     | _ -> symexec_opaque_let t env pat rewrite_hint body rest
     end
   | `Match (prog_expr, cases) ->
+    t.current_program_id <- Lang.Id.incr t.current_program_id;
     symexec_match t env prog_expr cases
   | `EmptyArray ->
+    t.current_program_id <- Lang.Id.incr t.current_program_id;
     Proof_context.append t "xvalemptyarr."
   | `Write _ -> failwith "don't know how to handle write"
   | `Value _ -> failwith "don't know how to handle value"

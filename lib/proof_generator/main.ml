@@ -35,12 +35,17 @@ let () =
       ~deps:["../../_build/default/resources/seq_to_array/common.ml"]
       ~old_program
       ~new_program () in
+  (* build concrete values as well *)
+  let concrete =
+    Dynamic.build_concrete_trace
+      ~deps:["../../_build/default/resources/seq_to_array/common.ml"]
+      new_program in
 
   (* initialise coq ctx *)
   let ctx = (Coq.Proof.make ~verbose:false [
     Coq.Coqlib.make ~path:(Fpath.of_string "../../_build/default/resources/seq_to_array/" |> Result.get_exn) "Proofs"
   ]) in
-  let ctx = Proof_generator.Proof_context.init ~prelude ~spec ~alignment ~ctx in
+  let ctx = Proof_generator.Proof_context.init ~prelude ~spec ~alignment ~concrete ~ctx in
 
   print_endline @@ Proof_generator.Generator.generate ctx new_program
 

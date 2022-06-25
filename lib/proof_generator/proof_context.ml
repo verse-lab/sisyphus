@@ -9,6 +9,7 @@ type t = {
   ctx: coq_ctx;
   mutable current_program_id: Lang.Id.t;
   alignment: Dynamic.Matcher.t;
+  concrete: unit -> Dynamic.Concrete.t;
 }
 
 let next_program_id t =
@@ -150,7 +151,7 @@ let fresh ?(base="tmp") t =
   then loop 0
   else base
 
-let init ~prelude ~spec ~alignment ~ctx =
+let init ~prelude ~spec ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();
   Ctx.add prelude;
@@ -158,6 +159,6 @@ let init ~prelude ~spec ~alignment ~ctx =
   Ctx.exec ();
   {
     ctx;
-    alignment;
+    alignment; concrete;
     current_program_id=Lang.Id.init
   }

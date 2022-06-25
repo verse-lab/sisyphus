@@ -218,9 +218,9 @@ let annotate ?(deep=false) ({ prelude; name; args; body }: Lang.Expr.t Lang.Prog
     match param with
     | `Tuple args -> env @ args
     | `Var arg -> env @ [arg] in
-  let id =
+  let __raw_id, id =
     let id = ref 0 in
-    fun () -> let vl = !id in incr id; vl in
+    id, fun () -> let vl = !id in incr id; vl in
   let rec encode_stmt ~observe env (stmt: Lang.Expr.t Lang.Program.stmt) =
     let wrap then_ =
       let id = id () in
@@ -234,45 +234,51 @@ let annotate ?(deep=false) ({ prelude; name; args; body }: Lang.Expr.t Lang.Prog
     | `EmptyArray ->
       wrap (fun () -> AH.Exp.array [])
     | `LetExp (`Var (_, Lang.Type.Unit), _, expr, body) ->
-      wrap (fun () -> AH.Exp.let_ Nonrecursive [ AH.Vb.mk (AH.Pat.any ()) (encode_expr expr) ]
-              (encode_stmt ~observe env body)
-           )
+      wrap (fun () ->
+        let vb = AH.Vb.mk (AH.Pat.any ()) (encode_expr expr) in
+        let rest = (encode_stmt ~observe env body) in
+        AH.Exp.let_ Nonrecursive [ vb ] rest
+      )
     | `LetExp (args, _, expr, body) ->
       let env = add_param args env in
-      wrap (fun () -> AH.Exp.let_ Nonrecursive [ AH.Vb.mk (encode_param args) (encode_expr expr) ]
-              (encode_stmt ~observe env body))
+      wrap (fun () ->
+        let vb = AH.Vb.mk (encode_param args) (encode_expr expr) in
+        let rest = (encode_stmt ~observe env body) in
+        AH.Exp.let_ Nonrecursive [ vb ] rest)
     | `LetLambda (var, `Lambda (params, lambody), body) ->
-      AH.Exp.let_ Nonrecursive
-        [ AH.Vb.mk (AH.Pat.var (str var)) (
-            let env = List.fold_left (fun env param -> add_param param env) env params in
-            List.fold_right (fun param exp -> AH.Exp.fun_ Nolabel None (encode_param param) exp) params @@
-            encode_stmt ~observe:(if deep then true else false) env lambody) ]
-        (let env = env @ [var, Func] in
-         encode_stmt ~observe env body)
+      let vb =
+        let pat = (AH.Pat.var (str var)) in
+        let lambody = 
+          let env = List.fold_left (fun env param -> add_param param env) env params in
+          List.fold_right (fun param exp -> AH.Exp.fun_ Nolabel None (encode_param param) exp) params @@
+          encode_stmt ~observe:(if deep then true else false) env lambody in
+        AH.Vb.mk pat lambody in
+      let rest = (let env = env @ [var, Func] in encode_stmt ~observe env body) in
+      AH.Exp.let_ Nonrecursive [vb] rest
     | `Match (exp, cases) ->
       wrap (fun () -> AH.Exp.match_ (encode_expr exp) (List.map (fun (name, args, body) ->
-        AH.Exp.case
-          (AH.Pat.construct Longident.(str @@ Lident name)
-             (match args with
-              | [] -> None
-              | args ->
-                Some (AH.Pat.tuple
-                        (List.map (fun (var, ty) ->
-                           AH.Pat.constraint_ (AH.Pat.var (str var)) (type_ ty))
-                           args))
-             ))
-          (let env = env @ args in
-           encode_stmt ~observe env body)
+        let pat =
+          AH.Pat.construct Longident.(str @@ Lident name)
+            (match args with
+             | [] -> None
+             | args ->
+               Some (AH.Pat.tuple
+                       (List.map (fun (var, ty) ->
+                          AH.Pat.constraint_ (AH.Pat.var (str var)) (type_ ty))
+                          args))
+            ) in
+        let rest = (let env = env @ args in encode_stmt ~observe env body) in
+        AH.Exp.case pat rest
       ) cases))
     | `Write (arr, offs, vl, body) ->
       wrap (fun () ->
-        AH.Exp.sequence
-          (AH.Exp.apply (AH.Exp.ident Longident.(str @@ Ldot (Lident "Array", "set"))) [
+        let set_exp = (AH.Exp.apply (AH.Exp.ident Longident.(str @@ Ldot (Lident "Array", "set"))) [
              Nolabel, AH.Exp.ident Longident.(str @@ Lident arr);
              Nolabel, AH.Exp.ident Longident.(str @@ Lident offs);
              Nolabel, encode_expr vl
-           ])
-          (encode_stmt ~observe env body)
+           ]) in
+        let rest = (encode_stmt ~observe env body) in
+        AH.Exp.sequence set_exp rest
       ) in
   let body = encode_stmt ~observe:true args body in
   let def =
