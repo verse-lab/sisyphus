@@ -56,3 +56,13 @@ CLOSED: [2022-06-26 Sun 19:32]
 *** TODO generate evars for arguments
 *** TODO call print reduced tactic on argument to retrieve reduced proof term 
 *** TODO perform analysis on proof term
+** TODO Implement generator function for higher order functions
+*** TODO Generate concrete values for the current point
+*** TODO Bind concrete values to proof variables
+*** TODO Create evars for invariant & properties
+*** TODO Convert concrete values to Coq terms
+*** TODO Create concrete proof term from concrete args
+*** TODO Apply ultimate reduction
+*** TODO Perform data flow analysis over reduced proof term
+**** Check type of properties evar applied to concrete arguments
+**** extract arguments to evar
