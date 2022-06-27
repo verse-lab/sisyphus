@@ -57,6 +57,7 @@ CLOSED: [2022-06-26 Sun 19:32]
 *** TODO call print reduced tactic on argument to retrieve reduced proof term 
 *** TODO perform analysis on proof term
 ** TODO Implement generator function for higher order functions
+*** Extract proof arguments, determine no. invariants
 *** TODO Generate concrete values for the current point
 *** TODO Bind concrete values to proof variables
 *** TODO Create evars for invariant & properties

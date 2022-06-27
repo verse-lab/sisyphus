@@ -6,6 +6,15 @@ let drop_last ls =
     | h :: t -> loop (h :: acc) t in
   loop [] ls
 
+let combine_rem xz yz =
+  let rec loop acc xz yz =
+    match xz, yz with
+    | [], [] -> List.rev acc, None
+    | _ :: _ as xz, [] -> List.rev acc, Some (Either.Left xz)
+    | [], (_ :: _ as yz) -> List.rev acc, Some (Either.Right yz)
+    | x :: xz, y :: yz -> loop ((x, y) :: acc) xz yz in
+  loop [] xz yz
+
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
@@ -227,7 +236,6 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   symexec t env rest
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
-
   (* work out the name of function being called and the spec for it *)
   let (f_name, raw_spec) =
     (* extract the proof script name for the function being called *)
@@ -240,24 +248,37 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
                      (Names.Constant.to_string f_name)
                      (Proof_debug.constr_to_string raw_spec);
   let (params, invariant, spec) = Proof_cfml.extract_spec raw_spec in
+  let explicit_params = Proof_utils.drop_implicits f_name params in
+  let (_, _f_args) = Proof_cfml.extract_app_full t post in
 
-  let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name) in
+  let param_bindings, remaining = combine_rem explicit_params _f_args in
+  match remaining with
+  | Some (Right _) | None | Some (Left [])  ->
+    Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant?" Pp.pp_with (Names.Constant.print f_name )
+  | Some (Left (_ :: _ :: _)) ->
+    Format.ksprintf ~f:failwith "TODO: found function application %a with multiple invariants"
+      Pp.pp_with (Names.Constant.print f_name )
+  | Some (Left [inv]) ->
 
-  print_endline @@
-  Printf.sprintf "params are: %s" 
-    (List.map (fun (name, _) -> name_to_string name) params |> String.concat ", ");
+    let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name) in
+    print_endline @@
+    Printf.sprintf "params are: %s" 
+      (List.map (fun (name, _) -> name_to_string name) params |> String.concat ", ");
 
-  print_endline @@
-  Printf.sprintf "invariants are: %s" 
-    (List.map (fun (_, sg) -> Proof_debug.constr_to_string sg) invariant |> String.concat ", ");
-
-  let required_params = Proof_utils.drop_implicits f_name params in
-  print_endline @@
-  Printf.sprintf "real params are: %s" 
-    (List.map (fun (name, _) -> name_to_string name) required_params |> String.concat ", ");
+    print_endline @@
+    Printf.sprintf "invariants are: %s" 
+      (List.map (fun (_, sg) -> Proof_debug.constr_to_string sg) invariant |> String.concat ", ");
 
 
-  failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
+    print_endline @@
+    Printf.sprintf "real params are: %s" 
+      (List.map (fun (name, _) -> name_to_string name) explicit_params |> String.concat ", ");
+
+
+    print_endline @@ Format.sprintf "args: (%s)"@@
+    (List.map (fun (exp, _) -> Lang.Expr.show exp) _f_args |> String.concat ", ");
+
+    failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
 
 let generate t (prog: Lang.Expr.t Lang.Program.t) =
   Proof_context.append t {|xcf.|};
