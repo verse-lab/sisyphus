@@ -453,9 +453,6 @@ let generate_trace env prog input =
                     Nolabel, apply (ident (str prog)) (List.map (fun v -> (AT.Nolabel, v)) input)
                   ])))
 
-(* let extract_trace_values (vls: Sisyphus_tracing.trace) =
- *   List.fold_left
- *     IntMap.empty *)
 
 let bitrace env (deps1, prog1) (deps2, prog2) =
   let schema = Generator.extract_schema prog1 in

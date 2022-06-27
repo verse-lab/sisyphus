@@ -6,7 +6,6 @@ let drop_last ls =
     | h :: t -> loop (h :: acc) t in
   loop [] ls
 
-
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
@@ -20,7 +19,6 @@ let find_spec t const =
   | [_] -> failwith "failure finding specification for function application: non-constant name for reference"
   | [] -> failwith "failure finding specification for function application: could not find an appropriate specification"
   | _ -> failwith "failure finding specification for function application: ambiguity - more than one valid specification found"
-
 
 type constr = Constr.constr
 let pp_constr fmt v =
@@ -49,21 +47,6 @@ let rec update_program_id_over_lambda (t: Proof_context.t)
       t.current_program_id <- Lang.Id.incr t.current_program_id in
   loop body
 
-let initial_env = StringMap.empty
-
-let is_pure_lambda env v =
-  StringMap.find_opt v env
-  |> Option.exists (fun (_, body) -> Program_utils.is_pure body)
-
-let add_lambda_def (t: Proof_context.t) env name body =
-  StringMap.add name (t.current_program_id, body) env
-
-let find_pure_lambda_def env name =
-  StringMap.find_opt name env
-  |> Option.flat_map (Option.if_ (fun (_, body) -> Program_utils.is_pure body))
-
-let env_to_defmap env =
-  StringMap.map snd env
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   (* Format.printf "current program id is %s: %s@."
@@ -79,13 +62,13 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
       symexec_alloc t env pat rest
     | `App (_, prog_args)
       when List.exists (function
-        |`Var v -> is_pure_lambda env v
+        |`Var v -> Proof_env.is_pure_lambda env v
         | _ -> false
       ) prog_args ->
       symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest      
     | `App (_, args)
       when List.exists (function
-        |`Var v -> StringMap.mem v env
+        |`Var v -> Proof_env.has_definition env v (* StringMap.mem v env *)
         | _ -> false
       ) args ->
       symexec_higher_order_fun t env pat rewrite_hint args body rest
@@ -103,7 +86,7 @@ and symexec_lambda t env name body rest =
   let fname = Proof_context.fresh ~base:name t in
   let h_fname = Proof_context.fresh ~base:("H" ^ name) t in
   Proof_context.append t "xletopaque %s %s." fname h_fname;
-  let env = add_lambda_def t env name body in
+  let env = Proof_env.add_lambda_def t env name body in
   update_program_id_over_lambda t body;
   symexec t env rest
 and symexec_alloc t env pat rest =
@@ -189,7 +172,7 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   (* emit xapp call *)
   let observation_id, fn_body =
     List.find_map (function
-        `Var v -> find_pure_lambda_def env v (* StringMap.find_opt v env |> Option.flat_map (Option.if_ Program_utils.is_pure) *)
+        `Var v -> Proof_env.find_pure_lambda_def env v (* StringMap.find_opt v env |> Option.flat_map (Option.if_ Program_utils.is_pure) *)
       | _ -> None) prog_args
     |> Option.get_exn_or "invalid assumptions" in
 
@@ -239,16 +222,15 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   end;
   symexec t env rest
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
-  (* Proof_context.pretty_print_current_goal t;
-   * Proof_context.debug_print_current_goal t; *)
   let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
+
   (* work out the name of function being called and the spec for it *)
   let (f_name, raw_spec) =
     (* extract the proof script name for the function being called *)
     let f_app = Proof_cfml.extract_x_app_fun post in
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
-  let _vc = Specification.build_verification_condition t (env_to_defmap env) f_name in
+  let _vc = Specification.build_verification_condition t (Proof_env.env_to_defmap env) f_name in
 
   print_endline @@ Printf.sprintf "lemma is %s, spec is %s"
                      (Names.Constant.to_string f_name)
@@ -264,6 +246,12 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   print_endline @@
   Printf.sprintf "invariants are: %s" 
     (List.map (fun (_, sg) -> Proof_debug.constr_to_string sg) invariant |> String.concat ", ");
+
+  let required_params = Proof_utils.drop_implicits f_name params in
+  print_endline @@
+  Printf.sprintf "real params are: %s" 
+    (List.map (fun (name, _) -> name_to_string name) required_params |> String.concat ", ");
+
 
   failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
 
@@ -282,6 +270,6 @@ let generate t (prog: Lang.Expr.t Lang.Program.t) =
     Proof_context.append t "xpullpure %s." pat;
   | _ -> ()
   end;
-  symexec t initial_env prog.body;
+  symexec t Proof_env.initial_env prog.body;
   Proof_context.extract_proof_script t
 
