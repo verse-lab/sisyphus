@@ -251,6 +251,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let explicit_params = Proof_utils.drop_implicits f_name params in
   let (_, _f_args) = Proof_cfml.extract_app_full t post in
 
+
   let param_bindings, remaining = combine_rem explicit_params _f_args in
   match remaining with
   | Some (Right _) | None | Some (Left [])  ->
@@ -261,8 +262,15 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       Pp.pp_with (Names.Constant.print f_name)
   | Some (Left [(inv, inv_ty)]) ->
 
-    
+    let inv_var = Proof_context.fresh ~base:(Format.to_string Pp.pp_with (Names.Name.print inv)) t in
 
+
+    let () =
+      Proof_context.with_temporary_context t begin fun () ->
+
+        Format.printf "adding: evar (%s: %s).@." inv_var (Proof_debug.constr_to_string_pretty inv_ty);
+      Proof_context.append t "evar (%s: %s)." inv_var (Proof_debug.constr_to_string_pretty inv_ty);
+    end in
 
 
     let _ = 

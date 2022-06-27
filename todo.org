@@ -68,6 +68,7 @@ CLOSED: [2022-06-26 Sun 19:32]
 *** DONE Extract proof arguments, determine no. invariants
 CLOSED: [2022-06-27 Mon 05:32]
 *** TODO Create evars for invariant & properties
+**** For Inv, gen fresh var 
 *** TODO Generate concrete values for the current point
 *** TODO Bind concrete values to proof variables
 *** TODO Convert concrete values to Coq terms
