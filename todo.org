@@ -1,3 +1,11 @@
+
+* Limitations
+
+** Invariants hidden in external lemmas
+An example of such a case would be when we're dealing with a proof
+style that first reifies an OCaml computation with a Gallina model,
+and uses their equivalence as an invariant. Then once evaluating the
+lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks
 ** DONE Extract forall sequence to a sequence of args + properties + body
 CLOSED: [2022-05-11 Wed 04:37]
@@ -59,9 +67,9 @@ CLOSED: [2022-06-26 Sun 19:32]
 ** TODO Implement generator function for higher order functions
 *** DONE Extract proof arguments, determine no. invariants
 CLOSED: [2022-06-27 Mon 05:32]
+*** TODO Create evars for invariant & properties
 *** TODO Generate concrete values for the current point
 *** TODO Bind concrete values to proof variables
-*** TODO Create evars for invariant & properties
 *** TODO Convert concrete values to Coq terms
 *** TODO Create concrete proof term from concrete args
 **** Pretty print application as Coq string

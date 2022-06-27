@@ -254,26 +254,37 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let param_bindings, remaining = combine_rem explicit_params _f_args in
   match remaining with
   | Some (Right _) | None | Some (Left [])  ->
-    Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant?" Pp.pp_with (Names.Constant.print f_name )
+    Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant/insufficient arguments?"
+      Pp.pp_with (Names.Constant.print f_name)
   | Some (Left (_ :: _ :: _)) ->
     Format.ksprintf ~f:failwith "TODO: found function application %a with multiple invariants"
-      Pp.pp_with (Names.Constant.print f_name )
-  | Some (Left [inv]) ->
+      Pp.pp_with (Names.Constant.print f_name)
+  | Some (Left [(inv, inv_ty)]) ->
 
+    
+
+
+
+    let _ = 
+      List.map (fun (_param, (supplied_expr, supplied_ty)) ->
+        supplied_expr
+      ) param_bindings in
+
+
+
+    Format.printf "inv is %a@." Pp.pp_with (Names.Name.print inv);
     let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name) in
     print_endline @@
-    Printf.sprintf "params are: %s" 
+    Printf.sprintf "params are: %s"
       (List.map (fun (name, _) -> name_to_string name) params |> String.concat ", ");
 
     print_endline @@
     Printf.sprintf "invariants are: %s" 
       (List.map (fun (_, sg) -> Proof_debug.constr_to_string sg) invariant |> String.concat ", ");
 
-
     print_endline @@
     Printf.sprintf "real params are: %s" 
       (List.map (fun (name, _) -> name_to_string name) explicit_params |> String.concat ", ");
-
 
     print_endline @@ Format.sprintf "args: (%s)"@@
     (List.map (fun (exp, _) -> Lang.Expr.show exp) _f_args |> String.concat ", ");

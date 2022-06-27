@@ -151,6 +151,17 @@ let fresh ?(base="tmp") t =
   then loop 0
   else base
 
+let with_temporary_context {ctx; _} f =
+  let module Ctx = (val ctx) in
+  let original_proof_size = Ctx.size () in
+  Fun.protect
+    ~finally:(fun () ->
+      let new_proof_size = Ctx.size () in
+      let count = new_proof_size - original_proof_size in
+      if count > 0 then
+        Ctx.cancel ~count
+    ) f
+
 let init ~prelude ~spec ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();
