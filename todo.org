@@ -47,7 +47,10 @@ CLOSED: [2022-06-24 Fri 14:51]
 *** DONE Fix proof generator state to update program point tracking correctly
 CLOSED: [2022-06-25 Sat 04:50]
 *** TODO Map proof variables to program variables to concrete values 
-**** TODO Store Observation id at start of lambda in function
+**** DONE Store Observation id at start of lambda in function
+CLOSED: [2022-06-26 Sun 18:40]
+**** DONE Update context to track mapping of Coq variables to program variables
+CLOSED: [2022-06-26 Sun 19:32]
 **** TODO Print out the concrete values at the current lambda state
 ** TODO Work on proof analysis
 *** TODO generate evars for arguments

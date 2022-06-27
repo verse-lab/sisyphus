@@ -97,45 +97,49 @@ and symexec_alloc t env pat rest =
   let data = Proof_context.fresh ~base:"data"  t in
   let h_data = Proof_context.fresh ~base:("H" ^ data) t in
   Proof_context.append t "xalloc %s %s %s." arr data h_data;
+  let env = Proof_env.add_proof_binding env ~proof_var:arr ~program_var:prog_arr in
   symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
   let prog_var = match pat with
     | `Tuple _ ->
-      failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
+      failwith (Format.sprintf "TODO: implement handling of let _ = %a expressions" Lang.Expr.pp body)
     | `Var (var, _) -> var in
   let var = Proof_context.fresh ~base:(prog_var) t in
   let h_var = Proof_context.fresh ~base:("H" ^ var) t in
   Proof_context.append t "xletopaque %s %s."  var h_var;
+  let env = Proof_env.add_proof_binding env ~proof_var:var ~program_var:prog_var in
   symexec t env rest
 and symexec_match t env prog_expr cases =
   (* emit a case analysis to correspond to the program match    *)
   (* for each subproof, first intro variables using the same names as in the program *)
-  let case_intro_strs =
+  let sub_proof_vars = 
     List.map (fun (_, args, _) ->
-      List.map (fun (name, _) ->
-        Proof_context.fresh ~base:(name) t
-      ) args
-      |> String.concat " "
+      List.map (fun (base, _) -> Proof_context.fresh ~base t) args
     ) cases in
+  let case_intro_strs =
+    List.map (String.concat " ") sub_proof_vars
+    |> String.concat " | "  in
   (* preserve the equality of the program expression *)
   let eqn_var = Proof_context.fresh ~base:("H_eqn") t in
   (* emit a case analysis: *)
   Proof_context.append t "case %a as [%s] eqn:%s."
-    Printer.pp_expr prog_expr
-    (String.concat " | " case_intro_strs)
-    eqn_var;
-
+    Printer.pp_expr prog_expr case_intro_strs eqn_var;
   (* now, handle all of the sub proofs *)
-  List.iter (fun (_, _, rest) ->
+  List.iter (fun ((_, args, rest), proof_args) ->
     (* start each subproof with an xmatch to determine the appropriate branch *)
     Proof_context.append t "- xmatch.";
+    (* update env with bindings for each of the new program vars *)
+    let env =
+      List.fold_left (fun env ((program_var, _), proof_var) ->
+        Proof_env.add_proof_binding env ~proof_var ~program_var
+      ) env (List.combine args proof_args) in
     (* now emit the rest *)
     symexec t env rest;
     (* dispatch remaining subgoals by the best method: *)
     while (Proof_context.current_subproof t).goals |> List.length > 0 do 
       Proof_context.append t "{ admit. }";
     done;
-  ) cases
+  ) (List.combine cases sub_proof_vars)
 and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   (* work out the name of function being called and the spec for it *)
   let (f_name, raw_spec) =
