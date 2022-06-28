@@ -1,0 +1,45 @@
+(library (name seq_iterate)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsSeqIterate)
+ (modules
+   Common_ml
+   Verify_seq_iterate_utils
+   seq_iterate_old_ml Verify_seq_iterate_old
+   seq_iterate_new_ml Verify_seq_iterate_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (targets Common_ml.v common.cmj)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target seq_iterate_old.sisyphus.ml)
+ (deps seq_iterate_old.ml)
+ (action (with-stdout-to seq_iterate_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" seq_iterate_old.ml))))
+
+(rule
+ (target seq_iterate_old_ml.v)
+ (deps seq_iterate_old.sisyphus.ml common.ml common.cmj)
+ (action (run cfmlc -o ./seq_iterate_old_ml.v seq_iterate_old.sisyphus.ml)))
+
+(rule
+ (target seq_iterate_new.sisyphus.ml)
+ (deps seq_iterate_new.ml)
+ (action (with-stdout-to seq_iterate_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./seq_iterate_new.ml))))
+
+(rule
+ (target seq_iterate_new_ml.v)
+ (deps seq_iterate_new.sisyphus.ml common.ml common.cmj Common_ml.v)
+ (action (run cfmlc -o ./seq_iterate_new_ml.v seq_iterate_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))

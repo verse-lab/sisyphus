@@ -1,0 +1,45 @@
+(library (name size)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsSize)
+ (modules
+   Common_ml
+   Verify_size_utils
+   size_old_ml Verify_size_old
+   size_new_ml Verify_size_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (targets Common_ml.v common.cmj)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target size_old.sisyphus.ml)
+ (deps size_old.ml)
+ (action (with-stdout-to size_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" size_old.ml))))
+
+(rule
+ (target size_old_ml.v)
+ (deps size_old.sisyphus.ml common.ml common.cmj)
+ (action (run cfmlc -o ./size_old_ml.v size_old.sisyphus.ml)))
+
+(rule
+ (target size_new.sisyphus.ml)
+ (deps size_new.ml)
+ (action (with-stdout-to size_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./size_new.ml))))
+
+(rule
+ (target size_new_ml.v)
+ (deps size_new.sisyphus.ml common.ml common.cmj Common_ml.v)
+ (action (run cfmlc -o ./size_new_ml.v size_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))

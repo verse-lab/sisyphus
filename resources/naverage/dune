@@ -1,0 +1,45 @@
+(library (name naverage)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsNaverage)
+ (modules
+   Common_ml
+   Verify_naverage_utils
+   naverage_old_ml Verify_naverage_old
+   naverage_new_ml Verify_naverage_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (targets Common_ml.v common.cmj)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target naverage_old.sisyphus.ml)
+ (deps naverage_old.ml)
+ (action (with-stdout-to naverage_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" naverage_old.ml))))
+
+(rule
+ (target naverage_old_ml.v)
+ (deps naverage_old.sisyphus.ml common.ml common.cmj)
+ (action (run cfmlc -o ./naverage_old_ml.v naverage_old.sisyphus.ml)))
+
+(rule
+ (target naverage_new.sisyphus.ml)
+ (deps naverage_new.ml)
+ (action (with-stdout-to naverage_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./naverage_new.ml))))
+
+(rule
+ (target naverage_new_ml.v)
+ (deps naverage_new.sisyphus.ml common.ml common.cmj Common_ml.v)
+ (action (run cfmlc -o ./naverage_new_ml.v naverage_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))

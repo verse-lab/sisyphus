@@ -1,0 +1,45 @@
+(library (name read_chunk)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsReadChunk)
+ (modules
+   Common_ml
+   Verify_read_chunk_utils
+   read_chunk_old_ml Verify_read_chunk_old
+   read_chunk_new_ml Verify_read_chunk_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (targets Common_ml.v common.cmj)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target read_chunk_old.sisyphus.ml)
+ (deps read_chunk_old.ml)
+ (action (with-stdout-to read_chunk_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" read_chunk_old.ml))))
+
+(rule
+ (target read_chunk_old_ml.v)
+ (deps read_chunk_old.sisyphus.ml common.ml common.cmj)
+ (action (run cfmlc -o ./read_chunk_old_ml.v read_chunk_old.sisyphus.ml)))
+
+(rule
+ (target read_chunk_new.sisyphus.ml)
+ (deps read_chunk_new.ml)
+ (action (with-stdout-to read_chunk_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./read_chunk_new.ml))))
+
+(rule
+ (target read_chunk_new_ml.v)
+ (deps read_chunk_new.sisyphus.ml common.ml common.cmj Common_ml.v)
+ (action (run cfmlc -o ./read_chunk_new_ml.v read_chunk_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))

@@ -1,0 +1,45 @@
+(library (name map_to_list)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsMapToList)
+ (modules
+   Common_ml
+   Verify_map_to_list_utils
+   map_to_list_old_ml Verify_map_to_list_old
+   map_to_list_new_ml Verify_map_to_list_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (targets Common_ml.v common.cmj)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target map_to_list_old.sisyphus.ml)
+ (deps map_to_list_old.ml)
+ (action (with-stdout-to map_to_list_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" map_to_list_old.ml))))
+
+(rule
+ (target map_to_list_old_ml.v)
+ (deps map_to_list_old.sisyphus.ml common.ml common.cmj)
+ (action (run cfmlc -o ./map_to_list_old_ml.v map_to_list_old.sisyphus.ml)))
+
+(rule
+ (target map_to_list_new.sisyphus.ml)
+ (deps map_to_list_new.ml)
+ (action (with-stdout-to map_to_list_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./map_to_list_new.ml))))
+
+(rule
+ (target map_to_list_new_ml.v)
+ (deps map_to_list_new.sisyphus.ml common.ml common.cmj Common_ml.v)
+ (action (run cfmlc -o ./map_to_list_new_ml.v map_to_list_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))
