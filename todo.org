@@ -67,8 +67,19 @@ CLOSED: [2022-06-26 Sun 19:32]
 ** TODO Implement generator function for higher order functions
 *** DONE Extract proof arguments, determine no. invariants
 CLOSED: [2022-06-27 Mon 05:32]
-*** TODO Create evars for invariant & properties
-**** For Inv, gen fresh var 
+*** DONE calculate type of instantiated invariant with explicit parameters
+CLOSED: [2022-06-28 Tue 22:10]
+*** TODO collect full explicit parameters for spec using evars for invariant & properties
+**** TODO fold over type tracking parameters
+***** TODO split params into invariants and evars (tuple)
+***** TODO if invariant
+****** TODO gen fresh var using proof context
+****** TODO create evar with type
+****** TODO add evar to params
+***** TODO if property
+****** TODO gen fresh var using proof context
+****** TODO create evar with type
+****** TODO add evar to params
 *** TODO Generate concrete values for the current point
 *** TODO Bind concrete values to proof variables
 *** TODO Convert concrete values to Coq terms

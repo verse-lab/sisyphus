@@ -237,41 +237,63 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
   (* work out the name of function being called and the spec for it *)
-  let (f_name, raw_spec) =
+  let (lemma_name, lemma_full_type) =
     (* extract the proof script name for the function being called *)
     let f_app = Proof_cfml.extract_x_app_fun post in
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
-  let _vc = Specification.build_verification_condition t (Proof_env.env_to_defmap env) f_name in
 
-  print_endline @@ Printf.sprintf "lemma is %s, spec is %s"
-                     (Names.Constant.to_string f_name)
-                     (Proof_debug.constr_to_string raw_spec);
-  let (params, invariant, spec) = Proof_cfml.extract_spec raw_spec in
-  let explicit_params = Proof_utils.drop_implicits f_name params in
+  let (lemma_params, lemma_invariants, spec) = Proof_cfml.extract_spec lemma_full_type in
+  let explicit_lemma_params = Proof_utils.drop_implicits lemma_name lemma_params in
   let (_, _f_args) = Proof_cfml.extract_app_full t post in
 
 
-  let param_bindings, remaining = combine_rem explicit_params _f_args in
+  let param_bindings, remaining = combine_rem explicit_lemma_params _f_args in
   match remaining with
   | Some (Right _) | None | Some (Left [])  ->
     Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant/insufficient arguments?"
-      Pp.pp_with (Names.Constant.print f_name)
+      Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left (_ :: _ :: _)) ->
     Format.ksprintf ~f:failwith "TODO: found function application %a with multiple invariants"
-      Pp.pp_with (Names.Constant.print f_name)
+      Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left [(inv, inv_ty)]) ->
 
-    let inv_var = Proof_context.fresh ~base:(Format.to_string Pp.pp_with (Names.Name.print inv)) t in
-
+    (* let _inv_var = Proof_context.fresh ~base:(Format.to_string Pp.pp_with (Names.Name.print inv)) t in *)
+    let _vc =
+      Specification.build_verification_condition t
+        (Proof_env.env_to_defmap env) lemma_name in
 
     let () =
       Proof_context.with_temporary_context t begin fun () ->
+        let mk_lemma_instantiated_type params = 
+          Format.ksprintf ~f:(Proof_context.typeof t)
+            "%s %s"
+            (Names.Constant.to_string lemma_name)
+            (List.map (fun vl -> "(" ^ Printer.show_expr vl ^ ")") params
+             |> String.concat " ") in
+        let rec loop params lemma_instantiated_type =
+          match Constr.kind lemma_instantiated_type with
+          | Prod (Context.{binder_name; _}, ty, _) ->
+            let evar_name = Proof_context.fresh
+                        ~base:(Format.to_string Pp.pp_with @@ Names.Name.print binder_name)
+                        t in
+            Proof_context.append t "evar (%s: %s)." evar_name
+              (Proof_debug.constr_to_string_pretty ty);
+            let params = params @ [`Var evar_name] in
+            let lemma_instantiated_type = mk_lemma_instantiated_type params in
+            loop params lemma_instantiated_type
+          | _ -> params, lemma_instantiated_type
+        in
+        let lemma_complete_params, res_ty =
+          let params = List.map fst _f_args in
+          loop params (mk_lemma_instantiated_type params) in
 
-        Format.printf "adding: evar (%s: %s).@." inv_var (Proof_debug.constr_to_string_pretty inv_ty);
-      Proof_context.append t "evar (%s: %s)." inv_var (Proof_debug.constr_to_string_pretty inv_ty);
-    end in
-
+        Proof_context.pretty_print_current_goal t;
+        Format.printf "params are: %s@." (List.map Lang.Expr.show lemma_complete_params |>
+                                       String.concat " ");
+        Format.printf "final instantiated type %s.@." (Proof_debug.constr_to_string_pretty res_ty);
+      end in
+        Proof_context.pretty_print_current_goal t;
 
     let _ = 
       List.map (fun (_param, (supplied_expr, supplied_ty)) ->
@@ -280,19 +302,20 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
 
 
+    (* =====================printing starts========================================= *)
     Format.printf "inv is %a@." Pp.pp_with (Names.Name.print inv);
     let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name) in
     print_endline @@
     Printf.sprintf "params are: %s"
-      (List.map (fun (name, _) -> name_to_string name) params |> String.concat ", ");
+      (List.map (fun (name, _) -> name_to_string name) lemma_params |> String.concat ", ");
 
     print_endline @@
     Printf.sprintf "invariants are: %s" 
-      (List.map (fun (_, sg) -> Proof_debug.constr_to_string sg) invariant |> String.concat ", ");
+      (List.map (fun (_, sg) -> Proof_debug.constr_to_string sg) lemma_invariants |> String.concat ", ");
 
     print_endline @@
     Printf.sprintf "real params are: %s" 
-      (List.map (fun (name, _) -> name_to_string name) explicit_params |> String.concat ", ");
+      (List.map (fun (name, _) -> name_to_string name) explicit_lemma_params |> String.concat ", ");
 
     print_endline @@ Format.sprintf "args: (%s)"@@
     (List.map (fun (exp, _) -> Lang.Expr.show exp) _f_args |> String.concat ", ");

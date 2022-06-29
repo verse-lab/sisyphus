@@ -1,9 +1,9 @@
-(library (name array_rev)
+(library (name array_rev_2)
   (modules common)
 )
 
 (coq.theory
- (name ProofsArrayRev)
+ (name ProofsArrayRev2)
  (modules
    Common_ml
    Verify_array_rev_utils
