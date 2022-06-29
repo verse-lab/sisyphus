@@ -344,8 +344,13 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
               (Names.Constant.to_string lemma_name)
               (arg_list_to_str  lemma_complete_params) in
 
+          let env = Proof_context.env t in
+          let evd = Evd.from_env env in
+          let (evd, reduced) =
+            Proof_reduction.reduce env evd (Evd.MiniEConstr.of_constr trm) in
+
           Format.printf "instantiated lemma is %s@."
-            (Proof_debug.constr_to_string trm);
+            (Proof_debug.constr_to_string (EConstr.to_constr evd reduced));
 
           Some trm
         end
