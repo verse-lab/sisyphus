@@ -36,7 +36,7 @@ let pp_constr fmt v =
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
 let rec update_program_id_over_lambda (t: Proof_context.t)
-      (`Lambda (_, body): [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ])  =
+          (`Lambda (_, body): [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ])  =
   let rec loop (body: Lang.Expr.t Lang.Program.stmt) = match body with
     | `Match (_, cases) -> 
       t.current_program_id <- Lang.Id.incr t.current_program_id;
@@ -56,6 +56,35 @@ let rec update_program_id_over_lambda (t: Proof_context.t)
       t.current_program_id <- Lang.Id.incr t.current_program_id in
   loop body
 
+(** [build_complete_params t lemma_name init_params] returns a pair
+   ([complete_params], [head_ty]) where [complete_params] a list of
+   concrete arguments to the specification defined by [lemma_name]. To
+   do this, it starts with [init_params] and then updates the proof
+   context [t] with fresh existential variables for each remaining
+   argument.
+
+    Note: assumes that no subsequent arguments past [init_params] are
+   implicit. *)
+let build_complete_params t lemma_name init_params =
+  let mk_lemma_instantiated_type params = 
+    Format.ksprintf ~f:(Proof_context.typeof t)
+      "%s %s"
+      (Names.Constant.to_string lemma_name)
+      (List.map (fun vl -> "(" ^ Printer.show_expr vl ^ ")") params
+       |> String.concat " ") in
+  let rec loop params lemma_instantiated_type =
+    match Constr.kind lemma_instantiated_type with
+    | Prod (Context.{binder_name; _}, ty, _) ->
+      let evar_name = Proof_context.fresh
+                        ~base:(Format.to_string Pp.pp_with @@ Names.Name.print binder_name)
+                        t in
+      Proof_context.append t "evar (%s: %s)." evar_name
+        (Proof_debug.constr_to_string_pretty ty);
+      let params = params @ [`Var evar_name] in
+      let lemma_instantiated_type = mk_lemma_instantiated_type params in
+      loop params lemma_instantiated_type
+    | _ -> params, lemma_instantiated_type in
+  loop init_params (mk_lemma_instantiated_type init_params)
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   (* Format.printf "current program id is %s: %s@."
@@ -231,7 +260,7 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
       (* finally, split the simplified equality on tuples into an equality on terms  *)
       let split_vars = List.map (fun var -> Proof_context.fresh ~base:("H" ^ var) t) vars in
       Proof_context.append t "injection %s; intros %s."
-                            h_var (String.concat " " @@ List.rev split_vars);
+        h_var (String.concat " " @@ List.rev split_vars);
   end;
   symexec t env rest
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
@@ -258,42 +287,20 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left [(inv, inv_ty)]) ->
 
-    (* let _inv_var = Proof_context.fresh ~base:(Format.to_string Pp.pp_with (Names.Name.print inv)) t in *)
     let _vc =
       Specification.build_verification_condition t
         (Proof_env.env_to_defmap env) lemma_name in
 
     let () =
       Proof_context.with_temporary_context t begin fun () ->
-        let mk_lemma_instantiated_type params = 
-          Format.ksprintf ~f:(Proof_context.typeof t)
-            "%s %s"
-            (Names.Constant.to_string lemma_name)
-            (List.map (fun vl -> "(" ^ Printer.show_expr vl ^ ")") params
-             |> String.concat " ") in
-        let rec loop params lemma_instantiated_type =
-          match Constr.kind lemma_instantiated_type with
-          | Prod (Context.{binder_name; _}, ty, _) ->
-            let evar_name = Proof_context.fresh
-                        ~base:(Format.to_string Pp.pp_with @@ Names.Name.print binder_name)
-                        t in
-            Proof_context.append t "evar (%s: %s)." evar_name
-              (Proof_debug.constr_to_string_pretty ty);
-            let params = params @ [`Var evar_name] in
-            let lemma_instantiated_type = mk_lemma_instantiated_type params in
-            loop params lemma_instantiated_type
-          | _ -> params, lemma_instantiated_type
-        in
-        let lemma_complete_params, res_ty =
-          let params = List.map fst _f_args in
-          loop params (mk_lemma_instantiated_type params) in
+        let lemma_complete_params, res_ty = build_complete_params t lemma_name (List.map fst _f_args) in
 
         Proof_context.pretty_print_current_goal t;
         Format.printf "params are: %s@." (List.map Lang.Expr.show lemma_complete_params |>
-                                       String.concat " ");
+                                          String.concat " ");
         Format.printf "final instantiated type %s.@." (Proof_debug.constr_to_string_pretty res_ty);
       end in
-        Proof_context.pretty_print_current_goal t;
+    Proof_context.pretty_print_current_goal t;
 
     let _ = 
       List.map (fun (_param, (supplied_expr, supplied_ty)) ->
