@@ -78,11 +78,26 @@ let env {ctx; _} =
   | None -> failwith "unable to obtain proof env - serapi returned None."
 
 let typeof t expr =
+  let no_hyps = List.length (current_goal t).hyp in
   append t "pose proof (%s)." expr;
+  if List.length (current_goal t).hyp <= no_hyps then
+    Format.ksprintf
+      ~f:failwith "attempted to check type of invalid expression (%s)." expr;
   let (_, _, ty) = List.hd (current_goal t).hyp in
   let module Ctx = (val t.ctx) in
   Ctx.cancel_last ();
   ty
+
+let term_of t expr =
+  let no_hyps = List.length (current_goal t).hyp in
+  append t "pose (%s)." expr;
+  if List.length (current_goal t).hyp <= no_hyps then
+    Format.ksprintf
+      ~f:failwith "attempted to check type of invalid expression (%s)." expr;
+  let (_, def, _) = List.hd (current_goal t).hyp in
+  let module Ctx = (val t.ctx) in
+  Ctx.cancel_last ();
+  Option.get_exn_or "invalid assumptions" def
 
 let definition_of {ctx; _} txt =
   let module Ctx = (val ctx) in
@@ -183,11 +198,11 @@ let rec eval_tracing_value t (ty: Lang.Type.t) (vl: Dynamic.Concrete.value) : La
 and eval_tracing_list t ty elts =
   let open Option in
   let rec loop = function
-    | [] -> Some (`Constructor ("nil", []))
+    | [] -> Some (`Constructor ("[]", []))
     | h :: tl ->
       let* h = eval_tracing_value t ty h in
       let* tl = eval_tracing_list t ty tl in
-      Some (`Constructor ("cons", [h; tl])) in
+      Some (`Constructor ("::", [h; tl])) in
   loop elts
         
 
