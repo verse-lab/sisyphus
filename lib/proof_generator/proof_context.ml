@@ -164,6 +164,36 @@ let with_temporary_context {ctx; _} f =
         Ctx.cancel ~count
     ) f
 
+let rec eval_tracing_value t (ty: Lang.Type.t) (vl: Dynamic.Concrete.value) : Lang.Expr.t option =
+  let open Option in
+  match ty, vl with
+  | (Lang.Type.Product tys, `Tuple vls) ->
+    let+ elts = List.map2 (eval_tracing_value t) tys vls
+               |> List.all_some in
+    `Tuple elts
+  | (Lang.Type.List ty, `List elts) ->
+    eval_tracing_list t ty elts
+  | (_, `Int n) -> Some (`Int n)
+  | (ty, `Value vl) ->
+    let var = fresh ~base:vl t in
+    append t "evar (%s: %s)." var (Printer.show_ty ty);
+    Some (`Var var)
+  | (_ , `Constructor _) -> None (* todo: implement handling of constructors *)
+  | _ -> None
+and eval_tracing_list t ty elts =
+  let open Option in
+  let rec loop = function
+    | [] -> Some (`Constructor ("nil", []))
+    | h :: tl ->
+      let* h = eval_tracing_value t ty h in
+      let* tl = eval_tracing_list t ty tl in
+      Some (`Constructor ("cons", [h; tl])) in
+  loop elts
+        
+
+  
+  
+
 let init ~prelude ~spec ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();

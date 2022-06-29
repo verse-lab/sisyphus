@@ -291,9 +291,63 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       Specification.build_verification_condition t
         (Proof_env.env_to_defmap env) lemma_name in
 
+    let cp = t.Proof_context.concrete () in
+    let _elts =
+      Dynamic.Concrete.lookup cp
+        (t.Proof_context.current_program_id :> int) in
+
     let () =
       Proof_context.with_temporary_context t begin fun () ->
+        let instantiated_params (ctx, heap_ctx) =
+          List.map (fun (vl, ty) ->
+            match vl with
+              `Var v ->
+              Option.or_lazy
+                (List.Assoc.get ~eq:String.equal v ctx)
+                ~else_:(fun () ->
+                  List.Assoc.get ~eq:String.equal v heap_ctx
+                  |> Option.flat_map (function
+                    | `Array ls ->
+                      begin match ty with
+                      | Lang.Type.List ty -> Proof_context.eval_tracing_list t ty ls
+                      | _ -> None
+                      end
+                    | `PointsTo vl -> Proof_context.eval_tracing_value t ty vl
+                  )
+                )
+            | expr -> Some expr
+          ) _f_args
+          |> List.all_some in
         let lemma_complete_params, res_ty = build_complete_params t lemma_name (List.map fst _f_args) in
+
+        let cp = t.Proof_context.concrete () in
+        let _elts =
+          Dynamic.Concrete.lookup cp
+            (t.Proof_context.current_program_id :> int) in
+        let _instantiated_params = 
+          List.map (fun param ->
+            match param with
+            | `Var v ->
+              begin match
+                StringMap.find_opt v env.Proof_env.bindings
+              with
+              | None -> Some (`Var v)
+              | Some v ->
+                failwith v
+                (* List.find_map (fun (ctx, heap_ctx) ->
+                 *   Option.or_lazy
+                 *     (List.Assoc.get ~eq:String.equal v ctx)
+                 *     ~else_:(fun () ->
+                 *       List.Assoc.get ~eq:String.equal v heap_ctx
+                 *       |> Option.map (function
+                 *         | `Array ls -> `List ls
+                 *         | `PointsTo vl -> (vl :> Lang.Expr.t)
+                 *       )
+                 *     )
+                 * ) elts *)
+              end
+            | expr -> Some expr
+          ) lemma_complete_params in
 
         Proof_context.pretty_print_current_goal t;
         Format.printf "params are: %s@." (List.map Lang.Expr.show lemma_complete_params |>
