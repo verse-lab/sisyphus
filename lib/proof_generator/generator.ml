@@ -348,9 +348,12 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
           let evd = Evd.from_env env in
           let (evd, reduced) =
             Proof_reduction.reduce
-              ~filter:(fun ~path:_ ~label:_ -> `Unfold)
+              ~filter:(fun ~path ~label ->
+                Format.printf "checking %s . %s ==> YES@." path label;
+                `Unfold)
               env evd (Evd.MiniEConstr.of_constr trm) in
 
+          print_endline "DONE";
           Format.printf "instantiated lemma is %s@."
             (Proof_debug.constr_to_string_pretty (EConstr.to_constr evd reduced));
 

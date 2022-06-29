@@ -61,7 +61,8 @@ CLOSED: [2022-06-26 Sun 18:40]
 CLOSED: [2022-06-26 Sun 19:32]
 **** TODO Print out the concrete values at the current lambda state
 ** TODO Work on proof analysis
-*** TODO generate evars for arguments
+*** DONE generate evars for arguments
+CLOSED: [2022-06-29 Wed 02:28]
 *** TODO call print reduced tactic on argument to retrieve reduced proof term 
 *** TODO perform analysis on proof term
 ** TODO Implement generator function for higher order functions
@@ -69,25 +70,34 @@ CLOSED: [2022-06-26 Sun 19:32]
 CLOSED: [2022-06-27 Mon 05:32]
 *** DONE calculate type of instantiated invariant with explicit parameters
 CLOSED: [2022-06-28 Tue 22:10]
-*** TODO collect full explicit parameters for spec using evars for invariant & properties
-**** TODO fold over type tracking parameters
-***** TODO split params into invariants and evars (tuple)
-***** TODO if invariant
-****** TODO gen fresh var using proof context
-****** TODO create evar with type
-****** TODO add evar to params
-***** TODO if property
-****** TODO gen fresh var using proof context
-****** TODO create evar with type
-****** TODO add evar to params
-*** TODO Generate concrete values for the current point
-*** TODO Bind concrete values to proof variables
-*** TODO Convert concrete values to Coq terms
-*** TODO Create concrete proof term from concrete args
+*** DONE collect full explicit parameters for spec using evars for invariant & properties
+CLOSED: [2022-06-29 Wed 02:29]
+**** DONE fold over type tracking parameters
+CLOSED: [2022-06-29 Wed 02:29]
+***** DONE split params into invariants and evars (tuple)
+CLOSED: [2022-06-29 Wed 02:29]
+****** DONE gen fresh var using proof context
+CLOSED: [2022-06-29 Wed 02:29]
+****** DONE create evar with type
+CLOSED: [2022-06-29 Wed 02:29]
+****** DONE add evar to params
+CLOSED: [2022-06-29 Wed 02:29]
+*** DONE Generate concrete values for the current point
+CLOSED: [2022-06-29 Wed 11:29]
+**** generate concrete values at current program point
+**** iterate through concrete values
+**** loop through parameters to specification
+*** DONE Bind concrete values to proof variables
+CLOSED: [2022-06-29 Wed 11:29]
+*** DONE Convert concrete values to Coq terms
+CLOSED: [2022-06-29 Wed 11:29]
+*** DONE Create concrete proof term from concrete args
+CLOSED: [2022-06-29 Wed 11:29]
 **** Pretty print application as Coq string
 **** Pose proof to add it to context
 **** Extract from last element in context then revert, just like typeof function
-*** TODO Apply ultimate reduction
+*** DONE Apply ultimate reduction
+CLOSED: [2022-06-29 Wed 11:29]
 *** TODO Perform data flow analysis over reduced proof term
 **** TODO Check type of properties evar applied to concrete arguments
 **** TODO extract arguments to evar
