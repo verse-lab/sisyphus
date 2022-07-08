@@ -7,14 +7,16 @@
  (modules
    Common_ml
    Verify_make_rev_list_utils
-   make_rev_list_old_ml Verify_make_rev_list_old
-   make_rev_list_new_ml Verify_make_rev_list_new)
+   Make_rev_list_old_ml Verify_make_rev_list_old
+   Make_rev_list_new_ml Verify_make_rev_list_new
+
+ )
  (libraries sisyphus.plugin)
 )
 
 
 (rule
- (targets Common_ml.v common.cmj)
+ (target Common_ml.v)
  (deps common.ml)
  (action (run cfmlc -o ./Common_ml.v common.ml)))
 
@@ -25,9 +27,9 @@
           (run sed -E "s/\\[@.*\\]//" make_rev_list_old.ml))))
 
 (rule
- (target make_rev_list_old_ml.v)
- (deps make_rev_list_old.sisyphus.ml common.ml common.cmj)
- (action (run cfmlc -o ./make_rev_list_old_ml.v make_rev_list_old.sisyphus.ml)))
+ (target Make_rev_list_old_ml.v)
+ (deps make_rev_list_old.sisyphus.ml common.ml Common_ml.v)
+ (action (run cfmlc -o ./Make_rev_list_old_ml.v make_rev_list_old.sisyphus.ml)))
 
 (rule
  (target make_rev_list_new.sisyphus.ml)
@@ -36,9 +38,9 @@
           (run sed -E "s/\\[@.*\\]//" ./make_rev_list_new.ml))))
 
 (rule
- (target make_rev_list_new_ml.v)
- (deps make_rev_list_new.sisyphus.ml common.ml common.cmj Common_ml.v)
- (action (run cfmlc -o ./make_rev_list_new_ml.v make_rev_list_new.sisyphus.ml)))
+ (target Make_rev_list_new_ml.v)
+ (deps make_rev_list_new.sisyphus.ml common.ml Common_ml.v)
+ (action (run cfmlc -o ./Make_rev_list_new_ml.v make_rev_list_new.sisyphus.ml)))
 
 (env
   (dev
