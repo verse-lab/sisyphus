@@ -3,7 +3,7 @@
  (modules (:standard \ "main"))
  (flags  -rectypes)
  (preprocess (pps ppx_deriving.std))
- (libraries coq lang proof_validator proof_spec proof_reduction dynamic containers)
+ (libraries coq lang proof_validator proof_utils proof_spec proof_reduction dynamic containers)
 )
 
 (executable (name main)

@@ -4,13 +4,13 @@ type value = [
   | `List of value list
   | `Tuple of value list
   | `Constructor of string * value list
-]
+]  [@@deriving show]
 (** Represents an encoding of OCaml runtime values from a concrete execution trace. *)
 
 type heaplet = [
     `PointsTo of value
   | `Array of value list
-]
+]  [@@deriving show]
 (** Represents a particular value on the heap observed during a concrete execution.  *)
 
 type context = (string * value) list

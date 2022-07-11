@@ -32,7 +32,7 @@ let extract_proof_script {ctx; _} =
       | Some [Serapi.Serapi_protocol.CoqAst ast] -> ast
       | _ -> failwith "unexpected response from Serapi" in
     let ast_str =
-      Proof_debug.coqobj_to_string (Serapi.Serapi_protocol.CoqAst ast) in
+      Proof_utils.Debug.coqobj_to_string (Serapi.Serapi_protocol.CoqAst ast) in
     Buffer.add_string buf ast_str;
     Buffer.add_string buf "\n";
   done;
@@ -143,7 +143,7 @@ let pretty_print_current_goal t =
                      (Serapi.Serapi_protocol.gen_pp_obj
                         env Evd.empty (Serapi.Serapi_protocol.CoqGoal (current_subproof t)))
 let debug_print_current_goal t =
-  print_endline @@ "current goal: \n" ^ Proof_debug.constr_to_string (current_goal t).ty
+  print_endline @@ "current goal: \n" ^ Proof_utils.Debug.constr_to_string (current_goal t).ty
 
 let current_names t =
   let goal = current_goal t in
@@ -208,7 +208,6 @@ and eval_tracing_list t ty elts =
 
   
   
-
 let init ~prelude ~spec ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();

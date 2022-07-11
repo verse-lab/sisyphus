@@ -35,7 +35,7 @@ let find_spec t const =
 
 type constr = Constr.constr
 let pp_constr fmt v =
-  Format.pp_print_string fmt @@ Proof_debug.constr_to_string v
+  Format.pp_print_string fmt @@ Proof_utils.Debug.constr_to_string v
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
@@ -82,7 +82,7 @@ let build_complete_params t lemma_name init_params =
                         ~base:(Format.to_string Pp.pp_with @@ Names.Name.print binder_name)
                         t in
       Proof_context.append t "evar (%s: %s)." evar_name
-        (Proof_debug.constr_to_string_pretty ty);
+        (Proof_utils.Debug.constr_to_string_pretty ty);
       let params = params @ [`Var evar_name] in
       let lemma_instantiated_type = mk_lemma_instantiated_type params in
       loop params lemma_instantiated_type
@@ -330,9 +330,14 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       Dynamic.Concrete.lookup cp
         (t.Proof_context.current_program_id :> int) in
 
+    let show_obs obs =
+      [%show: (string * Dynamic.Concrete.value) list *
+              (string * Dynamic.Concrete.heaplet) list] obs in
     let _ =
       List.find_map Option.(fun obs ->
-        Proof_context.with_temporary_context t begin fun () ->
+        print_endline @@ show_obs obs;
+        print_endline "with temporary context START";
+        let v = Proof_context.with_temporary_context t begin fun () ->
           (* first, instantiate the concrete arguments using values from the trace *)
           let* instantiated_params = instantiate_arguments t env _f_args obs in
           (* next, add evars for the remaining arguments to lemma *)
@@ -349,16 +354,21 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
           let (evd, reduced) =
             Proof_reduction.reduce
               ~filter:(fun ~path ~label ->
-                Format.printf "checking %s . %s ==> YES@." path label;
+                (* Format.printf "checking %s . %s ==> YES@." path label; *)
                 `Unfold)
               env evd (Evd.MiniEConstr.of_constr trm) in
 
+          let reduced = EConstr.to_constr evd reduced in
           print_endline "DONE";
-          Format.printf "instantiated lemma is %s@."
-            (Proof_debug.constr_to_string_pretty (EConstr.to_constr evd reduced));
+          (* Format.printf "instantiated lemma is %s@."
+           *   (Proof_utils.Debug.constr_to_string_pretty reduced); *)
+          let _ = Proof_analysis.analyse reduced in
+
 
           Some trm
-        end
+        end in
+        print_endline "with temporary context END";
+        v
       ) observations
     in
 
@@ -379,7 +389,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
     print_endline @@
     Printf.sprintf "invariants are: %s" 
-      (List.map (fun (_, sg) -> Proof_debug.constr_to_string sg) lemma_invariants |> String.concat ", ");
+      (List.map (fun (_, sg) -> Proof_utils.Debug.constr_to_string sg) lemma_invariants |> String.concat ", ");
 
     print_endline @@
     Printf.sprintf "real params are: %s" 

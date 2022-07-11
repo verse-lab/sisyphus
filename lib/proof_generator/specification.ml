@@ -29,7 +29,7 @@ let rec extract_property acc (c: Constr.t) =
   | Constr.App (eq, [| _; _; _ |]) when PU.is_coq_eq eq ->
     extract_conclusion acc [] [] c
   | _ ->
-    failwith (Format.sprintf "(extract property) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
+    failwith (Format.sprintf "(extract property) found unsupported assertion %s" (Proof_utils.Debug.constr_to_string_pretty c))
 and extract_params tys acc (c: Constr.t) =
   match Constr.kind c with
   | Constr.Prod ({binder_name=Name n; _}, ty, rest) ->
@@ -75,7 +75,7 @@ and extract_assertions tys params acc (c: Constr.t) =
   | Constr.App _ ->
     extract_conclusion tys params acc c
   | _ ->
-    failwith (Format.sprintf "(extract assertions) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
+    failwith (Format.sprintf "(extract assertions) found unsupported assertion %s" (Proof_utils.Debug.constr_to_string_pretty c))
 and extract_conclusion tys params assertions (c: Constr.t) =
   let rel ind =
     let ind = ind - 1 in
@@ -110,16 +110,16 @@ and extract_conclusion tys params assertions (c: Constr.t) =
     (List.rev tys, List.rev params, List.rev assertions, `Assert (PCFML.extract_expr ~rel:rel_exp c))
   | _ ->
     failwith (Format.sprintf "(extract equality) found unsupported assertion %s"
-                (Proof_debug.constr_to_string_pretty c))
+                (Proof_utils.Debug.constr_to_string_pretty c))
 
 let extract_property c =
   try Ok (extract_property [] c) with
   | Failure msg ->
-    Error (Format.sprintf "failed to parse type %s, due to %s" (Proof_debug.constr_to_string_pretty c) msg)
+    Error (Format.sprintf "failed to parse type %s, due to %s" (Proof_utils.Debug.constr_to_string_pretty c) msg)
   | e -> Error (Printexc.to_string e)
 
 type constr = Constr.t
-let pp_constr fmt vl = Format.pp_print_string fmt (Proof_debug.constr_to_string_pretty vl)
+let pp_constr fmt vl = Format.pp_print_string fmt (Proof_utils.Debug.constr_to_string_pretty vl)
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
 let build_hole_var id = ((Format.sprintf "S__hole_%d" id))
@@ -131,7 +131,7 @@ let unwrap_invariant_spec formals
   let check_or_fail name pred v = 
     if pred v then v
     else Format.ksprintf ~f:failwith "failed to find %s  within goal %s" name
-           (Proof_debug.constr_to_string_pretty c) in
+           (Proof_utils.Debug.constr_to_string_pretty c) in
   let no_formals = List.length formals in
   let rec collect_params acc c = 
     let rel ind =
@@ -147,7 +147,7 @@ let unwrap_invariant_spec formals
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] in (%s) which was expected \
          to be a invariant spec (forall ..., eqns, SPEC (_), _)"
-        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
   and collect_assumptions params acc c = 
     match Constr.kind c with
     | Constr.Prod (_, ty, rest) ->
@@ -163,7 +163,7 @@ let unwrap_invariant_spec formals
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] in (%s) which was \
          expected to be a invariant spec. Expecting (eqns, SPEC (_), \
-         _)" (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+         _)" (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
   and collect_spec params assums c =
     match Constr.kind c with
     | Constr.App (fname, [| f_app; _; _; pre; post |]) when PU.is_const_eq "CFML.SepLifted.Triple" fname ->
@@ -322,9 +322,9 @@ let unwrap_invariant_spec formals
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] in (%s) which was \
          expected to be a invariant spec. Expecting (SPEC (..) PRE (..) POST(..))"
-        (Proof_debug.constr_to_string c)
-        (Proof_debug.tag c)
-        (Proof_debug.constr_to_string_pretty c) in
+        (Proof_utils.Debug.constr_to_string c)
+        (Proof_utils.Debug.tag c)
+        (Proof_utils.Debug.constr_to_string_pretty c) in
   collect_params [] c
 
 let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_heap (c: Constr.t) =
@@ -339,7 +339,7 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
         "found unhandled Coq term (%s)[%s] \
          in (%s) which was expected to be \
          a specification"
-        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
+        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c) 
   and collect_invariant_conditions formals acc c =
     match Constr.kind c with
     | Constr.Prod (_, ty, rest) ->
@@ -356,7 +356,7 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
          in (%s) which was expected to be \
          a specification (expecting \
          specification invariants)"
-        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
+        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c) 
   in
   collect_invariants [] c
 

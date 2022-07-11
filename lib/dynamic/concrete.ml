@@ -6,12 +6,12 @@ type value = [
   | `List of value list
   | `Tuple of value list
   | `Constructor of string * value list
-]
+] [@@deriving show]
 
 type heaplet = [
     `PointsTo of value
   | `Array of value list
-]
+]  [@@deriving show]
 
 let rec sanitise_value : Sisyphus_tracing.value -> value = function
   | `Tuple vls ->  `Tuple (List.map sanitise_value vls)

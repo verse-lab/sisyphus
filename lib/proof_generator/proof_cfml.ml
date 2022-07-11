@@ -43,9 +43,9 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
   | Constr.Rel i, Some f -> f i
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a type"
-      (Proof_debug.constr_to_string c)
-      (Proof_debug.tag c)
-      (Proof_debug.constr_to_string_pretty c)
+      (Proof_utils.Debug.constr_to_string c)
+      (Proof_utils.Debug.tag c)
+      (Proof_utils.Debug.constr_to_string_pretty c)
 
 (** [extract_typ_opt ?rel c] is the same as [extract_typ], but returns
     None when the constructor can not be represented as an internal
@@ -131,7 +131,7 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `App (Names.Constant.to_string fname, args)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a expr"
-      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+      (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
 
 (** [extract_cfml_goal goal] when given an intermediate CFML [goal],
     extracts the pre and post condition.  *)
@@ -164,7 +164,7 @@ let extract_cfml_goal goal =
     | Constr.App (fname, _) when is_hstar fname ->
       begin match destruct_heap pre with
       | heap -> `NonEmpty heap
-      | exception _ -> failwith ("unexpected pre-heap structure: " ^ (Proof_debug.constr_to_string pre))
+      | exception _ -> failwith ("unexpected pre-heap structure: " ^ (Proof_utils.Debug.constr_to_string pre))
       end
     | Constr.App (fname, _) when is_hpure fname ->
       `NonEmpty ([`Pure pre])
@@ -181,7 +181,7 @@ let extract_x_app_fun pre =
     | Constr.App (fname, args) when f fname ->
       args.(n)
     | _ ->
-      Format.eprintf "failed because unknown structure for %s: %s\n" name (Proof_debug.constr_to_string pre);
+      Format.eprintf "failed because unknown structure for %s: %s\n" name (Proof_utils.Debug.constr_to_string pre);
       failwith "" in
   try
     pre
@@ -192,7 +192,7 @@ let extract_x_app_fun pre =
     |> Constr.destConst
     |> fst
   with
-    Failure _ -> failwith ("extract_f_app failed because unsupported context: " ^ (Proof_debug.constr_to_string pre))
+    Failure _ -> failwith ("extract_f_app failed because unsupported context: " ^ (Proof_utils.Debug.constr_to_string pre))
 
 (** [extract spec c] given a Coq term [c] representing a CFML
     specification, returns a triple of the parameters (named
@@ -228,7 +228,7 @@ let extract_dyn_var ?rel (c: Constr.t) =
     (extract_expr ?rel vl, extract_typ ty)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a dyn"
-      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+      (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
 
 (** [extract_env ctx] given a Coq context [ctx] extracts the typing
     env of the current proof goal.  *)
@@ -258,7 +258,7 @@ let extract_env (t: Proof_context.t) =
     | _ ->
       let c= vl in
       Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s: %s) that could not be converted to a binding"
-        (Proof_debug.constr_to_string c) (Proof_debug.tag c) name (Proof_debug.constr_to_string_pretty c)
+        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) name (Proof_utils.Debug.constr_to_string_pretty c)
     end
   ) @@ List.rev (Proof_context.current_goal t).hyp
   |> List.partition_filter_map (function
@@ -315,7 +315,7 @@ let extract_assumptions t =
 let extract_app_full (t: Proof_context.t) (c: Constr.t) =
   let check_or_fail name pred v = 
     if pred v then v
-    else Format.ksprintf ~f:failwith "failed to find %s in goal %s" name (Proof_debug.constr_to_string c) in
+    else Format.ksprintf ~f:failwith "failed to find %s in goal %s" name (Proof_utils.Debug.constr_to_string c) in
 
   let unwrap_app_const name c =
     c
@@ -362,7 +362,7 @@ let unwrap_invariant_type (c: Constr.t) =
     | _ -> 
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] in (%s) which was expected to be a invariant type (_  -> .. -> hprop)"
-        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)  in
+        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)  in
   loop [] c
 
 (** [unwrap_eq ?rel c] when given a Coq term [c] representing an
@@ -378,14 +378,14 @@ let unwrap_eq ?rel (c: Constr.t) =
   | _ ->
     Format.ksprintf ~f:failwith
       "found unexpected Coq term (%s)[%s] ==> %s, when expecting an equality"
-      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+      (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
 
 (** [extract_impure_heaplet c] when given a Coq term representing a
     CFML heaplet, extracts an internal representation of the heaplet. *)
 let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
   let check_or_fail name pred v = 
     if pred v then v
-    else Format.ksprintf ~f:failwith "failed to find %s in heaplet %s" name (Proof_debug.constr_to_string c) in
+    else Format.ksprintf ~f:failwith "failed to find %s in heaplet %s" name (Proof_utils.Debug.constr_to_string c) in
   match Constr.kind c with
   | Constr.App (fname, [| ty; body; var |]) when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.HS.repr" fname ->
     let var =
@@ -396,4 +396,4 @@ let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
     PointsTo (var, body)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a heaplet"
-      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+      (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
