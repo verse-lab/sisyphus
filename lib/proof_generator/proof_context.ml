@@ -191,7 +191,7 @@ let rec eval_tracing_value t (ty: Lang.Type.t) (vl: Dynamic.Concrete.value) : La
   | (_, `Int n) -> Some (`Int n)
   | (ty, `Value vl) ->
     let var = fresh ~base:vl t in
-    append t "evar (%s: %s)." var (Printer.show_ty ty);
+    append t "evar (%s: %s)." var (Proof_utils.Printer.show_ty ty);
     Some (`Var var)
   | (_ , `Constructor _) -> None (* todo: implement handling of constructors *)
   | _ -> None

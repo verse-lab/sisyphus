@@ -1,6 +1,7 @@
 open Containers
 module IntSet = Set.Make(Int)
 module Debug = Proof_debug
+module Printer = Printer
 
 let get_implicits_for_fun fn =
   Impargs.implicits_of_global (Names.GlobRef.ConstRef fn)

@@ -19,7 +19,7 @@ module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
 let arg_list_to_str args =
-  (List.map (fun vl -> "(" ^ Printer.show_expr vl ^ ")") args
+  (List.map (fun vl -> "(" ^ Proof_utils.Printer.show_expr vl ^ ")") args
    |> String.concat " ")
 
 let find_spec t const =
@@ -195,7 +195,7 @@ and symexec_match t env prog_expr cases =
   let eqn_var = Proof_context.fresh ~base:("H_eqn") t in
   (* emit a case analysis: *)
   Proof_context.append t "case %a as [%s] eqn:%s."
-    Printer.pp_expr prog_expr case_intro_strs eqn_var;
+    Proof_utils.Printer.pp_expr prog_expr case_intro_strs eqn_var;
   (* now, handle all of the sub proofs *)
   List.iter (fun ((_, args, rest), proof_args) ->
     (* start each subproof with an xmatch to determine the appropriate branch *)
@@ -254,11 +254,11 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
 
   Proof_context.append t "xapp (%s %s %s %s)."
     (Names.Constant.to_string f_name)
-    (List.map (Printer.show_expr) prog_args |> String.concat " ")
+    (List.map (Proof_utils.Printer.show_expr) prog_args |> String.concat " ")
     (List.map (fun (name, _) -> "?" ^ Format.to_string Pp.pp_with (Names.Name.print name))
        evar_params
      |> String.concat " ")
-    (Printer.show_lambda fn_body);
+    (Proof_utils.Printer.show_lambda fn_body);
 
   (* solve immediate subgoal of xapp automatically. *)
   Proof_context.append t "sep_solve.";

@@ -374,7 +374,7 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
   let instantiated_spec =
     Format.ksprintf "%s %s"
       (Names.Constant.to_string spec)
-      (List.map (fun (vl,_) -> "(" ^ Printer.show_expr vl ^ ")") args
+      (List.map (fun (vl,_) -> "(" ^ Proof_utils.Printer.show_expr vl ^ ")") args
        |> String.concat " ")
       ~f:(Proof_context.typeof t) in
 

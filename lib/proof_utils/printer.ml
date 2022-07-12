@@ -47,7 +47,8 @@ let rec pp_expr fmt (expr: Lang.Expr.t) =
     Format.fprintf fmt "(fun %a => %a)"
       (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt " ") pp_typed_param)
       params pp_expr body
-  | `Int n -> Format.fprintf fmt "%d" n
+  | `Int n when n >= 0 -> Format.fprintf fmt "%d" n
+  | `Int n -> Format.fprintf fmt "(%d)" n
   | `Constructor ("[]", []) -> Format.fprintf fmt "nil"
   | `Constructor ("::", [h; t]) ->
     Format.fprintf fmt "%a :: %a" pp_expr h pp_expr t
