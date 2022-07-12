@@ -1,4 +1,3 @@
-
 * Limitations
 
 ** Invariants hidden in external lemmas
@@ -54,12 +53,14 @@ CLOSED: [2022-06-24 Fri 13:50]
 CLOSED: [2022-06-24 Fri 14:51]
 *** DONE Fix proof generator state to update program point tracking correctly
 CLOSED: [2022-06-25 Sat 04:50]
-*** TODO Map proof variables to program variables to concrete values 
+*** DONE Map proof variables to program variables to concrete values 
+CLOSED: [2022-07-11 Mon 04:05]
 **** DONE Store Observation id at start of lambda in function
 CLOSED: [2022-06-26 Sun 18:40]
 **** DONE Update context to track mapping of Coq variables to program variables
 CLOSED: [2022-06-26 Sun 19:32]
-**** TODO Print out the concrete values at the current lambda state
+**** DONE Print out thte concrete values at the current lambda state
+CLOSED: [2022-07-11 Mon 04:05]
 ** TODO Work on proof analysis
 *** DONE generate evars for arguments
 CLOSED: [2022-06-29 Wed 02:28]
