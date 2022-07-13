@@ -5,7 +5,7 @@ module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
 module PU = Proof_utils
-module PCFML = Proof_cfml
+module PCFML = Proof_utils.CFML
 module PV = Proof_validator.VerificationCondition
 
 let () =
@@ -141,7 +141,7 @@ let unwrap_invariant_spec formals
       snd (List.nth acc ind) in
     match Constr.kind c with
     | Constr.Prod ({binder_name=Name name; _}, ty, rest) ->
-      collect_params ((Names.Id.to_string name, Proof_cfml.extract_typ ~rel ty) :: acc) rest
+      collect_params ((Names.Id.to_string name, Proof_utils.CFML.extract_typ ~rel ty) :: acc) rest
     | Constr.Prod (_, _, _) -> collect_assumptions acc [] c
     | _ -> 
       Format.ksprintf ~f:failwith
@@ -367,9 +367,9 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
    the specification. *)
 let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: Names.Constant.t) : PV.verification_condition =
   (* extract CFML goal *)
-  let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
+  let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
   (* extract the Coq-name for the function being called, and the arguments being passed to it *)
-  let (fname, args) = PCFML.extract_app_full t post in
+  let (fname, args) = PCFML.extract_app_full post in
   (* instantiate specification *)
   let instantiated_spec =
     Format.ksprintf "%s %s"
@@ -379,9 +379,9 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
       ~f:(Proof_context.typeof t) in
 
   (* extract polymorphic variables and typing env *)
-  let poly_vars, env = PCFML.extract_env t in
+  let poly_vars, env = PCFML.extract_env ((Proof_context.current_goal t).hyp) in
   (* extract initial equalities in the context *)
-  let assumptions = PCFML.extract_assumptions t in
+  let assumptions = PCFML.extract_assumptions (Proof_context.current_goal t).hyp in
   (* from the pre condition, build a symbolic heap and a set of initial expressions *)
   let sym_heap, (initial_values, hole_binding) =
     let hole_count = ref 0 in
@@ -487,7 +487,7 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
       let typ = Proof_context.typeof t fn in
       let name = Libnames.qualid_of_string fn |> Nametab.locate_constant in
       try
-        let typ = Proof_cfml.extract_fun_typ name typ in
+        let typ = Proof_utils.CFML.extract_fun_typ name typ in
         Some (fn, typ)
       with _ -> None
   ) functions in

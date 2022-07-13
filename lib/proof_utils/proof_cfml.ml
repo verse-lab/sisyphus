@@ -1,7 +1,6 @@
 open Containers
 
 module IntSet = Set.Make(Int)
-module Utils = Proof_utils
 
 let is_const_named name const =
   Constr.isConst const &&
@@ -43,9 +42,9 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
   | Constr.Rel i, Some f -> f i
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a type"
-      (Proof_utils.Debug.constr_to_string c)
-      (Proof_utils.Debug.tag c)
-      (Proof_utils.Debug.constr_to_string_pretty c)
+      (Proof_debug.constr_to_string c)
+      (Proof_debug.tag c)
+      (Proof_debug.constr_to_string_pretty c)
 
 (** [extract_typ_opt ?rel c] is the same as [extract_typ], but returns
     None when the constructor can not be represented as an internal
@@ -94,13 +93,13 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
   match Constr.kind c, rel with
   | Constr.Rel ind, Some f -> `Var (f ind)
   | Constr.Var v, _ -> `Var (Names.Id.to_string v)
-  | Constr.App (value, [| c |]), _ when Proof_utils.is_const_eq "CFML.Semantics.trms_vals" value ->
+  | Constr.App (value, [| c |]), _ when Utils.is_const_eq "CFML.Semantics.trms_vals" value ->
     extract_expr ?rel c
-  | Constr.App (value, [| c |]), _ when Proof_utils.is_const_eq "TLC.LibInt.nat_to_Z" value ->
+  | Constr.App (value, [| c |]), _ when Utils.is_const_eq "TLC.LibInt.nat_to_Z" value ->
     extract_expr ?rel c
-  | Constr.App (value, [| c |]), _ when Proof_utils.is_constr_eq "CFML.Semantics.val" value ->
+  | Constr.App (value, [| c |]), _ when Utils.is_constr_eq "CFML.Semantics.val" value ->
     extract_expr ?rel c
-  | Constr.App (const, [|ty; h; tl|]), _ when Proof_utils.is_constr_cons const ->
+  | Constr.App (const, [|ty; h; tl|]), _ when Utils.is_constr_cons const ->
     `Constructor ("::", [extract_expr ?rel h; extract_expr ?rel tl])
   | Constr.App (const, [|ty|]), _ when Utils.is_constr_nil const ->
     `Constructor ("[]", [])
@@ -127,11 +126,11 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `App ("*", [extract_expr ?rel l; extract_expr ?rel r])    
   | Constr.App (fname, args), _ when Constr.isConst fname ->
     let fname, _ = Constr.destConst fname in
-    let args = Proof_utils.drop_implicits fname (Array.to_list args) |> List.map (extract_expr ?rel) in
+    let args = Utils.drop_implicits fname (Array.to_list args) |> List.map (extract_expr ?rel) in
     `App (Names.Constant.to_string fname, args)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a expr"
-      (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
+      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
 (** [extract_cfml_goal goal] when given an intermediate CFML [goal],
     extracts the pre and post condition.  *)
@@ -164,7 +163,7 @@ let extract_cfml_goal goal =
     | Constr.App (fname, _) when is_hstar fname ->
       begin match destruct_heap pre with
       | heap -> `NonEmpty heap
-      | exception _ -> failwith ("unexpected pre-heap structure: " ^ (Proof_utils.Debug.constr_to_string pre))
+      | exception _ -> failwith ("unexpected pre-heap structure: " ^ (Proof_debug.constr_to_string pre))
       end
     | Constr.App (fname, _) when is_hpure fname ->
       `NonEmpty ([`Pure pre])
@@ -181,7 +180,7 @@ let extract_x_app_fun pre =
     | Constr.App (fname, args) when f fname ->
       args.(n)
     | _ ->
-      Format.eprintf "failed because unknown structure for %s: %s\n" name (Proof_utils.Debug.constr_to_string pre);
+      Format.eprintf "failed because unknown structure for %s: %s\n" name (Proof_debug.constr_to_string pre);
       failwith "" in
   try
     pre
@@ -192,7 +191,7 @@ let extract_x_app_fun pre =
     |> Constr.destConst
     |> fst
   with
-    Failure _ -> failwith ("extract_f_app failed because unsupported context: " ^ (Proof_utils.Debug.constr_to_string pre))
+    Failure _ -> failwith ("extract_f_app failed because unsupported context: " ^ (Proof_debug.constr_to_string pre))
 
 (** [extract spec c] given a Coq term [c] representing a CFML
     specification, returns a triple of the parameters (named
@@ -224,15 +223,15 @@ let extract_spec pre =
                                                                   v]}, extracts the corresponding expression and type.  *)
 let extract_dyn_var ?rel (c: Constr.t) =
   match Constr.kind c with
-  | Constr.App (const, [| ty; _enc; vl |]) when Proof_utils.is_constr_eq "CFML.SepLifted.dyn" const ->
+  | Constr.App (const, [| ty; _enc; vl |]) when Utils.is_constr_eq "CFML.SepLifted.dyn" const ->
     (extract_expr ?rel vl, extract_typ ty)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a dyn"
-      (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
+      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
 (** [extract_env ctx] given a Coq context [ctx] extracts the typing
     env of the current proof goal.  *)
-let extract_env (t: Proof_context.t) =
+let extract_env hyp =
   List.filter_map (fun (name, o_vl, vl) ->
     let name = (List.map Names.Id.to_string name |> String.concat ".") in
     begin match Constr.kind vl with
@@ -258,9 +257,9 @@ let extract_env (t: Proof_context.t) =
     | _ ->
       let c= vl in
       Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s: %s) that could not be converted to a binding"
-        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) name (Proof_utils.Debug.constr_to_string_pretty c)
+        (Proof_debug.constr_to_string c) (Proof_debug.tag c) name (Proof_debug.constr_to_string_pretty c)
     end
-  ) @@ List.rev (Proof_context.current_goal t).hyp
+  ) @@ List.rev hyp
   |> List.partition_filter_map (function
     | (name, `Type) -> `Left name
     | (name, `Val ty) -> `Right (name, ty)
@@ -268,7 +267,7 @@ let extract_env (t: Proof_context.t) =
 
 (** [extract assumptions ctx] given a Coq context [ctx] extracts the
     list of assumptions (equalities) in the current proof goal. *)
-let extract_assumptions t =
+let extract_assumptions hyp =
   List.filter_map (fun (name, o_vl, vl) ->
     let _name = (List.map Names.Id.to_string name |> String.concat ".") in
     begin match Constr.kind vl with
@@ -284,7 +283,7 @@ let extract_assumptions t =
     | Constr.Const _ -> None
     | _ -> None
     end
-  ) @@ List.rev (Proof_context.current_goal t).hyp
+  ) @@ List.rev hyp
 
 
 (** [extract_app_full t c] when given a CFML goal with a letapp of a function
@@ -312,16 +311,16 @@ let extract_assumptions t =
     {[ List_ml.fold_left, [`Var ftmp; `Var idx; `Var rest] ]}
 
 *)
-let extract_app_full (t: Proof_context.t) (c: Constr.t) =
+let extract_app_full (c: Constr.t) =
   let check_or_fail name pred v = 
     if pred v then v
-    else Format.ksprintf ~f:failwith "failed to find %s in goal %s" name (Proof_utils.Debug.constr_to_string c) in
+    else Format.ksprintf ~f:failwith "failed to find %s in goal %s" name (Proof_debug.constr_to_string c) in
 
   let unwrap_app_const name c =
     c
     |> check_or_fail "App" Constr.isApp 
     |> Constr.destApp
-    |> check_or_fail name Fun.(Proof_utils.is_const_eq name % fst) in
+    |> check_or_fail name Fun.(Utils.is_const_eq name % fst) in
 
   let unwrap_wptag c =
     c
@@ -333,7 +332,7 @@ let extract_app_full (t: Proof_context.t) (c: Constr.t) =
     |> unwrap_wptag
     |> check_or_fail "App under wptag" Constr.isApp 
     |> Constr.destApp
-    |> check_or_fail "wpgen let term" Fun.(Proof_utils.is_const_eq "CFML.WPLifted.Wpgen_let_trm" % fst)
+    |> check_or_fail "wpgen let term" Fun.(Utils.is_const_eq "CFML.WPLifted.Wpgen_let_trm" % fst)
     |> Fun.(flip Array.get 0 % snd)
     |> unwrap_wptag
     |> unwrap_app_const "CFML.WPLifted.Wpgen_app"
@@ -345,7 +344,7 @@ let extract_app_full (t: Proof_context.t) (c: Constr.t) =
                 |> Constr.destConst
                 |> fst in
   let args =
-    Proof_utils.unwrap_inductive_list app.(3)
+    Utils.unwrap_inductive_list app.(3)
     |> List.map extract_dyn_var in
   (fn_name, args)
 
@@ -362,7 +361,7 @@ let unwrap_invariant_type (c: Constr.t) =
     | _ -> 
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] in (%s) which was expected to be a invariant type (_  -> .. -> hprop)"
-        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)  in
+        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)  in
   loop [] c
 
 (** [unwrap_eq ?rel c] when given a Coq term [c] representing an
@@ -378,14 +377,14 @@ let unwrap_eq ?rel (c: Constr.t) =
   | _ ->
     Format.ksprintf ~f:failwith
       "found unexpected Coq term (%s)[%s] ==> %s, when expecting an equality"
-      (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
+      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
 (** [extract_impure_heaplet c] when given a Coq term representing a
     CFML heaplet, extracts an internal representation of the heaplet. *)
 let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
   let check_or_fail name pred v = 
     if pred v then v
-    else Format.ksprintf ~f:failwith "failed to find %s in heaplet %s" name (Proof_utils.Debug.constr_to_string c) in
+    else Format.ksprintf ~f:failwith "failed to find %s in heaplet %s" name (Proof_debug.constr_to_string c) in
   match Constr.kind c with
   | Constr.App (fname, [| ty; body; var |]) when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.HS.repr" fname ->
     let var =
@@ -396,4 +395,4 @@ let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
     PointsTo (var, body)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a heaplet"
-      (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
+      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)

@@ -216,11 +216,11 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   (* work out the name of function being called and the spec for it *)
   let (f_name, raw_spec) =
     (* extract the proof script name for the function being called *)
-    let (_, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
-    let f_app = Proof_cfml.extract_x_app_fun post in
+    let (_, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
+    let f_app = Proof_utils.CFML.extract_x_app_fun post in
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
-  let (params, invariant, spec) = Proof_cfml.extract_spec raw_spec in
+  let (params, invariant, spec) = Proof_utils.CFML.extract_spec raw_spec in
 
   (* work out the parameters to instantiate *)
   let evar_params =
@@ -298,17 +298,17 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   end;
   symexec t env rest
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
-  let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
+  let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
   (* work out the name of function being called and the spec for it *)
   let (lemma_name, lemma_full_type) =
     (* extract the proof script name for the function being called *)
-    let f_app = Proof_cfml.extract_x_app_fun post in
+    let f_app = Proof_utils.CFML.extract_x_app_fun post in
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
 
-  let (lemma_params, lemma_invariants, spec) = Proof_cfml.extract_spec lemma_full_type in
+  let (lemma_params, lemma_invariants, spec) = Proof_utils.CFML.extract_spec lemma_full_type in
   let explicit_lemma_params = Proof_utils.drop_implicits lemma_name lemma_params in
-  let (_, _f_args) = Proof_cfml.extract_app_full t post in
+  let (_, _f_args) = Proof_utils.CFML.extract_app_full post in
 
 
   let param_bindings, remaining = combine_rem explicit_lemma_params _f_args in
@@ -402,7 +402,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
 let generate t (prog: Lang.Expr.t Lang.Program.t) =
   Proof_context.append t {|xcf.|};
-  let pre, _ = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
+  let pre, _ = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
 
   (* handle pure preconditions *)
   begin match pre with
