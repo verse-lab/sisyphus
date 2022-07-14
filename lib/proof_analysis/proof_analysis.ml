@@ -23,33 +23,46 @@ let is_case_of_eq_sym case =
 
 exception EOP
 
-let rec extract_fold_specification (trm: Constr.t) : t  =
-  (* let extract_fold_specification v =
+let rec extract_invariant_applications (trm: Constr.t) : t  =
+  (* let extract_invariant_applications v =
    *   if Constr.isConst v then
    *     Format.ksprintf ~f:failwith "When destructing %s, returns const!"
    *       (String.take 10_000 @@ Proof_utils.Debug.constr_to_string trm);
-   *   extract_fold_specification v in *)      
+   *   extract_invariant_applications v in *)      
   match Constr.kind trm with
+  | Constr.App (trm, args) when PCFML.is_const_named "Acc_rect" trm ->
+    (* [| a; r; p; proof; vl; proof_acc |] *)
+    let recursive_spec = args.(3) in
+    let oc = open_out "/tmp/recursive.txt" in
+    Fun.protect ~finally:(fun () -> close_out_noerr oc) begin fun () ->
+      output_string oc (Proof_utils.Debug.constr_to_string recursive_spec);
+    end;
+    let oc = open_out "/tmp/recursive-pretty.txt" in
+    Fun.protect ~finally:(fun () -> close_out_noerr oc) begin fun () ->
+      output_string oc (Proof_utils.Debug.constr_to_string_pretty recursive_spec);
+    end;
+
+    failwith "lol"
   | Constr.App (trm , [| typ; proof |]) when
       Constr.isConst trm && String.equal (Names.Constant.to_string (fst (Constr.destConst trm)))  "TLC.LibTactics.rm" ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| typ; vl; prop; proof; vl'; proof_eq |]) when PCFML.is_const_named "eq_ind" trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, args) when PCFML.is_const_named "reflexive_proper" trm ->
     let proof = args.(Array.length args - 1) in
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [|
     pre; credits; hla;  hlw; hlt; hra; hrg; hrt; proof
   |]) when PCFML.is_xsimpl_lr_cancel_same trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| a; q1; q2; hla; nc; proof |]) when PCFML.is_xsimpl_lr_qwand trm ->
     let (name, ty, proof) = Constr.destLambda proof in
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| hla; hrg; haffine; proof |]) when PCFML.is_xsimpl_lr_hgc_nocredits trm ->
-    extract_fold_specification proof    
+    extract_invariant_applications proof    
   | Constr.App (trm, args (* [| ty; vl; prop; proof; vl'; proof_vl_eq_vl'; |] *)) when PCFML.is_const_named "eq_ind_r" trm ->
     let proof = args.(3) in
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [|
     ty;
     vl;
@@ -58,7 +71,7 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     vl';
     proof_vl_eq_vl';
   |]) when PCFML.is_const_named "eq_ind_r" trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [|
     post_1;
     post_2;
@@ -66,8 +79,8 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     proof_of_post_1;
     proof_of_post_2;
   |]) when PCFML.is_himpl_hand_r trm ->
-    (try ignore @@ extract_fold_specification proof_of_post_1 with EOP -> ());
-    extract_fold_specification proof_of_post_2
+    (try ignore @@ extract_invariant_applications proof_of_post_1 with EOP -> ());
+    extract_invariant_applications proof_of_post_2
 
   | Constr.App (trm, [|
     new_pre;
@@ -76,13 +89,13 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     proof_pre_impl_new_pre;
     proof_new_pre_impl_post
   |]) when PCFML.is_himpl_trans trm ->
-    (try ignore @@ extract_fold_specification proof_pre_impl_new_pre with EOP -> ());
-    extract_fold_specification proof_new_pre_impl_post
+    (try ignore @@ extract_invariant_applications proof_pre_impl_new_pre with EOP -> ());
+    extract_invariant_applications proof_new_pre_impl_post
   | Constr.App (trm, [|
     pre_frame_a;  pre_frame_b; post;
     proof
   |]) when PCFML.is_himpl_frame_r trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [|
     prop;
     pre;
@@ -90,24 +103,24 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     proof
   |]) when PCFML.is_himpl_hstar_hpure_l trm ->
     let (proof_binding_name, proof_binding_ty, proof) = Constr.destLambda proof in
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| pre; post; proof |]) when PCFML.is_xsimpl_lr_exit_nogc_nocredits trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
     (* Format.ksprintf ~f:failwith "Kaboom! new_pre: %s, old_pre: %s\nproof_1: %s\nproof_2: %s@."
      *   (String.take 10_000 (Proof_utils.Debug.constr_to_string_pretty new_pre))
      *   (String.take 10_000 (Proof_utils.Debug.constr_to_string_pretty pre))
      *   (String.take 10_000 (Proof_utils.Debug.constr_to_string proof_pre_impl_new_pre))
      *   (String.take 10_000 (Proof_utils.Debug.constr_to_string proof_new_pre_impl_post)) *)
   | Constr.App (trm, ([| pre; post; proof |] as args)) when PCFML.is_xsimpl_start trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| pre; post; proof |]) when PCFML.is_hstars_simpl_start trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| pre'; post_left; framed; post_right; proof |]) when PCFML.is_hstars_simpl_cancel trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| pre; pre'; post; proof_pre_eq_pre'; proof |]) when PCFML.is_hstars_simpl_pick_lemma trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| post; post_proof |] ) when PCFML.is_himpl_hempty_pure trm ->
-    extract_fold_specification post_proof
+    extract_invariant_applications post_proof
   | Constr.App (trm, [|
     let_ty;                     (* type of value being let bound *)
     pre;                        (* current heap state at let binding *)
@@ -121,7 +134,7 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     when PCFML.is_xlet_val_lemma trm ->
     let (let_binding_name, let_binding_ty, proof) = Constr.destLambda proof in
     let (eq_prf_name, eq_prf_ty, proof) = Constr.destLambda proof in
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [|
     _res_ty;
     _res_ty_enc;
@@ -130,14 +143,14 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     post;
     proof
   |]) when PCFML.is_xmatch_lemma trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [|
     exists_ty; exists_binding;
     pre;
     post;
     proof
   |]) when PCFML.is_himpl_hexists_r trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [|
     pre;                        (* current heap state at current program point *)
     code;                       (* code of rest of program *)
@@ -145,10 +158,10 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     post;                       (* post condition (parameterised by value of result type) *)
     proof                       (* proof of rest *)
   |]) when PCFML.is_mkstruct_erase trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| ty; post; pre; proof |]) when PCFML.is_himpl_hforall_r trm ->
     let (binding, ty, proof) = Constr.destLambda proof in
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [|
     binding_ty; enc_binding_ty;
     pre;
@@ -158,7 +171,7 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     rest_code;
     proof
   |]) when PCFML.is_xlet_trm_cont_lemma trm ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [|
     ret_ty; enc_ret_ty;
     fun_post;
@@ -170,8 +183,8 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     proof_fun;
     proof;
   |]) when PCFML.is_xapp_lemma trm ->
-    (try ignore @@ extract_fold_specification proof_fun with EOP -> ());
-    extract_fold_specification proof
+    (try ignore @@ extract_invariant_applications proof_fun with EOP -> ());
+    extract_invariant_applications proof
   | Constr.App (case, args) when is_case_of_eq_sym case ->
     let (_, _, _, _, _, case_expr, branches) = Constr.destCase case in
     let (names, body) = branches.(0) in
@@ -185,7 +198,7 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
               else
                 v, `Stop
            ) body in
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | Constr.App (trm, [| ty |]) when PCFML.is_xsimpl_lr_refl_nocredits trm ->
     raise EOP
   | Constr.App (trm, [| ret_ty; enc_ret_ty; post; heaplet |]) when PCFML.is_xdone_lemma trm ->
@@ -198,15 +211,15 @@ let rec extract_fold_specification (trm: Constr.t) : t  =
     raise EOP
   | Constr.App (trm, args) ->
     Format.ksprintf ~f:failwith
-      "extract_fold_specification received App of %s (%s) to %d args\n%s@."
+      "extract_invariant_applications received App of %s (%s) to %d args\n%s@."
       (String.take 400_000 (Proof_utils.Debug.constr_to_string trm)) (Proof_utils.Debug.tag trm)
       (Array.length args)
       (Array.to_string (fun v -> "{" ^ String.take 40_000 (Proof_utils.Debug.constr_to_string v) ^ "}") args)
   | Constr.Lambda (name, ty, proof) ->
-    extract_fold_specification proof
+    extract_invariant_applications proof
   | _ ->
     Format.ksprintf ~f:failwith
-      "extract_fold_specification received %s"
+      "extract_invariant_applications received %s"
       (String.take 4000_000 (Proof_utils.Debug.constr_to_string trm))
 
   
@@ -231,7 +244,7 @@ let analyse (trm: Constr.t) : t =
       ) in
     let wp = args.(Array.length args - 1) in
 
-    let _fspec = extract_fold_specification wp in
+    let _fspec = extract_invariant_applications wp in
 
     failwith "lol"
   | _ -> 
