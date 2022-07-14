@@ -5,6 +5,87 @@ From TLC Require Import LibListZ.
 
 From ProofsArrayOfRevList Require Import Common_ml.
 
+Lemma drop_nth : forall A l v r i (xs: list A),
+    xs = l ++ v :: r ->
+    i = length l ->
+    drop i xs = v :: drop (i + 1) xs.
+Proof.
+  intros A l v r i xs -> ->.
+  rewrite drop_app_length.
+  rewrite app_cons_r.
+  assert ((length l + 1) = length (l & v)) as H by (rewrite length_last; math).
+  rewrite H.
+  rewrite drop_app_length.
+  auto.
+Qed.
+
+Lemma hd_spec : forall A `{EA:Enc A} (l l':list A) (hd : A),
+   hd :: l' = l ->
+  SPEC_PURE (Common_ml.hd l)
+    POST (fun x => \[x = hd]).
+Proof using.
+  xcf.
+  rewrite <- H.
+  xmatch.
+  xvals. auto.
+Qed.
+
+Lemma tl_spec : forall A `{EA:Enc A} (l l':list A) (hd : A),
+   hd :: l' = l ->
+  SPEC_PURE (Common_ml.tl l)
+    POST (fun x => \[x = l']).
+Proof using.
+  xcf.
+  rewrite <- H.
+  xmatch.
+  xvals. auto.
+Qed.
+
+Lemma drop_cons : forall (A: Type) (l : list A) (i : credits),
+    0 <= i <= (length l - 2) ->
+    (length l) > (length l) - (i + 1).
+Proof.
+  intros.
+  try math.
+Qed.
+
+Lemma drop_cons_two : forall (A: Type) (l : list A) (i : credits),
+    0 <= i < length l ->
+    exists hd r,
+      drop i l = hd :: r.
+Proof.
+  intros. gen i.
+  induction l as [ | x l' IHl']; intros.
+  - rew_list in H.
+    math.
+  - rew_list in H.
+    case (0 <? i) eqn: Hi.
+    -- pose proof (Z.ltb_spec0 0 i).
+       inversion H0.
+       --- rewrite drop_cons_pos; try math.
+           apply IHl'. math.
+       --- rewrite Hi in H1. discriminate.
+    -- pose proof (Z.ltb_spec0 0 i).
+       inversion H0.
+       --- rewrite Hi in H1. discriminate.
+       --- assert (i <= 0). { try math. }
+           assert (i = 0). { math. }
+           rewrite H4.
+           rewrite drop_zero.
+           eauto.
+Qed.
+
+Lemma iteri_spec : forall A `{EA:Enc A} (l:list A) (f:func),
+  forall (I:list A -> hprop),
+  (forall x t r i, (l = t++x::r) -> i = length t ->
+     SPEC (f i x) PRE (I t) POSTUNIT (I (t&x))) ->
+  SPEC (List_ml.iteri f l)
+    PRE (I nil)
+    POSTUNIT (I l).
+Proof using.
+Admitted.
+
+
 (** NOTE: The following is copied from resources/seq_to_array.
     TODO: Figure out a better build hierarchy to avoid copying tactics
  *)

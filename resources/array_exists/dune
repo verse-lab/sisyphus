@@ -7,8 +7,8 @@
  (modules
    Common_ml
    Verify_array_exists_utils
-   array_exists_old_ml Verify_array_exists_old
-   array_exists_new_ml Verify_array_exists_new)
+   Array_exists_old_ml Verify_array_exists_old
+   Array_exists_new_ml Verify_array_exists_new)
  (libraries sisyphus.plugin)
 )
 
@@ -25,9 +25,9 @@
           (run sed -E "s/\\[@.*\\]//" array_exists_old.ml))))
 
 (rule
- (target array_exists_old_ml.v)
+ (target Array_exists_old_ml.v)
  (deps array_exists_old.sisyphus.ml common.ml common.cmj)
- (action (run cfmlc -o ./array_exists_old_ml.v array_exists_old.sisyphus.ml)))
+ (action (run cfmlc -o ./Array_exists_old_ml.v array_exists_old.sisyphus.ml)))
 
 (rule
  (target array_exists_new.sisyphus.ml)
@@ -36,9 +36,9 @@
           (run sed -E "s/\\[@.*\\]//" ./array_exists_new.ml))))
 
 (rule
- (target array_exists_new_ml.v)
+ (target Array_exists_new_ml.v)
  (deps array_exists_new.sisyphus.ml common.ml common.cmj Common_ml.v)
- (action (run cfmlc -o ./array_exists_new_ml.v array_exists_new.sisyphus.ml)))
+ (action (run cfmlc -o ./Array_exists_new_ml.v array_exists_new.sisyphus.ml)))
 
 (env
   (dev
