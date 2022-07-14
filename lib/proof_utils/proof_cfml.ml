@@ -15,6 +15,30 @@ let is_hpure const = is_const_named "hpure" const
 let is_wptag const = is_const_named "Wptag" const
 let is_wp_gen_let_trm const = is_const_named "Wpgen_let_trm" const
 let is_wp_gen_app const = is_const_named "Wpgen_app" const
+let is_xlet_val_lemma const = is_const_named "xlet_val_lemma" const
+let is_xmatch_lemma const = is_const_named "xmatch_lemma" const
+let is_mkstruct_erase const = is_const_named "MkStruct_erase" const
+let is_himpl_hand_r const = is_const_named "himpl_hand_r" const
+let is_himpl_hexists_r const = is_const_named "himpl_hexists_r" const
+let is_himpl_frame_r const = is_const_named "himpl_frame_r" const
+let is_himpl_hempty_pure const = is_const_named "himpl_hempty_hpure" const
+let is_xsimpl_start const = is_const_named "xsimpl_start" const
+let is_himpl_hstar_hpure_l const = is_const_named "himpl_hstar_hpure_l" const
+let is_himpl_trans const = is_const_named "himpl_trans" const
+let is_hstars_simpl_start const = is_const_named "hstars_simpl_start" const
+let is_hstars_simpl_cancel const = is_const_named "hstars_simpl_cancel" const
+let is_hstars_simpl_pick_lemma const = is_const_named "hstars_simpl_pick_lemma" const
+let is_himpl_refl const = is_const_named "himpl_refl" const
+let is_xsimpl_lr_exit_nogc_nocredits const = is_const_named "xsimpl_lr_exit_nogc_nocredits" const
+let is_xdone_lemma const = is_const_named "xdone_lemma" const
+let is_xval_lemma const = is_const_named "xval_lemma" const
+let is_himpl_hforall_r const = is_const_named "himpl_hforall_r" const
+let is_xlet_trm_cont_lemma const = is_const_named "xlet_trm_cont_lemma" const
+let is_xapp_lemma const = is_const_named "xapp_lemma" const
+let is_xsimpl_lr_cancel_same const = is_const_named "xsimpl_lr_cancel_same" const
+let is_xsimpl_lr_qwand const = is_const_named "xsimpl_lr_qwand" const
+let is_xsimpl_lr_hgc_nocredits const = is_const_named "xsimpl_lr_hgc_nocredits" const
+let is_xsimpl_lr_refl_nocredits const = is_const_named "xsimpl_lr_refl_nocredits" const
 
 (** [extract_typ ?rel c] extracts a Type from a Coq term. [rel] if
     provided is a function that coq's de-brujin indices to a concrete

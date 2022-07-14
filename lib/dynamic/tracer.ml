@@ -362,11 +362,11 @@ module Generator = struct
       let* i = Random.int 10 in
       pure @@ AH.Exp.constant (Pconst_integer (string_of_int i, None))
     | List ty ->
-      let* sz = Random.pick_array [|1; 3; 4; 5; 8; 10; 20|] in
+      let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in
       pure (encode_list contents)
     | Array ty -> 
-      let* sz = Random.pick_array [|1; 3; 4; 5; 8; 10; 20|] in
+      let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in
       pure @@ AH.Exp.array contents
     | Ref ty ->
@@ -379,7 +379,7 @@ module Generator = struct
       let* elts = List.map sample_expr elts |> list_seq in
       pure @@ AH.Exp.tuple elts
     | Converted (conv, ty) -> 
-      let* sz = Random.pick_array [|1; 3; 4; 5; 8; 10; 20|] in
+      let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in
       pure @@ AH.Exp.(
         apply
