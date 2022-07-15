@@ -24,6 +24,11 @@ type t =
   | XVal of { pre: string; value_ty: string; value: string }
   | XDone of string
   | VarApp of string
+  | CharacteristicFormulae of {
+      args: string list;
+      pre: string;
+      proof: t
+    }
   | AccRect of {
       prop_type: string;
       proof: acc_rect_proof;
@@ -278,6 +283,22 @@ and extract_invariant_applications (trm: Constr.t) : t  =
     }
   | Constr.App (var, _) when Constr.isVar var ->
     VarApp (Proof_utils.Debug.constr_to_string_pretty trm)
+  | Constr.App (var, _) when Constr.isRel var ->
+    VarApp (Proof_utils.Debug.constr_to_string_pretty trm)
+
+  | Constr.App (trm, args) when is_const_wp_fn trm && Array.length args > 5 ->
+    let pre = args.(Array.length args - 5) |> Proof_utils.Debug.constr_to_string_pretty in
+    let proof = args.(Array.length args - 1) in
+    let args = 
+      Iter.int_range ~start:0 ~stop:(Array.length args - 1 - 5)
+      |> Iter.map (Array.get args)
+      |> Iter.map Proof_utils.Debug.constr_to_string_pretty
+      |> Iter.to_list in
+    CharacteristicFormulae {
+      pre;
+      args;
+      proof=extract_invariant_applications proof
+    }
   | Constr.App (trm, args) ->
     Format.ksprintf ~f:failwith
       "extract_invariant_applications received App of %s (%s) to %d args\n%s@."
