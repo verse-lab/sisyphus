@@ -1,47 +1,7 @@
 [@@@warning "-26"]
 open Containers
 
-type t =
-  | HimplHandR of string * t * t
-  | HimplTrans of string * string * t * t
-  | Lambda of string * string * t
-  | XLetVal of {
-      pre: string;
-      binding_ty: string;
-      let_binding: (string * string);
-      eq_binding: (string * string);
-      value: string;
-      proof: t
-    }
-  | XLetTrmCont of {
-      pre: string;
-      binding_ty: string;
-      value_code: string;
-      proof: t
-    }
-  | XMatch of {pre: string; proof: t}
-  | XApp of { pre: string; fun_pre: string; proof_fun: t; proof: t }
-  | XVal of { pre: string; value_ty: string; value: string }
-  | XDone of string
-  | VarApp of string
-  | CharacteristicFormulae of {
-      args: string list;
-      pre: string;
-      proof: t
-    }
-  | AccRect of {
-      prop_type: string;
-      proof: acc_rect_proof;
-      vl: string;
-      args: string list;
-    }
-  | Refl
-and acc_rect_proof = {
-  x: string; ty_x: string;
-  h_acc: string; ty_h_acc: string;
-  ih_x: string; ty_ih_x: string;
-  proof: t
-} [@@deriving show]
+type t = Proof_term.t
 
 module PCFML = Proof_utils.CFML
 
@@ -70,7 +30,7 @@ exception EOP
 
 let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name)
 
-let rec extract_fold_specification (trm: Constr.t) =
+let rec extract_fold_specification (trm: Constr.t) : t =
   let (_, args) = Constr.destApp trm in
   let prop_spec = args.(2) in
   let recursive_spec = args.(3) in
@@ -259,7 +219,7 @@ and extract_invariant_applications (trm: Constr.t) : t  =
            (fun (kont, v) () ->
               if Constr.isLambda v then
                 let {Context.binder_name=vl; _}, ty, v = Constr.destLambda v in
-                let kont proof = kont (Lambda (
+                let kont proof = kont (Proof_term.Lambda (
                   name_to_string vl,
                   Proof_utils.Debug.constr_to_string_pretty ty,
                   proof
@@ -331,7 +291,7 @@ let analyse (trm: Constr.t) : t =
     let wp = args.(Array.length args - 1) in
 
     let _fspec = extract_invariant_applications wp in
-    failwith (show _fspec)
+    failwith (Proof_term.show _fspec)
   | _ -> 
     failwith ("lol " ^ Proof_utils.Debug.tag trm)
   
