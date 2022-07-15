@@ -336,7 +336,6 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     let _ =
       List.find_map Option.(fun obs ->
         print_endline @@ show_obs obs;
-        print_endline "with temporary context START";
         let v = Proof_context.with_temporary_context t begin fun () ->
           (* first, instantiate the concrete arguments using values from the trace *)
           let* instantiated_params = instantiate_arguments t env _f_args obs in

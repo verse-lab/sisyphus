@@ -1,18 +1,46 @@
 [@@@warning "-26"]
 open Containers
 
-type t = Lol
+type t =
+  | HimplHandR of string * t * t
+  | HimplTrans of string * string * t * t
+  | Lambda of string * string * t
+  | XLetVal of {
+      pre: string;
+      binding_ty: string;
+      let_binding: (string * string);
+      eq_binding: (string * string);
+      value: string;
+      proof: t
+    }
+  | XLetTrmCont of {
+      pre: string;
+      binding_ty: string;
+      value_code: string;
+      proof: t
+    }
+  | XMatch of {pre: string; proof: t}
+  | XApp of { pre: string; fun_pre: string; proof_fun: t; proof: t }
+  | Xval of { pre: string; value_ty: string; value: string }
+  | XDone of string
+  | VarApp of string
+  
 
 module PCFML = Proof_utils.CFML
 
 (** [is_const_wp_fn cst] determines whether a {!Constr.t} term
-   represents a constant weakest precondition helper. *)
+    represents a constant weakest precondition helper. *)
 let is_const_wp_fn cst =
   Constr.isConst cst && begin
     let cst, _ = Constr.destConst cst  in
     String.suffix ~suf:"_cf__" @@  Names.Constant.to_string cst
   end
 
+(** [is_case_of_eq_sym] determines whether a {!Constr.t} term
+   represents a case over an [Logic.eq_sym] equality.
+
+    TODO: generalise to case over arbitrary equalities? should be
+   fairly straightforward.  *)
 let is_case_of_eq_sym case =
   Constr.isCase case &&
   let (_, _, _, _, _, case_expr, branches) = Constr.destCase case in      
@@ -23,26 +51,30 @@ let is_case_of_eq_sym case =
 
 exception EOP
 
-let rec extract_invariant_applications (trm: Constr.t) : t  =
-  (* let extract_invariant_applications v =
-   *   if Constr.isConst v then
-   *     Format.ksprintf ~f:failwith "When destructing %s, returns const!"
-   *       (String.take 10_000 @@ Proof_utils.Debug.constr_to_string trm);
-   *   extract_invariant_applications v in *)      
-  match Constr.kind trm with
-  | Constr.App (trm, args) when PCFML.is_const_named "Acc_rect" trm ->
-    (* [| a; r; p; proof; vl; proof_acc |] *)
-    let recursive_spec = args.(3) in
-    let oc = open_out "/tmp/recursive.txt" in
-    Fun.protect ~finally:(fun () -> close_out_noerr oc) begin fun () ->
-      output_string oc (Proof_utils.Debug.constr_to_string recursive_spec);
-    end;
-    let oc = open_out "/tmp/recursive-pretty.txt" in
-    Fun.protect ~finally:(fun () -> close_out_noerr oc) begin fun () ->
-      output_string oc (Proof_utils.Debug.constr_to_string_pretty recursive_spec);
-    end;
+let extract_fold_specification (trm: Constr.t) =
+  let oc = open_out "/tmp/recursive-full.txt" in
+  Fun.protect ~finally:(fun () -> close_out_noerr oc) begin fun () ->
+    output_string oc (Proof_utils.Debug.constr_to_string trm);
+  end;
+  let oc = open_out "/tmp/recursive-pretty-full.txt" in
+  Fun.protect ~finally:(fun () -> close_out_noerr oc) begin fun () ->
+    output_string oc (Proof_utils.Debug.constr_to_string_pretty trm);
+  end;
+  let (_, args) = Constr.destApp trm in
+  let prop_spec = args.(2) in
+  let recursive_spec = args.(3) in
+  (* t: args.(6)  == nil & x *)
+  (* init: args.(7) == init *)
+  let (rec_vl, rec_vl_ty, recursive_spec) = Constr.destLambda recursive_spec in
+  let (_, _, recursive_spec) = Constr.destLambda recursive_spec in
+  let (ih_vl, ih_vl_ty, recursive_spec) = Constr.destLambda recursive_spec in
 
-    failwith "lol"
+  failwith "lol"
+
+let rec extract_invariant_applications (trm: Constr.t) : t  =
+  match Constr.kind trm with
+  | Constr.App (acc_rect, args) when PCFML.is_const_named "Acc_rect" acc_rect ->
+    extract_fold_specification trm
   | Constr.App (trm , [| typ; proof |]) when
       Constr.isConst trm && String.equal (Names.Constant.to_string (fst (Constr.destConst trm)))  "TLC.LibTactics.rm" ->
     extract_invariant_applications proof
@@ -63,25 +95,11 @@ let rec extract_invariant_applications (trm: Constr.t) : t  =
   | Constr.App (trm, args (* [| ty; vl; prop; proof; vl'; proof_vl_eq_vl'; |] *)) when PCFML.is_const_named "eq_ind_r" trm ->
     let proof = args.(3) in
     extract_invariant_applications proof
-  | Constr.App (trm, [|
-    ty;
-    vl;
-    prop;
-    proof;
-    vl';
-    proof_vl_eq_vl';
-  |]) when PCFML.is_const_named "eq_ind_r" trm ->
+  | Constr.App (trm, [| ty; vl; prop; proof; vl'; proof_vl_eq_vl'; |]) when PCFML.is_const_named "eq_ind_r" trm ->
     extract_invariant_applications proof
-  | Constr.App (trm, [|
-    post_1;
-    post_2;
-    pre;
-    proof_of_post_1;
-    proof_of_post_2;
-  |]) when PCFML.is_himpl_hand_r trm ->
+  | Constr.App (trm, [| post_1; post_2; pre; proof_of_post_1; proof_of_post_2; |]) when PCFML.is_himpl_hand_r trm ->
     (try ignore @@ extract_invariant_applications proof_of_post_1 with EOP -> ());
     extract_invariant_applications proof_of_post_2
-
   | Constr.App (trm, [|
     new_pre;
     pre;
@@ -96,21 +114,11 @@ let rec extract_invariant_applications (trm: Constr.t) : t  =
     proof
   |]) when PCFML.is_himpl_frame_r trm ->
     extract_invariant_applications proof
-  | Constr.App (trm, [|
-    prop;
-    pre;
-    post;
-    proof
-  |]) when PCFML.is_himpl_hstar_hpure_l trm ->
+  | Constr.App (trm, [| prop; pre; post; proof |]) when PCFML.is_himpl_hstar_hpure_l trm ->
     let (proof_binding_name, proof_binding_ty, proof) = Constr.destLambda proof in
     extract_invariant_applications proof
   | Constr.App (trm, [| pre; post; proof |]) when PCFML.is_xsimpl_lr_exit_nogc_nocredits trm ->
     extract_invariant_applications proof
-    (* Format.ksprintf ~f:failwith "Kaboom! new_pre: %s, old_pre: %s\nproof_1: %s\nproof_2: %s@."
-     *   (String.take 10_000 (Proof_utils.Debug.constr_to_string_pretty new_pre))
-     *   (String.take 10_000 (Proof_utils.Debug.constr_to_string_pretty pre))
-     *   (String.take 10_000 (Proof_utils.Debug.constr_to_string proof_pre_impl_new_pre))
-     *   (String.take 10_000 (Proof_utils.Debug.constr_to_string proof_new_pre_impl_post)) *)
   | Constr.App (trm, ([| pre; post; proof |] as args)) when PCFML.is_xsimpl_start trm ->
     extract_invariant_applications proof
   | Constr.App (trm, [| pre; post; proof |]) when PCFML.is_hstars_simpl_start trm ->
@@ -222,7 +230,7 @@ let rec extract_invariant_applications (trm: Constr.t) : t  =
       "extract_invariant_applications received %s"
       (String.take 4000_000 (Proof_utils.Debug.constr_to_string trm))
 
-  
+
 let analyse (trm: Constr.t) : t =
   let oc = open_out "/tmp/epic.txt" in
   Fun.protect ~finally:(fun () -> close_out_noerr oc) begin fun () ->
