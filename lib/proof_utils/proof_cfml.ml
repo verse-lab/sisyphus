@@ -243,8 +243,7 @@ let extract_spec pre =
   let params, invariants = split [] params in
   (params, invariants, body)
 
-(** [extract_dyn_var ?rel c] given a Coq term [c] of the form {[Dyn
-                                                                  v]}, extracts the corresponding expression and type.  *)
+(** [extract_dyn_var ?rel c] given a Coq term [c] of the form {[Dyn v]}, extracts the corresponding expression and type.  *)
 let extract_dyn_var ?rel (c: Constr.t) =
   match Constr.kind c with
   | Constr.App (const, [| ty; _enc; vl |]) when Utils.is_constr_eq "CFML.SepLifted.dyn" const ->

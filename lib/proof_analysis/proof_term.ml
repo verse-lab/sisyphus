@@ -8,6 +8,7 @@ type sym_heap =
 type proof_value = [
   | `Expr of Lang.Expr.t
   | `Ty of Lang.Type.t
+  | `Eq of Lang.Type.t * Lang.Expr.t * Lang.Expr.t
   | `Proof of string
 ] [@@deriving show]
 
@@ -57,7 +58,7 @@ type t =
       prop_type: (string * Lang.Type.t) * prop_type;
       proof: acc_rect_proof;
       vl: Lang.Expr.t;
-      args: spec_app list;
+      args: spec_arg list;
     }
   | Refl
 and acc_rect_proof = {
