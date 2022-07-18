@@ -15,7 +15,7 @@ Proof using.
   xcf.
   xpullpure H1.
   xletopaque f Hf.
-  xapp (fold_spec f (0, nil) s l (fun '((i,acc) : int * list A) (x: A) => (i + 1, x :: acc))); auto;
+  xapp (fold_spec f (0, nil) s l (fun '((i,acc) : int * list A) (x: A) => (i + 1, x :: acc))); auto.
     first sep_solve.
   xdestruct len ls Hlenls.
   rewrite list_fold_length_rev in Hlenls.
@@ -29,7 +29,7 @@ Proof using.
     xletopaque ftmp Hftmp.
     xapp (list_fold_spec ftmp idx rest (fun (t: list A) (i: int) =>
         \[i = length l - length t - 2] \*
-        arr ~> Array ((make (i + 1) init) ++ 
+        arr ~> Array ((make (i + 1) init) ++
                                  drop (i + 1) l)
          )). { admit. } { admit. } { admit. }
    intros i Hi.

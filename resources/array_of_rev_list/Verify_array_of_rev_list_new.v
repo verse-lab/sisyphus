@@ -34,7 +34,7 @@ Proof.
 
         apply int_index_prove; ((rewrite Hdata, length_make; math) || math).
         rewrite Hdata, length_make; math.
-      + admit.
+      + xsimpl*.
     } {
       rew_list. rewrite drop_zero. auto.
     }
