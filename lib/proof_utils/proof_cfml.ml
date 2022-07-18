@@ -152,6 +152,10 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     let fname, _ = Constr.destConst fname in
     let args = Utils.drop_implicits fname (Array.to_list args) |> List.map (extract_expr ?rel) in
     `App (Names.Constant.to_string fname, args)
+  | Constr.App (fname, args), _ when Constr.isVar fname ->
+    let fname = Constr.destVar fname |> Names.Id.to_string in
+    let args = List.map (extract_expr ?rel) (Array.to_list args) in
+    `App (fname, args)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a expr"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
@@ -401,6 +405,25 @@ let unwrap_eq ?rel (c: Constr.t) =
     Format.ksprintf ~f:failwith
       "found unexpected Coq term (%s)[%s] ==> %s, when expecting an equality"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+
+(** [extract_embedded_expr ?rel c] extracts a deeply embedded CFML
+   expression from a Coq term [c]. [rel] is a function that maps Coq's
+   de-bruijin indices to the corresponding terms in the wider typing
+   environment. *)
+let rec extract_embedded_expr ?rel (c: Constr.t) : Lang.Expr.t =
+  match Constr.kind c, rel with
+  | Constr.App (fn, [| f |]), _ when Utils.is_const_eq "CFML.WPLifted.Wptag" fn ->
+    extract_embedded_expr ?rel f
+  | Constr.App (fn, [| ty; enc_ty; f; args |]), _ when Utils.is_const_eq "CFML.WPLifted.Wpgen_app" fn ->
+    let fn = extract_expr ?rel f |> function `Var v -> v | _ -> failwith "found application to non-constant function" in
+    let args = 
+      Utils.unwrap_inductive_list args
+      |> List.map (extract_dyn_var ?rel) in
+    `App (fn, List.map fst args)
+  | _ ->
+    Format.ksprintf ~f:failwith "found unhandled embedded Coq term (%s)[%s] in %s that could not be converted to a expr"
+      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+
 
 (** [extract_impure_heaplet c] when given a Coq term representing a
     CFML heaplet, extracts an internal representation of the heaplet. *)

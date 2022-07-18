@@ -31,28 +31,52 @@ let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name)
 type env = (string * Lang.Type.t option) list
 
 let rel_ty env ind =
+  let ind = ind - 1 in
   List.nth env ind
   |> snd
   |> Option.get_exn_or "attempted to construct invalid typ"
 
 let rel_expr env ind =
-  fst (List.nth env ind)
+  let ind = ind - 1 in
+  match (List.nth_opt env ind) with
+  | None ->
+    Format.ksprintf ~f:failwith "attempted to access index %d in env of length %d; env is %s" ind (List.length env)
+      ([%show: (string * Lang.Type.t option) list] env)
+  | Some (v, _) -> v
 
 let add_binding ?ty var env =
   (var, ty) :: env
 
 let extract_proof_value env ty =
   try `Ty (PCFML.extract_typ ~rel:(rel_ty env) ty) with
-  | _ ->
-    failwith "lol"
+  | e ->
+    Format.printf "received exception: %s@." (Printexc.to_string e);
+    try `Eq (PCFML.unwrap_eq ~rel:(rel_expr env) ty) with
+    | e ->
+      Format.printf "received exception: %s@." (Printexc.to_string e);
+      try `Expr (PCFML.extract_expr ~rel:(rel_expr env) ty) with
+      | e ->
+        Format.printf "received exception: %s@." (Printexc.to_string e);
+        `Proof (Proof_utils.Debug.constr_to_string ty)
 
 let extract_typ_from_proof_value = function
     | (`Ty vl) as p_vl -> Some vl, p_vl
     | _ as p_vl -> None, p_vl
 
-let extract_sym_heap env c =
-  try [`Invariant (PCFML.extract_expr ~rel:(rel_expr env) c)] with
-  | _ -> failwith "lol"
+let rec extract_sym_heap env c =
+  Format.printf "extract_sym_heap of %s@.%s@."
+    (Proof_utils.Debug.constr_to_string_pretty c)
+    (Proof_utils.Debug.constr_to_string c);
+  match Constr.kind c with
+  | Constr.App (fn, [| h1; h2|]) when Proof_utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hstar" fn ->
+    extract_sym_heap env h1 @ extract_sym_heap env h2
+  | Constr.App (fn, _) when Proof_utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hcredits" fn ->
+    []
+  | Constr.Const _ when Proof_utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hempty" c -> []
+  | _ -> 
+    try [`Invariant (PCFML.extract_expr ~rel:(rel_expr env) c)] with
+    | _ -> []
+      (* failwith ("lolol: " ^ Printexc.to_string e) *)
 
 let extract_prop_type env (trm: Constr.t) =
   failwith "lol"
@@ -186,7 +210,7 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     let let_ty, _ = extract_proof_value env let_ty |> extract_typ_from_proof_value in
     let let_ty = Option.get_exn_or "found invalid type" let_ty in
     let eq_prf_ty = match eq_prf_proof_ty with
-      | `Eq (`Var var, expr) -> (var, expr)
+      | `Eq (_, `Var var, expr) -> (var, expr)
       | _ -> failwith "invalid type" in
     XLetVal {
       pre=pre;
@@ -219,7 +243,7 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     proof
   |]) when PCFML.is_xlet_trm_cont_lemma trm ->
     let pre = extract_sym_heap env pre in
-    let value_code = PCFML.extract_expr ~rel:(rel_expr env) value_code in
+    let value_code = PCFML.extract_embedded_expr ~rel:(rel_expr env) value_code in
     let binding_ty, binding_proof_ty = extract_proof_value env binding_ty |> extract_typ_from_proof_value in
     XLetTrmCont {
       pre=pre;
