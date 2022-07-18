@@ -76,14 +76,62 @@ let rec extract_sym_heap env c =
   | _ -> 
     try [`Invariant (PCFML.extract_expr ~rel:(rel_expr env) c)] with
     | _ -> []
-      (* failwith ("lolol: " ^ Printexc.to_string e) *)
 
+
+let extract_trm_apps env (trm: Constr.t) =
+  match Constr.kind trm with
+  | Constr.App (fn, [| f; args |]) when Proof_utils.is_const_eq "CFML.SepLifted.Trm_apps" fn ->
+    let f = Constr.destConst f |> fst |> Names.Constant.to_string in
+    let args =
+      Proof_utils.unwrap_inductive_list args
+      |> List.map (PCFML.extract_dyn_var ~rel:(rel_expr env))
+      |> List.map fst
+    in
+    f, args
+  | _ ->
+    Format.ksprintf ~f:failwith "expected CFML.SepLifted.Trm_apps, but received %s"
+      (Proof_utils.Debug.constr_to_string_pretty trm)
+    
 let extract_prop_type env (trm: Constr.t) =
-  failwith "lol"
+  let rec extract_params env params trm =
+    match Constr.kind trm with
+    | Constr.Prod ({Context.binder_name; _}, ty, trm) ->
+      let name = name_to_string binder_name in
+      let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
+      let env = add_binding ?ty name env in
+      extract_params env ((name, proof_ty) :: params) trm
+    | _ ->
+      extract_spec env (List.rev params) trm
+  and extract_spec env params trm =
+    match Constr.kind trm with
+    | Constr.App (fn, [| vl; ret_ty; enc_ret_ty; pre; post |]) when Proof_utils.is_const_eq "CFML.SepLifted.Triple" fn ->
+      let spec = extract_trm_apps env vl in
+      let pre = extract_sym_heap env pre in
+      let post =
+        let {Context.binder_name=ret_name; _}, ty, post = Constr.destLambda post in
+        let ret_name = name_to_string ret_name in
+        let ty = PCFML.extract_typ ~rel:(rel_ty env) ty in
+        let env = add_binding ~ty ret_name env in
+        let post = extract_sym_heap env post in
+        (ret_name, ty, post) in
+      ({
+        params;
+        spec;
+        pre;
+        post
+      }: Proof_term.prop_type)
+    | _ -> 
+      Format.ksprintf ~f:failwith "expected CFML.SepLifted.Triple, but received %s"
+        (Proof_utils.Debug.constr_to_string_pretty trm)
+  in
+  extract_params env [] trm
 
 let extract_prop_spec env (trm: Constr.t) =
   let ({Context.binder_name;_}, ty, body) = Constr.destLambda trm in
-  failwith "lol"
+  let name = name_to_string binder_name in 
+  let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
+  let env = add_binding ?ty name env in
+  (name, Option.get_exn_or "found invalid type" ty), extract_prop_type env body
 
 
 
