@@ -48,13 +48,13 @@ let add_binding ?ty var env =
   (var, ty) :: env
 
 let extract_proof_value env ty =
-  try `Ty (PCFML.extract_typ ~rel:(rel_ty env) ty) with
+  try `Eq (PCFML.unwrap_eq ~rel:(rel_expr env) ty) with
   | e ->
     Format.printf "received exception: %s@." (Printexc.to_string e);
-    try `Eq (PCFML.unwrap_eq ~rel:(rel_expr env) ty) with
+    try  `Expr (PCFML.extract_expr ~rel:(rel_expr env) ty)  with
     | e ->
       Format.printf "received exception: %s@." (Printexc.to_string e);
-      try `Expr (PCFML.extract_expr ~rel:(rel_expr env) ty) with
+      try `Ty (PCFML.extract_typ ~rel:(rel_ty env) ty) with
       | e ->
         Format.printf "received exception: %s@." (Printexc.to_string e);
         `Proof (Proof_utils.Debug.constr_to_string ty)
@@ -361,14 +361,18 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     let var = Constr.destVar var |> Names.Id.to_string in
     let args = Array.to_iter args
                |> Iter.map (extract_proof_value env)
-               |> Iter.map (function `Expr e -> `Expr e | _ -> `ProofTerm)
+               |> Iter.map (function
+                   `Expr e -> `Expr e
+                 | v -> `ProofTerm ([%show: Proof_term.proof_value] v))
                |> Iter.to_list in
     VarApp (var, args)
   | Constr.App (var, args) when Constr.isRel var ->
     let var = Constr.destRel var |> rel_expr env in
     let args = Array.to_iter args
                |> Iter.map (extract_proof_value env)
-               |> Iter.map (function `Expr e -> `Expr e | _ -> `ProofTerm)
+               |> Iter.map (function
+                   `Expr e -> `Expr e
+                 | v -> `ProofTerm ([%show: Proof_term.proof_value] v))
                |> Iter.to_list in
     VarApp (var, args)
   | Constr.App (trm, args) when is_const_wp_fn trm && Array.length args > 5 ->
@@ -412,7 +416,7 @@ and extract_fold_specification (env: env) (trm: Constr.t) : t =
   let args = Iter.int_range ~start:6 ~stop:(Array.length args - 1)
          |> Iter.map (fun i -> args.(i))
          |> Iter.map (extract_proof_value env)
-         |> Iter.map (function `Expr e -> `Expr e | _ -> `ProofTerm)
+         |> Iter.map (function `Expr e -> `Expr e | v -> `ProofTerm ([%show: Proof_term.proof_value] v))
          |> Iter.to_list in
   (* t: args.(6)  == nil & x *)
   (* init: args.(7) == init *)

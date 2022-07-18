@@ -19,7 +19,7 @@ type proof_value = [
 
 type spec_arg = [
   | `Expr of expr
-  | `ProofTerm
+  | `ProofTerm of string
 ] [@@deriving show]
 type spec_app = string * spec_arg list
 [@@deriving show] 
