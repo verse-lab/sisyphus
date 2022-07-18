@@ -6,6 +6,10 @@ From TLC Require Import LibListZ.
 From Proofs Require Import Verify_seq_to_array_utils.
 From Proofs Require Import Seq_to_array_new_ml.
 
+Axiom (n: nat).
+
+Compute (n + 1).
+Print eq_ind_r.
 
 Lemma to_array_spec : forall (A: Type) `{EA:Enc A} (l:list A) (s:func),
     SPEC (to_array s)

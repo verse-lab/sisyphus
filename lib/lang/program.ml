@@ -8,10 +8,16 @@ type 'a stmt = [
   | `Write of string * string * 'a Expr.simple_shape * 'a stmt
   | `Value of 'a Expr.simple_shape
   | `EmptyArray
-]
+] [@@deriving show]
+let ppr_stmt = pp_stmt
+let showr_stmt = show_stmt
 
 
 type 'a lambda = [ `Lambda of Expr.typed_param list * 'a stmt ]
+[@@deriving show]
+let ppr_lambda = pp_lambda
+let showr_lambda = show_lambda
+
 
 type 'a t = {
   prelude: Parsetree.structure_item list;

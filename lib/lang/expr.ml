@@ -14,17 +14,32 @@ type 'a simple_shape = [>
 ] as 'a
 [@@deriving show, eq]
 
+let pp_raw_simple_shape = pp_simple_shape
+let show_raw_simple_shape = show_simple_shape
+
 type param = [`Var of string | `Tuple of string list]
-[@@deriving eq, ord]
+[@@deriving show, eq, ord]
+
+let pp_raw_param = pp_param
+let show_raw_param = show_param
 
 type typed_param = [`Var of (string * Type.t) | `Tuple of (string * Type.t) list]
 [@@deriving show, eq, ord]
 
+let pp_raw_typed_param = pp_typed_param
+let show_raw_typed_param = show_typed_param
+
 type 'a lambda_shape = [`Lambda of typed_param list * 'a]
 [@@deriving show, eq, ord]
 
+let pp_raw_lambda_shape = pp_lambda_shape
+let show_raw_lambda_shape = show_lambda_shape
+
 type 'a shape = [> 'a lambda_shape ] as 'a constraint 'a = 'a simple_shape
 [@@deriving show, eq]
+
+let pp_raw_shape = pp_shape
+let show_raw_shape = show_shape
 
 type simple_t = [
     `Var of string
@@ -33,7 +48,11 @@ type simple_t = [
   | `App of string * simple_t list
   | `Constructor of string * simple_t list
 ] 
-[@@deriving eq, ord]
+[@@deriving show, eq, ord]
+
+let pp_raw_simple_t = pp_simple_t
+let show_raw_simple_t = show_simple_t
+
 type t = [
     `Var of string
   | `Int of int
@@ -41,7 +60,10 @@ type t = [
   | `App of string * t list
   | `Constructor of string * t list
   | `Lambda of typed_param list * t
-] [@@deriving eq, ord]
+] [@@deriving show, eq, ord]
+
+let pp_raw = pp
+let show_raw = show
 
 let print_param : param -> PP.document =
   let open PP in

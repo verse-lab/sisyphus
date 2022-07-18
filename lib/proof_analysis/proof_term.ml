@@ -1,19 +1,24 @@
 
+type expr = Lang.Expr.t
+type ty = Lang.Type.t
+let pp_expr = Lang.Expr.pp_raw
+let pp_ty = Lang.Type.pp_raw
+
 type sym_heap =
   [
     (* `Heaplet of Proof_spec.Heap.Heaplet.t *)
-  | `Invariant of Lang.Expr.t
+  | `Invariant of expr
   ] list [@@deriving show]
 
 type proof_value = [
-  | `Expr of Lang.Expr.t
-  | `Ty of Lang.Type.t
-  | `Eq of Lang.Type.t * Lang.Expr.t * Lang.Expr.t
+  | `Expr of expr
+  | `Ty of ty
+  | `Eq of ty * expr * expr
   | `Proof of string
 ] [@@deriving show]
 
 type spec_arg = [
-  | `Expr of Lang.Expr.t
+  | `Expr of expr
   | `ProofTerm
 ] [@@deriving show]
 type spec_app = string * spec_arg list
@@ -21,9 +26,9 @@ type spec_app = string * spec_arg list
 
 type prop_type = {
   params: (string * proof_value) list;
-  spec: string * Lang.Expr.t list;
+  spec: string * expr list;
   pre: sym_heap;
-  post: string * Lang.Type.t * sym_heap
+  post: string * ty * sym_heap
 } [@@deriving show]   
 
 type t =
@@ -32,21 +37,21 @@ type t =
   | Lambda of string * proof_value * t
   | XLetVal of {
       pre: sym_heap;
-      binding_ty: Lang.Type.t;
-      let_binding: (string * Lang.Type.t);
-      eq_binding: (string * (string * Lang.Expr.t));
-      value: Lang.Expr.t;
+      binding_ty: ty;
+      let_binding: (string * ty);
+      eq_binding: (string * (string * expr));
+      value: expr;
       proof: t
     }
   | XLetTrmCont of {
       pre: sym_heap;
-      binding_ty: Lang.Type.t;
-      value_code: Lang.Expr.t;
+      binding_ty: ty;
+      value_code: expr;
       proof: t
     }
   | XMatch of {pre: sym_heap; proof: t}
   | XApp of { pre: sym_heap; fun_pre: sym_heap; proof_fun: t; proof: t }
-  | XVal of { pre: sym_heap; value_ty: Lang.Type.t; value: Lang.Expr.t }
+  | XVal of { pre: sym_heap; value_ty: ty; value: expr }
   | XDone of sym_heap
   | VarApp of spec_app
   | CharacteristicFormulae of {
@@ -55,14 +60,14 @@ type t =
       proof: t
     }
   | AccRect of {
-      prop_type: (string * Lang.Type.t) * prop_type;
+      prop_type: (string * ty) * prop_type;
       proof: acc_rect_proof;
-      vl: Lang.Expr.t;
+      vl: expr;
       args: spec_arg list;
     }
   | Refl
 and acc_rect_proof = {
-  x: string; ty_x: Lang.Type.t;
+  x: string; ty_x: ty;
   h_acc: string; ty_h_acc: string;
   ih_x: string; ty_ih_x: prop_type;
   proof: t
