@@ -71,10 +71,11 @@ let rec update_program_id_over_lambda (t: Proof_context.t)
     implicit. *)
 let build_complete_params t lemma_name init_params =
   let mk_lemma_instantiated_type params = 
-    Format.ksprintf ~f:(Proof_context.typeof t)
+    Format.ksprintf
       "%s %s"
       (Names.Constant.to_string lemma_name)
-      (arg_list_to_str params) in
+      (arg_list_to_str params)
+      ~f:(Proof_context.typeof t) in
   let rec loop params lemma_instantiated_type =
     match Constr.kind lemma_instantiated_type with
     | Prod (Context.{binder_name; _}, ty, _) ->
@@ -366,7 +367,6 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
           Some trm
         end in
-        print_endline "with temporary context END";
         v
       ) observations
     in
