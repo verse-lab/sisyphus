@@ -353,7 +353,6 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
       value_code=value_code;
       proof=extract_invariant_applications env proof
     }
-  (* ===================================================================== DONE ===================================  *)
   | Constr.App (trm, [|
     ret_ty; enc_ret_ty;
     fun_post;
@@ -529,7 +528,7 @@ let analyse (trm: Constr.t) : t =
     let wp = args.(Array.length args - 1) in
 
     let _fspec = extract_invariant_applications [] wp in
-    failwith (Proof_term.show _fspec)
+    failwith (Format.to_string Pprintast.expression (Proof_extraction.extract _fspec))
   | _ -> 
     failwith ("lol " ^ Proof_utils.Debug.tag trm)
   
