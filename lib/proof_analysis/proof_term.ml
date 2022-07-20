@@ -49,8 +49,14 @@ type t =
       value_code: expr;
       proof: t
     }
-  | XMatch of {pre: sym_heap; proof: t}
-  | XApp of { pre: sym_heap; fun_pre: sym_heap; proof_fun: t; proof: t }
+  | XMatch of {value: (expr * expr) list; pre: sym_heap; proof: t}
+  | XApp of {
+      application: string * expr list;
+      pre: sym_heap;
+      fun_pre: sym_heap;
+      proof_fun: t;
+      proof: t
+    }
   | XVal of { pre: sym_heap; value_ty: ty; value: expr }
   | XDone of sym_heap
   | VarApp of spec_app
@@ -72,3 +78,4 @@ and acc_rect_proof = {
   ih_x: string; ty_ih_x: prop_type;
   proof: t
 } [@@deriving show]
+

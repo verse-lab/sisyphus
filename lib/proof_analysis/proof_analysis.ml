@@ -135,6 +135,58 @@ let extract_prop_spec env (trm: Constr.t) =
 
 
 
+let extract_match_code_case_values env (trm: Constr.t) : (Lang.Expr.t * Lang.Expr.t) list =
+  let rec extract_case_vl env vl =
+    match Constr.kind vl with
+    | Constr.App (wp_tag, [| vl |]) when Proof_utils.is_const_eq "CFML.WPLifted.Wptag" wp_tag ->
+      extract_case_vl env vl
+    | Constr.App (negpat, [| vl |]) when Proof_utils.is_const_eq "CFML.WPLifted.Wpgen_negpat" negpat ->
+      drop_lambdas env vl       
+    | _ ->
+      Format.ksprintf ~f:failwith "expected a negpat, but received %s (in env %s)"
+        (Proof_utils.Debug.constr_to_string_pretty vl)
+        ([%show: (string * Lang.Type.t option) list] env);
+  and drop_lambdas env vl =
+    match Constr.kind vl with
+    | Constr.Prod ({Context.binder_name; _}, ty, vl) ->
+      let binder_name = name_to_string binder_name in
+      let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
+      let env = add_binding ?ty binder_name env in
+      drop_lambdas env vl
+    | _ ->
+      drop_not env vl
+  and drop_not env vl =
+    match Constr.kind vl with
+    | Constr.App (nt, [| vl |]) when Proof_utils.is_const_eq "Coq.Init.Logic.not" nt ->
+      drop_eq env vl
+    | _ ->
+      Format.ksprintf ~f:failwith "expected a logical not, but received %s (in env %s)"
+        (Proof_utils.Debug.constr_to_string_pretty vl)
+        ([%show: (string * Lang.Type.t option) list] env)
+  and drop_eq env vl = 
+    match Constr.kind vl with
+    | Constr.App (eq, [| ty; vl; case |]) when Proof_utils.is_coq_eq eq ->
+      let vl = PCFML.extract_expr ~rel:(rel_expr env) vl in
+      let case = PCFML.extract_expr ~rel:(rel_expr env) case in
+      (vl, case)
+    | _ ->
+      Format.ksprintf ~f:failwith "expected a logical equality, but received %s (in env %s)"
+        (Proof_utils.Debug.constr_to_string_pretty vl)
+        ([%show: (string * Lang.Type.t option) list] env)
+  in
+  let rec loop acc trm =
+    match Constr.kind trm with
+    | Constr.App (wp_tag, [| trm |])
+      when Proof_utils.is_const_eq "CFML.WPLifted.Wptag" wp_tag ->
+      loop acc trm
+    | Constr.App (wpgen_case, [| _; neg_pat; trm |]) ->
+      let vl = extract_case_vl env neg_pat in
+      loop (vl :: acc) trm 
+    | Constr.Const _ when Proof_utils.is_const_eq "CFML.WPLifted.Wpgen_done" trm ->
+      List.rev acc
+    | _ -> failwith "lol" in
+  loop [] trm
+
 let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
   match Constr.kind trm with
   | Constr.App (acc_rect, args) when PCFML.is_const_named "Acc_rect" acc_rect ->
@@ -277,7 +329,9 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     proof
   |]) when PCFML.is_xmatch_lemma trm ->
     let pre = extract_sym_heap env pre in
+    let value = extract_match_code_case_values env code in
     XMatch {
+      value;
       pre=pre;
       proof=extract_invariant_applications env proof;
     }
@@ -313,8 +367,20 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
   |]) when PCFML.is_xapp_lemma trm ->
     let pre = extract_sym_heap env pre in
     let fun_pre = extract_sym_heap env fun_pre in
+    let application =
+      let f =
+        match Constr.kind f with
+        | Constr.Var v -> Names.Id.to_string v
+        | Constr.Const (c, _) -> Names.Constant.to_string c
+        | Constr.Rel n -> rel_expr env n
+        | _ -> Format.ksprintf ~f:failwith "expected constant function, received %s" (Proof_utils.Debug.constr_to_string_pretty f) in
+      let args = Proof_utils.unwrap_inductive_list args
+                 |> List.map (PCFML.extract_dyn_var ~rel:(rel_expr env))
+                 |> List.map fst in
+      (f, args) in
     XApp {
       pre=pre;
+      application;
       fun_pre=fun_pre;
       proof_fun=extract_invariant_applications env proof_fun;
       proof=extract_invariant_applications env proof;

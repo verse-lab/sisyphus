@@ -10,6 +10,8 @@ let vl = let open Lang in
       `Constructor (("::", [`Var ("symbol_10"); `Constructor (("::", [`Var ("symbol_9"); `Constructor (("::", [`Var ("symbol_8"); `Constructor (("[]", [])) ])) ])) ]));
     proof =
       Proof_term.XMatch {
+        value=[(`Var ("x0__"), `Constructor (("[]", [])));
+               (`Var ("x0__"), `Constructor (("::", [`Var ("a"); `Var ("l")])))];
         pre = [`Invariant (`App (("I", [`Constructor (("[]", [])); `Int (2)])))];
         proof =
           (Proof_term.HimplHandR (
@@ -83,6 +85,7 @@ let vl = let open Lang in
                                                          value_code = `App (("tmp0", [`Int (2); `Var ("a")]));
                                                          proof =
                                                            Proof_term.XApp {
+                                                             application=("tmp0", [`Int (2); `Var ("a")]);
                                                              pre = [`Invariant (`App ( ("I", [`Constructor ( ( "[]", [])); `Int ( 2)]))) ];
                                                              fun_pre = [`Invariant (`App ( ("I", [`Constructor ( ( "[]", [])); `Int ( 2)]))) ];
                                                              proof_fun = (Proof_term.VarApp ("Hf", [`Expr (`Int (2)); `Expr (`Var ("a")); `Expr (`Constructor ( ("[]", []))); `Expr (`Var ("l1")); `ProofTerm ("`Proof (\"(Cst((Coq.Init.Logic.eq_ind_r)) (Ind(Coq.Init.Datatypes.list,0) A)\\n (Constr(Coq.Init.Datatypes.list,0,2) A symbol_10\\n  (Constr(Coq.Init.Datatypes.list,0,2) A symbol_9\\n   (Constr(Coq.Init.Datatypes.list,0,2) A symbol_8\\n    (Constr(Coq.Init.Datatypes.list,0,1) A))))\\n fun l:(Ind(Coq.Init.Datatypes.list,0) A) =>\\n  (Ind(Coq.Init.Logic.eq,0) (Ind(Coq.Init.Datatypes.list,0) A)\\n   (Cst((TLC.LibList.app)) A (Constr(Coq.Init.Datatypes.list,0,1) A)\\n    (Constr(Coq.Init.Datatypes.list,0,2) A symbol_10\\n     (Constr(Coq.Init.Datatypes.list,0,2) A symbol_9\\n      (Constr(Coq.Init.Datatypes.list,0,2) A symbol_8\\n       (Constr(Coq.Init.Datatypes.list,0,1) A)))))\\n   (Cst((TLC.LibList.app)) A (Constr(Coq.Init.Datatypes.list,0,1) A) #1))\\n (Constr(Coq.Init.Logic.eq,0,1) (Ind(Coq.Init.Datatypes.list,0) A)\\n  (Cst((TLC.LibList.app)) A (Constr(Coq.Init.Datatypes.list,0,1) A)\\n   (Constr(Coq.Init.Datatypes.list,0,2) A symbol_10\\n    (Constr(Coq.Init.Datatypes.list,0,2) A symbol_9\\n     (Constr(Coq.Init.Datatypes.list,0,2) A symbol_8\\n      (Constr(Coq.Init.Datatypes.list,0,1) A))))))\\n (Constr(Coq.Init.Datatypes.list,0,2) A #8 #7) #2)\")") ]));
@@ -103,6 +106,7 @@ let vl = let open Lang in
                                                                               [`Invariant ( `App ( ( "I", [`App ( ( "TLC.LibList.app", [`Constructor ( ( "[]", [])); `Constructor ( ( "::", [`Var ( "a"); `Constructor ( ( "[]", [])) ]))])); `Var ( "x")])))],
                                                                               [],
                                                                               Proof_term.XApp {
+                                                                                application=("CFML.Stdlib.List_ml.fold_left", [`Var ("tmp0"); `Var ( "x"); `Var ( "l1")]);
                                                                                 pre =
                                                                                   [`Invariant ( `App ( ( "I", [`App ( ( "TLC.LibList.app", [`Constructor ( ( "[]", [])); `Constructor ( ( "::", [`Var ( "a"); `Constructor ( ( "[]", [])) ]))])); `Var ( "x")])))];
                                                                                 fun_pre =
@@ -161,6 +165,8 @@ let vl = let open Lang in
                                                                                                       value = `Var ( "x");
                                                                                                       proof =
                                                                                                         Proof_term.XMatch {
+                                                                                                          value=[(`Var ("x0__"), `Constructor ( ( "[]", [])));
+                                                                                                                 (`Var ( "x0__"), `Constructor ( ( "::", [`Var ( "a"); `Var ( "l")])))];
                                                                                                           pre = [`Invariant ( `App ( ( "I", [`Var ( "t"); `Var ( "init")]))) ];
                                                                                                           proof =
                                                                                                             ( Proof_term.HimplHandR (
@@ -229,6 +235,7 @@ let vl = let open Lang in
                                                                                                                                                             binding_ty = Type.Int;
                                                                                                                                                             value_code = `App ( ( "tmp0", [`Var ( "init"); `Var ( "a")]));
                                                                                                                                                             proof = Proof_term.XApp {
+                                                                                                                                                              application=("tmp0", [`Var ("init"); `Var ("a")]);
                                                                                                                                                               pre = [`Invariant ( `App ( ( "I", [`Var ( "t"); `Var ( "init")]))) ];
                                                                                                                                                               fun_pre = [`Invariant ( `App ( ( "I", [`Var ( "t"); `Var ( "init")]))) ];
                                                                                                                                                               proof_fun = ( Proof_term.VarApp ("Hf", [`Expr ( `Var ( "init")); `Expr ( `Var ( "a")); `Expr ( `Var ( "t")); `Expr ( `Var ( "l1")); `ProofTerm ( "`Proof (\"(Cst((Coq.Init.Logic.eq_ind_r)) (Ind(Coq.Init.Datatypes.list,0) A)\\n (Cst((TLC.LibList.app)) A #14 #17)\\n fun l:(Ind(Coq.Init.Datatypes.list,0) A) =>\\n  (Ind(Coq.Init.Logic.eq,0) (Ind(Coq.Init.Datatypes.list,0) A) #1\\n   (Cst((TLC.LibList.app)) A #15\\n    (Constr(Coq.Init.Datatypes.list,0,2) A #9 #8)))\\n (Cst((Coq.Init.Logic.eq_ind_r)) (Ind(Coq.Init.Datatypes.list,0) A) #17\\n  fun l:(Ind(Coq.Init.Datatypes.list,0) A) =>\\n   (Ind(Coq.Init.Logic.eq,0) (Ind(Coq.Init.Datatypes.list,0) A)\\n    (Cst((TLC.LibList.app)) A #15 #18) (Cst((TLC.LibList.app)) A #15 #1))\\n  (Constr(Coq.Init.Logic.eq,0,1) (Ind(Coq.Init.Datatypes.list,0) A)\\n   (Cst((TLC.LibList.app)) A #14 #17))\\n  (Constr(Coq.Init.Datatypes.list,0,2) A #8 #7) #2)\\n (Constr(Coq.Init.Datatypes.list,0,2) A symbol_10\\n  (Constr(Coq.Init.Datatypes.list,0,2) A symbol_9\\n   (Constr(Coq.Init.Datatypes.list,0,2) A symbol_8\\n    (Constr(Coq.Init.Datatypes.list,0,1) A)))) #12)\")") ]));
@@ -249,6 +256,7 @@ let vl = let open Lang in
                                                                                                                                                                                 [`Invariant ( `App ( ( "I", [`App ( ( "TLC.LibList.app", [`Var ( "t"); `Constructor ( ( "::", [`Var ( "a"); `Constructor ( ( "[]", [])) ]))])); `Var ( "x")])))],
                                                                                                                                                                                 [],
                                                                                                                                                                                 Proof_term.XApp {
+                                                                                                                                                                                  application=("CFML.Stdlib.List_ml.fold_left", [`Var ("tmp0"); `Var ( "x"); `Var ( "l1")]);
                                                                                                                                                                                   pre =
                                                                                                                                                                                     [`Invariant ( `App ( ( "I", [`App ( ( "TLC.LibList.app", [`Var ( "t"); `Constructor ( ( "::", [`Var ( "a"); `Constructor ( ( "[]", [])) ]))])); `Var ( "x")])))];
                                                                                                                                                                                   fun_pre =
