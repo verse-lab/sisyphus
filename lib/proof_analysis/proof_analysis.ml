@@ -1,7 +1,9 @@
 [@@@warning "-26"]
 open Containers
+module StringMap = Map.Make(String)
 
-type t = Proof_term.t
+type t = Parsetree.expression
+type lambda_env = (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t
 
 module PCFML = Proof_utils.CFML
 
@@ -77,7 +79,6 @@ let rec extract_sym_heap env c =
     try [`Invariant (PCFML.extract_expr ~rel:(rel_expr env) c)] with
     | _ -> []
 
-
 let extract_trm_apps env (trm: Constr.t) =
   match Constr.kind trm with
   | Constr.App (fn, [| f; args |]) when Proof_utils.is_const_eq "CFML.SepLifted.Trm_apps" fn ->
@@ -133,8 +134,6 @@ let extract_prop_spec env (trm: Constr.t) =
   let env = add_binding ?ty name env in
   (name, Option.get_exn_or "found invalid type" ty), extract_prop_type env body
 
-
-
 let extract_match_code_case_values env (trm: Constr.t) : (Lang.Expr.t * Lang.Expr.t) list =
   let rec extract_case_vl env vl =
     match Constr.kind vl with
@@ -187,42 +186,42 @@ let extract_match_code_case_values env (trm: Constr.t) : (Lang.Expr.t * Lang.Exp
     | _ -> failwith "lol" in
   loop [] trm
 
-let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
+let rec reify_proof_term (env: env) (trm: Constr.t) : Proof_term.t  =
   match Constr.kind trm with
   | Constr.App (acc_rect, args) when PCFML.is_const_named "Acc_rect" acc_rect ->
     extract_fold_specification env trm
   | Constr.App (trm , [| typ; proof |]) when Proof_utils.is_const_eq "TLC.LibTactics.rm" trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| typ; vl; prop; proof; vl'; proof_eq |]) when PCFML.is_const_named "eq_ind" trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, args) when PCFML.is_const_named "reflexive_proper" trm ->
     let proof = args.(Array.length args - 1) in
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [|
     pre; credits; hla;  hlw; hlt; hra; hrg; hrt; proof
   |]) when PCFML.is_xsimpl_lr_cancel_same trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| a; q1; q2; hla; nc; proof |]) when PCFML.is_xsimpl_lr_qwand trm ->
     let ({Context.binder_name; _}, ty, proof) = Constr.destLambda proof in
     let binder_name = name_to_string binder_name in
     let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
     let env = add_binding ?ty binder_name env in
     Lambda ( binder_name, proof_ty,
-      extract_invariant_applications env proof
+      reify_proof_term env proof
     )
   | Constr.App (trm, [| hla; hrg; haffine; proof |]) when PCFML.is_xsimpl_lr_hgc_nocredits trm ->
-    extract_invariant_applications env proof    
+    reify_proof_term env proof    
   | Constr.App (trm, args (* [| ty; vl; prop; proof; vl'; proof_vl_eq_vl'; |] *)) when PCFML.is_const_named "eq_ind_r" trm ->
     let proof = args.(3) in
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| ty; vl; prop; proof; vl'; proof_vl_eq_vl'; |]) when PCFML.is_const_named "eq_ind_r" trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| post_1; post_2; pre; proof_of_post_1; proof_of_post_2; |]) when PCFML.is_himpl_hand_r trm ->
     let pre = extract_sym_heap env pre in
     HimplHandR (
       pre,
-      extract_invariant_applications env proof_of_post_1,
-      extract_invariant_applications env proof_of_post_2
+      reify_proof_term env proof_of_post_1,
+      reify_proof_term env proof_of_post_2
     )
   | Constr.App (trm, [|
     new_pre;
@@ -236,11 +235,11 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     HimplTrans (
       pre,
       new_pre,
-      extract_invariant_applications env proof_pre_impl_new_pre,
-      extract_invariant_applications env proof_new_pre_impl_post    
+      reify_proof_term env proof_pre_impl_new_pre,
+      reify_proof_term env proof_new_pre_impl_post    
     )
   | Constr.App (trm, [| pre_frame_a;  pre_frame_b; post; proof |]) when PCFML.is_himpl_frame_r trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| prop; pre; post; proof |]) when PCFML.is_himpl_hstar_hpure_l trm ->
     let ({Context.binder_name=proof_binding_name;_}, ty, proof) = Constr.destLambda proof in
     let proof_binding_name = name_to_string proof_binding_name in
@@ -249,27 +248,27 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     Lambda (
       proof_binding_name,
       proof_ty,
-      extract_invariant_applications env proof
+      reify_proof_term env proof
     )
   | Constr.App (trm, [| pre; post; proof |]) when PCFML.is_xsimpl_lr_exit_nogc_nocredits trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, ([| pre; post; proof |] as args)) when PCFML.is_xsimpl_start trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| pre; post; proof |]) when PCFML.is_hstars_simpl_start trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| pre'; post_left; framed; post_right; proof |]) when PCFML.is_hstars_simpl_cancel trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| pre; pre'; post; proof_pre_eq_pre'; proof |]) when PCFML.is_hstars_simpl_pick_lemma trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| post; post_proof |] ) when PCFML.is_himpl_hempty_pure trm ->
-    extract_invariant_applications env post_proof
+    reify_proof_term env post_proof
   | Constr.App (trm, [|
     exists_ty; exists_binding;
     pre;
     post;
     proof
   |]) when PCFML.is_himpl_hexists_r trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [| ty; post; pre; proof |]) when PCFML.is_himpl_hforall_r trm ->
     let ({Context.binder_name=binding;_}, ty, proof) = Constr.destLambda proof in
     let binding_name = name_to_string binding in
@@ -277,7 +276,7 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     let env = add_binding ?ty binding_name env in
     Lambda (
       binding_name, proof_ty,
-      extract_invariant_applications env proof      
+      reify_proof_term env proof      
     )
   | Constr.App (trm, [|
     pre;                        (* current heap state at current program point *)
@@ -286,7 +285,7 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     post;                       (* post condition (parameterised by value of result type) *)
     proof                       (* proof of rest *)
   |]) when PCFML.is_mkstruct_erase trm ->
-    extract_invariant_applications env proof
+    reify_proof_term env proof
   | Constr.App (trm, [|
     let_ty;                     (* type of value being let bound *)
     pre;                        (* current heap state at let binding *)
@@ -318,7 +317,7 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
       let_binding=(let_binding_name, Option.get_exn_or "found invalid type" let_binding_ty);
       eq_binding=(eq_prf_name, eq_prf_ty);
       value=let_vl;
-      proof=extract_invariant_applications env proof;
+      proof=reify_proof_term env proof;
     }
   | Constr.App (trm, [|
     _res_ty;
@@ -333,7 +332,7 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     XMatch {
       value;
       pre=pre;
-      proof=extract_invariant_applications env proof;
+      proof=reify_proof_term env proof;
     }
   | Constr.App (trm, [|
     binding_ty; enc_binding_ty;
@@ -351,7 +350,7 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
       pre=pre;
       binding_ty=Option.get_exn_or "found invalid type" binding_ty;
       value_code=value_code;
-      proof=extract_invariant_applications env proof
+      proof=reify_proof_term env proof
     }
   | Constr.App (trm, [|
     ret_ty; enc_ret_ty;
@@ -381,8 +380,8 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
       pre=pre;
       application;
       fun_pre=fun_pre;
-      proof_fun=extract_invariant_applications env proof_fun;
-      proof=extract_invariant_applications env proof;
+      proof_fun=reify_proof_term env proof_fun;
+      proof=reify_proof_term env proof;
     }
   | Constr.App (case, args) when is_case_of_eq_sym case ->
     let (_, _, _, _, _, case_expr, branches) = Constr.destCase case in
@@ -405,7 +404,7 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
               else
                 (kont, v, env), `Stop
            ) ((fun x -> x), body, env) in
-    kont (extract_invariant_applications env proof)
+    kont (reify_proof_term env proof)
   | Constr.App (trm, [| ty |]) when PCFML.is_xsimpl_lr_refl_nocredits trm ->
     Refl
   | Constr.App (trm, [| ret_ty; enc_ret_ty; post; heaplet |]) when PCFML.is_xdone_lemma trm ->
@@ -451,11 +450,11 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     CharacteristicFormulae {
       pre;
       args;
-      proof=extract_invariant_applications env proof
+      proof=reify_proof_term env proof
     }
   | Constr.App (trm, args) ->
     Format.ksprintf ~f:failwith
-      "extract_invariant_applications env received App of %s (%s) to %d args\n%s@."
+      "reify_proof_term env received App of %s (%s) to %d args\n%s@."
       (String.take 400_000 (Proof_utils.Debug.constr_to_string trm)) (Proof_utils.Debug.tag trm)
       (Array.length args)
       (Array.to_string (fun v -> "{" ^ String.take 40_000 (Proof_utils.Debug.constr_to_string v) ^ "}") args)
@@ -466,14 +465,14 @@ let rec extract_invariant_applications (env: env) (trm: Constr.t) : t  =
     Lambda (
       binder_name,
       proof_ty,
-      extract_invariant_applications env proof      
+      reify_proof_term env proof      
     )
   | _ ->
     Format.ksprintf ~f:failwith
-      "extract_invariant_applications env received %s"
+      "reify_proof_term env received %s"
       (String.take 4000_000 (Proof_utils.Debug.constr_to_string trm))
 
-and extract_fold_specification (env: env) (trm: Constr.t) : t =
+and extract_fold_specification (env: env) (trm: Constr.t) : Proof_term.t =
   let (_, args) = Constr.destApp trm in
   let prop_spec = args.(2) |> extract_prop_spec env in
   let recursive_spec = args.(3) in
@@ -507,28 +506,20 @@ and extract_fold_specification (env: env) (trm: Constr.t) : t =
       x=rec_vl; ty_x=Option.get_exn_or "found invalid type" rec_vl_ty;
       h_acc=h_acc; ty_h_acc=Proof_utils.Debug.constr_to_string_pretty ty_h_acc;
       ih_x= ih_vl; ty_ih_x=ih_vl_prop_ty;
-      proof=extract_invariant_applications env recursive_spec
+      proof=reify_proof_term env recursive_spec
     };
     vl=vl;
     args=args
   }
 
-
-let analyse (trm: Constr.t) : t =
+let analyse (lambda_env: lambda_env) (obs: (Dynamic.Concrete.context * Dynamic.Concrete.heap_context)) (trm: Constr.t) : t =
   match Constr.kind trm with
   | Constr.App (trm, args) when is_const_wp_fn trm && Array.length args > 0 ->
-    let _initial_args = 
-      Array.to_iter args |> Iter.find_map (fun trm ->
-        match Constr.kind trm with
-        | Constr.App (trm, args) when Constr.isVar trm ->
-          Some args
-        | _ ->
-          None
-      ) in
     let wp = args.(Array.length args - 1) in
+    let proof_term = reify_proof_term [] wp in
+    let test_spec = (Proof_extraction.extract proof_term) in
+    test_spec
+  | _ ->
 
-    let _fspec = extract_invariant_applications [] wp in
-    failwith (Format.to_string Pprintast.expression (Proof_extraction.extract _fspec))
-  | _ -> 
     failwith ("lol " ^ Proof_utils.Debug.tag trm)
   
