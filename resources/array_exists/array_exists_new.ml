@@ -1,9 +1,13 @@
 open Common
 
-let exists t ~f =
-  let i = ref (length t - 1) in
+let array_exists t ~f =
+  let i = ref 0 in
   let result = ref false in
-  while !i >= 0 && not !result do
-    if f (Array.get t !i) then result := true else decr i
-  done;
+  let rec loop () =
+    if !i < (length t) && not !result then begin
+      if f (Array.get t !i) then result := true else decr i;
+      loop ();
+    end
+  in
+  loop ();
   !result
