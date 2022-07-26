@@ -1,7 +1,7 @@
 open Common
 
 
-let exists2_exn t1 t2 ~f =
+let array_exists2 t1 t2 ~f =
   if (length t1) = (length t2)
   then
     let i = ref (length t1 - 1) in

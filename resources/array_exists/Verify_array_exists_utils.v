@@ -5,6 +5,18 @@ From TLC Require Import LibListZ.
 
 From ProofsArrayExists Require Import Common_ml.
 
+Lemma neq_drop_list : forall A `{EA: Enc A} `{IA: Inhab A} (i: int) (l: list A) (x: A) (l': list A),
+    0 <= i < LibListZ.length l -> l = x :: l' ->
+    drop (i + 1) l <> l.
+Proof using.
+  introv _ _ Hi Hl.
+  rewrite <- (@list_eq_take_app_drop A (i + 1) l) at 2; try math.
+  rewrite <- app_nil_l  at 1.
+  intros contra.
+  apply app_cancel_r  in contra.
+  rewrite Hl in contra.
+  rewrite take_cons in contra; (math || auto). discriminate contra.
+Qed.
 
 Lemma drop_cons' : forall A `{EA: Enc A} `(IA: Inhab A) (x : A) (l : list A) (i : credits),
     0 <= i < LibListZ.length l ->
