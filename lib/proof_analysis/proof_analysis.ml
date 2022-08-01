@@ -52,13 +52,13 @@ let add_binding ?ty var env =
 let extract_proof_value env ty =
   try `Eq (PCFML.unwrap_eq ~rel:(rel_expr env) ty) with
   | e ->
-    Format.printf "received exception: %s@." (Printexc.to_string e);
+    (* Format.printf "received exception: %s@." (Printexc.to_string e); *)
     try  `Expr (PCFML.extract_expr ~rel:(rel_expr env) ty)  with
     | e ->
-      Format.printf "received exception: %s@." (Printexc.to_string e);
+      (* Format.printf "received exception: %s@." (Printexc.to_string e); *)
       try `Ty (PCFML.extract_typ ~rel:(rel_ty env) ty) with
       | e ->
-        Format.printf "received exception: %s@." (Printexc.to_string e);
+        (* Format.printf "received exception: %s@." (Printexc.to_string e); *)
         `Proof (Proof_utils.Debug.constr_to_string ty)
 
 let extract_typ_from_proof_value = function
@@ -66,9 +66,9 @@ let extract_typ_from_proof_value = function
     | _ as p_vl -> None, p_vl
 
 let rec extract_sym_heap env c =
-  Format.printf "extract_sym_heap of %s@.%s@."
-    (Proof_utils.Debug.constr_to_string_pretty c)
-    (Proof_utils.Debug.constr_to_string c);
+  (* Format.printf "extract_sym_heap of %s@.%s@."
+   *   (Proof_utils.Debug.constr_to_string_pretty c)
+   *   (Proof_utils.Debug.constr_to_string c); *)
   match Constr.kind c with
   | Constr.App (fn, [| h1; h2|]) when Proof_utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hstar" fn ->
     extract_sym_heap env h1 @ extract_sym_heap env h2
@@ -498,8 +498,6 @@ and extract_fold_specification (env: env) (trm: Constr.t) : Proof_term.t =
     let ih_vl_prop_ty = extract_prop_type env ih_vl_ty in
     let env = add_binding ih_vl env in
 
-  
-
   AccRect {
     prop_type=prop_spec;
     proof={
@@ -518,8 +516,7 @@ let analyse (lambda_env: lambda_env) (obs: (Dynamic.Concrete.context * Dynamic.C
     let wp = args.(Array.length args - 1) in
     let proof_term = reify_proof_term [] wp in
     let test_spec = (Proof_extraction.extract proof_term) in
+    print_endline @@ Format.to_string Pprintast.expression test_spec;
     test_spec
-  | _ ->
-
-    failwith ("lol " ^ Proof_utils.Debug.tag trm)
+  | _ -> failwith ("found unsupported term " ^ Proof_utils.Debug.tag trm)
   

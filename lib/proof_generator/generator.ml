@@ -299,6 +299,7 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   end;
   symexec t env rest
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
+  let module PDB = Proof_utils.Debug in
   let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
   (* work out the name of function being called and the spec for it *)
   let (lemma_name, lemma_full_type) =
@@ -309,10 +310,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
   let (lemma_params, lemma_invariants, spec) = Proof_utils.CFML.extract_spec lemma_full_type in
   let explicit_lemma_params = Proof_utils.drop_implicits lemma_name lemma_params in
-  let (_, _f_args) = Proof_utils.CFML.extract_app_full post in
+  let (_, f_args) = Proof_utils.CFML.extract_app_full post in
 
 
-  let param_bindings, remaining = combine_rem explicit_lemma_params _f_args in
+  let param_bindings, remaining = combine_rem explicit_lemma_params f_args in
   match remaining with
   | Some (Right _) | None | Some (Left [])  ->
     Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant/insufficient arguments?"
@@ -322,6 +323,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left [(inv, inv_ty)]) ->
 
+    Format.printf "env is %a" Proof_env.pp env;
     let _vc =
       Specification.build_verification_condition t
         (Proof_env.env_to_defmap env) lemma_name in
@@ -339,7 +341,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         print_endline @@ show_obs obs;
         let v = Proof_context.with_temporary_context t begin fun () ->
           (* first, instantiate the concrete arguments using values from the trace *)
-          let* instantiated_params = instantiate_arguments t env _f_args obs in
+          let* instantiated_params = instantiate_arguments t env f_args obs in
           (* next, add evars for the remaining arguments to lemma *)
           let lemma_complete_params, _ =
             build_complete_params t lemma_name instantiated_params in
@@ -396,7 +398,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       (List.map (fun (name, _) -> name_to_string name) explicit_lemma_params |> String.concat ", ");
 
     print_endline @@ Format.sprintf "args: (%s)"@@
-    (List.map (fun (exp, _) -> Lang.Expr.show exp) _f_args |> String.concat ", ");
+    (List.map (fun (exp, _) -> Lang.Expr.show exp) f_args |> String.concat ", ");
 
     failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
 

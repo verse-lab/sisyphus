@@ -48,7 +48,8 @@ CLOSED: [2022-06-24 Fri 09:50]
 CLOSED: [2022-06-24 Fri 13:50]
 *** DONE Update plugin to setup proof reduction
 CLOSED: [2022-06-24 Fri 13:50]
-** TODO Build binding of program variables to concrete values
+** DONE Build binding of program variables to concrete values
+CLOSED: [2022-07-29 Fri 04:14]
 *** DONE Update dynamic tracer to return bindings
 CLOSED: [2022-06-24 Fri 14:51]
 *** DONE Fix proof generator state to update program point tracking correctly
@@ -61,12 +62,16 @@ CLOSED: [2022-06-26 Sun 18:40]
 CLOSED: [2022-06-26 Sun 19:32]
 **** DONE Print out thte concrete values at the current lambda state
 CLOSED: [2022-07-11 Mon 04:05]
-** TODO Work on proof analysis
+** DONE Work on proof analysis
+CLOSED: [2022-07-29 Fri 04:15]
 *** DONE generate evars for arguments
 CLOSED: [2022-06-29 Wed 02:28]
-*** TODO call print reduced tactic on argument to retrieve reduced proof term 
-*** TODO perform analysis on proof term
-** TODO Implement generator function for higher order functions
+*** DONE call print reduced tactic on argument to retrieve reduced proof term 
+CLOSED: [2022-07-29 Fri 04:15]
+*** DONE perform analysis on proof term
+CLOSED: [2022-07-29 Fri 04:15]
+** DONE Implement generator function for higher order functions
+CLOSED: [2022-07-29 Fri 04:15]
 *** DONE Extract proof arguments, determine no. invariants
 CLOSED: [2022-06-27 Mon 05:32]
 *** DONE calculate type of instantiated invariant with explicit parameters
@@ -99,6 +104,9 @@ CLOSED: [2022-06-29 Wed 11:29]
 **** Extract from last element in context then revert, just like typeof function
 *** DONE Apply ultimate reduction
 CLOSED: [2022-06-29 Wed 11:29]
-*** TODO Perform data flow analysis over reduced proof term
-**** TODO Check type of properties evar applied to concrete arguments
-**** TODO extract arguments to evar
+*** DONE Perform data flow analysis over reduced proof term
+CLOSED: [2022-07-29 Fri 04:15]
+**** DONE Check type of properties evar applied to concrete arguments
+CLOSED: [2022-07-29 Fri 04:15]
+**** DONE extract arguments to evar
+CLOSED: [2022-07-29 Fri 04:15]

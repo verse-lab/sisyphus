@@ -1,4 +1,7 @@
 Set Implicit Arguments.
+Set Printing Universes.
+
+
 
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
@@ -6,10 +9,8 @@ From TLC Require Import LibListZ.
 From Proofs Require Import Verify_seq_to_array_utils.
 From Proofs Require Import Seq_to_array_new_ml.
 
-Axiom (n: nat).
-
-Compute (n + 1).
-Print eq_ind_r.
+Declare ML Module "proof_reduction".
+Declare ML Module "printreduced".
 
 Lemma to_array_spec : forall (A: Type) `{EA:Enc A} (l:list A) (s:func),
     SPEC (to_array s)
@@ -31,7 +32,7 @@ Proof using.
     xalloc arr data Hdata.
     xletopaque idx Hidx.
     xletopaque ftmp Hftmp.
-    About list_fold_spec.
+
     evar (sym_1: A).
     evar (sym_2: A).
     evar (sym_3: A).
@@ -41,6 +42,13 @@ Proof using.
         SPEC (ftmp acc v)
         PRE ?I t acc
         POST (fun acc0 : credits => ?I (t & v) acc0))).
+    Set Printing Depth 1000000000.
+
+    print_reduced (list_fold_spec ftmp 3 (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI).
+
+    Set Printing Universes.
+
+    (* print_reduced (list_fold_spec ftmp n (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI). *)
     pose (list_fold_spec ftmp 3 (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI).
     Print make.
     Print LibList.make.

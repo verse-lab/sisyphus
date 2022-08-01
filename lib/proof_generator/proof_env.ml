@@ -9,6 +9,22 @@ type t = {
   (** mapping of proof vars (i.e [idx]) to their corresponding program variables.  *)
 }
 
+let pp_lambda fmt (id, `Lambda (args, program)) =
+  Format.fprintf fmt
+    "%a :-> fun %a -> %a" Lang.Id.pp id
+    (List.pp ~pp_sep:Format.pp_print_space Lang.Expr.pp_typed_param)
+    args
+    Lang.(Program.pp_stmt Expr.print_simple)
+    program
+
+let pp fmt (t: t) =
+  Format.fprintf fmt
+    "{\n Proof_env.t = %a;\n bindings = %a\n }"
+    (StringMap.pp String.pp pp_lambda)
+    t.lambda
+    (StringMap.pp String.pp String.pp)
+    t.bindings
+
 let initial_env = {lambda=StringMap.empty; bindings=StringMap.empty}
 
 let has_definition env v = StringMap.mem v env.lambda
