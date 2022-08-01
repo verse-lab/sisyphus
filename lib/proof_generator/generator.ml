@@ -1,3 +1,4 @@
+[@@@warning "-26"]
 open Containers
 
 let drop_last ls =
@@ -15,8 +16,11 @@ let combine_rem xz yz =
     | x :: xz, y :: yz -> loop ((x, y) :: acc) xz yz in
   loop [] xz yz
 
+
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
+
+let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name)
 
 let arg_list_to_str args =
   (List.map (fun vl -> "(" ^ Proof_utils.Printer.show_expr vl ^ ")") args
@@ -120,6 +124,23 @@ let instantiate_arguments t env args (ctx, heap_ctx) =
       | expr -> Some expr
     ) args
     |> List.all_some
+
+(** [ensure_single_invariant ~name ~ty ~args] when given the
+   application of lemma [name] to arguments [args], where [name] has
+   type [ty]. *)
+let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
+  let (lemma_params, lemma_invariants, spec) = Proof_utils.CFML.extract_spec lemma_full_type in
+  let explicit_lemma_params = Proof_utils.drop_implicits lemma_name lemma_params in
+  let param_bindings, remaining = combine_rem explicit_lemma_params f_args in
+  match remaining with
+  | Some (Right _) | None | Some (Left [])  ->
+    Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant/insufficient arguments?"
+      Pp.pp_with (Names.Constant.print lemma_name)
+  | Some (Left (_ :: _ :: _)) ->
+    Format.ksprintf ~f:failwith "TODO: found function application %a with multiple invariants"
+      Pp.pp_with (Names.Constant.print lemma_name)
+  | Some (Left [_, _]) -> () 
+  
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   (* Format.printf "current program id is %s: %s@."
@@ -307,100 +328,92 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     let f_app = Proof_utils.CFML.extract_x_app_fun post in
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
-
-  let (lemma_params, lemma_invariants, spec) = Proof_utils.CFML.extract_spec lemma_full_type in
-  let explicit_lemma_params = Proof_utils.drop_implicits lemma_name lemma_params in
+  (* extract the arguments applied to the function call *)
   let (_, f_args) = Proof_utils.CFML.extract_app_full post in
 
+  (* for now we only handle lemmas with a single higher order invariant *)
+  ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
 
-  let param_bindings, remaining = combine_rem explicit_lemma_params f_args in
-  match remaining with
-  | Some (Right _) | None | Some (Left [])  ->
-    Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant/insufficient arguments?"
-      Pp.pp_with (Names.Constant.print lemma_name)
-  | Some (Left (_ :: _ :: _)) ->
-    Format.ksprintf ~f:failwith "TODO: found function application %a with multiple invariants"
-      Pp.pp_with (Names.Constant.print lemma_name)
-  | Some (Left [(inv, inv_ty)]) ->
+  (* work out the type of the invariant *)
+  let inv_ty =
+    let instantiated_spec = Format.ksprintf ~f:(Proof_context.typeof t) "%s %s"
+                              (Names.Constant.to_string lemma_name)
+                              (arg_list_to_str (List.map fst f_args)) in
+    let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
+    let tys = Proof_utils.CFML.unwrap_invariant_type ty in
+    let tys = List.mapi (fun i v -> Format.sprintf "arg%d" i, v) tys in
+    name_to_string binder_name, tys in
 
-    Format.printf "env is %a" Proof_env.pp env;
-    let _vc =
-      Specification.build_verification_condition t
-        (Proof_env.env_to_defmap env) lemma_name in
-
-    let cp = t.Proof_context.concrete () in
-    let observations =
-      Dynamic.Concrete.lookup cp
-        (t.Proof_context.current_program_id :> int) in
-
-    let show_obs obs =
-      [%show: (string * Dynamic.Concrete.value) list *
-              (string * Dynamic.Concrete.heaplet) list] obs in
-    let _ =
-      List.find_map Option.(fun obs ->
-        print_endline @@ show_obs obs;
-        let v = Proof_context.with_temporary_context t begin fun () ->
-          (* first, instantiate the concrete arguments using values from the trace *)
-          let* instantiated_params = instantiate_arguments t env f_args obs in
-          (* next, add evars for the remaining arguments to lemma *)
-          let lemma_complete_params, _ =
-            build_complete_params t lemma_name instantiated_params in
-          (* construct term to represent full application of lemma parameters *)
-          let trm = 
-            Format.ksprintf ~f:(Proof_context.term_of t) "%s %s"
-              (Names.Constant.to_string lemma_name)
-              (arg_list_to_str  lemma_complete_params) in
-
-          let lambda_env = env.Proof_env.lambda in
-          let env = Proof_context.env t in
-          let evd = Evd.from_env env in
-          let (evd, reduced) =
-            Proof_reduction.reduce
-              ~filter:(fun ~path ~label ->
-                (* Format.printf "checking %s . %s ==> YES@." path label; *)
-                `Unfold)
-              env evd (Evd.MiniEConstr.of_constr trm) in
-
-          let reduced = EConstr.to_constr evd reduced in
-          print_endline "DONE";
-          (* Format.printf "instantiated lemma is %s@."
-           *   (Proof_utils.Debug.constr_to_string_pretty reduced); *)
-          let _ = Proof_analysis.analyse lambda_env obs reduced in
+  let pre_heap = 
+    List.filter_map
+      (function `Impure heaplet -> Some (Proof_utils.CFML.extract_impure_heaplet heaplet) | _ -> None)
+      (match pre with | `Empty -> [] | `NonEmpty ls -> ls) in
 
 
-          Some trm
-        end in
-        v
-      ) observations
-    in
+  let _vc = Specification.build_verification_condition t (Proof_env.env_to_defmap env) lemma_name in
 
+  let cp = t.Proof_context.concrete () in
+  let observations =
+    Dynamic.Concrete.lookup cp
+      (t.Proof_context.current_program_id :> int) in
 
-    let _ = 
-      List.map (fun (_param, (supplied_expr, supplied_ty)) ->
-        supplied_expr
-      ) param_bindings in
+  let show_obs obs =
+    [%show: (string * Dynamic.Concrete.value) list *
+            (string * Dynamic.Concrete.heaplet) list] obs in
+  let test_f =
+    List.find_map Option.(fun obs ->
+      print_endline @@ show_obs obs;
+      let v = Proof_context.with_temporary_context t begin fun () ->
+        (* first, instantiate the concrete arguments using values from the trace *)
+        let* instantiated_params = instantiate_arguments t env f_args obs in
+        (* next, add evars for the remaining arguments to lemma *)
+        let lemma_complete_params, _ =
+          build_complete_params t lemma_name instantiated_params in
+        (* construct term to represent full application of lemma parameters *)
+        let trm = 
+          Format.ksprintf ~f:(Proof_context.term_of t) "%s %s"
+            (Names.Constant.to_string lemma_name)
+            (arg_list_to_str  lemma_complete_params) in
 
+        let lambda_env = env.Proof_env.lambda in
+        let env = Proof_context.env t in
+        let evd = Evd.from_env env in
+        let (evd, reduced) =
+          Proof_reduction.reduce
+            ~filter:(fun ~path ~label ->
+              (* Format.printf "checking %s . %s ==> YES@." path label; *)
+              `Unfold)
+            env evd (Evd.MiniEConstr.of_constr trm) in
 
+        let reduced = EConstr.to_constr evd reduced in
+        print_endline "DONE";
+        (* Format.printf "instantiated lemma is %s@."
+         *   (Proof_utils.Debug.constr_to_string_pretty reduced); *)
+        let testf =
+          Proof_analysis.analyse lambda_env obs
+            (List.map
+               Proof_spec.Heap.Heaplet.(function
+                   PointsTo (v, `App ("CFML.WPArray.Array", _)) -> v, `Array
+                 | PointsTo (v, `App ("Ref", _)) -> v, `Ref
+                 | v -> Format.ksprintf ~f:failwith "found unsupported heaplet %a" pp v
+               ) pre_heap)
+            (String.lowercase_ascii @@ fst inv_ty, snd inv_ty |> List.map fst) reduced in
+        Some testf
+      end in
+      v
+    ) observations in
 
-    (* =====================printing starts========================================= *)
-    Format.printf "inv is %a@." Pp.pp_with (Names.Name.print inv);
-    let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name) in
-    print_endline @@
-    Printf.sprintf "params are: %s"
-      (List.map (fun (name, _) -> name_to_string name) lemma_params |> String.concat ", ");
+  begin match test_f with
+  | None -> ()
+  | Some test_f ->
+    let valid = test_f t.Proof_context.compilation_context (`Var "true", [| `Constructor ("[]", []) |]) in
+    Format.printf "valid: %b" valid
+  end;
 
-    print_endline @@
-    Printf.sprintf "invariants are: %s" 
-      (List.map (fun (_, sg) -> Proof_utils.Debug.constr_to_string sg) lemma_invariants |> String.concat ", ");
+  print_endline @@ Format.sprintf "args: (%s)"@@
+  (List.map (fun (exp, _) -> Lang.Expr.show exp) f_args |> String.concat ", ");
 
-    print_endline @@
-    Printf.sprintf "real params are: %s" 
-      (List.map (fun (name, _) -> name_to_string name) explicit_lemma_params |> String.concat ", ");
-
-    print_endline @@ Format.sprintf "args: (%s)"@@
-    (List.map (fun (exp, _) -> Lang.Expr.show exp) f_args |> String.concat ", ");
-
-    failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
+  failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
 
 let generate t (prog: Lang.Expr.t Lang.Program.t) =
   Proof_context.append t {|xcf.|};
@@ -413,6 +426,7 @@ let generate t (prog: Lang.Expr.t Lang.Program.t) =
     let pat = 
       Int.range 1 no_pure
       |> Iter.map (fun i -> "H" ^ Int.to_string i)
+      |> Iter.intersperse " "
       |> Iter.concat_str in
     Proof_context.append t "xpullpure %s." pat;
   | _ -> ()

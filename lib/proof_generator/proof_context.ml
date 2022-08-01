@@ -6,6 +6,7 @@ module StringSet = Set.Make(String)
 type coq_ctx = (module Coq.Proof.PROOF)
 
 type t = {
+  compilation_context: Dynamic.CompilationContext.t;
   ctx: coq_ctx;
   mutable current_program_id: Lang.Id.t;
   alignment: Dynamic.Matcher.t;
@@ -208,14 +209,14 @@ and eval_tracing_list t ty elts =
 
   
   
-let init ~prelude ~spec ~alignment ~concrete ~ctx =
+let init ~compilation_context ~prelude ~spec ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();
   Ctx.add prelude;
   Ctx.add spec;
   Ctx.exec ();
   {
-    ctx;
+    ctx; compilation_context;
     alignment; concrete;
     current_program_id=Lang.Id.init
   }

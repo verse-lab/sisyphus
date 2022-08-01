@@ -378,11 +378,19 @@ let extract_app_full (c: Constr.t) =
 (** [unwrap_invariant_type c] when given a Coq term [c] representing
     the type signature of an invariant (e.g. {[I: int -> List A ->
       hprop]}), extracts a list of the types of the arguments of the invariant.  *)
-let unwrap_invariant_type (c: Constr.t) =
+let unwrap_invariant_type ?rel (c: Constr.t) =
+  let rel acc = match rel with
+      None -> None
+    | Some rel -> Some (fun i ->
+      let i = i - 1 in
+      let acc_len = List.length acc in
+      if i < acc_len
+      then List.nth acc i
+      else rel (i - acc_len + 1)) in
   let rec loop acc c = 
     match Constr.kind c with
     | Constr.Prod (_, ty, rest) ->
-      loop ((extract_typ ty) :: acc) rest
+      loop ((extract_typ ?rel:(rel acc) ty) :: acc) rest
     | Constr.Const _ when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hprop" c ->
       List.rev acc
     | _ -> 

@@ -1,4 +1,4 @@
-[@@@warning "-26"]
+[@@@warning "-26-23"]
 open Containers
 module StringMap = Map.Make(String)
 
@@ -30,24 +30,37 @@ let is_case_of_eq_sym case =
 
 let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name)
 
-type env = (string * Lang.Type.t option) list
+type env = {
+  bindings: (string * Lang.Type.t option) list;
+  lambdas: (string, unit) Hashtbl.t
+}
+let empty_env () = {
+  bindings=[];
+  lambdas=Hashtbl.create 10
+}
+
+let used_functions env = Hashtbl.keys_list env.lambdas
 
 let rel_ty env ind =
   let ind = ind - 1 in
-  List.nth env ind
+  List.nth env.bindings ind
   |> snd
   |> Option.get_exn_or "attempted to construct invalid typ"
 
 let rel_expr env ind =
   let ind = ind - 1 in
-  match (List.nth_opt env ind) with
+  match (List.nth_opt env.bindings ind) with
   | None ->
-    Format.ksprintf ~f:failwith "attempted to access index %d in env of length %d; env is %s" ind (List.length env)
-      ([%show: (string * Lang.Type.t option) list] env)
+    Format.ksprintf ~f:failwith "attempted to access index %d in env of length %d; env is %s"
+      ind
+      (List.length env.bindings)
+      ([%show: (string * Lang.Type.t option) list] env.bindings)
   | Some (v, _) -> v
 
 let add_binding ?ty var env =
-  (var, ty) :: env
+  {env with bindings = (var, ty) :: env.bindings}
+let record_fun_usage env var =
+  Hashtbl.add env.lambdas var ()
 
 let extract_proof_value env ty =
   try `Eq (PCFML.unwrap_eq ~rel:(rel_expr env) ty) with
@@ -144,7 +157,7 @@ let extract_match_code_case_values env (trm: Constr.t) : (Lang.Expr.t * Lang.Exp
     | _ ->
       Format.ksprintf ~f:failwith "expected a negpat, but received %s (in env %s)"
         (Proof_utils.Debug.constr_to_string_pretty vl)
-        ([%show: (string * Lang.Type.t option) list] env);
+        ([%show: (string * Lang.Type.t option) list] env.bindings);
   and drop_lambdas env vl =
     match Constr.kind vl with
     | Constr.Prod ({Context.binder_name; _}, ty, vl) ->
@@ -161,7 +174,7 @@ let extract_match_code_case_values env (trm: Constr.t) : (Lang.Expr.t * Lang.Exp
     | _ ->
       Format.ksprintf ~f:failwith "expected a logical not, but received %s (in env %s)"
         (Proof_utils.Debug.constr_to_string_pretty vl)
-        ([%show: (string * Lang.Type.t option) list] env)
+        ([%show: (string * Lang.Type.t option) list] env.bindings)
   and drop_eq env vl = 
     match Constr.kind vl with
     | Constr.App (eq, [| ty; vl; case |]) when Proof_utils.is_coq_eq eq ->
@@ -171,7 +184,7 @@ let extract_match_code_case_values env (trm: Constr.t) : (Lang.Expr.t * Lang.Exp
     | _ ->
       Format.ksprintf ~f:failwith "expected a logical equality, but received %s (in env %s)"
         (Proof_utils.Debug.constr_to_string_pretty vl)
-        ([%show: (string * Lang.Type.t option) list] env)
+        ([%show: (string * Lang.Type.t option) list] env.bindings)
   in
   let rec loop acc trm =
     match Constr.kind trm with
@@ -376,6 +389,7 @@ let rec reify_proof_term (env: env) (trm: Constr.t) : Proof_term.t  =
                  |> List.map (PCFML.extract_dyn_var ~rel:(rel_expr env))
                  |> List.map fst in
       (f, args) in
+    record_fun_usage env (fst application);
     XApp {
       pre=pre;
       application;
@@ -510,13 +524,27 @@ and extract_fold_specification (env: env) (trm: Constr.t) : Proof_term.t =
     args=args
   }
 
-let analyse (lambda_env: lambda_env) (obs: (Dynamic.Concrete.context * Dynamic.Concrete.heap_context)) (trm: Constr.t) : t =
+module StringSet = Set.Make(String)
+let unique ls = StringSet.of_list ls |> StringSet.to_list
+
+let analyse
+      (lambda_env: lambda_env)
+      (obs: (Dynamic.Concrete.context * Dynamic.Concrete.heap_context))
+      heap_spec
+      invariant_spec
+      (trm: Constr.t)  =
   match Constr.kind trm with
   | Constr.App (trm, args) when is_const_wp_fn trm && Array.length args > 0 ->
     let wp = args.(Array.length args - 1) in
-    let proof_term = reify_proof_term [] wp in
+    let env = empty_env () in
+    let proof_term = reify_proof_term env wp in
     let test_spec = (Proof_extraction.extract proof_term) in
-    print_endline @@ Format.to_string Pprintast.expression test_spec;
-    test_spec
+    let used_functions =
+      used_functions env
+      |> unique
+      |> List.filter_map (fun name ->
+        StringMap.find_opt name lambda_env
+        |> Option.map (fun (_, v) -> (name, v))) in
+    Proof_test.build_test obs heap_spec used_functions invariant_spec test_spec;
   | _ -> failwith ("found unsupported term " ^ Proof_utils.Debug.tag trm)
   
