@@ -1,4 +1,5 @@
 (library (name expr_generator)
+ (public_name sisyphus.expr_generator)
  (libraries sedlex containers lang proof_spec proof_parser coq)
  (modules (:standard \ "main"))
  (flags -rectypes)

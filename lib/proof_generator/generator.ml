@@ -1,6 +1,16 @@
 [@@@warning "-26"]
 open Containers
 
+let split_last =
+  let rec loop last acc = function
+    | [] -> List.rev acc, last
+    | h :: t -> loop h (last :: acc) t in
+  function
+    [] -> invalid_arg "split_last called on empty list"
+  | h :: t -> loop h [] t
+
+
+
 let drop_last ls =
   let rec loop acc = function
     | [] | [_] -> List.rev acc
@@ -403,7 +413,28 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       end
     ) observations in
 
-  let generation_env =
+  let typeof (s: string) : (Lang.Type.t list * Lang.Type.t) option =
+    let (let+) x f = Option.bind x f in
+    match s with
+    | "-" -> Some Lang.Type.([Int; Int], Int)
+    | "+" -> Some Lang.Type.([Int; Int], Int)
+    | s ->
+      try 
+        let ty = (Proof_context.typeof t s) in
+        print_endline @@ "got the type for " ^ s;
+        let+ s_base = String.split_on_char '.' s |> List.last_opt in
+        print_endline @@ "got the base name for " ^ s_base;
+        let+ name = Proof_context.names t s_base in
+        print_endline @@ "got the name for " ^ s;        
+        match name with
+        | Names.GlobRef.ConstRef s ->
+          let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ s ty in
+          Some (split_last args)
+        | _ -> None
+      with
+      | _ -> None in
+
+  let vars, funcs =
     (* collect all variables in the proof context that are available in the concrete context *)
     let proof_vars =
       let available_vars =
@@ -416,22 +447,18 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     (* collect any variables that will be available to the invariant *)
     let invariant_vars = snd inv_ty in
     (* variables available to the generation are variables in the proof and from the invariant *)
-    let env = proof_vars @ invariant_vars in
+    let vars = proof_vars @ invariant_vars in
     (* collect functions used in the current proof context *)
-    let proof_functions =
+    let funcs =
       Proof_utils.CFML.extract_assumptions (Proof_context.current_goal t).hyp
       |> List.fold_left (fun fns (ty,l,r) ->
         Lang.Expr.(functions (functions fns l) r)
-      ) StringSet.empty in
+      ) StringSet.empty
+      |> StringSet.to_list in
+    vars,funcs in
 
-    Format.printf "assumptions are: %a@."
-      (StringSet.pp String.pp) proof_functions;
+  let ctx = Expr_generator.build_context ~vars ~funcs ~env:typeof in
 
-    
-    env in
-
-  Format.printf "generation_env: %s\n@."
-    ([%show: ((String.t * Lang.Type.t) Containers.List.t)] generation_env);
 
   begin match test_f with
   | None -> ()

@@ -24,8 +24,6 @@ let append {ctx; _} =
     Ctx.exec ()
   )
 
-
-
 let extract_proof_script {ctx; _} =
   let module Ctx = (val ctx) in
   let proof_length = Ctx.size () in
