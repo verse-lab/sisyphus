@@ -62,7 +62,7 @@ let collect_consts_and_funcs ~from_id ~to_id ~(env: Types.env) steps =
   let funcs =
     let add_to_map map = function
       | `Func fname ->
-        (List.Assoc.get ~eq:String.equal fname env)
+        (env fname)
         |> Option.map (fun (args, ret_ty) -> Types.update_binding map ret_ty (fname, args))
         |> Option.get_or ~default:map
       | _ -> map in
@@ -71,7 +71,7 @@ let collect_consts_and_funcs ~from_id ~to_id ~(env: Types.env) steps =
 
 
 let gen_lvl_zero_pat (env: Types.env) fname  =
-  match List.Assoc.get ~eq:String.equal fname env with
+  match env fname with
   | None -> None
   | Some (input_types, ret_type) ->
     let pat_vars =
@@ -92,7 +92,7 @@ let collect_at_expr_no_recur (env: Types.env) expr pat_var =
   | _ -> [pat_var]
 
 let rec collect_at_apply env ps fname args =
-  match List.Assoc.get ~eq:String.equal fname env  with
+  match env fname with
   | None -> ps
   | Some (input_types, ret_type) -> 
     let pat_vars =

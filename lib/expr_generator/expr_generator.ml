@@ -1,6 +1,6 @@
 open Containers
 
-type env = (string * ((Lang.Type.t list) * Lang.Type.t)) list
+type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
 
 type ctx = {
   consts: Lang.Expr.t list Types.TypeMap.t;
@@ -23,7 +23,7 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
     ) consts ints in
   let funcs =
     List.fold_left (fun acc f ->
-      match List.Assoc.get ~eq:String.equal f env with
+      match env f with
       | None -> acc
       | Some (args, ret_ty) -> Types.update_binding acc ret_ty (f, args)
     ) old_funcs funcs in

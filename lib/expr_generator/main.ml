@@ -21,14 +21,15 @@ let steps =
 
 let env = 
   let tA = Lang.Type.Var "A" in
-  Lang.Type.[
-    "++", ([List tA; List tA], List tA);
-    "make", ([Int; tA], List tA);
-    "length", ([List tA], Int);
-    "drop", ([Int; List tA], List tA);
-    "-", ([Int; Int], Int);
-    "+", ([Int; Int], Int);
-  ]
+  Lang.Type.(function
+  | "++" -> Some ([List tA; List tA], List tA)
+  | "make" -> Some ([Int; tA], List tA);
+  | "length" -> Some ([List tA], Int)
+  | "drop" -> Some ([Int; List tA], List tA)
+  | "-" -> Some ([Int; Int], Int)
+  | "+" -> Some ([Int; Int], Int)
+  | _ -> None
+  )
 
 
 let () =
@@ -46,15 +47,15 @@ let () =
   print_endline @@ string_of_int @@ List.length exps;
 
   let expr: Lang.Expr.t = `App ("++", [
-      `App ("make", [
-          `App ("+", [`Var "i"; `Int 1])
-        ; `Var "init"
-        ])
-    ; `App ("drop", [
-          `App ("+", [`Var "i"; `Int 1])
-         ; `Var "l"
-        ])
-    ]) in
+    `App ("make", [
+      `App ("+", [`Var "i"; `Int 1])
+    ; `Var "init"
+    ])
+  ; `App ("drop", [
+      `App ("+", [`Var "i"; `Int 1])
+    ; `Var "l"
+    ])
+  ]) in
 
   print_endline @@ string_of_bool @@ List.exists (fun x -> Lang.Expr.equal expr x) exps;
 
@@ -62,7 +63,7 @@ let () =
   (* Generate expressions for pure invariant*)
   print_endline "Results for Pure Invariant";
   List.iter (fun (vname, ty) ->
-      let exps = Expr_generator.generate_expression ctx env ~max_fuel ~fuel ty in
-      print_endline @@ vname ^ ": " ^ string_of_int (List.length exps);
-    ) vars;
+    let exps = Expr_generator.generate_expression ctx env ~max_fuel ~fuel ty in
+    print_endline @@ vname ^ ": " ^ string_of_int (List.length exps);
+  ) vars;
   ()

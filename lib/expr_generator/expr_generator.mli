@@ -3,7 +3,7 @@ type ctx
    capturing the variables, functions and constants that the
    enumerative synthesis will use to generate terms. *)
 
-type env = (string * ((Lang.Type.t list) * Lang.Type.t)) list
+type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
 (** [env] represents a mapping of function names to their argument
    types and return types.  *)
 
