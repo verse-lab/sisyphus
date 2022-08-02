@@ -205,10 +205,7 @@ and eval_tracing_list t ty elts =
       let* tl = eval_tracing_list t ty tl in
       Some (`Constructor ("::", [h; tl])) in
   loop elts
-        
-
-  
-  
+          
 let init ~compilation_context ~prelude ~spec ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();

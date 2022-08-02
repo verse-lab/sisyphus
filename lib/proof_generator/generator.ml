@@ -355,7 +355,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let cp = t.Proof_context.concrete () in
   let observations =
     Dynamic.Concrete.lookup cp
-      (t.Proof_context.current_program_id :> int) in
+      ((t.Proof_context.current_program_id :> int) - 1) in
 
   let show_obs obs =
     [%show: (string * Dynamic.Concrete.value) list *
