@@ -1,6 +1,6 @@
 open Common
 
-let to_array (s: ('a t[@collection Common.of_list])) =
+let to_array (s: ('a t[@collection Common.of_list, Common.to_list])) =
   (* 1 *)
   let ((len: int), (ls: 'a list))[@rewrite list_fold_length_rev] =
     fold (fun ((i: int), (acc: 'a list)) (x: 'a) -> (* 0 *)(i + 1, x :: acc)) (0, []) s in

@@ -91,6 +91,19 @@ let build_enc_fun v =
           Nolabel, v
         ]
       )))
+    | Lang.Type.ADT (_, [ty], Some (_, conv)) ->
+      let+ ty_enc_fun = build_enc_fun ty in
+      Some (fun_ @@ fun v -> AH.Exp.variant "List" AH.Exp.(Some (
+        apply (ident (str @@ Longident.(Ldot ((Lident "List"), "map")))) [
+          Nolabel, ty_enc_fun;
+          Nolabel, (apply
+                      (ident
+                         (str @@ Option.get_exn_or "invalid conv" @@
+                          Longident.unflatten (String.split_on_char '.' conv))) [
+                      Nolabel, v
+                    ])
+        ]
+      )))
     | Lang.Type.ADT (_adt, _tys, _) -> None
     | Lang.Type.Product tys ->
       let+ enc_funs = 
@@ -330,7 +343,7 @@ module Generator = struct
     | Lang.Type.Array t -> Array (of_type t)
     | Lang.Type.Ref t -> Ref (of_type t)
     | Lang.Type.Product tys -> Product (List.map of_type tys)
-    | Lang.Type.ADT (_, [arg], Some conv) ->
+    | Lang.Type.ADT (_, [arg], Some (conv, _)) ->
       let lid = String.split_on_char '.' conv |> Longident.unflatten |> Option.get_exn_or "invalid converter" in
       Converted (lid, of_type arg)
     | t -> failwith (Format.sprintf "unsupported argument type %a" Lang.Type.pp t)

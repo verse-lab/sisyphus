@@ -7,6 +7,7 @@ type coq_ctx = (module Coq.Proof.PROOF)
 
 type t = {
   compilation_context: Dynamic.CompilationContext.t;
+  old_proof: Proof_spec.Script.script;
   ctx: coq_ctx;
   mutable current_program_id: Lang.Id.t;
   alignment: Dynamic.Matcher.t;
@@ -22,6 +23,8 @@ let append {ctx; _} =
     Ctx.add res;
     Ctx.exec ()
   )
+
+
 
 let extract_proof_script {ctx; _} =
   let module Ctx = (val ctx) in
@@ -206,7 +209,7 @@ and eval_tracing_list t ty elts =
       Some (`Constructor ("::", [h; tl])) in
   loop elts
           
-let init ~compilation_context ~prelude ~spec ~alignment ~concrete ~ctx =
+let init ~compilation_context ~old_proof ~prelude ~spec ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();
   Ctx.add prelude;
@@ -214,6 +217,6 @@ let init ~compilation_context ~prelude ~spec ~alignment ~concrete ~ctx =
   Ctx.exec ();
   {
     ctx; compilation_context;
-    alignment; concrete;
+    alignment; concrete; old_proof;
     current_program_id=Lang.Id.init
   }

@@ -11,7 +11,7 @@ type t =
   | Array of t
   | Ref of t
   | Product of t list
-  | ADT of string * t list * string option
+  | ADT of string * t list * (string * string) option
   | Val
 [@@deriving show, eq, ord]
 

@@ -357,13 +357,15 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     Dynamic.Concrete.lookup cp
       ((t.Proof_context.current_program_id :> int) - 1) in
 
+  Format.printf "env is %a@." Proof_env.pp env;
+
   let show_obs obs =
     [%show: (string * Dynamic.Concrete.value) list *
             (string * Dynamic.Concrete.heaplet) list] obs in
   let test_f =
     List.find_map Option.(fun obs ->
-      print_endline @@ show_obs obs;
-      let v = Proof_context.with_temporary_context t begin fun () ->
+      let obs = Proof_env.normalize_observation env obs in
+      Proof_context.with_temporary_context t begin fun () ->
         (* first, instantiate the concrete arguments using values from the trace *)
         let* instantiated_params = instantiate_arguments t env f_args obs in
         (* next, add evars for the remaining arguments to lemma *)
@@ -376,32 +378,60 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
             (arg_list_to_str  lemma_complete_params) in
 
         let lambda_env = env.Proof_env.lambda in
-        let env = Proof_context.env t in
-        let evd = Evd.from_env env in
-        let (evd, reduced) =
-          Proof_reduction.reduce
-            ~filter:(fun ~path ~label ->
-              (* Format.printf "checking %s . %s ==> YES@." path label; *)
-              `Unfold)
-            env evd (Evd.MiniEConstr.of_constr trm) in
-
-        let reduced = EConstr.to_constr evd reduced in
-        print_endline "DONE";
-        (* Format.printf "instantiated lemma is %s@."
-         *   (Proof_utils.Debug.constr_to_string_pretty reduced); *)
+        (* partially evaluate/reduce the proof term *)
+        let reduced =
+          let (evd, reduced) =
+            let env = Proof_context.env t in
+            let evd = Evd.from_env env in
+            Proof_reduction.reduce ~filter:(fun ~path ~label -> `Unfold)
+              env evd (Evd.MiniEConstr.of_constr trm) in
+          EConstr.to_constr evd reduced in
+        (* construct a evaluatable test specification for the invariant *)
         let testf =
-          Proof_analysis.analyse lambda_env obs
-            (List.map
-               Proof_spec.Heap.Heaplet.(function
-                   PointsTo (v, `App ("CFML.WPArray.Array", _)) -> v, `Array
-                 | PointsTo (v, `App ("Ref", _)) -> v, `Ref
-                 | v -> Format.ksprintf ~f:failwith "found unsupported heaplet %a" pp v
-               ) pre_heap)
-            (String.lowercase_ascii @@ fst inv_ty, snd inv_ty |> List.map fst) reduced in
+          let heap_spec =
+            List.map
+              Proof_spec.Heap.Heaplet.(function
+                  PointsTo (v, `App ("CFML.WPArray.Array", _)) -> v, `Array
+                | PointsTo (v, `App ("Ref", _)) -> v, `Ref
+                | v ->
+                  Format.ksprintf ~f:failwith
+                    "found unsupported heaplet %a" pp v
+              ) pre_heap in
+          let inv_spec = Pair.map String.lowercase_ascii (List.map fst) inv_ty in
+          Proof_analysis.analyse lambda_env obs heap_spec inv_spec reduced in
         Some testf
-      end in
-      v
+      end
     ) observations in
+
+  let generation_env =
+    (* collect all variables in the proof context that are available in the concrete context *)
+    let proof_vars =
+      let available_vars =
+        List.find_map (fun obs ->
+          let (pure, _) = Proof_env.normalize_observation env obs in
+          Some (List.map fst pure |> StringSet.of_list)
+        ) observations |> Option.get_or ~default:StringSet.empty in
+      let poly_vars, env = Proof_utils.CFML.extract_env (Proof_context.current_goal t).hyp in
+      List.filter (Pair.fst_map (Fun.flip StringSet.mem available_vars)) env in
+    (* collect any variables that will be available to the invariant *)
+    let invariant_vars = snd inv_ty in
+    (* variables available to the generation are variables in the proof and from the invariant *)
+    let env = proof_vars @ invariant_vars in
+    (* collect functions used in the current proof context *)
+    let proof_functions =
+      Proof_utils.CFML.extract_assumptions (Proof_context.current_goal t).hyp
+      |> List.fold_left (fun fns (ty,l,r) ->
+        Lang.Expr.(functions (functions fns l) r)
+      ) StringSet.empty in
+
+    Format.printf "assumptions are: %a@."
+      (StringSet.pp String.pp) proof_functions;
+
+    
+    env in
+
+  Format.printf "generation_env: %s\n@."
+    ([%show: ((String.t * Lang.Type.t) Containers.List.t)] generation_env);
 
   begin match test_f with
   | None -> ()
@@ -415,7 +445,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
   failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
 
-let generate t (prog: Lang.Expr.t Lang.Program.t) =
+let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   Proof_context.append t {|xcf.|};
   let pre, _ = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
 
@@ -431,6 +461,6 @@ let generate t (prog: Lang.Expr.t Lang.Program.t) =
     Proof_context.append t "xpullpure %s." pat;
   | _ -> ()
   end;
-  symexec t Proof_env.initial_env prog.body;
+  symexec t (Proof_env.initial_env ~logical_mappings ()) prog.body;
   Proof_context.extract_proof_script t
 

@@ -32,6 +32,7 @@ Proof using.
     xalloc arr data Hdata.
     xletopaque idx Hidx.
     xletopaque ftmp Hftmp.
+
     evar (sym_1: A).
     evar (sym_2: A).
     evar (sym_3: A).

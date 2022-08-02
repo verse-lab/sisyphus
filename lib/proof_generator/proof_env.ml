@@ -7,6 +7,8 @@ type t = {
   (** mapping of proof vars encoding lambdas to their corresponding definitions and observation points. *)
   bindings: string StringMap.t;
   (** mapping of proof vars (i.e [idx]) to their corresponding program variables.  *)
+  logical_mappings: string StringMap.t;
+  (** mapping of logical mappings of concrete values (i.e [s]) to their corresponding logical variables [l].  *)  
 }
 
 let pp_lambda fmt (id, `Lambda (args, program)) =
@@ -25,7 +27,11 @@ let pp fmt (t: t) =
     (StringMap.pp String.pp String.pp)
     t.bindings
 
-let initial_env = {lambda=StringMap.empty; bindings=StringMap.empty}
+let initial_env ?(logical_mappings=[]) () = {
+  lambda=StringMap.empty;
+  bindings=StringMap.empty;
+  logical_mappings=StringMap.of_list logical_mappings
+}
 
 let has_definition env v = StringMap.mem v env.lambda
 
@@ -45,3 +51,9 @@ let find_pure_lambda_def env name =
 
 let env_to_defmap env =
   StringMap.map snd env.lambda
+
+let normalize_observation env ((pure, heap): (Dynamic.Concrete.context * Dynamic.Concrete.heap_context)) =
+  let pure = List.map (Pair.map_fst (fun v -> StringMap.find_opt v env.logical_mappings |> Option.get_or ~default:v)) pure in
+  (pure,heap)
+
+    

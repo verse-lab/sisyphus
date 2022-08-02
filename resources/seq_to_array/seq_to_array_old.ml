@@ -1,6 +1,6 @@
 open Common
 
-let to_array (l: ('a t[@collection Common.of_list])) =
+let to_array (l: ('a t[@collection Common.of_list, Common.to_list])) =
   (* 0 *)
   match l() with
   | Nil -> (* 1 *)
