@@ -62,12 +62,13 @@ let build_test
       AH.Exp.fun_ Nolabel None
         (AH.Pat.construct (Location.mknoloc (Longident.Lident "()")) None) @@
       AH.Exp.apply (AH.Exp.ident Location.(mknoloc Longident.(Lident "ignore"))) [Nolabel, ast] in
-    print_endline @@ Format.to_string Pprintast.expression ast;
+    (* print_endline @@ Format.to_string Pprintast.expression ast; *)
                        
     let body : unit -> unit = Dynamic.CompilationContext.eval ctx ast in
     try
       body (); true
     with
+    | Assert_failure (_, _, _) -> false
     | e ->
       Format.printf "evaluation of invariant failed dynamic tests with exception %s@." (Printexc.to_string e);
       false

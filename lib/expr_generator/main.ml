@@ -40,7 +40,7 @@ let () =
   let ctx = Expr_generator.build_context  ~from_id:0 ~to_id:10 ~env ~ints ~vars ~funcs steps in
   let max_fuel = 3 in
   let fuel = max_fuel in
-  let exps = Expr_generator.generate_expression ctx env ~max_fuel ~fuel (List (Var "A")) in
+  let exps = Expr_generator.generate_expression ctx env  ~fuel (List (Var "A")) in
 
   (* Generate expressions for heap assertion*)
   print_endline "Results for Heap Assertion";
@@ -63,7 +63,7 @@ let () =
   (* Generate expressions for pure invariant*)
   print_endline "Results for Pure Invariant";
   List.iter (fun (vname, ty) ->
-    let exps = Expr_generator.generate_expression ctx env ~max_fuel ~fuel ty in
+    let exps = Expr_generator.generate_expression ctx env ~fuel ty in
     print_endline @@ vname ^ ": " ^ string_of_int (List.length exps);
   ) vars;
   ()

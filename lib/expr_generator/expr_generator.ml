@@ -2,6 +2,8 @@ open Containers
 
 type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
 
+module StringMap = Map.Make(String)
+
 type 'a type_map = 'a Types.TypeMap.t
 let pp_type_map f fmt vl =
   Types.TypeMap.pp
@@ -32,11 +34,14 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
       Types.update_binding acc Int (`Int i)
     ) consts ints in
   let funcs =
+    let normalize_name f = String.split_on_char '.' f |> List.last_opt |> Option.value ~default:f in
     List.fold_left (fun acc f ->
       match env f with
       | None -> acc
-      | Some (args, ret_ty) -> Types.update_binding acc ret_ty (f, args)
+      | Some (args, ret_ty) -> Types.update_binding acc ret_ty (normalize_name f, args)
     ) old_funcs funcs in
+  let funcs = Types.TypeMap.map (fun fns -> StringMap.of_list fns |> StringMap.to_list) funcs in
+    
   {consts; pats; funcs}
 
 let get_fuels ctx fname fuel args =
@@ -57,11 +62,11 @@ let get_fuels ctx fname fuel args =
 
   List.mapi get_fuel args
 
-let rec generate_expression ?(max_fuel=10) ?(fuel=10) (ctx: ctx) (env: Types.env)  (ty: Lang.Type.t): Lang.Expr.t list =
+let rec generate_expression ?(initial=false) ?(fuel=10) (ctx: ctx) (env: Types.env)  (ty: Lang.Type.t): Lang.Expr.t list =
   match fuel with
-  | fuel when fuel = max_fuel ->
+  | fuel when initial ->
     let pats = List.rev @@ (Types.TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
-    let pats = List.flat_map (instantiate_pat ctx env ~max_fuel ~fuel:(fuel)) pats in
+    let pats = List.flat_map (instantiate_pat ctx env ~fuel:(fuel)) pats in
     pats
   | fuel when fuel > 0 ->
     let consts = Types.TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[] in
@@ -69,7 +74,7 @@ let rec generate_expression ?(max_fuel=10) ?(fuel=10) (ctx: ctx) (env: Types.env
     let funcs =  List.flat_map (fun (fname, args) ->
       let arg_with_fuels = get_fuels ctx fname fuel args in
       List.map_product_l (fun (arg, fuel) ->
-        generate_expression ctx env ~max_fuel ~fuel:fuel arg
+        generate_expression ctx env ~fuel:fuel arg
       ) arg_with_fuels
       |> List.map (fun args -> `App (fname, args))
     ) funcs in
@@ -92,6 +97,7 @@ and instantiate_pat ?(max_fuel=10) ?(fuel=10)  ctx env pat : Lang.Expr.t list  =
     else List.map (fun x -> `Tuple x) ls
   | `Var v as e -> [e]
   | `PatVar (str, ty) ->
-    generate_expression ctx env ~max_fuel ~fuel:(fuel - 1) ty
+    generate_expression ctx env ~fuel:(fuel - 1) ty
 
 
+let generate_expression ?(initial=true) ?fuel ctx env ty = generate_expression ~initial ?fuel ctx env ty

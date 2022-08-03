@@ -110,6 +110,9 @@ let print_simple_nonfix : 'a .
   | `App (("(+)" | "(-)") as op,[l;r]) ->
     let body () = group ((print_simple ~needs_parens:false l) ^/^ string (String.sub op 1 1) ^/^ (print_simple ~needs_parens:true r)) in
     if needs_parens then parens (body ()) else body ()
+  | `App (("+" | "-" | "=") as op,[l;r]) ->
+    let body () = group ((print_simple ~needs_parens:false l) ^/^ string op ^/^ (print_simple ~needs_parens:true r)) in
+    if needs_parens then parens (body ()) else body ()
   | `App (f,args) ->
     let body () = (string f ^^ blank 1 ^^ (flow_map (break 1) (print_simple ~needs_parens:true) args)) in
     if needs_parens then parens (body ()) else body ()

@@ -1,6 +1,16 @@
 [@@@warning "-26"]
 open Containers
 
+module ExprSet = Set.Make(Lang.Expr)
+
+let reduce pure =
+  let no_pure_original = List.length pure in
+  let pure = ExprSet.of_list pure |> ExprSet.to_list in
+  let no_pure_updated = List.length pure in
+  Format.printf "reduced %d -> %d unique@." no_pure_original no_pure_updated;
+  pure
+
+
 let split_last =
   let rec loop last acc = function
     | [] -> List.rev acc, last
@@ -49,6 +59,9 @@ let find_spec t const =
 type constr = Constr.constr
 let pp_constr fmt v =
   Format.pp_print_string fmt @@ Proof_utils.Debug.constr_to_string v
+
+type expr = Lang.Expr.t
+let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis__Proof_term_evaluator.evaluate_expression vl)
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
@@ -459,12 +472,14 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       Dynamic.Matcher.find_aligned_range `Right t.Proof_context.alignment
         ((((t.Proof_context.current_program_id :> int) - 1)),
          (((t.Proof_context.current_program_id :> int)))) in
-    Expr_generator.build_context ~ints:[0;1]
+    Expr_generator.build_context ~ints:[1;2]
       ~vars ~funcs ~env:(typeof t)
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
 
-  Format.printf "env is %a" Proof_env.pp env;
+  Format.printf "ctx is %a@." Expr_generator.pp_ctx ctx;
+
+  Format.printf "env is %a@." Proof_env.pp env;
 
   let gen_pure_spec =
     snd inv_ty
@@ -478,18 +493,20 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let gen_heap_spec =
     List.map
       Proof_spec.Heap.Heaplet.(function
-          PointsTo (v, _, `App ("CFML.WPArray.Array", _)) -> Lang.Type.List (Lang.Type.Var "A")
-        | PointsTo (v, _, `App ("Ref", _)) -> Lang.Type.Var "A"
+          PointsTo (v, _, `App ("CFML.WPArray.Array", _)) ->
+          Lang.Type.List (Lang.Type.Var "A")
+        | PointsTo (v, _, `App ("Ref", _)) ->
+          Lang.Type.Var "A"
         | v ->
           Format.ksprintf ~f:failwith
             "found unsupported heaplet %a" pp v
       ) pre_heap in
 
-  let gen = Expr_generator.generate_expression ~max_fuel:3 ~fuel:3 ctx (typeof t) in
-
+  let gen ?initial ?(fuel=3) = Expr_generator.generate_expression ?initial ~fuel ctx (typeof t) in
+  let test = test_f t.Proof_context.compilation_context in
   let pure =
     List.map_product_l List.(fun (v, ty) ->
-      List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ty)
+      List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~fuel:4 ~initial:false ty)
     ) gen_pure_spec
     |> List.filter_map (function
         [] -> None
@@ -497,17 +514,39 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         List.fold_left
           (fun acc vl -> `App ("&&", [vl; acc])) h t
         |> Option.some
-    )  in
-  Format.printf "found %d pure candidates@." @@ List.length pure;
-  let heap = List.map_product_l (gen) gen_heap_spec in
-  Format.printf "found %d heap candidates@." @@ List.length heap;
-  let candidates = List.product Pair.make pure heap in
-  Format.printf "found %d candidates@." @@ List.length candidates;
+    ) |> reduce in
 
+  let heap = List.map_product_l (gen) gen_heap_spec in
+  let no_pure = List.length pure in
+  let no_impure = List.length heap in
+  Format.printf "found %d pure candidates and %d heap candidates@." no_pure no_impure ;
+  let count_pure = ref 0 in
+  let count_impure = ref 0 in
   let valid_candidates = 
-    List.filter (fun (pure, heap) ->
-      test_f t.Proof_context.compilation_context (pure, Array.of_list heap)
-    ) candidates in
+    List.flat_map (fun pure ->
+      incr count_pure;
+      Format.printf "testing [%d/%d]@." !count_pure no_pure;
+
+      if Int.(!count_pure mod 1000 = 0) then
+        Format.printf "[%d/%d] pure candidate %a@." !count_pure no_pure pp_expr pure;
+      match test (pure, [| |]) with 
+      | false -> []
+      | true ->
+        match pure with
+        | `App ("=", [`Var _;`Var _]) -> []
+        | _ ->
+          Format.printf "[%d/%d] found valid !pure candidate %a@." !count_pure no_pure pp_expr pure;
+          count_impure := 0;
+          List.filter_map (fun heap ->
+            incr count_impure;
+            Format.printf "\t testing impure [%d/%d]@." !count_impure no_impure;
+            if test (pure, Array.of_list heap)
+            then Some (pure, heap)
+            else None
+          ) heap
+    ) pure in
+
+  Format.printf "found %d valid candidates@." (List.length valid_candidates);
 
 
 

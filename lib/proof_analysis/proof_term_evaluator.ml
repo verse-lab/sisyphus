@@ -9,16 +9,26 @@ let var v = AH.Exp.ident (Location.mknoloc Longident.(Lident v))
 let fvar v =
   let v = match v with
     | "TLC.LibList.app" -> "@"
+    | "app" -> "@"
     | "TLC.LibList.combine" -> "List.combine"
+    | "combine" -> "List.combine"
     | "TLC.LibList.concat" -> "@"
-    | "TLC.LibList.drop" -> "List.concat"
+    | "concat" -> "@"
+    | "TLC.LibList.drop" -> "Common.list_drop"
+    | "drop" -> "Common.list_drop"
     | "TLC.LibList.map" -> "List.map"
+    | "map" -> "List.map"
     | "TLC.LibList.rev" -> "List.rev"
+    | "rev" -> "List.rev"
     | "TLC.LibList.split" -> "List.split"
+    | "split" -> "List.split"
     | "TLC.LibList.take" -> "Common.list_take"
-    | "TLC.LibListZ.drop" -> "List.drop"
+    | "take" -> "Common.list_take"
+    | "TLC.LibListZ.drop" -> "Common.list_drop"
     | "TLC.LibListZ.length" -> "List.length"
+    | "length" -> "List.length"
     | "TLC.LibListZ.sum" -> "Common.list_sum"
+    | "sum" -> "Common.list_sum"
     | "TLC.LibListZ.take" -> "Common.list_take"
     | "TLC.LibOrder.ge" -> ">="
     | "TLC.LibOrder.le" -> "<="
@@ -26,8 +36,6 @@ let fvar v =
     | "Coq.ZArith.BinInt.Z.max" -> "max"
     | "Coq.ZArith.BinInt.Z.min" -> "min"
     | "++" -> "@"
-    | "drop" -> "Common.list_drop"
-    | "length" -> "List.length"
     | "make" -> "Common.list_make"
     | "TLC.LibListZ.make" -> "Common.list_make"
     | v -> v in
@@ -151,7 +159,7 @@ let evaluate heap_vars ((pure, heap): invariant) : Parsetree.expression =
   let arr_to_list l = AH.Exp.apply (lident (Longident.(Ldot (Lident "Array", "to_list")))) [AT.Nolabel, l] in
   let pure_assertion = evaluate_expression pure in
   let heap_assertions = 
-    List.combine heap_vars (Array.to_list heap)
+    List.combine_shortest heap_vars (Array.to_list heap)
     |> List.map (fun (heap_var, array_vl) ->
       let vl = evaluate_expression array_vl in
       match heap_var with
@@ -161,4 +169,3 @@ let evaluate heap_vars ((pure, heap): invariant) : Parsetree.expression =
         ((arr_to_list (var v)) = vl)
     ) in
   AH.Exp.assert_ (List.fold_left (&&) pure_assertion heap_assertions)
-
