@@ -269,12 +269,12 @@ let unwrap_invariant_spec formals
           | `Write (arr, i, vl, rest) ->
             let vl = eval_expr env sym_heap vl in
             let i = eval_expr env sym_heap (`Var i) in
-            let arr_vl = Proof_spec.Heap.Heap.get arr sym_heap in
+            let ty,arr_vl = Proof_spec.Heap.Heap.get_with_ty arr sym_heap in
             let c1 : Lang.Expr.t list =  [] (* [`App ("<", [i; `App ("TLC.LibListZ.length", [arr_vl])])] *) in
             let sym_heap =
               let arr_vl = `App ("Array.set", [arr_vl; i; vl]) in
               Proof_spec.Heap.Heap.add_heaplet
-                (Proof_spec.Heap.Heaplet.PointsTo (arr, arr_vl)) sym_heap in
+                (Proof_spec.Heap.Heaplet.PointsTo (arr, ty, arr_vl)) sym_heap in
             eval_stmt env sym_heap (c1 @ constraints) rest
           | `Value expr ->
             let res = eval_expr env sym_heap expr in
@@ -285,7 +285,7 @@ let unwrap_invariant_spec formals
         let (res, constraints, sym_heap) = eval_stmt env sym_heap [] body in
         let post_expr_values =
           Proof_spec.Heap.Heap.to_list sym_heap
-          |> List.map (fun (Proof_spec.Heap.Heaplet.PointsTo (var, expr)) -> StringMap.find var hole_binding, expr)
+          |> List.map (fun (Proof_spec.Heap.Heaplet.PointsTo (var, _, expr)) -> StringMap.find var hole_binding, expr)
           |> List.map (fun (id, expr) ->
             let var_id = build_hole_var id in
             id, fun hole ->
@@ -389,10 +389,10 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
       (function `Impure heaplet -> Some (PCFML.extract_impure_heaplet heaplet) | _ -> None)
       (match pre with | `Empty -> [] | `NonEmpty ls -> ls)
     |> List.map Proof_spec.Heap.Heaplet.(function
-      | PointsTo (var, `App (fname, [arg])) ->
+      | PointsTo (var, ty, `App (fname, [arg])) ->
         let id = !hole_count in
         incr hole_count;
-        PointsTo (var, `App (fname, [`Var (build_hole_var id)])), (arg, (var, id))
+        PointsTo (var, ty, `App (fname, [`Var (build_hole_var id)])), (arg, (var, id))
       | _ -> failwith "unsupported heaplet"
     )
     |> List.split

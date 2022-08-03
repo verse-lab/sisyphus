@@ -363,7 +363,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let (_, f_args) = Proof_utils.CFML.extract_app_full post in
 
   (* for now we only handle lemmas with a single higher order invariant *) 
-u ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
+  ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
 
   (* work out the type of the invariant *)
   let inv_ty =
@@ -379,7 +379,6 @@ u ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
     List.filter_map
       (function `Impure heaplet -> Some (Proof_utils.CFML.extract_impure_heaplet heaplet) | _ -> None)
       (match pre with | `Empty -> [] | `NonEmpty ls -> ls) in
-
 
   let _vc = Specification.build_verification_condition t (Proof_env.env_to_defmap env) lemma_name in
 
@@ -418,8 +417,8 @@ u ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
           let heap_spec =
             List.map
               Proof_spec.Heap.Heaplet.(function
-                  PointsTo (v, `App ("CFML.WPArray.Array", _)) -> v, `Array
-                | PointsTo (v, `App ("Ref", _)) -> v, `Ref
+                  PointsTo (v, _, `App ("CFML.WPArray.Array", _)) -> v, `Array
+                | PointsTo (v, _, `App ("Ref", _)) -> v, `Ref
                 | v ->
                   Format.ksprintf ~f:failwith
                     "found unsupported heaplet %a" pp v
@@ -460,16 +459,56 @@ u ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
       Dynamic.Matcher.find_aligned_range `Right t.Proof_context.alignment
         ((((t.Proof_context.current_program_id :> int) - 1)),
          (((t.Proof_context.current_program_id :> int)))) in
-    Expr_generator.build_context
+    Expr_generator.build_context ~ints:[0;1]
       ~vars ~funcs ~env:(typeof t)
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
 
-  let gen = Expr_generator.generate_expression ctx (typeof t) in
-  print_endline @@ Expr_generator.show_ctx ctx;
+  Format.printf "env is %a" Proof_env.pp env;
 
-  let valid = test_f t.Proof_context.compilation_context (`Var "true", [| `Constructor ("[]", []) |]) in
-  Format.printf "valid: %b\n@." valid;
+  let gen_pure_spec =
+    snd inv_ty
+    |> List.filter_map (fun (v, ty) ->
+      match ty with
+      | Lang.Type.Var _
+      | Lang.Type.Int
+      | Lang.Type.Val -> Some (v,ty)
+      | _ -> None
+    ) in
+  let gen_heap_spec =
+    List.map
+      Proof_spec.Heap.Heaplet.(function
+          PointsTo (v, _, `App ("CFML.WPArray.Array", _)) -> Lang.Type.List (Lang.Type.Var "A")
+        | PointsTo (v, _, `App ("Ref", _)) -> Lang.Type.Var "A"
+        | v ->
+          Format.ksprintf ~f:failwith
+            "found unsupported heaplet %a" pp v
+      ) pre_heap in
+
+  let gen = Expr_generator.generate_expression ~max_fuel:3 ~fuel:3 ctx (typeof t) in
+
+  let pure =
+    List.map_product_l List.(fun (v, ty) ->
+      List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ty)
+    ) gen_pure_spec
+    |> List.filter_map (function
+        [] -> None
+      | h :: t ->
+        List.fold_left
+          (fun acc vl -> `App ("&&", [vl; acc])) h t
+        |> Option.some
+    )  in
+  Format.printf "found %d pure candidates@." @@ List.length pure;
+  let heap = List.map_product_l (gen) gen_heap_spec in
+  Format.printf "found %d heap candidates@." @@ List.length heap;
+  let candidates = List.product Pair.make pure heap in
+  Format.printf "found %d candidates@." @@ List.length candidates;
+
+  let valid_candidates = 
+    List.filter (fun (pure, heap) ->
+      test_f t.Proof_context.compilation_context (pure, Array.of_list heap)
+    ) candidates in
+
 
 
   print_endline @@ Format.sprintf "args: (%s)"@@

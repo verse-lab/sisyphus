@@ -7,31 +7,31 @@ module StringSet = Set.Make(String)
 
 module Heaplet = struct
 
-  type t = PointsTo of string * Expr.t
+  type t = PointsTo of string * Type.t option * Expr.t
   [@@deriving show, eq, ord]
 
   let print = function
-    | PointsTo (var, exp) ->
+    | PointsTo (var, _, exp) ->
       PPrint.( (string var ^/^ string "~>" ^//^  (Expr.print exp)))
 
-  let pp (fmt: Format.formatter) (PointsTo (vl, expr)) =
+  let pp (fmt: Format.formatter) (PointsTo (vl, _, expr)) =
     Format.fprintf fmt "%s ~> %a"  vl Expr.pp expr
 
   let subst map =
-    function PointsTo (v, body) ->
+    function PointsTo (v, ty, body) ->
       let v = match (map v: 'a Expr.shape option) with
           None -> v | Some (`Var v) -> v in
       let body = Expr.subst map body in
-      PointsTo (v, body)
+      PointsTo (v, ty, body)
   [@@warning "-8"]
 
   let subst_var map =
-    function PointsTo (v, body) ->
+    function PointsTo (v, ty, body) ->
       let v = match map v with None -> v | Some v -> v in
       let body = Expr.subst_var map body in
-      PointsTo (v, body)
+      PointsTo (v, ty, body)
 
-  let vars ?with_funs map = function PointsTo (v, body) ->
+  let vars ?with_funs map = function PointsTo (v, _ty, body) ->
     map
     |> StringSet.add v
     |> Fun.flip (Expr.vars ?with_funs) body
@@ -42,7 +42,7 @@ module ExprSet = Set.Make (Expr)
 module HeapSet = Set.Make (Heaplet)
 
 module Heap = struct
-  type t = Expr.t StringMap.t
+  type t = (Type.t option * Expr.t) StringMap.t
   [@@deriving eq, ord]
 
   let emp = StringMap.empty
@@ -50,24 +50,26 @@ module Heap = struct
 
   let is_empty = StringMap.is_empty
 
-  let add_heaplet (Heaplet.PointsTo (ptr,body)) heap =
-    StringMap.add ptr body heap
+  let add_heaplet (Heaplet.PointsTo (ptr,ty,body)) heap =
+    StringMap.add ptr (ty, body) heap
   let add_heaplets ls t = List.fold_left (Fun.flip add_heaplet) t ls
   let add_heaplets_iter ls t = Iter.fold (Fun.flip add_heaplet) t ls
 
-  let filter f = StringMap.filter (fun ptr vl -> f (Heaplet.PointsTo (ptr,vl)))
+  let filter f = StringMap.filter (fun ptr (ty, vl) -> f (Heaplet.PointsTo (ptr,ty,vl)))
 
-  let get var heap = StringMap.find var heap
+  let get var heap = snd (StringMap.find var heap)
+  let get_with_ty var heap = StringMap.find var heap
 
-  let get_opt var heap = StringMap.find_opt var heap
+
+  let get_opt var heap = Option.map snd @@ StringMap.find_opt var heap
 
   let remove var heap = StringMap.remove var heap
-  let remove_heaplet (Heaplet.PointsTo (ptr,_)) heap =
+  let remove_heaplet (Heaplet.PointsTo (ptr,_,_)) heap =
     StringMap.remove ptr heap
 
   let iter s =
     StringMap.to_iter s
-    |> Iter.map (fun (ptr,body) -> Heaplet.PointsTo (ptr,body))
+    |> Iter.map (fun (ptr,(ty,body)) -> Heaplet.PointsTo (ptr,ty,body))
 
   let to_list s = iter s |> List.of_iter
 
@@ -94,9 +96,9 @@ module Heap = struct
 
   let diff h1 h2 = fold (Fun.flip remove_heaplet) h1 h2
 
-  let mem (Heaplet.PointsTo (ptr,body)) map =
+  let mem (Heaplet.PointsTo (ptr,_,body)) map =
     StringMap.find_opt ptr map
-    |> Option.exists (Expr.equal body)
+    |> Option.exists (Pair.snd_map (Expr.equal body))
 
   let pp fmt vl =
     if is_empty vl

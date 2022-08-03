@@ -1,16 +1,40 @@
 open Containers
+
 type invariant = Lang.Expr.t * Lang.Expr.t array
 
 module AT = Asttypes
 module AH = Ast_helper
 
 let var v = AH.Exp.ident (Location.mknoloc Longident.(Lident v))
-let fvar = function
-  | v ->
-    Longident.unflatten (String.split_on_char '.' v)
-    |> Option.value ~default:(Longident.(Lident v))
-    |> Location.mknoloc
-    |> AH.Exp.ident 
+let fvar v =
+  let v = match v with
+    | "TLC.LibList.app" -> "@"
+    | "TLC.LibList.combine" -> "List.combine"
+    | "TLC.LibList.concat" -> "@"
+    | "TLC.LibList.drop" -> "List.concat"
+    | "TLC.LibList.map" -> "List.map"
+    | "TLC.LibList.rev" -> "List.rev"
+    | "TLC.LibList.split" -> "List.split"
+    | "TLC.LibList.take" -> "Common.list_take"
+    | "TLC.LibListZ.drop" -> "List.drop"
+    | "TLC.LibListZ.length" -> "List.length"
+    | "TLC.LibListZ.sum" -> "Common.list_sum"
+    | "TLC.LibListZ.take" -> "Common.list_take"
+    | "TLC.LibOrder.ge" -> ">="
+    | "TLC.LibOrder.le" -> "<="
+    | "TLC.LibOrder.lt" -> "<"
+    | "Coq.ZArith.BinInt.Z.max" -> "max"
+    | "Coq.ZArith.BinInt.Z.min" -> "min"
+    | "++" -> "@"
+    | "drop" -> "Common.list_drop"
+    | "length" -> "List.length"
+    | "make" -> "Common.list_make"
+    | "TLC.LibListZ.make" -> "Common.list_make"
+    | v -> v in
+  Longident.unflatten (String.split_on_char '.' v)
+  |> Option.value ~default:(Longident.(Lident v))
+  |> Location.mknoloc
+  |> AH.Exp.ident 
 
 
 let extract_sym s = String.drop (String.length "symbol_") s

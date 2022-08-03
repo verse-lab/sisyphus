@@ -30,7 +30,7 @@ let collect_spec_arg cs =
   | `Expr e -> collect_expr cs e
   | `Spec (_, asn) ->
     let collect_heaplet cs = function
-      | Heaplet.PointsTo (_, e) ->  collect_expr cs e in
+      | Heaplet.PointsTo (_, _, e) ->  collect_expr cs e in
     List.fold_left collect_heaplet cs (Assertion.sigma asn)
   | `Hole -> failwith "holes not supported"
 
@@ -118,7 +118,7 @@ and collect_at_expr env ps = function
 let collect_at_spec_arg env ps = function
   | `Expr _ -> ps
   | `Spec (_, asn) ->
-    let collect_at_heaplet ps (PointsTo (_, e) : Proof_spec.Heap.Heaplet.t) =
+    let collect_at_heaplet ps (PointsTo (_, _, e) : Proof_spec.Heap.Heaplet.t) =
       collect_at_expr env ps e in
     List.fold_left collect_at_heaplet ps (Proof_spec.Heap.Assertion.sigma asn)
   | `Hole -> failwith "holes not supported"

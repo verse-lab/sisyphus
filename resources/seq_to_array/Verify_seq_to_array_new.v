@@ -42,34 +42,34 @@ Proof using.
         SPEC (ftmp acc v)
         PRE ?I t acc
         POST (fun acc0 : credits => ?I (t & v) acc0))).
-    Set Printing Depth 1000000000.
+    (* Set Printing Depth 1000000000. *)
 
-    print_reduced (list_fold_spec ftmp 3 (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI).
+    (* print_reduced (list_fold_spec ftmp 3 (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI). *)
 
-    Set Printing Universes.
+(*     Set Printing Universes. *)
 
-    (* print_reduced (list_fold_spec ftmp n (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI). *)
-    pose (list_fold_spec ftmp 3 (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI).
-    Print make.
-    Print LibList.make.
-    Eval vm_compute in (drop 1 (cons sym_1 (cons sym_2 (cons sym_3 nil)))).
-  Set Printing All.
-  About CFML.Stdlib.List_ml.fold_left_cf__.
-Print Wpgen_body.
-    Check make.
-    Print Z. int.
-    Set Printing .
-    Check 10.
+(*     (* print_reduced (list_fold_spec ftmp n (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI). *) *)
+(*     pose (list_fold_spec ftmp 3 (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI). *)
+(*     Print make. *)
+(*     Print LibList.make. *)
+(*     Eval vm_compute in (drop 1 (cons sym_1 (cons sym_2 (cons sym_3 nil)))). *)
+(*   Set Printing All. *)
+(*   About CFML.Stdlib.List_ml.fold_left_cf__. *)
+(* Print Wpgen_body. *)
+(*     Check make. *)
+(*     Print Z. int. *)
+(*     Set Printing . *)
+(*     Check 10. *)
 
-    Eval compute in (make 10 0).
-    Print make.
-    xapp (list_fold_spec ftmp idx rest (fun (t: list A) (i: int) =>
-        \[i = length l - length t - 2] \*
-        arr ~> Array ((make (i + 1) init) ++ 
-                                 drop (i + 1) l)
-         )). { admit. } { admit. } { admit. }
-   intros i Hi.
-   xdestruct.
-   xvals.
-   { admit. }
+(*     Eval compute in (make 10 0). *)
+(*     Print make. *)
+(*     xapp (list_fold_spec ftmp idx rest (fun (t: list A) (i: int) => *)
+(*         \[i = length l - length t - 2] \* *)
+(*         arr ~> Array ((make (i + 1) init) ++  *)
+(*                                  drop (i + 1) l) *)
+(*          )). { admit. } { admit. } { admit. } *)
+(*    intros i Hi. *)
+(*    xdestruct. *)
+(*    xvals. *)
+(*    { admit. } *)
 Admitted.
