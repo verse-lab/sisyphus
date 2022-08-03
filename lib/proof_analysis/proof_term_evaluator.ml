@@ -5,6 +5,13 @@ module AT = Asttypes
 module AH = Ast_helper
 
 let var v = AH.Exp.ident (Location.mknoloc Longident.(Lident v))
+let fvar = function
+  | v ->
+    Longident.unflatten (String.split_on_char '.' v)
+    |> Option.value ~default:(Longident.(Lident v))
+    |> Location.mknoloc
+    |> AH.Exp.ident 
+
 
 let extract_sym s = String.drop (String.length "symbol_") s
 
@@ -35,14 +42,13 @@ let rec evaluate_value (expr: Dynamic.Concrete.value) : Parsetree.expression =
       
 
 let rec evaluate_expression (expr: Lang.Expr.t) : Parsetree.expression =
-
   match expr with
   | `Tuple elts -> AH.Exp.tuple (List.map evaluate_expression elts)
   | `Var "true" -> AH.Exp.construct (Location.mknoloc Longident.(Lident "true")) None
   | `Var "false" -> AH.Exp.construct (Location.mknoloc Longident.(Lident "false")) None
   | `Var v -> var v
   | `App (f,args) ->
-    AH.Exp.apply (var f) (List.map (fun exp -> (AT.Nolabel, evaluate_expression exp)) args)
+    AH.Exp.apply (fvar f) (List.map (fun exp -> (AT.Nolabel, evaluate_expression exp)) args)
   | `Lambda (params, body) ->
     List.fold_right (fun param body ->
       let param =

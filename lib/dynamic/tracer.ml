@@ -236,8 +236,8 @@ let annotate ?(deep=false) ({ prelude; name; args; body }: Lang.Expr.t Lang.Prog
     id, fun () -> let vl = !id in incr id; vl in
   let rec encode_stmt ~observe env (stmt: Lang.Expr.t Lang.Program.stmt) =
     let wrap then_ =
-      let id = id () in
       if observe then
+        let id = id () in
         wrap_with_observe env ~at:id
           ~then_:(then_ ())
       else (then_ ()) in

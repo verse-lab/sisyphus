@@ -2,11 +2,21 @@ open Containers
 
 type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
 
+type 'a type_map = 'a Types.TypeMap.t
+let pp_type_map f fmt vl =
+  Types.TypeMap.pp
+    ~pp_start:Format.(fun fmt () -> pp_open_hovbox fmt 1; pp_print_string fmt "{")
+    ~pp_stop:Format.(fun fmt () -> pp_print_string fmt "}"; pp_open_hovbox fmt 1)
+    Lang.Type.pp f fmt vl
+
+type expr = Lang.Expr.t
+let pp_expr fmt vl = Lang.Expr.pp fmt vl
+
 type ctx = {
-  consts: Lang.Expr.t list Types.TypeMap.t;
-  pats: Types.pat list Types.TypeMap.t;
-  funcs: (string * Lang.Type.t list) list Types.TypeMap.t;
-}
+  consts: expr list type_map;
+  pats: Types.pat list type_map;
+  funcs: (string * Lang.Type.t list) list type_map;
+} [@@deriving show]
 
 let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env proof_script =
   (* collect consts, functions and patterns from old proof script. *)

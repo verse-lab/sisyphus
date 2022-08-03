@@ -9,8 +9,6 @@ let split_last =
     [] -> invalid_arg "split_last called on empty list"
   | h :: t -> loop h [] t
 
-
-
 let drop_last ls =
   let rec loop acc = function
     | [] | [_] -> List.rev acc
@@ -26,6 +24,7 @@ let combine_rem xz yz =
     | x :: xz, y :: yz -> loop ((x, y) :: acc) xz yz in
   loop [] xz yz
 
+let show_obs obs = [%show: (string * Dynamic.Concrete.value) list * (string * Dynamic.Concrete.heaplet) list] obs
 
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
@@ -105,39 +104,39 @@ let build_complete_params t lemma_name init_params =
   loop init_params (mk_lemma_instantiated_type init_params)
 
 (** [instantiate_arguments t env args (ctx, heap_ctx)] attempts to
-   instantiate a list of concrete arguments [args] using an observed
-   context [ctx] and heap state [heap_ctx] from an execution trace.
-   To do this, it may introduce additional evars in proof context [t]
-   to represent polymorphic values. *)
+    instantiate a list of concrete arguments [args] using an observed
+    context [ctx] and heap state [heap_ctx] from an execution trace.
+    To do this, it may introduce additional evars in proof context [t]
+    to represent polymorphic values. *)
 let instantiate_arguments t env args (ctx, heap_ctx) =
-    let open Option in
-    List.map (fun (vl, ty) ->
-      match vl with
-        `Var v ->
-        begin match StringMap.find_opt v env.Proof_env.bindings with
-        | None -> Some (`Var v)
-        | Some v ->
-          Option.or_lazy
-            (List.Assoc.get ~eq:String.equal v ctx |> Option.flat_map (Proof_context.eval_tracing_value t ty))
-            ~else_:(fun () ->
-              List.Assoc.get ~eq:String.equal v heap_ctx
-              |> Option.flat_map (function
-                | `Array ls ->
-                  begin match ty with
-                  | Lang.Type.List ty -> Proof_context.eval_tracing_list t ty ls
-                  | _ -> None
-                  end
-                | `PointsTo vl -> Proof_context.eval_tracing_value t ty vl
-              )
+  let open Option in
+  List.map (fun (vl, ty) ->
+    match vl with
+      `Var v ->
+      begin match StringMap.find_opt v env.Proof_env.bindings with
+      | None -> Some (`Var v)
+      | Some v ->
+        Option.or_lazy
+          (List.Assoc.get ~eq:String.equal v ctx |> Option.flat_map (Proof_context.eval_tracing_value t ty))
+          ~else_:(fun () ->
+            List.Assoc.get ~eq:String.equal v heap_ctx
+            |> Option.flat_map (function
+              | `Array ls ->
+                begin match ty with
+                | Lang.Type.List ty -> Proof_context.eval_tracing_list t ty ls
+                | _ -> None
+                end
+              | `PointsTo vl -> Proof_context.eval_tracing_value t ty vl
             )
-        end                
-      | expr -> Some expr
-    ) args
-    |> List.all_some
+          )
+      end                
+    | expr -> Some expr
+  ) args
+  |> List.all_some
 
 (** [ensure_single_invariant ~name ~ty ~args] when given the
-   application of lemma [name] to arguments [args], where [name] has
-   type [ty]. *)
+    application of lemma [name] to arguments [args], where [name] has
+    type [ty]. *)
 let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
   let (lemma_params, lemma_invariants, spec) = Proof_utils.CFML.extract_spec lemma_full_type in
   let explicit_lemma_params = Proof_utils.drop_implicits lemma_name lemma_params in
@@ -150,7 +149,29 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
     Format.ksprintf ~f:failwith "TODO: found function application %a with multiple invariants"
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left [_, _]) -> () 
-  
+
+let typeof t (s: string) : (Lang.Type.t list * Lang.Type.t) option =
+  let (let+) x f = Option.bind x f in
+  let ty = 
+    match s with
+    | "++" -> Some Lang.Type.([List (Var "A"); List (Var "A")], List (Var "A"))
+    | "-" -> Some Lang.Type.([Int; Int], Int)
+    | "+" -> Some Lang.Type.([Int; Int], Int)
+    | s ->
+      try 
+        let ty = (Proof_context.typeof t s) in
+        let+ s_base = String.split_on_char '.' s |> List.last_opt in
+        let+ name = Proof_context.names t s_base in
+        match name with
+        | Names.GlobRef.ConstRef s ->
+          let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ s ty in
+          Some (split_last args)
+        | _ -> None
+      with
+      | _ -> None in
+  Format.printf "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.Option.t] ty);
+  ty 
+
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   (* Format.printf "current program id is %s: %s@."
@@ -191,7 +212,7 @@ and symexec_lambda t env name body rest =
   let h_fname = Proof_context.fresh ~base:("H" ^ name) t in
   Proof_context.append t "xletopaque %s %s." fname h_fname;
   let env = Proof_env.add_lambda_def t env name body in
-  update_program_id_over_lambda t body;
+  (* update_program_id_over_lambda t body; *)
   symexec t env rest
 and symexec_alloc t env pat rest =
   let prog_arr = match pat with
@@ -341,8 +362,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* extract the arguments applied to the function call *)
   let (_, f_args) = Proof_utils.CFML.extract_app_full post in
 
-  (* for now we only handle lemmas with a single higher order invariant *)
-  ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
+  (* for now we only handle lemmas with a single higher order invariant *) 
+u ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
 
   (* work out the type of the invariant *)
   let inv_ty =
@@ -362,16 +383,12 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
   let _vc = Specification.build_verification_condition t (Proof_env.env_to_defmap env) lemma_name in
 
-  let cp = t.Proof_context.concrete () in
+  (* collect an observation for the current program point *)
   let observations =
-    Dynamic.Concrete.lookup cp
-      ((t.Proof_context.current_program_id :> int) - 1) in
+    let cp = t.Proof_context.concrete () in
+    Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
 
-  Format.printf "env is %a@." Proof_env.pp env;
-
-  let show_obs obs =
-    [%show: (string * Dynamic.Concrete.value) list *
-            (string * Dynamic.Concrete.heaplet) list] obs in
+  (* build a test specification from the partially reduced proof term applied to values at the current position *)
   let test_f =
     List.find_map Option.(fun obs ->
       let obs = Proof_env.normalize_observation env obs in
@@ -411,61 +428,49 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
           Proof_analysis.analyse lambda_env obs heap_spec inv_spec reduced in
         Some testf
       end
-    ) observations in
+    ) observations
+    |> Option.get_exn_or "failed to construct an executable test specification" in
 
-  let typeof (s: string) : (Lang.Type.t list * Lang.Type.t) option =
-    let (let+) x f = Option.bind x f in
-    match s with
-    | "-" -> Some Lang.Type.([Int; Int], Int)
-    | "+" -> Some Lang.Type.([Int; Int], Int)
-    | s ->
-      try 
-        let ty = (Proof_context.typeof t s) in
-        print_endline @@ "got the type for " ^ s;
-        let+ s_base = String.split_on_char '.' s |> List.last_opt in
-        print_endline @@ "got the base name for " ^ s_base;
-        let+ name = Proof_context.names t s_base in
-        print_endline @@ "got the name for " ^ s;        
-        match name with
-        | Names.GlobRef.ConstRef s ->
-          let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ s ty in
-          Some (split_last args)
-        | _ -> None
-      with
-      | _ -> None in
+  (* construct an expression generation context using the old proof *)
+  let ctx =
+    let vars, funcs =
+      (* collect all variables in the proof context that are available in the concrete context *)
+      let proof_vars =
+        let available_vars =
+          List.find_map (fun obs ->
+            let (pure, _) = Proof_env.normalize_observation env obs in
+            Some (List.map fst pure |> StringSet.of_list)
+          ) observations |> Option.get_or ~default:StringSet.empty in
+        let poly_vars, env = Proof_utils.CFML.extract_env (Proof_context.current_goal t).hyp in
+        List.filter (Pair.fst_map (Fun.flip StringSet.mem available_vars)) env in
+      (* collect any variables that will be available to the invariant *)
+      let invariant_vars = snd inv_ty in
+      (* variables available to the generation are variables in the proof and from the invariant *)
+      let vars = proof_vars @ invariant_vars in
+      (* collect functions used in the current proof context *)
+      let funcs =
+        Proof_utils.CFML.extract_assumptions (Proof_context.current_goal t).hyp
+        |> List.fold_left (fun fns (ty,l,r) ->
+          Lang.Expr.(functions (functions fns l) r)
+        ) StringSet.empty
+        |> StringSet.to_list in
+      vars,funcs in
 
-  let vars, funcs =
-    (* collect all variables in the proof context that are available in the concrete context *)
-    let proof_vars =
-      let available_vars =
-        List.find_map (fun obs ->
-          let (pure, _) = Proof_env.normalize_observation env obs in
-          Some (List.map fst pure |> StringSet.of_list)
-        ) observations |> Option.get_or ~default:StringSet.empty in
-      let poly_vars, env = Proof_utils.CFML.extract_env (Proof_context.current_goal t).hyp in
-      List.filter (Pair.fst_map (Fun.flip StringSet.mem available_vars)) env in
-    (* collect any variables that will be available to the invariant *)
-    let invariant_vars = snd inv_ty in
-    (* variables available to the generation are variables in the proof and from the invariant *)
-    let vars = proof_vars @ invariant_vars in
-    (* collect functions used in the current proof context *)
-    let funcs =
-      Proof_utils.CFML.extract_assumptions (Proof_context.current_goal t).hyp
-      |> List.fold_left (fun fns (ty,l,r) ->
-        Lang.Expr.(functions (functions fns l) r)
-      ) StringSet.empty
-      |> StringSet.to_list in
-    vars,funcs in
+    let from_id, to_id =
+      Dynamic.Matcher.find_aligned_range `Right t.Proof_context.alignment
+        ((((t.Proof_context.current_program_id :> int) - 1)),
+         (((t.Proof_context.current_program_id :> int)))) in
+    Expr_generator.build_context
+      ~vars ~funcs ~env:(typeof t)
+      ~from_id ~to_id
+      t.Proof_context.old_proof.Proof_spec.Script.proof in
 
-  let ctx = Expr_generator.build_context ~vars ~funcs ~env:typeof in
+  let gen = Expr_generator.generate_expression ctx (typeof t) in
+  print_endline @@ Expr_generator.show_ctx ctx;
 
+  let valid = test_f t.Proof_context.compilation_context (`Var "true", [| `Constructor ("[]", []) |]) in
+  Format.printf "valid: %b\n@." valid;
 
-  begin match test_f with
-  | None -> ()
-  | Some test_f ->
-    let valid = test_f t.Proof_context.compilation_context (`Var "true", [| `Constructor ("[]", []) |]) in
-    Format.printf "valid: %b" valid
-  end;
 
   print_endline @@ Format.sprintf "args: (%s)"@@
   (List.map (fun (exp, _) -> Lang.Expr.show exp) f_args |> String.concat ", ");

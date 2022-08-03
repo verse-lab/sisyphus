@@ -1,7 +1,8 @@
-type ctx
+type ctx [@@deriving show]
 (** [ctx] represents a particular expression generation context,
    capturing the variables, functions and constants that the
    enumerative synthesis will use to generate terms. *)
+
 
 type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
 (** [env] represents a mapping of function names to their argument

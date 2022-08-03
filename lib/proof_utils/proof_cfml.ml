@@ -440,7 +440,8 @@ let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
     if pred v then v
     else Format.ksprintf ~f:failwith "failed to find %s in heaplet %s" name (Proof_debug.constr_to_string c) in
   match Constr.kind c with
-  | Constr.App (fname, [| ty; body; var |]) when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.HS.repr" fname ->
+  | Constr.App (fname, [| ty; body; var |]) when
+      Utils.is_const_eq "CFML.SepBase.SepBasicSetup.HS.repr" fname ->
     let var =
       check_or_fail "variable" Constr.isVar var
       |> Constr.destVar |> Names.Id.to_string in
