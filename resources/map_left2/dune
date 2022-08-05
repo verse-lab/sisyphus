@@ -1,0 +1,45 @@
+(library (name map_left2)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsMapLeft2)
+ (modules
+   Common_ml
+   Verify_map_left2_utils
+   map_left2_old_ml Verify_map_left2_old
+   map_left2_new_ml Verify_map_left2_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (targets Common_ml.v common.cmj)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target map_left2_old.sisyphus.ml)
+ (deps map_left2_old.ml)
+ (action (with-stdout-to map_left2_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" map_left2_old.ml))))
+
+(rule
+ (target map_left2_old_ml.v)
+ (deps map_left2_old.sisyphus.ml common.ml common.cmj)
+ (action (run cfmlc -o ./map_left2_old_ml.v map_left2_old.sisyphus.ml)))
+
+(rule
+ (target map_left2_new.sisyphus.ml)
+ (deps map_left2_new.ml)
+ (action (with-stdout-to map_left2_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./map_left2_new.ml))))
+
+(rule
+ (target map_left2_new_ml.v)
+ (deps map_left2_new.sisyphus.ml common.ml common.cmj Common_ml.v)
+ (action (run cfmlc -o ./map_left2_new_ml.v map_left2_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))

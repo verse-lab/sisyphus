@@ -18,7 +18,7 @@ let rec pp_ty fmt : Lang.Type.t -> unit = function
   | Lang.Type.Product elts ->
     Format.fprintf fmt "Lang.Type.Product ([%a])"
       (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "; ") pp_ty) elts
-  | Lang.Type.ADT (name, args, Some constr) ->
+  | Lang.Type.ADT (name, args, Some (constr, _)) ->
     Format.fprintf fmt "Lang.Type.ADT (\"%s\", [%a], Some \"%s\")" name
       (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "; ") pp_ty) args
       constr
@@ -44,9 +44,6 @@ type expr = [
 ] [@@deriving show]
 type holy_expr = expr -> expr
 type 'a map = 'a StringMap.t
-
-(* let pp_expr = Lang.Expr.pp
- * let pp_ty = Lang.Type.pp *)
 
 let pp_holy_expr fmt v =
   pp_expr fmt (v (`Var "??"))

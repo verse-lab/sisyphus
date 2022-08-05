@@ -178,7 +178,7 @@ let unwrap_assertion sexp : Proof_spec.Heap.Assertion.t =
     let body =
       let body, _ = unwrap_value_with_loc body in
       unwrap_expr body in
-    Proof_spec.Heap.(Assertion.emp |> Assertion.add_heaplet (PointsTo (vl, body)))
+    Proof_spec.Heap.(Assertion.emp |> Assertion.add_heaplet (PointsTo (vl, None, body)))
   | "CNotation", [_; List[Atom "InConstrEntry"; Atom notation]; _] ->
     failwith @@ Format.sprintf "found unknown notation %s" notation
   | tag, _ -> failwith @@ Format.sprintf "found unhandled assertion tag %s: %a" tag Sexplib.Sexp.pp_hum sexp

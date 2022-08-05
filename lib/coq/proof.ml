@@ -57,7 +57,7 @@ module Make(C: Context.CONFIG) = struct
   let cancel ~count =
     let cancelled, states = List.take_drop count prf.states in
     prf.states <- states;
-    ignore @@ Ctx.cancel states
+    ignore @@ Ctx.cancel cancelled
 
   let cancel_last () =
     let cancelled, states = List.hd_tl prf.states in

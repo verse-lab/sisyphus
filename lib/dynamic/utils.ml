@@ -17,7 +17,7 @@ let pp_stringmap f fmt vl =
       pp_print_string fmt "}";
       pp_close_box fmt ()
     )
-    ~pp_sep:Format.(fun fmt () -> pp_print_string fmt " -> ")
+    ~pp_sep:Format.(fun fmt () -> pp_print_string fmt "; ")
     String.pp f fmt vl
 
 type 'a intmap = 'a IntMap.t
@@ -31,7 +31,7 @@ let pp_intmap f fmt vl =
       pp_print_string fmt "}";
       pp_close_box fmt ()
     )
-    ~pp_sep:Format.(fun fmt () -> pp_print_string fmt " -> ")
+    ~pp_sep:Format.(fun fmt () -> pp_print_string fmt "; ")
     Int.pp f fmt vl
 
 type 'a intpairmap = 'a IntPairMap.t
@@ -45,8 +45,11 @@ let pp_intpairmap f fmt vl =
       pp_print_string fmt "}";
       pp_close_box fmt ()
     )
-    ~pp_sep:Format.(fun fmt () -> pp_print_string fmt " -> ")
-    (Pair.pp Int.pp Int.pp) f fmt vl
+    ~pp_sep:Format.(fun fmt () -> pp_print_string fmt "; ")
+    (Pair.pp
+       ~pp_start:Format.(fun fmt () -> pp_print_string fmt "(")
+       ~pp_stop:Format.(fun fmt () -> pp_print_string fmt ")")
+       Int.pp Int.pp) f fmt vl
 
 let remove_one ~eq x l =
   let rec remove_one ~eq x acc l = match l with

@@ -1,19 +1,18 @@
 open Common
 
-let to_array (s: ('a t[@collection Common.of_list])) =
-  (* 0 *)
+let to_array (s: ('a t[@collection Common.of_list, Common.to_list])) =
+  (* 1 *)
   let ((len: int), (ls: 'a list))[@rewrite list_fold_length_rev] =
-    fold (fun ((i: int), (acc: 'a list)) (x: 'a) -> (i + 1, x :: acc)) (0, []) s in
-   (* 1 *)
+    fold (fun ((i: int), (acc: 'a list)) (x: 'a) -> (* 0 *)(i + 1, x :: acc)) (0, []) s in
+   (* 2 *)
    match ls with
-     | [] -> (* 2 *) [| |]
+     | [] -> (* 3 *) [| |]
      | (init: 'a)::(rest: 'a list) ->
-       (* 3 *)
-       let (a: 'a array) = Array.make len init in
        (* 4 *)
-       (* Subtract 1 for len->index conversion and 1 for the removed [init] *)
-       let (idx: int) = len - 2 in
+       let (a: 'a array) = Array.make len init in
        (* 5 *)
-       let _ = List.fold_left (fun (i: int) (x: 'a) -> a.(i) <- x; i - 1) idx rest in
-       (* 6 *)
+       let (idx: int) = len - 2 in
+       (* 8 *)
+       let _ = List.fold_left (fun (i: int) (x: 'a) -> (* 6 *) a.(i) <- x; (* 7 *) i - 1) idx rest in
+       (* 9 *)
        a

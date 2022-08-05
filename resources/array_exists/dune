@@ -1,0 +1,45 @@
+(library (name array_exists)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsArrayExists)
+ (modules
+   Common_ml
+   Verify_array_exists_utils
+   array_exists_old_ml Verify_array_exists_old
+   array_exists_new_ml Verify_array_exists_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (targets Common_ml.v common.cmj)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target array_exists_old.sisyphus.ml)
+ (deps array_exists_old.ml)
+ (action (with-stdout-to array_exists_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" array_exists_old.ml))))
+
+(rule
+ (target array_exists_old_ml.v)
+ (deps array_exists_old.sisyphus.ml common.ml common.cmj)
+ (action (run cfmlc -o ./array_exists_old_ml.v array_exists_old.sisyphus.ml)))
+
+(rule
+ (target array_exists_new.sisyphus.ml)
+ (deps array_exists_new.ml)
+ (action (with-stdout-to array_exists_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./array_exists_new.ml))))
+
+(rule
+ (target array_exists_new_ml.v)
+ (deps array_exists_new.sisyphus.ml common.ml common.cmj Common_ml.v)
+ (action (run cfmlc -o ./array_exists_new_ml.v array_exists_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))

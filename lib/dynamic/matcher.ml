@@ -109,15 +109,21 @@ let top_k ?k side (t: t) =
 
 let find_aligned_range ?k side (t: t) =
   let (let+) x f = Option.bind x f in
+  Format.printf "internal states are %s@." ([%show: float intpairmap] t);
   let mapping = top_k ?k side t in
+  Format.printf "mapping is %s@." ([%show: (int * float) list intmap] mapping);
   let is_bound pos =
     IntMap.find_opt pos mapping
     |> Option.exists (fun v -> List.length v > 0) in
+  let min_binding, _  = IntMap.min_binding mapping in
+  let max_binding, _  = IntMap.max_binding mapping in
   fun (start_,end_) ->
     let start_ =
       let rec loop start_ =
         if is_bound start_
         then start_
+        else if start_ <= min_binding
+        then min_binding
         else loop (start_ - 1) in
       loop start_
       |> Fun.flip IntMap.find mapping  in
@@ -125,6 +131,8 @@ let find_aligned_range ?k side (t: t) =
       let rec loop end_ =
         if is_bound end_
         then end_
+        else if max_binding <= end_
+        then max_binding
         else loop (end_ + 1) in
       loop end_
       |> Fun.flip IntMap.find mapping in

@@ -1,4 +1,0 @@
-(library
- (name program)
- (preprocess (pps ppx_deriving.std))
- (libraries containers bos))

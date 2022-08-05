@@ -206,7 +206,7 @@ module Internal = struct
       Ast_helper.[
         Str.value Asttypes.Nonrecursive [vb]
       ] in
-    let sg, outcome, env = execute_phrase env expr in
+    let sg, outcome, env = Warnings.without_warnings (fun () -> execute_phrase env expr) in
 
     match outcome with
     | Exception e -> raise e

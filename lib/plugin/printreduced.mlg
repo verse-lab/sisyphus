@@ -1,0 +1,18 @@
+
+DECLARE PLUGIN "printreduced"
+
+{
+
+(* This should not be needed, fix in Coq! *)
+open Ltac_plugin
+open Stdarg
+
+}
+
+VERNAC COMMAND EXTEND PrintReduced CLASSIFIED AS QUERY
+| [ "PrintReduced" constr(e) ] -> { Pr_api.print_reduced e }
+END
+
+TACTIC EXTEND print_reduced
+| [ "print_reduced" constr(e) ] -> { Pr_api.print_reduced_tac e }
+END

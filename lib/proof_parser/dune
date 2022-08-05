@@ -1,9 +1,9 @@
 (library (name proof_parser)
  (public_name sisyphus.proof_parser)
- (libraries sedlex containers proof_spec lang coq)
+ (libraries  containers proof_spec lang coq)
  (modules (:standard \ "main"))
  (flags  -rectypes)
- (preprocess (pps sedlex.ppx ppx_deriving.std)))
+ (preprocess (pps ppx_deriving.std)))
 
 (executable (name main)
  (modules main)

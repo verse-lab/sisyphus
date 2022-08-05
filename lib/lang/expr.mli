@@ -12,14 +12,26 @@ type 'a simple_shape = 'a constraint 'a =
     | `Var of string ]
 [@@deriving show, eq]
 
+val pp_raw_simple_shape: (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a simple_shape -> unit
+val show_raw_simple_shape: (Format.formatter -> 'a -> unit) -> 'a simple_shape -> string
+
 type param = [ `Tuple of string list | `Var of string ]
 [@@deriving show, eq, ord]
+
+val pp_raw_param: Format.formatter -> param -> unit
+val show_raw_param: param -> string
 
 type typed_param = [`Var of (string * Type.t) | `Tuple of (string * Type.t) list]
 [@@deriving show, eq, ord]
 
+val pp_raw_typed_param:  Format.formatter -> typed_param -> unit
+val show_raw_typed_param: typed_param -> string
+
 type 'a lambda_shape = [`Lambda of typed_param list * 'a]
 [@@deriving show, eq, ord]
+
+val pp_raw_lambda_shape: (Format.formatter -> 'a -> unit) -> Format.formatter ->  'a lambda_shape -> unit
+val show_raw_lambda_shape: (Format.formatter -> 'a -> unit) -> 'a lambda_shape -> string
 
 type 'a shape = 'a constraint 'a =
     [> `App of string * 'a shape list
@@ -30,6 +42,9 @@ type 'a shape = 'a constraint 'a =
     | `Var of string ]
 [@@deriving show, eq]
 
+val pp_raw_shape: (Format.formatter -> 'a -> unit) -> Format.formatter ->  'a shape -> unit
+val show_raw_shape: (Format.formatter -> 'a -> unit) -> 'a shape -> string
+
 type simple_t =
   [ `App of string * simple_t list
   | `Constructor of string * simple_t list
@@ -37,6 +52,9 @@ type simple_t =
   | `Tuple of simple_t list
   | `Var of string ]
 [@@deriving eq, ord]
+
+val pp_raw_simple_t: Format.formatter -> simple_t -> unit
+val show_raw_simple_t:  simple_t -> string
 
 type t =
   [ `App of string * t list
@@ -46,6 +64,9 @@ type t =
   | `Tuple of t list
   | `Var of string ]
 [@@deriving eq, ord]
+
+val pp_raw:  Format.formatter -> t -> unit
+val show_raw: t -> string
 
 val print_param : param -> PPrint.document
 val print_typed_param : typed_param -> PPrint.document

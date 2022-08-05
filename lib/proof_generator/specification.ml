@@ -5,8 +5,8 @@ module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
 module PU = Proof_utils
-module PCFML = Proof_cfml
-module PV = Proof_validator.Verification_condition
+module PCFML = Proof_utils.CFML
+module PV = Proof_validator.VerificationCondition
 
 let () =
   Printexc.register_printer (function
@@ -29,7 +29,7 @@ let rec extract_property acc (c: Constr.t) =
   | Constr.App (eq, [| _; _; _ |]) when PU.is_coq_eq eq ->
     extract_conclusion acc [] [] c
   | _ ->
-    failwith (Format.sprintf "(extract property) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
+    failwith (Format.sprintf "(extract property) found unsupported assertion %s" (Proof_utils.Debug.constr_to_string_pretty c))
 and extract_params tys acc (c: Constr.t) =
   match Constr.kind c with
   | Constr.Prod ({binder_name=Name n; _}, ty, rest) ->
@@ -75,7 +75,7 @@ and extract_assertions tys params acc (c: Constr.t) =
   | Constr.App _ ->
     extract_conclusion tys params acc c
   | _ ->
-    failwith (Format.sprintf "(extract assertions) found unsupported assertion %s" (Proof_debug.constr_to_string_pretty c))
+    failwith (Format.sprintf "(extract assertions) found unsupported assertion %s" (Proof_utils.Debug.constr_to_string_pretty c))
 and extract_conclusion tys params assertions (c: Constr.t) =
   let rel ind =
     let ind = ind - 1 in
@@ -110,16 +110,16 @@ and extract_conclusion tys params assertions (c: Constr.t) =
     (List.rev tys, List.rev params, List.rev assertions, `Assert (PCFML.extract_expr ~rel:rel_exp c))
   | _ ->
     failwith (Format.sprintf "(extract equality) found unsupported assertion %s"
-                (Proof_debug.constr_to_string_pretty c))
+                (Proof_utils.Debug.constr_to_string_pretty c))
 
 let extract_property c =
   try Ok (extract_property [] c) with
   | Failure msg ->
-    Error (Format.sprintf "failed to parse type %s, due to %s" (Proof_debug.constr_to_string_pretty c) msg)
+    Error (Format.sprintf "failed to parse type %s, due to %s" (Proof_utils.Debug.constr_to_string_pretty c) msg)
   | e -> Error (Printexc.to_string e)
 
 type constr = Constr.t
-let pp_constr fmt vl = Format.pp_print_string fmt (Proof_debug.constr_to_string_pretty vl)
+let pp_constr fmt vl = Format.pp_print_string fmt (Proof_utils.Debug.constr_to_string_pretty vl)
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
 let build_hole_var id = ((Format.sprintf "S__hole_%d" id))
@@ -131,7 +131,7 @@ let unwrap_invariant_spec formals
   let check_or_fail name pred v = 
     if pred v then v
     else Format.ksprintf ~f:failwith "failed to find %s  within goal %s" name
-           (Proof_debug.constr_to_string_pretty c) in
+           (Proof_utils.Debug.constr_to_string_pretty c) in
   let no_formals = List.length formals in
   let rec collect_params acc c = 
     let rel ind =
@@ -141,13 +141,13 @@ let unwrap_invariant_spec formals
       snd (List.nth acc ind) in
     match Constr.kind c with
     | Constr.Prod ({binder_name=Name name; _}, ty, rest) ->
-      collect_params ((Names.Id.to_string name, Proof_cfml.extract_typ ~rel ty) :: acc) rest
+      collect_params ((Names.Id.to_string name, Proof_utils.CFML.extract_typ ~rel ty) :: acc) rest
     | Constr.Prod (_, _, _) -> collect_assumptions acc [] c
     | _ -> 
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] in (%s) which was expected \
          to be a invariant spec (forall ..., eqns, SPEC (_), _)"
-        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
   and collect_assumptions params acc c = 
     match Constr.kind c with
     | Constr.Prod (_, ty, rest) ->
@@ -163,7 +163,7 @@ let unwrap_invariant_spec formals
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] in (%s) which was \
          expected to be a invariant spec. Expecting (eqns, SPEC (_), \
-         _)" (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+         _)" (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
   and collect_spec params assums c =
     match Constr.kind c with
     | Constr.App (fname, [| f_app; _; _; pre; post |]) when PU.is_const_eq "CFML.SepLifted.Triple" fname ->
@@ -269,12 +269,12 @@ let unwrap_invariant_spec formals
           | `Write (arr, i, vl, rest) ->
             let vl = eval_expr env sym_heap vl in
             let i = eval_expr env sym_heap (`Var i) in
-            let arr_vl = Proof_spec.Heap.Heap.get arr sym_heap in
+            let ty,arr_vl = Proof_spec.Heap.Heap.get_with_ty arr sym_heap in
             let c1 : Lang.Expr.t list =  [] (* [`App ("<", [i; `App ("TLC.LibListZ.length", [arr_vl])])] *) in
             let sym_heap =
               let arr_vl = `App ("Array.set", [arr_vl; i; vl]) in
               Proof_spec.Heap.Heap.add_heaplet
-                (Proof_spec.Heap.Heaplet.PointsTo (arr, arr_vl)) sym_heap in
+                (Proof_spec.Heap.Heaplet.PointsTo (arr, ty, arr_vl)) sym_heap in
             eval_stmt env sym_heap (c1 @ constraints) rest
           | `Value expr ->
             let res = eval_expr env sym_heap expr in
@@ -285,7 +285,7 @@ let unwrap_invariant_spec formals
         let (res, constraints, sym_heap) = eval_stmt env sym_heap [] body in
         let post_expr_values =
           Proof_spec.Heap.Heap.to_list sym_heap
-          |> List.map (fun (Proof_spec.Heap.Heaplet.PointsTo (var, expr)) -> StringMap.find var hole_binding, expr)
+          |> List.map (fun (Proof_spec.Heap.Heaplet.PointsTo (var, _, expr)) -> StringMap.find var hole_binding, expr)
           |> List.map (fun (id, expr) ->
             let var_id = build_hole_var id in
             id, fun hole ->
@@ -322,9 +322,9 @@ let unwrap_invariant_spec formals
       Format.ksprintf ~f:failwith
         "found unhandled Coq term (%s)[%s] in (%s) which was \
          expected to be a invariant spec. Expecting (SPEC (..) PRE (..) POST(..))"
-        (Proof_debug.constr_to_string c)
-        (Proof_debug.tag c)
-        (Proof_debug.constr_to_string_pretty c) in
+        (Proof_utils.Debug.constr_to_string c)
+        (Proof_utils.Debug.tag c)
+        (Proof_utils.Debug.constr_to_string_pretty c) in
   collect_params [] c
 
 let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_heap (c: Constr.t) =
@@ -339,7 +339,7 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
         "found unhandled Coq term (%s)[%s] \
          in (%s) which was expected to be \
          a specification"
-        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
+        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c) 
   and collect_invariant_conditions formals acc c =
     match Constr.kind c with
     | Constr.Prod (_, ty, rest) ->
@@ -356,7 +356,7 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
          in (%s) which was expected to be \
          a specification (expecting \
          specification invariants)"
-        (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) 
+        (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c) 
   in
   collect_invariants [] c
 
@@ -367,21 +367,21 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
    the specification. *)
 let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: Names.Constant.t) : PV.verification_condition =
   (* extract CFML goal *)
-  let (pre, post) = Proof_cfml.extract_cfml_goal (Proof_context.current_goal t).ty in
+  let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
   (* extract the Coq-name for the function being called, and the arguments being passed to it *)
-  let (fname, args) = PCFML.extract_app_full t post in
+  let (fname, args) = PCFML.extract_app_full post in
   (* instantiate specification *)
   let instantiated_spec =
     Format.ksprintf "%s %s"
       (Names.Constant.to_string spec)
-      (List.map (fun (vl,_) -> "(" ^ Printer.show_expr vl ^ ")") args
+      (List.map (fun (vl,_) -> "(" ^ Proof_utils.Printer.show_expr vl ^ ")") args
        |> String.concat " ")
       ~f:(Proof_context.typeof t) in
 
   (* extract polymorphic variables and typing env *)
-  let poly_vars, env = PCFML.extract_env t in
+  let poly_vars, env = PCFML.extract_env ((Proof_context.current_goal t).hyp) in
   (* extract initial equalities in the context *)
-  let assumptions = PCFML.extract_assumptions t in
+  let assumptions = PCFML.extract_assumptions (Proof_context.current_goal t).hyp in
   (* from the pre condition, build a symbolic heap and a set of initial expressions *)
   let sym_heap, (initial_values, hole_binding) =
     let hole_count = ref 0 in
@@ -389,10 +389,10 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
       (function `Impure heaplet -> Some (PCFML.extract_impure_heaplet heaplet) | _ -> None)
       (match pre with | `Empty -> [] | `NonEmpty ls -> ls)
     |> List.map Proof_spec.Heap.Heaplet.(function
-      | PointsTo (var, `App (fname, [arg])) ->
+      | PointsTo (var, ty, `App (fname, [arg])) ->
         let id = !hole_count in
         incr hole_count;
-        PointsTo (var, `App (fname, [`Var (build_hole_var id)])), (arg, (var, id))
+        PointsTo (var, ty, `App (fname, [`Var (build_hole_var id)])), (arg, (var, id))
       | _ -> failwith "unsupported heaplet"
     )
     |> List.split
@@ -487,7 +487,7 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
       let typ = Proof_context.typeof t fn in
       let name = Libnames.qualid_of_string fn |> Nametab.locate_constant in
       try
-        let typ = Proof_cfml.extract_fun_typ name typ in
+        let typ = Proof_utils.CFML.extract_fun_typ name typ in
         Some (fn, typ)
       with _ -> None
   ) functions in

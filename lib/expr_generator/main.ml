@@ -1,6 +1,5 @@
 open Containers
 
-module TypeMap = Expr_generator.Expgen.TypeMap
 
 let steps =
   let proof_str = IO.with_in "../../resources/seq_to_array/Verify_seq_to_array_old.v" IO.read_all in
@@ -20,51 +19,43 @@ let steps =
   parsed_script.proof
 
 
-let env : Expr_generator.Expgen.env =
-  let open Lang.Type in
-  let tA = Var "A" in
-  function
-  | "++" -> [List tA; List tA], List tA
-  | "make" -> [Int; tA], List tA
-  | "length" -> [List tA], Int
-  | "drop" -> [Int; List tA], List tA
-  | "-" -> [Int; Int], Int
-  | "+" -> [Int; Int], Int
-  | _ -> failwith "env typing unknown"
+let env = 
+  let tA = Lang.Type.Var "A" in
+  Lang.Type.(function
+  | "++" -> Some ([List tA; List tA], List tA)
+  | "make" -> Some ([Int; tA], List tA);
+  | "length" -> Some ([List tA], Int)
+  | "drop" -> Some ([Int; List tA], List tA)
+  | "-" -> Some ([Int; Int], Int)
+  | "+" -> Some ([Int; Int], Int)
+  | _ -> None
+  )
 
-
-let get_ctx steps ~from_id ~to_id ~env ~ints ~vars ~funcs : Expr_generator.Expgen.ctx =
-  let consts, funcs = Expr_generator.Typemap_utils.get_consts_and_funcs steps ~from_id ~to_id ~env ~ints ~vars ~funcs in
-  let pats = Expr_generator.Typemap_utils.get_pats steps ~from_id ~to_id ~env in
-  { consts; pats; funcs}
 
 let () =
   let open Lang.Type in
-  let ints = [(Int, [`Int 1])] in
+  let ints = [1] in
   let vars: (string * Lang.Type.t) list = [("l", List (Var "A")); ("init", Var "A"); ("i", Int)] in
-  let funcs = Lang.Type.[
-      Int, [("-", [Int; Int]);  ("+", [Int; Int])]
-    ] in
-
-  let ctx = get_ctx steps ~from_id:0 ~to_id:10 ~env ~ints ~vars ~funcs in
+  let funcs = ["-"; "+"] in
+  let ctx = Expr_generator.build_context  ~from_id:0 ~to_id:10 ~env ~ints ~vars ~funcs steps in
   let max_fuel = 3 in
   let fuel = max_fuel in
-  let exps = Expr_generator.Expgen.gen_exp ctx env ~max_fuel ~fuel (List (Var "A")) in
+  let exps = Expr_generator.generate_expression ctx env  ~fuel (List (Var "A")) in
 
   (* Generate expressions for heap assertion*)
   print_endline "Results for Heap Assertion";
   print_endline @@ string_of_int @@ List.length exps;
 
   let expr: Lang.Expr.t = `App ("++", [
-      `App ("make", [
-          `App ("+", [`Var "i"; `Int 1])
-        ; `Var "init"
-        ])
-    ; `App ("drop", [
-          `App ("+", [`Var "i"; `Int 1])
-         ; `Var "l"
-        ])
-    ]) in
+    `App ("make", [
+      `App ("+", [`Var "i"; `Int 1])
+    ; `Var "init"
+    ])
+  ; `App ("drop", [
+      `App ("+", [`Var "i"; `Int 1])
+    ; `Var "l"
+    ])
+  ]) in
 
   print_endline @@ string_of_bool @@ List.exists (fun x -> Lang.Expr.equal expr x) exps;
 
@@ -72,7 +63,7 @@ let () =
   (* Generate expressions for pure invariant*)
   print_endline "Results for Pure Invariant";
   List.iter (fun (vname, ty) ->
-      let exps = Expr_generator.Expgen.gen_exp ctx env ~max_fuel ~fuel ty in
-      print_endline @@ vname ^ ": " ^ string_of_int (List.length exps);
-    ) vars;
+    let exps = Expr_generator.generate_expression ctx env ~fuel ty in
+    print_endline @@ vname ^ ": " ^ string_of_int (List.length exps);
+  ) vars;
   ()

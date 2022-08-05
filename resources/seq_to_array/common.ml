@@ -3,6 +3,30 @@ and +'a node =
   | Nil
   | Cons of 'a * 'a t
 
+let rec list_make n vl =
+  if n <= 0
+  then []
+  else vl :: list_make (n - 1) vl
+
+let rec list_drop n ls =
+  if n <= 0
+  then ls
+  else match ls with
+    | [] -> []
+    | _ :: t -> list_drop (n - 1) t
+
+let rec list_take n ls =
+  if n <= 0
+  then []
+  else match ls with
+    | [] -> []
+    | h :: t -> h :: list_take (n - 1) t
+
+let rec list_sum ls =
+  match ls with
+  | [] -> 0
+  | h :: t -> h + list_sum t
+
 let to_list f =
   let rec loop acc f =
     match f () with

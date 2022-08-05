@@ -6,9 +6,12 @@ module StringSet = Set.Make(String)
 type coq_ctx = (module Coq.Proof.PROOF)
 
 type t = {
+  compilation_context: Dynamic.CompilationContext.t;
+  old_proof: Proof_spec.Script.script;
   ctx: coq_ctx;
   mutable current_program_id: Lang.Id.t;
   alignment: Dynamic.Matcher.t;
+  concrete: unit -> Dynamic.Concrete.t;
 }
 
 let next_program_id t =
@@ -31,7 +34,7 @@ let extract_proof_script {ctx; _} =
       | Some [Serapi.Serapi_protocol.CoqAst ast] -> ast
       | _ -> failwith "unexpected response from Serapi" in
     let ast_str =
-      Proof_debug.coqobj_to_string (Serapi.Serapi_protocol.CoqAst ast) in
+      Proof_utils.Debug.coqobj_to_string (Serapi.Serapi_protocol.CoqAst ast) in
     Buffer.add_string buf ast_str;
     Buffer.add_string buf "\n";
   done;
@@ -77,11 +80,26 @@ let env {ctx; _} =
   | None -> failwith "unable to obtain proof env - serapi returned None."
 
 let typeof t expr =
+  let no_hyps = List.length (current_goal t).hyp in
   append t "pose proof (%s)." expr;
+  if List.length (current_goal t).hyp <= no_hyps then
+    Format.ksprintf
+      ~f:failwith "attempted to check type of invalid expression (%s)." expr;
   let (_, _, ty) = List.hd (current_goal t).hyp in
   let module Ctx = (val t.ctx) in
   Ctx.cancel_last ();
   ty
+
+let term_of t expr =
+  let no_hyps = List.length (current_goal t).hyp in
+  append t "pose (%s)." expr;
+  if List.length (current_goal t).hyp <= no_hyps then
+    Format.ksprintf
+      ~f:failwith "attempted to check type of invalid expression (%s)." expr;
+  let (_, def, _) = List.hd (current_goal t).hyp in
+  let module Ctx = (val t.ctx) in
+  Ctx.cancel_last ();
+  Option.get_exn_or "invalid assumptions" def
 
 let definition_of {ctx; _} txt =
   let module Ctx = (val ctx) in
@@ -127,7 +145,7 @@ let pretty_print_current_goal t =
                      (Serapi.Serapi_protocol.gen_pp_obj
                         env Evd.empty (Serapi.Serapi_protocol.CoqGoal (current_subproof t)))
 let debug_print_current_goal t =
-  print_endline @@ "current goal: \n" ^ Proof_debug.constr_to_string (current_goal t).ty
+  print_endline @@ "current goal: \n" ^ Proof_utils.Debug.constr_to_string (current_goal t).ty
 
 let current_names t =
   let goal = current_goal t in
@@ -150,14 +168,53 @@ let fresh ?(base="tmp") t =
   then loop 0
   else base
 
-let init ~prelude ~spec ~alignment ~ctx =
+let with_temporary_context {ctx; _} f =
+  let module Ctx = (val ctx) in
+  let original_proof_size = Ctx.size () in
+  Format.printf "original goal size is %d@." original_proof_size;
+  Fun.protect
+    ~finally:(fun () ->
+      let new_proof_size = Ctx.size () in
+      let count = new_proof_size - original_proof_size in
+      Format.printf "new goal size is %d - need to remove %d steps@." new_proof_size count;
+      if count > 0 then
+        Ctx.cancel ~count
+    ) f
+
+let rec eval_tracing_value t (ty: Lang.Type.t) (vl: Dynamic.Concrete.value) : Lang.Expr.t option =
+  let open Option in
+  match ty, vl with
+  | (Lang.Type.Product tys, `Tuple vls) ->
+    let+ elts = List.map2 (eval_tracing_value t) tys vls
+               |> List.all_some in
+    `Tuple elts
+  | (Lang.Type.List ty, `List elts) ->
+    eval_tracing_list t ty elts
+  | (_, `Int n) -> Some (`Int n)
+  | (ty, `Value vl) ->
+    let var = fresh ~base:vl t in
+    append t "evar (%s: %s)." var (Proof_utils.Printer.show_ty ty);
+    Some (`Var var)
+  | (_ , `Constructor _) -> None (* todo: implement handling of constructors *)
+  | _ -> None
+and eval_tracing_list t ty elts =
+  let open Option in
+  let rec loop = function
+    | [] -> Some (`Constructor ("[]", []))
+    | h :: tl ->
+      let* h = eval_tracing_value t ty h in
+      let* tl = eval_tracing_list t ty tl in
+      Some (`Constructor ("::", [h; tl])) in
+  loop elts
+          
+let init ~compilation_context ~old_proof ~prelude ~spec ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();
   Ctx.add prelude;
   Ctx.add spec;
   Ctx.exec ();
   {
-    ctx;
-    alignment;
+    ctx; compilation_context;
+    alignment; concrete; old_proof;
     current_program_id=Lang.Id.init
   }

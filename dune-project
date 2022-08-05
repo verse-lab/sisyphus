@@ -25,6 +25,7 @@
   (alcotest (>= 1.5.0))
   (z3 (>= 4.8.14))
   (sedlex (>= 2.5))
+  (ppx_blob (>= 0.7.2))
 ))
 (generate_opam_files true)
 (license AGPL-3.0+)

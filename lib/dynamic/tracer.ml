@@ -91,6 +91,19 @@ let build_enc_fun v =
           Nolabel, v
         ]
       )))
+    | Lang.Type.ADT (_, [ty], Some (_, conv)) ->
+      let+ ty_enc_fun = build_enc_fun ty in
+      Some (fun_ @@ fun v -> AH.Exp.variant "List" AH.Exp.(Some (
+        apply (ident (str @@ Longident.(Ldot ((Lident "List"), "map")))) [
+          Nolabel, ty_enc_fun;
+          Nolabel, (apply
+                      (ident
+                         (str @@ Option.get_exn_or "invalid conv" @@
+                          Longident.unflatten (String.split_on_char '.' conv))) [
+                      Nolabel, v
+                    ])
+        ]
+      )))
     | Lang.Type.ADT (_adt, _tys, _) -> None
     | Lang.Type.Product tys ->
       let+ enc_funs = 
@@ -212,15 +225,15 @@ let rec encode_expr (expr: Lang.Expr.t) =
       AH.Exp.fun_ Nolabel None pat body  in
     List.fold_right encode_fun args (encode_expr body)
 
-let annotate ({ prelude; name; args; body }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
+let annotate ?(deep=false) ({ prelude; name; args; body }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
   let add_param (param: Lang.Expr.typed_param) env =
     match param with
     | `Tuple args -> env @ args
     | `Var arg -> env @ [arg] in
-  let id =
+  let __raw_id, id =
     let id = ref 0 in
-    fun () -> let vl = !id in incr id; vl in
+    id, fun () -> let vl = !id in incr id; vl in
   let rec encode_stmt ~observe env (stmt: Lang.Expr.t Lang.Program.stmt) =
     let wrap then_ =
       if observe then
@@ -228,51 +241,60 @@ let annotate ({ prelude; name; args; body }: Lang.Expr.t Lang.Program.t) : Parse
         wrap_with_observe env ~at:id
           ~then_:(then_ ())
       else (then_ ()) in
+    (* Format.printf "current program id is %d: %s@."
+     *   (!__raw_id)
+     *   (Lang.Program.show_stmt_line Lang.Expr.print stmt |> String.replace ~sub:"\n" ~by:" "); *)
     match stmt with
     | `Value vl ->
       wrap (fun () -> encode_expr vl)
     | `EmptyArray ->
       wrap (fun () -> AH.Exp.array [])
     | `LetExp (`Var (_, Lang.Type.Unit), _, expr, body) ->
-      wrap (fun () -> AH.Exp.let_ Nonrecursive [ AH.Vb.mk (AH.Pat.any ()) (encode_expr expr) ]
-              (encode_stmt ~observe env body)
-           )
+      wrap (fun () ->
+        let vb = AH.Vb.mk (AH.Pat.any ()) (encode_expr expr) in
+        let rest = (encode_stmt ~observe env body) in
+        AH.Exp.let_ Nonrecursive [ vb ] rest
+      )
     | `LetExp (args, _, expr, body) ->
       let env = add_param args env in
-      wrap (fun () -> AH.Exp.let_ Nonrecursive [ AH.Vb.mk (encode_param args) (encode_expr expr) ]
-              (encode_stmt ~observe env body))
+      wrap (fun () ->
+        let vb = AH.Vb.mk (encode_param args) (encode_expr expr) in
+        let rest = (encode_stmt ~observe env body) in
+        AH.Exp.let_ Nonrecursive [ vb ] rest)
     | `LetLambda (var, `Lambda (params, lambody), body) ->
-      AH.Exp.let_ Nonrecursive
-        [ AH.Vb.mk (AH.Pat.var (str var)) (
-            let env = List.fold_left (fun env param -> add_param param env) env params in
-            List.fold_right (fun param exp -> AH.Exp.fun_ Nolabel None (encode_param param) exp) params @@
-            encode_stmt ~observe:false env lambody) ]
-        (let env = env @ [var, Func] in
-         encode_stmt ~observe env body)
+      let vb =
+        let pat = (AH.Pat.var (str var)) in
+        let lambody = 
+          let env = List.fold_left (fun env param -> add_param param env) env params in
+          List.fold_right (fun param exp -> AH.Exp.fun_ Nolabel None (encode_param param) exp) params @@
+          encode_stmt ~observe:(if deep then true else false) env lambody in
+        AH.Vb.mk pat lambody in
+      let rest = (let env = env @ [var, Func] in encode_stmt ~observe env body) in
+      AH.Exp.let_ Nonrecursive [vb] rest
     | `Match (exp, cases) ->
       wrap (fun () -> AH.Exp.match_ (encode_expr exp) (List.map (fun (name, args, body) ->
-        AH.Exp.case
-          (AH.Pat.construct Longident.(str @@ Lident name)
-             (match args with
-              | [] -> None
-              | args ->
-                Some (AH.Pat.tuple
-                        (List.map (fun (var, ty) ->
-                           AH.Pat.constraint_ (AH.Pat.var (str var)) (type_ ty))
-                           args))
-             ))
-          (let env = env @ args in
-           encode_stmt ~observe env body)
+        let pat =
+          AH.Pat.construct Longident.(str @@ Lident name)
+            (match args with
+             | [] -> None
+             | args ->
+               Some (AH.Pat.tuple
+                       (List.map (fun (var, ty) ->
+                          AH.Pat.constraint_ (AH.Pat.var (str var)) (type_ ty))
+                          args))
+            ) in
+        let rest = (let env = env @ args in encode_stmt ~observe env body) in
+        AH.Exp.case pat rest
       ) cases))
     | `Write (arr, offs, vl, body) ->
       wrap (fun () ->
-        AH.Exp.sequence
-          (AH.Exp.apply (AH.Exp.ident Longident.(str @@ Ldot (Lident "Array", "set"))) [
+        let set_exp = (AH.Exp.apply (AH.Exp.ident Longident.(str @@ Ldot (Lident "Array", "set"))) [
              Nolabel, AH.Exp.ident Longident.(str @@ Lident arr);
              Nolabel, AH.Exp.ident Longident.(str @@ Lident offs);
              Nolabel, encode_expr vl
-           ])
-          (encode_stmt ~observe env body)
+           ]) in
+        let rest = (encode_stmt ~observe env body) in
+        AH.Exp.sequence set_exp rest
       ) in
   let body = encode_stmt ~observe:true args body in
   let def =
@@ -321,7 +343,7 @@ module Generator = struct
     | Lang.Type.Array t -> Array (of_type t)
     | Lang.Type.Ref t -> Ref (of_type t)
     | Lang.Type.Product tys -> Product (List.map of_type tys)
-    | Lang.Type.ADT (_, [arg], Some conv) ->
+    | Lang.Type.ADT (_, [arg], Some (conv, _)) ->
       let lid = String.split_on_char '.' conv |> Longident.unflatten |> Option.get_exn_or "invalid converter" in
       Converted (lid, of_type arg)
     | t -> failwith (Format.sprintf "unsupported argument type %a" Lang.Type.pp t)
@@ -353,11 +375,11 @@ module Generator = struct
       let* i = Random.int 10 in
       pure @@ AH.Exp.constant (Pconst_integer (string_of_int i, None))
     | List ty ->
-      let* sz = Random.pick_array [|1; 3; 4; 5; 8; 10; 20|] in
+      let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in
       pure (encode_list contents)
     | Array ty -> 
-      let* sz = Random.pick_array [|1; 3; 4; 5; 8; 10; 20|] in
+      let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in
       pure @@ AH.Exp.array contents
     | Ref ty ->
@@ -370,7 +392,7 @@ module Generator = struct
       let* elts = List.map sample_expr elts |> list_seq in
       pure @@ AH.Exp.tuple elts
     | Converted (conv, ty) -> 
-      let* sz = Random.pick_array [|1; 3; 4; 5; 8; 10; 20|] in
+      let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in
       pure @@ AH.Exp.(
         apply
@@ -406,19 +428,20 @@ module CompilationContext = struct
       env.evaluation_env <- Evaluator.dyn_load_module_from_file env.evaluation_env file
     end
 
-  (** [eval_definition_with_annotations env ~deps ~prog] dynamically
-     loads all the dependencies [dep] of program [prog] and returns a
-     unique name to identify the function. *)
+  (** [eval_definition_with_annotations ?deep env ~deps ~prog]
+     dynamically loads all the dependencies [dep] of program [prog]
+     and returns a unique name to identify the function. If [deep],
+     then observations are also generated within nested functions.  *)
   let eval_definition_with_annotations =
     let fresh_mod_name =
       let trace_id = ref 0 in
       fun () ->
         incr trace_id;
         Printf.sprintf "Sisyphus_temporary_module_%d" !trace_id in
-    fun env ~deps ~prog ->
+    fun ?deep env ~deps ~prog ->
       List.iter (compile env) deps;
       let mod_name = fresh_mod_name () in
-      let ast = annotate prog in
+      let ast = annotate ?deep prog in
       env.evaluation_env <-
         Evaluator.dyn_load_definition_as_module
           env.evaluation_env ~mod_name ~ast;
@@ -431,8 +454,8 @@ end
 
 type program = string list * Lang.Expr.t Lang.Program.t
 
-let compile env ~deps ~prog =
-  CompilationContext.eval_definition_with_annotations
+let compile ?deep env ~deps ~prog =
+  CompilationContext.eval_definition_with_annotations ?deep
     env ~deps ~prog
 
 let generate_trace env prog input =
@@ -442,7 +465,8 @@ let generate_trace env prog input =
                   AH.Exp.(apply (ident (str Longident.(Lident "ignore"))) [
                     Nolabel, apply (ident (str prog)) (List.map (fun v -> (AT.Nolabel, v)) input)
                   ])))
-  
+
+
 let bitrace env (deps1, prog1) (deps2, prog2) =
   let schema = Generator.extract_schema prog1 in
   assert (List.equal Generator.equal_arg_schema schema (Generator.extract_schema prog2));
@@ -453,3 +477,11 @@ let bitrace env (deps1, prog1) (deps2, prog2) =
     let trace1 = generate_trace env prog1 input in
     let trace2 = generate_trace env prog2 input in
     (trace1, trace2)
+
+let execution_trace env (deps2, prog2) =
+  let schema = Generator.extract_schema prog2 in
+  let prog2 = CompilationContext.eval_definition_with_annotations  env ~deps:deps2 ~prog:prog2 in
+  fun () -> 
+    let input = Generator.sample schema in
+    let trace2 = generate_trace env prog2 input in
+    trace2

@@ -11,6 +11,7 @@
    Seq_to_array_new_ml Verify_seq_to_array_new
 
  )
+ (libraries sisyphus.plugin)
 )
 
 

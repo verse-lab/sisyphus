@@ -11,13 +11,20 @@ type t =
   | Array of t
   | Ref of t
   | Product of t list
-  | ADT of string * t list * string option
+  | ADT of string * t list * (string * string) option
   | Val
-[@@deriving eq, ord]
+[@@deriving show, eq, ord]
+
+let pp_raw = pp
+let show_raw = show
 
 type fn =
   | Forall of string list * t list
-[@@deriving eq, ord]
+[@@deriving show, eq, ord]
+
+let pp_raw_fn = pp_fn
+let show_raw_fn = show_fn
+
 
 module PP = PPrint
 

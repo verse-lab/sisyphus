@@ -5,7 +5,7 @@ module StringMap : module type of Map.Make(String)
 module StringSet  : module type of Set.Make(String)
 
 module Heaplet : sig
-  type t = PointsTo of string * Expr.t [@@deriving show, eq, ord]
+  type t = PointsTo of string * Type.t option * Expr.t [@@deriving show, eq, ord]
 
   val print: t -> PPrint.document
 
@@ -35,6 +35,7 @@ module Heap : sig
   val filter : (Heaplet.t -> bool) -> t -> t
 
   val get : string -> t -> Expr.t
+  val get_with_ty : string -> t -> Type.t option * Expr.t
   val get_opt : string -> t -> Expr.t option
 
   val remove : string -> t -> t
