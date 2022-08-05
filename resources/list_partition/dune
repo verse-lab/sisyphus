@@ -1,0 +1,45 @@
+(library (name list_partition)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsListPartition)
+ (modules
+   Common_ml
+   Verify_list_partition_utils
+   List_partition_old_ml Verify_list_partition_old
+   List_partition_new_ml Verify_list_partition_new)
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (targets Common_ml.v common.cmj)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target list_partition_old.sisyphus.ml)
+ (deps list_partition_old.ml)
+ (action (with-stdout-to list_partition_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" list_partition_old.ml))))
+
+(rule
+ (target List_partition_old_ml.v)
+ (deps list_partition_old.sisyphus.ml common.ml common.cmj)
+ (action (run cfmlc -o ./list_partition_old_ml.v list_partition_old.sisyphus.ml)))
+
+(rule
+ (target list_partition_new.sisyphus.ml)
+ (deps list_partition_new.ml)
+ (action (with-stdout-to list_partition_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./list_partition_new.ml))))
+
+(rule
+ (target List_partition_new_ml.v)
+ (deps list_partition_new.sisyphus.ml common.ml common.cmj Common_ml.v)
+ (action (run cfmlc -o ./List_partition_new_ml.v list_partition_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))

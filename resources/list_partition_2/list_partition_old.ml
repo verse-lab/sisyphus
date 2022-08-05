@@ -1,7 +1,7 @@
 open Common
 
 let list_partition p lst =
-  let rec loop yesdst nodst = function
+  let rec loop  = function
     | [] -> ()
     | h :: t ->
       let r = create h in
