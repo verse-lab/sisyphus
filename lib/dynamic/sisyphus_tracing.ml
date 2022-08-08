@@ -1,3 +1,16 @@
+module Wrap: sig
+  type t
+  val wrap: 'a -> t
+  val unwrap: t -> 'a
+end = struct
+  type t = Mk : 'a -> t
+
+  let wrap v = Mk v
+
+  let unwrap (Mk v) = Obj.magic v
+
+end
+
 module Symbol : sig
   type t
 
@@ -11,6 +24,7 @@ module Symbol : sig
   val of_raw: int -> t
 end = struct
   type t = Symbol of int
+
 
   let pp fmt (Symbol v) =  Format.fprintf fmt "symbol_%d" v
 
@@ -53,7 +67,7 @@ type trace = state list
 include (struct
 
   let state = ref None
-  
+
   let observe ~at ~env ~heap =
     match !state with
     | None -> failwith "attempted to observe in an invalid context"
