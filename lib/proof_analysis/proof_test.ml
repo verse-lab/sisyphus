@@ -57,7 +57,7 @@ let build_test
     match ls with
     | (name, exp) :: t ->
       let+ rest = with_pure_bindings t in
-      kont (let_ name (Proof_term_embedding.evaluate_value exp) rest)
+      kont (let_ name (Proof_term_embedding.embed_value exp) rest)
     | [] -> with_heap_bindings heap kont
   and with_heap_bindings ls kont =
     match ls with
@@ -65,13 +65,13 @@ let build_test
       let+ rest = with_heap_bindings t in
       kont
         (let_ name
-           (AH.Exp.array (List.map Proof_term_embedding.evaluate_value vls))
+           (AH.Exp.array (List.map Proof_term_embedding.embed_value vls))
            rest)
     | (name, `PointsTo vl)::t ->
       let+ rest = with_heap_bindings t in
       kont (let_ name
               (AH.Exp.apply (AH.Exp.ident (Location.mknoloc Longident.(Lident "ref")))
-                 [Nolabel, (Proof_term_embedding.evaluate_value vl)])
+                 [Nolabel, (Proof_term_embedding.embed_value vl)])
               rest)
     | [] ->
       with_function_definitions lambdas kont
@@ -79,7 +79,7 @@ let build_test
     match lambdas with
     |(name, lam)::t ->
       let+ rest = with_function_definitions t in
-      kont (let_ name (Proof_term_embedding.evaluate_lambda lam)
+      kont (let_ name (Proof_term_embedding.embed_lambda lam)
               rest)
     | [] ->
       let (invariant_name, invariant_args) = invariant in
@@ -92,22 +92,7 @@ let build_test
             |> List.fold_left (fun lam arg ->
               AH.Exp.fun_ Nolabel None (AH.Pat.var Location.(mknoloc arg)) lam
             ) app_invariant in
-      kont (let_ invariant_name lambda body)
-      (* fun invariant_body ->
-       *   let heap_state =
-       *     List.filter_map (function
-       *         (name, `Array _) -> Some (name, `Array)
-       *       | (name, `PointsTo _) -> Some (name, `Ref)
-       *     ) heap in
-       *   let lambda =
-       *     List.rev invariant_args
-       *     |> List.fold_left (fun lam arg ->
-       *       AH.Exp.fun_ Nolabel None (AH.Pat.var Location.(mknoloc arg)) lam
-       *     ) (Proof_term_embedding.evaluate heap_state invariant_body) in
-       *   kont (let_ invariant_name
-       *           lambda
-       *           body) *)
-  in
+      kont (let_ invariant_name lambda body) in
   let ast_builder = with_pure_bindings pure in
   fun ctx ->
     let+ ast = ast_builder in

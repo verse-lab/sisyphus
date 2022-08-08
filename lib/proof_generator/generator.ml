@@ -61,7 +61,7 @@ let pp_constr fmt v =
   Format.pp_print_string fmt @@ Proof_utils.Debug.constr_to_string v
 
 type expr = Lang.Expr.t
-let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis__Proof_term_embedding.evaluate_expression vl)
+let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis.Embedding.embed_expression vl)
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 

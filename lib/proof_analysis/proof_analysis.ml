@@ -1,11 +1,15 @@
 [@@@warning "-26-23"]
 open Containers
+module Embedding = Proof_term_embedding
 module StringMap = Map.Make(String)
+module PCFML = Proof_utils.CFML
 
 type t = Parsetree.expression
 type lambda_env = (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t
-
-module PCFML = Proof_utils.CFML
+type obs = Dynamic.Concrete.context * Dynamic.Concrete.heap_context
+type invariant_spec = string * string list
+type invariant = Lang.Expr.t * Lang.Expr.t list
+type 'a tester = 'a -> bool
 
 (** [is_const_wp_fn cst] determines whether a {!Constr.t} term
     represents a constant weakest precondition helper. *)
