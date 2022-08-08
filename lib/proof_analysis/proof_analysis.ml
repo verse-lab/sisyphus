@@ -530,7 +530,6 @@ let unique ls = StringSet.of_list ls |> StringSet.to_list
 let analyse
       (lambda_env: lambda_env)
       (obs: (Dynamic.Concrete.context * Dynamic.Concrete.heap_context))
-      heap_spec
       invariant_spec
       (trm: Constr.t)  =
   match Constr.kind trm with
@@ -545,6 +544,6 @@ let analyse
       |> List.filter_map (fun name ->
         StringMap.find_opt name lambda_env
         |> Option.map (fun (_, v) -> (name, v))) in
-    Proof_test.build_test obs heap_spec used_functions invariant_spec test_spec;
+    Proof_test.build_test obs used_functions invariant_spec test_spec
   | _ -> failwith ("found unsupported term " ^ Proof_utils.Debug.tag trm)
   
