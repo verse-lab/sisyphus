@@ -66,19 +66,20 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
 
 let get_fuels ctx fname fuel args =
   let open Lang.Type in
-  let has_no_func arg =
-    match Types.TypeMap.find_opt arg ctx.funcs with
-    | Some (_ :: _) -> false
-    | _ -> true in
+
+  let has_complex_args = List.exists (fun arg ->
+      Types.TypeMap.find_opt arg ctx.funcs
+      |> Option.value ~default:[]
+      |> List.is_empty
+    ) args
+  in
+
 
   let get_fuel i arg =
-    let curr_fuel =
-      if i = 0 && List.exists has_no_func args
-      then fuel
-      else fuel - 1 in
     match arg with
-    | List (Var "A") ->  arg, curr_fuel - 1
-    | _ -> arg, curr_fuel in
+    | _ when i = 0 && has_complex_args -> arg, fuel
+    | List (Var "A") ->  arg, fuel - 1
+    | _ -> arg, fuel - 1 in
 
   List.mapi get_fuel args
 

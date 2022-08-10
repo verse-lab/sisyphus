@@ -124,7 +124,7 @@ let test_gen_heap () =
     ])
   ]) in
 
-  print_endline @@ string_of_bool @@ List.exists (fun x -> Lang.Expr.equal expr_ls x) exps;
+  assert (List.exists (fun x -> Lang.Expr.equal expr_ls x) exps);
   ()
 
 
@@ -133,15 +133,28 @@ let () =
   let open Lang.Type in
   let open Expr_generator.Types in
 
-  let max_fuel = 3 in
-  let fuel = max_fuel in
+  let check_generates ~fuel expr_i ty =
+    let exps = Expr_generator.generate_expression ~initial:false kirans_ctx env ~fuel ty in
+    assert (List.exists (Lang.Expr.equal expr_i) exps)
+  in
+
+  check_generates ~fuel:1 (`Int 2) (Int);
+  check_generates ~fuel:1 (`Var "l") (List (Var "A"));
+  check_generates ~fuel:2 (`App ("length", [`Var "l"])) Int;
+  check_generates ~fuel:2 (`App ("length", [`Var "arg0"])) Int;
+  check_generates ~fuel:3 (`App ("-", [
+      `App ("length", [`Var "l"]);
+      `App ("length", [`Var "arg0"]);
+    ])) Int;
+
+  let fuel = 4 in
   let exps = Expr_generator.generate_expression ~initial:false kirans_ctx env ~fuel (Int) in
 
   (* Generate exressions for heap assertion*)
   print_endline "Results for Pure Assertion";
   print_endline @@ string_of_int @@ List.length exps;
 
-  Format.printf "%s @. \n \n " ([%show : Lang.Expr.t list] @@ List.take 5 (List.rev exps));
+  (* Format.printf "%s @. \n \n " ([%show : Lang.Expr.t list] @@ List.take (List.length exps) (List.rev exps)); *)
 
   let expr_i: Lang.Expr.t = `App ("-", [
       `App ("-", [
@@ -151,4 +164,4 @@ let () =
       `Int 2
     ]) in
 
-  print_endline @@ string_of_bool @@ List.exists (fun x -> Lang.Expr.equal expr_i x) exps;
+  assert (List.exists (Lang.Expr.equal expr_i) exps);
