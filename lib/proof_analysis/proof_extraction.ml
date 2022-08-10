@@ -5,8 +5,6 @@ module AT = Asttypes
 
 let () = Printexc.register_printer (function Failure e -> Some e | _ -> None)
 
-(* let failwith = Format.ksprintf ~f:failwith *)
-
 let extract_xmatch_cases n trm =
   let rec extract_eq trm =
     match trm with

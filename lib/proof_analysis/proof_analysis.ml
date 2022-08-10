@@ -1,11 +1,15 @@
 [@@@warning "-26-23"]
 open Containers
+module Embedding = Proof_term_embedding
 module StringMap = Map.Make(String)
+module PCFML = Proof_utils.CFML
 
 type t = Parsetree.expression
 type lambda_env = (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t
-
-module PCFML = Proof_utils.CFML
+type obs = Dynamic.Concrete.context * Dynamic.Concrete.heap_context
+type invariant_spec = string * string list
+type invariant = Lang.Expr.t * Lang.Expr.t list
+type 'a tester = 'a -> bool
 
 (** [is_const_wp_fn cst] determines whether a {!Constr.t} term
     represents a constant weakest precondition helper. *)
@@ -530,7 +534,6 @@ let unique ls = StringSet.of_list ls |> StringSet.to_list
 let analyse
       (lambda_env: lambda_env)
       (obs: (Dynamic.Concrete.context * Dynamic.Concrete.heap_context))
-      heap_spec
       invariant_spec
       (trm: Constr.t)  =
   match Constr.kind trm with
@@ -545,6 +548,6 @@ let analyse
       |> List.filter_map (fun name ->
         StringMap.find_opt name lambda_env
         |> Option.map (fun (_, v) -> (name, v))) in
-    Proof_test.build_test obs heap_spec used_functions invariant_spec test_spec;
+    Proof_test.build_test obs used_functions invariant_spec test_spec
   | _ -> failwith ("found unsupported term " ^ Proof_utils.Debug.tag trm)
   

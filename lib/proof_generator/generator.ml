@@ -61,7 +61,7 @@ let pp_constr fmt v =
   Format.pp_print_string fmt @@ Proof_utils.Debug.constr_to_string v
 
 type expr = Lang.Expr.t
-let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis__Proof_term_evaluator.evaluate_expression vl)
+let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis.Embedding.embed_expression vl)
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
@@ -85,6 +85,8 @@ let rec update_program_id_over_lambda (t: Proof_context.t)
     | `Value _ ->
       t.current_program_id <- Lang.Id.incr t.current_program_id in
   loop body
+
+
 
 (** [build_complete_params t lemma_name init_params] returns a pair
     ([complete_params], [head_ty]) where [complete_params] a list of
@@ -437,11 +439,12 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
                     "found unsupported heaplet %a" pp v
               ) pre_heap in
           let inv_spec = Pair.map String.lowercase_ascii (List.map fst) inv_ty in
-          Proof_analysis.analyse lambda_env obs heap_spec inv_spec reduced in
+          Proof_analysis.analyse lambda_env obs inv_spec reduced in
         Some testf
       end
     ) observations
     |> Option.get_exn_or "failed to construct an executable test specification" in
+  let test_f = test_f t.Proof_context.compilation_context in
 
   (* construct an expression generation context using the old proof *)
   let ctx =
@@ -503,7 +506,6 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       ) pre_heap in
 
   let gen ?initial ?(fuel=3) = Expr_generator.generate_expression ?initial ~fuel ctx (typeof t) in
-  let test = test_f t.Proof_context.compilation_context in
   let pure =
     List.map_product_l List.(fun (v, ty) ->
       List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~fuel:4 ~initial:false ty)
@@ -514,39 +516,66 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         List.fold_left
           (fun acc vl -> `App ("&&", [vl; acc])) h t
         |> Option.some
-    ) |> reduce in
+    ) in
 
   let heap = List.map_product_l (gen) gen_heap_spec in
   let no_pure = List.length pure in
   let no_impure = List.length heap in
   Format.printf "found %d pure candidates and %d heap candidates@." no_pure no_impure ;
-  let count_pure = ref 0 in
-  let count_impure = ref 0 in
-  let valid_candidates = 
-    List.flat_map (fun pure ->
-      incr count_pure;
-      Format.printf "testing [%d/%d]@." !count_pure no_pure;
 
-      if Int.(!count_pure mod 1000 = 0) then
-        Format.printf "[%d/%d] pure candidate %a@." !count_pure no_pure pp_expr pure;
-      match test (pure, [| |]) with 
-      | false -> []
+
+  let start_time = Ptime_clock.now () in
+
+  let true_candidate =
+    let length ls = `App ("length", [ls]) in
+    let make n vl = `App ("make", [n; vl]) in
+    let drop n vl = `App ("drop", [n; vl]) in
+    let (-) l r = `App ("-", [l; r]) in
+    let (+) l r = `App ("+", [l; r]) in
+    let (++) l r = `App ("++", [l; r]) in
+    let (=) l r = `App ("=", [l; r]) in
+    let i1 = `Int 1 in
+    let i2 = `Int 2 in
+    let l = `Var "l" in
+    let t = `Var "arg0" in
+    let i = `Var "arg1" in
+    let init = `Var "init" in
+    ( i = length l - length t - i2, [ make (i + i1) init ++ drop (i + i1) l ] ) in
+
+  assert (test_f true_candidate);
+
+  let pure_candidates = 
+    let count_pure = ref 0 in
+    List.filter_map (fun pure ->
+      incr count_pure;
+      (* Format.printf "testing [%d/%d]@." !count_pure no_pure;
+       * if Int.(!count_pure mod 1000 = 0) then
+       *   Format.printf "[%d/%d] pure candidate %a@." !count_pure no_pure pp_expr pure; *)
+      match test_f (pure, [ ]) with 
+      | false -> None
       | true ->
         match pure with
-        | `App ("=", [`Var _;`Var _]) -> []
+        | `App ("=", [`Var _;`Var _]) -> None
         | _ ->
-          Format.printf "[%d/%d] found valid !pure candidate %a@." !count_pure no_pure pp_expr pure;
-          count_impure := 0;
-          List.filter_map (fun heap ->
-            incr count_impure;
-            Format.printf "\t testing impure [%d/%d]@." !count_impure no_impure;
-            if test (pure, Array.of_list heap)
-            then Some (pure, heap)
-            else None
-          ) heap
+          (* Format.printf "[%d/%d] found valid !pure candidate %a@." !count_pure no_pure pp_expr pure; *)
+          Some pure
     ) pure in
-
-  Format.printf "found %d valid candidates@." (List.length valid_candidates);
+  let heap_candidates =
+    let count_impure = ref 0 in
+    List.filter_map (fun heap ->
+      incr count_impure;
+      (* Format.printf "\t testing impure [%d/%d]@." !count_impure no_impure; *)
+      if test_f (`Constructor ("true", []), heap)
+      then Some heap
+      else None
+    ) heap in
+  let end_time = Ptime_clock.now () in
+  Format.printf "found %d pure candidates and %d heap candidates in %a @."
+    (List.length pure_candidates)
+    (List.length heap_candidates)
+    Ptime.Span.pp
+    (Ptime.diff end_time start_time)
+  ;
 
 
 
