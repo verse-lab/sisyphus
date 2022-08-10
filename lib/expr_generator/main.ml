@@ -1,25 +1,6 @@
 open Containers
 
-
-let steps =
-  let proof_str = IO.with_in "../../resources/seq_to_array/Verify_seq_to_array_old.v" IO.read_all in
-  let dir = "../../_build/default/resources/seq_to_array" in
-  let module Ctx =
-    Coq.Proof.Make(struct
-      let verbose = false
-      let libs = [
-        Coq.Coqlib.make
-          ~path:(Fpath.of_string dir |> Result.get_exn)
-          "Proofs"
-      ]
-    end) in
-
-  let parsed_script = Proof_parser.Parser.parse (module Ctx) proof_str in
-  print_endline @@ Proof_spec.Script.show_steps parsed_script.proof;
-  parsed_script.proof
-
-
-let env = 
+let env =
   let tA = Lang.Type.Var "A" in
   Lang.Type.(function
   | "++" -> Some ([List tA; List tA], List tA)
@@ -29,41 +10,113 @@ let env =
   | "-" -> Some ([Int; Int], Int)
   | "+" -> Some ([Int; Int], Int)
   | _ -> None
-  )
+    )
 
-
-let () =
+let kirans_ctx =
   let open Lang.Type in
-  let ints = [1] in
-  let vars: (string * Lang.Type.t) list = [("l", List (Var "A")); ("init", Var "A"); ("i", Int)] in
-  let funcs = ["-"; "+"] in
-  let ctx = Expr_generator.build_context  ~from_id:0 ~to_id:10 ~env ~ints ~vars ~funcs steps in
-  let max_fuel = 3 in
-  let fuel = max_fuel in
-  let exps = Expr_generator.generate_expression ctx env  ~fuel (List (Var "A")) in
+  Expr_generator.make_raw_ctx
+  ~consts:
+    [Var ("A"),[`Var "init"];  (Int, [ `Var "idx"; `Var "len";  `Var "arg1";  `Int 1; `Int 2;]);
+     (List (Var "A"), [`Var "arg0"; `Var "rest"; `Var "ls"; `Var "l"])]
+   ~pats:
+     [Int, [`App (("length", [`PatVar (("arg_0", List (Var "A")))]))];
+      List (Var "A"), [
+      `App (("make",
+                      [`PatVar (("arg_0", Int)); `PatVar (("arg_1", Var "A"))]));
+                `App (("make",
+                       [`App (("length", [`PatVar (("arg_0", List (Var "A")))]));
+                         `PatVar (("arg_1", Var "A"))]));
+                `App (("drop",
+                       [`PatVar (("arg_0", Int)); `PatVar (
+                         ("arg_1", List (Var "A")))]));
+                `App (("drop",
+                       [`PatVar (("arg_0", Int));
+                         `App (("make",
+                                [`PatVar (("arg_0", Int));
+                                  `PatVar (("arg_1", Var "A"))]))
+                         ]));
+                `App (("drop",
+                       [`App (("length", [`PatVar (("arg_0", List (Var "A")))]));
+                         `PatVar (("arg_1", List (Var "A")))]));
+                `App (("drop",
+                       [`App (("length", [`PatVar (("arg_0", List (Var "A")))]));
+                         `App (("make",
+                                [`PatVar (("arg_0", Int));
+                                  `PatVar (("arg_1", Var "A"))]))
+                         ]));
+                `App (("++",
+                       [`PatVar (("arg_0", List (Var "A")));
+                         `PatVar (("arg_1", List (Var "A")))]));
+                `App (("++",
+                       [`PatVar (("arg_0", List (Var "A")));
+                         `App (("drop",
+                                [`PatVar (("arg_0", Int));
+                                  `PatVar (("arg_1", List (Var "A")))]))
+                         ]))
+                ]]
+           ~funcs:
+           [Int, [("length", [List (Var "A")]); ("-", [Int; Int]); ("+", [Int; Int])]; List (Var "A")
+            ,
+            [("rev", [List (Var "A")]); ("make", [Int; Var "A"]);
+                 ("drop", [Int; List (Var "A")]); ("++", [List (Var "A"); List (Var "A")])]]
 
-  (* Generate expressions for heap assertion*)
+
+
+
+let test_gen_heap () =
+  let open Lang.Type in
+  let open Expr_generator.Types in
+
+  let fuel = 2 in
+  let exps = Expr_generator.generate_expression kirans_ctx env ~fuel (List (Var "A")) in
+
   print_endline "Results for Heap Assertion";
   print_endline @@ string_of_int @@ List.length exps;
 
-  let expr: Lang.Expr.t = `App ("++", [
+  let expr_ls: Lang.Expr.t = `App ("++", [
     `App ("make", [
-      `App ("+", [`Var "i"; `Int 1])
+      `App ("+", [`Var "arg1"; `Int 1])
     ; `Var "init"
     ])
   ; `App ("drop", [
-      `App ("+", [`Var "i"; `Int 1])
+      `App ("+", [`Var "arg1"; `Int 1])
     ; `Var "l"
     ])
   ]) in
 
-  print_endline @@ string_of_bool @@ List.exists (fun x -> Lang.Expr.equal expr x) exps;
-
-
-  (* Generate expressions for pure invariant*)
-  print_endline "Results for Pure Invariant";
-  List.iter (fun (vname, ty) ->
-    let exps = Expr_generator.generate_expression ctx env ~fuel ty in
-    print_endline @@ vname ^ ": " ^ string_of_int (List.length exps);
-  ) vars;
+  assert (List.exists (fun x -> Lang.Expr.equal expr_ls x) exps);
   ()
+
+let () =
+  let open Lang.Type in
+  let open Expr_generator.Types in
+
+  let check_generates ~fuel expr_i ty =
+    let exps = Expr_generator.generate_expression ~initial:false kirans_ctx env ~fuel ty in
+    assert (List.exists (Lang.Expr.equal expr_i) exps)
+  in
+
+  check_generates ~fuel:1 (`Int 2) (Int);
+  check_generates ~fuel:1 (`Var "l") (List (Var "A"));
+  check_generates ~fuel:2 (`App ("length", [`Var "l"])) Int;
+  check_generates ~fuel:2 (`App ("length", [`Var "arg0"])) Int;
+  check_generates ~fuel:3 (`App ("-", [
+      `App ("length", [`Var "l"]);
+      `App ("length", [`Var "arg0"]);
+    ])) Int;
+
+  let fuel = 3 in
+  let exps = Expr_generator.generate_expression ~initial:false kirans_ctx env ~fuel (Int) in
+
+  print_endline "Results for Pure Assertion";
+  print_endline @@ string_of_int @@ List.length exps;
+
+  let expr_i: Lang.Expr.t = `App ("-", [
+      `App ("-", [
+          `App ("length", [`Var "l"]);
+          `App ("length", [`Var "arg0"]);
+        ]);
+      `Int 2
+    ]) in
+
+  assert (List.exists (Lang.Expr.equal expr_i) exps);

@@ -35,12 +35,12 @@ let handle_decs asts  =
     | _ -> false
   in
   let decs, rest = List.partition is_dec asts in
-  let decs = List.map Print_utils.string_of_coq_obj decs in 
+  let decs = List.map Print_utils.string_of_coq_obj decs in
 
   let last_idx = List.length decs - 1 in
   let prelude, import = List.take last_idx decs, List.nth decs last_idx in
-  let import = Str.bounded_split (Str.regexp "Import ") import 2 in 
-  let import = List.hd import ^ "Import", List.nth import 1 in 
+  let import = Str.bounded_split (Str.regexp "Import ") import 2 in
+  let import = List.hd import ^ "Import", List.nth import 1 in
 
   let prelude_str = List.fold_left (^) "" prelude in
   prelude_str, import, rest
@@ -170,6 +170,7 @@ and parse_proof state =
         parse_proof_aux steps lvl
   in
 
+
   let steps = List.rev @@ (parse_proof_aux [] 0)  in
   steps
 
@@ -192,7 +193,6 @@ let retrieve_ast (module Ctx: Coq.Proof.PROOF) proof_str =
 
 let parse ctx proof_str : Proof_spec.Script.script =
   let asts = retrieve_ast ctx proof_str in
-
   let prelude, import, rest = handle_decs asts in
   let spec_str, rest = handle_spec rest in
   let steps = handle_script rest in
