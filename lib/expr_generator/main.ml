@@ -1,24 +1,5 @@
 open Containers
 
-
-(* let steps = *)
-(*   let proof_str = IO.with_in "../../resources/seq_to_array/Verify_seq_to_array_old.v" IO.read_all in *)
-(*   let dir = "../../_build/default/resources/seq_to_array" in *)
-
-(*   let module Ctx = *)
-(*     Coq.Proof.Make(struct *)
-(*       let verbose = false *)
-(*       let libs = [ *)
-(*         Coq.Coqlib.make *)
-(*           ~path:(Fpath.of_string dir |> Result.get_exn) *)
-(*           "Proofs" *)
-(*       ] *)
-(*     end) in *)
-
-(*   let parsed_script = Proof_parser.Parser.parse (module Ctx) proof_str in *)
-(*   parsed_script.proof *)
-
-
 let env =
   let tA = Lang.Type.Var "A" in
   Lang.Type.(function
@@ -79,39 +60,18 @@ let kirans_ctx =
             [("rev", [List (Var "A")]); ("make", [Int; Var "A"]);
                  ("drop", [Int; List (Var "A")]); ("++", [List (Var "A"); List (Var "A")])]]
 
-(* type 'a type_map = 'a Expr_generator.Types.TypeMap.t *)
-(* let pp_type_map f fmt vl = *)
-(*   Expr_generator.Types.TypeMap.pp *)
-(*     ~pp_start:Format.(fun fmt () -> pp_open_hovbox fmt 1; pp_print_string fmt "{") *)
-(*     ~pp_stop:Format.(fun fmt () -> pp_print_string fmt "}"; pp_open_hovbox fmt 1) *)
-(*     Lang.Type.pp f fmt vl *)
 
 
 
 let test_gen_heap () =
-
   let open Lang.Type in
   let open Expr_generator.Types in
-  (* let ints = [1] in *)
-  (* let vars: (string * Lang.Type.t) list = [ *)
-  (*   ("l", List (Var "A")); ("arg0", List (Var "A")); ("rest", List (Var "A")); ("ls", List (Var "A")); *)
-  (*   ("init", Var "A"); *)
-  (*   ("i", Int)] in *)
-  (* let funcs = ["-"; "+"] in *)
-  (* let ctx  = Expr_generator.build_context  ~from_id:0 ~to_id:10 ~env ~ints ~vars ~funcs steps in *)
 
-  (* let pats = Expr_generator.ctx_pats ctx in *)
-  (* print_endline ([%show: Expr_generator.Types.pat list type_map] pats); *)
-
-  let max_fuel = 3 in
-  let fuel = max_fuel in
+  let fuel = 2 in
   let exps = Expr_generator.generate_expression kirans_ctx env ~fuel (List (Var "A")) in
 
-  (* Generate exressions for heap assertion*)
   print_endline "Results for Heap Assertion";
   print_endline @@ string_of_int @@ List.length exps;
-
-  (* Format.printf "%s @. \n \n " ([%show : Lang.Expr.t list] @@ List.take 100 (List.rev exps)); *)
 
   let expr_ls: Lang.Expr.t = `App ("++", [
     `App ("make", [
@@ -127,9 +87,7 @@ let test_gen_heap () =
   assert (List.exists (fun x -> Lang.Expr.equal expr_ls x) exps);
   ()
 
-
 let () =
-  test_gen_heap ();
   let open Lang.Type in
   let open Expr_generator.Types in
 
@@ -150,13 +108,8 @@ let () =
   let fuel = 3 in
   let exps = Expr_generator.generate_expression ~initial:false kirans_ctx env ~fuel (Int) in
 
-  (* Generate exressions for heap assertion*)
   print_endline "Results for Pure Assertion";
   print_endline @@ string_of_int @@ List.length exps;
-
-  (* List.iter (Format.printf "%a @. " Lang.Expr.pp) (List.rev exps); *)
-
-  (* Format.printf "%s @. \n \n " ([%show : Lang.Expr.t list] @@ List.take (List.length exps) (List.rev exps)); *)
 
   let expr_i: Lang.Expr.t = `App ("-", [
       `App ("-", [
