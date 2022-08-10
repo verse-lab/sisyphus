@@ -147,12 +147,14 @@ let () =
       `App ("length", [`Var "arg0"]);
     ])) Int;
 
-  let fuel = 4 in
+  let fuel = 3 in
   let exps = Expr_generator.generate_expression ~initial:false kirans_ctx env ~fuel (Int) in
 
   (* Generate exressions for heap assertion*)
   print_endline "Results for Pure Assertion";
   print_endline @@ string_of_int @@ List.length exps;
+
+  (* List.iter (Format.printf "%a @. " Lang.Expr.pp) (List.rev exps); *)
 
   (* Format.printf "%s @. \n \n " ([%show : Lang.Expr.t list] @@ List.take (List.length exps) (List.rev exps)); *)
 

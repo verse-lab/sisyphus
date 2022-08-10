@@ -47,19 +47,19 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
   (*  update consts with variables *)
   let consts =
     List.fold_left (fun acc (var, ty) ->
-      Types.update_binding acc ty (`Var var)
-    ) consts vars in
+        Types.update_binding acc ty (`Var var)
+      ) consts vars in
   let consts =
     List.fold_left (fun acc i ->
-      Types.update_binding acc Int (`Int i)
-    ) consts ints in
+        Types.update_binding acc Int (`Int i)
+      ) consts ints in
   let funcs =
     let normalize_name f = String.split_on_char '.' f |> List.last_opt |> Option.value ~default:f in
     List.fold_left (fun acc f ->
-      match env f with
-      | None -> acc
-      | Some (args, ret_ty) -> Types.update_binding acc ret_ty (normalize_name f, args)
-    ) old_funcs funcs in
+        match env f with
+        | None -> acc
+        | Some (args, ret_ty) -> Types.update_binding acc ret_ty (normalize_name f, args)
+      ) old_funcs funcs in
   let funcs = Types.TypeMap.map (fun fns -> StringMap.of_list fns |> StringMap.to_list) funcs in
 
   {consts; pats; funcs}
@@ -67,7 +67,7 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
 let get_fuels ctx fname fuel args =
   let open Lang.Type in
 
-  let has_complex_args = List.exists (fun arg ->
+  let has_empty_arg = List.exists (fun arg ->
       Types.TypeMap.find_opt arg ctx.funcs
       |> Option.value ~default:[]
       |> List.is_empty
@@ -77,7 +77,7 @@ let get_fuels ctx fname fuel args =
 
   let get_fuel i arg =
     match arg with
-    | _ when i = 0 && has_complex_args -> arg, fuel
+    | _ when i = 0 && has_empty_arg -> arg, fuel
     | List (Var "A") ->  arg, fuel - 1
     | _ -> arg, fuel - 1 in
 
@@ -88,13 +88,24 @@ let rec generate_expression ?(fuel=10) (ctx: ctx) (env: Types.env)  (ty: Lang.Ty
   | fuel when fuel > 0 ->
     let consts = Types.TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[] in
     let funcs = Types.TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
+    let consts_funcs = List.filter_map (function
+        | (fname, [arg]) -> Some (fname, arg)
+        | (_, _)  -> None
+      ) funcs
+            |> List.flat_map (fun (fname, arg) ->
+                Types.TypeMap.find_opt arg ctx.consts |> Option.value  ~default:[]
+                |> List.map (fun arg -> `App (fname, [arg]))
+                         ) in
+    let consts = consts @ (if fuel = 1 then consts_funcs else []) in
+
+
     let funcs =  List.flat_map (fun (fname, args) ->
-      let arg_with_fuels = get_fuels ctx fname fuel args in
-      List.map_product_l (fun (arg, fuel) ->
-        generate_expression ctx env ~fuel:fuel arg
-      ) arg_with_fuels
-      |> List.map (fun args -> `App (fname, args))
-    ) funcs in
+        let arg_with_fuels = get_fuels ctx fname fuel args in
+        List.map_product_l (fun (arg, fuel) ->
+            generate_expression ctx env ~fuel:fuel arg
+          ) arg_with_fuels
+        |> List.map (fun args -> `App (fname, args))
+      ) funcs in
     funcs @ consts
   | _ -> []
 
