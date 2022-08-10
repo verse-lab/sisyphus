@@ -13,10 +13,6 @@ let pp_type_map f fmt vl =
     ~pp_stop:Format.(fun fmt () -> pp_print_string fmt "}"; pp_open_hovbox fmt 1)
     Lang.Type.pp f fmt vl
 
-let show_type_map f fmt vl =
-  Format.printf
-
-
 type expr = Lang.Expr.t
 let pp_expr fmt vl = Lang.Expr.pp fmt vl
 
@@ -64,24 +60,29 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
 
   {consts; pats; funcs}
 
-let get_fuels ctx fname fuel args =
+(* [get_fuels ctx fname fuel args]: determines fuel for arguments of function fname.
+* rationale for fuel distribution is as follows:
+   - no fuel decrement for first arguments of functions where atleast one argument cannot be generated using a function (but might be a supplied constant)
+   - else, decrement fuel by one
+*)
+let get_fuels ctx fuel fname arg_tys =
   let open Lang.Type in
 
+  (* empty arg types do not have a function that generates values of that type *)
   let has_empty_arg = List.exists (fun arg ->
       Types.TypeMap.find_opt arg ctx.funcs
       |> Option.value ~default:[]
       |> List.is_empty
-    ) args
+    ) arg_tys
   in
-
 
   let get_fuel i arg =
     match arg with
     | _ when i = 0 && has_empty_arg -> arg, fuel
-    | List (Var "A") ->  arg, fuel - 1
-    | _ -> arg, fuel - 1 in
+    | _ -> arg, fuel
+  in
 
-  List.mapi get_fuel args
+  List.mapi get_fuel arg_tys
 
 let rec generate_expression ?(fuel=10) (ctx: ctx) (env: Types.env)  (ty: Lang.Type.t): Lang.Expr.t list =
   match fuel with
@@ -100,7 +101,7 @@ let rec generate_expression ?(fuel=10) (ctx: ctx) (env: Types.env)  (ty: Lang.Ty
 
 
     let funcs =  List.flat_map (fun (fname, args) ->
-        let arg_with_fuels = get_fuels ctx fname fuel args in
+        let arg_with_fuels = get_fuels ctx fuel fname args in
         List.map_product_l (fun (arg, fuel) ->
             generate_expression ctx env ~fuel:fuel arg
           ) arg_with_fuels
@@ -110,25 +111,26 @@ let rec generate_expression ?(fuel=10) (ctx: ctx) (env: Types.env)  (ty: Lang.Ty
   | _ -> []
 
 
-and instantiate_pat ?(fuel=10)  ctx env pat : Lang.Expr.t list  =
+let rec instantiate_pat ?(fuel=10)  ctx env pat : Lang.Expr.t list  =
   match pat with
   | `App (fname, args) ->
     List.map_product_l (instantiate_pat ctx env  ~fuel:(fuel)) args
     |> List.map (fun args -> `App (fname, args))
   | `Constructor (name, args) ->
-    List.map_product_l (instantiate_pat ctx env ~fuel:(fuel - 1)) args
+    List.map_product_l (instantiate_pat ctx env ~fuel:(fuel)) args
     |>  List.map (fun args -> `Constructor (name, args))
   | `Int i as e -> [e]
   | `Tuple ls ->
-    let ls = List.map (instantiate_pat ctx env ~fuel:(fuel - 1)) ls in
+    let ls = List.map (instantiate_pat ctx env ~fuel:(fuel)) ls in
     if List.exists (fun xs -> List.length xs = 0) ls
     then []
     else List.map (fun x -> `Tuple x) ls
   | `Var v as e -> [e]
   | `PatVar (str, ty) ->
-    generate_expression ctx env ~fuel:(fuel - 1) ty
+    generate_expression ctx env ~fuel:(fuel) ty
 
-
+(* generates a list of candidate expressions of a desired type;
+ * if initial = true then only use patterns as a template to generate candidate expressions *)
 let generate_expression ?(initial=true) ?fuel ctx env ty =
   if initial then
     let pats = List.rev @@ (Types.TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
