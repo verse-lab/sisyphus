@@ -25,7 +25,7 @@ val build_context: ?vars:(string * Lang.Type.t) list -> ?ints:int list -> ?funcs
    context, primed using expressions and functions taken from the
    proof script [proof], between proof points [from_id] to [to_id] *)
 
-val generate_expression: ?initial:bool -> ?fuel:int -> ctx -> env -> Lang.Type.t -> Lang.Expr.t Gen.t
+val generate_expression: ?initial:bool -> ?fuel:int -> ctx -> env -> Lang.Type.t -> Lang.Expr.t list
 (** [generate_expression ?initial ?fuel ctx env ctx env ty] generates
    a list of candidate expressions of type [ty] using the generation
    context [ctx] and function typing environment [env] *)
