@@ -10,7 +10,12 @@ let reduce pure =
   pure
 
 let true_pure =
-  Lang.Expr.equal (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))
+  Lang.Expr.equal
+    (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))
+let true_heap =
+  List.equal Lang.Expr.equal
+    [`App ("++", [ `App ("make", [ `App ("+", [`Var "arg1"; `Int 1]) ; `Var "init" ]) ; `App ("drop", [ `App ("+", [`Var "arg1"; `Int 1]) ; `Var "l" ])
+  ])]
 
 let split_last =
   let rec loop last acc = function
@@ -283,6 +288,8 @@ let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name 
         |> List.fold_left (fun fns (ty,l,r) ->
           Lang.Expr.(functions (functions fns l) r)
         ) StringSet.empty
+        |> StringSet.add "+"
+        |> StringSet.add "-"
         |> StringSet.to_list in
       vars,funcs in
     let from_id, to_id =
@@ -315,10 +322,10 @@ let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name 
             "found unsupported heaplet %a" pp v
       ) pre_heap in
 
-  let gen ?initial ?(fuel=2) = Expr_generator.generate_expression ?initial ~fuel ctx (typeof t) in
+  let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx (typeof t) in
   let pure =
     List.map_product_l List.(fun (v, ty) ->
-      List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~fuel:3 ~initial:false ty)
+      List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~blacklist:[v] ~fuel:3 ~initial:false ty)
     ) gen_pure_spec
     |> List.filter_map (function
         [] -> None
@@ -573,7 +580,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
   let _ =
     Format.printf "pure candidate exists? %b@." @@
-    List.exists (Lang.Expr.equal (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))) pure in
+    List.exists true_pure pure in
+  let _ =
+    Format.printf "heap candidate exists? %b@." @@
+    List.exists true_heap heap in
 
   (* prune the candidates using the testing function *)
   let (pure,heap) =
@@ -581,7 +591,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
   let _ =
     Format.printf "pure candidate exists? %b@." @@
-    List.exists (Lang.Expr.equal (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))) pure in
+    List.exists true_pure pure in
+  let _ =
+    Format.printf "heap candidate exists? %b@." @@
+    List.exists true_heap heap in
 
   (* do it again *)
   let (pure,heap) = 
@@ -592,7 +605,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     prune_candidates_using_testf test_f (pure,heap) in
   let _ =
     Format.printf "pure candidate exists? %b@." @@
-    List.exists (Lang.Expr.equal (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))) pure in
+    List.exists true_pure pure in
+  let _ =
+    Format.printf "heap candidate exists? %b@." @@
+    List.exists true_heap heap in
 
   (* and again (50 ms) *)
   let (pure,heap) = 
@@ -605,6 +621,9 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let _ =
     Format.printf "pure candidate exists? %b@." @@
     List.exists true_pure pure in
+  let _ =
+    Format.printf "heap candidate exists? %b@." @@
+    List.exists true_heap heap in
 
   (* List.iteri (fun i expr -> Format.printf "pure candidate %d: %s@." i ([%show: Lang.Expr.t] expr)) pure;
    * List.iteri (fun i expr -> Format.printf "heap candidate %d: %s@." i ([%show: Lang.Expr.t list] expr)) heap; *)
