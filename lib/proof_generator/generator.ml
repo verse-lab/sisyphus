@@ -9,6 +9,8 @@ let reduce pure =
   Format.printf "reduced %d -> %d unique@." no_pure_original no_pure_updated;
   pure
 
+let true_pure =
+  Lang.Expr.equal (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))
 
 let split_last =
   let rec loop last acc = function
@@ -185,6 +187,30 @@ let typeof t (s: string) : (Lang.Type.t list * Lang.Type.t) option =
       | _ -> None in
   (* Format.printf "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.Option.t] ty); *)
   ty 
+
+let renormalise_name t (s: string) : string option =
+  let (let+) x f = Option.bind x f in
+  let s_norm = 
+    match s with
+    | "++" -> Some "TLC.LibList.app"
+    | "-" -> Some "-"
+    | "+" -> Some "+"
+    | s ->
+      try 
+        let s_base = String.split_on_char '.' s |> List.last_opt |> Option.value ~default:s in
+        let+ name = Proof_context.names t s_base in
+        match name with
+        | Names.GlobRef.ConstRef s ->
+          Some (Names.Constant.to_string s)
+        | _ -> None
+      with
+      | _ -> None in
+  (* Format.printf "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.Option.t] ty); *)
+  Option.map (fun s ->
+    if String.prefix ~pre:"TLC.LibListZ." s
+    then "TLC.LibList." ^ String.drop (String.length "TLC.LibListZ.") s
+    else s)
+    s_norm 
 
 let calculate_inv_ty t ~f:lemma_name ~args:f_args =
   let instantiated_spec = Format.ksprintf ~f:(Proof_context.typeof t) "%s %s"
@@ -545,9 +571,17 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     let no_impure = List.length heap in
     Format.printf "found %d pure candidates and %d heap candidates@." no_pure no_impure in
 
+  let _ =
+    Format.printf "pure candidate exists? %b@." @@
+    List.exists (Lang.Expr.equal (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))) pure in
+
   (* prune the candidates using the testing function *)
   let (pure,heap) =
     prune_candidates_using_testf test_f (pure,heap) in
+
+  let _ =
+    Format.printf "pure candidate exists? %b@." @@
+    List.exists (Lang.Expr.equal (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))) pure in
 
   (* do it again *)
   let (pure,heap) = 
@@ -556,6 +590,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
       build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
     prune_candidates_using_testf test_f (pure,heap) in
+  let _ =
+    Format.printf "pure candidate exists? %b@." @@
+    List.exists (Lang.Expr.equal (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))) pure in
+
   (* and again (50 ms) *)
   let (pure,heap) = 
     let test_f =
@@ -563,6 +601,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
       build_testing_function t env  ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
     prune_candidates_using_testf test_f (pure,heap) in
+
+  let _ =
+    Format.printf "pure candidate exists? %b@." @@
+    List.exists true_pure pure in
 
   (* List.iteri (fun i expr -> Format.printf "pure candidate %d: %s@." i ([%show: Lang.Expr.t] expr)) pure;
    * List.iteri (fun i expr -> Format.printf "heap candidate %d: %s@." i ([%show: Lang.Expr.t list] expr)) heap; *)
@@ -573,27 +615,35 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       t (Proof_env.env_to_defmap env) lemma_name
     |> Proof_validator.build_validator in
 
+
   let _valid_candidate =
     let pure = Gen.of_list pure in
     let heap = Gen.of_list heap in
 
     let (let+ ) x f = Option.bind x f in
     let expr_to_subst expr =
-      let inv_args = (snd inv_ty) |> List.map fst in
+      let expr = Lang.Expr.subst_functions (renormalise_name t) expr in
+      let inv_args = (snd inv_ty) |> List.map fst in      
       fun args ->
         let binding = StringMap.of_list (List.combine inv_args args) in
         let lookup name = StringMap.find_opt name binding in
         Lang.Expr.subst lookup expr in
     let expr_to_subst_arr exprs =
+      let exprs = Array.map (Lang.Expr.subst_functions (renormalise_name t)) exprs in
       let inv_args = (snd inv_ty) |> List.map fst in
       fun args ->
         let binding = StringMap.of_list (List.combine inv_args args) in
         let lookup name = StringMap.find_opt name binding in
         Array.map (Lang.Expr.subst lookup) exprs in
     let rec loop i (pure_candidate, heap_candidate) =
+      Format.printf "[%d] testing@.\tPURE:%s@.\tHEAP:%s@." i
+        (Format.to_string Lang.Expr.pp (pure_candidate [`Var "arg0"; `Var "arg1"]) |> String.replace ~sub:"\n" ~by:" ")
+        (Format.to_string (Array.pp Lang.Expr.pp) (heap_candidate [`Var "arg0"; `Var "arg1"])  |> String.replace ~sub:"\n" ~by:" ");
       match vc (pure_candidate, heap_candidate) with
       | `InvalidPure ->
         let+ pure_candidate = pure () in
+        if true_pure pure_candidate then
+          Format.printf "==================@.VALID CANDIDATE@.=================@.";
         let pure_candidate = expr_to_subst pure_candidate in
         loop (i + 1) (pure_candidate, heap_candidate)
       | `InvalidSpatial ->
@@ -615,6 +665,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     Format.printf "found a valid candidate in %a (checked %s candidates)@."
       Ptime.Span.pp Ptime.(diff end_time start_time) no_candidates;
     Option.map snd res in
+
+  Format.printf "found valid candidate %b@." (Option.is_some _valid_candidate);
 
   failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
 

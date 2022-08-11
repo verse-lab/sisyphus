@@ -11,7 +11,7 @@ type candidate = pure_candidate * heap_candidate
 type validator = candidate -> [ `InvalidPure | `InvalidSpatial | `Valid ]
 
 let base_solver_timeout = 100
-let challenging_solver_timeout = 150_000
+let challenging_solver_timeout = 1_000
 
 let split_last =
   let rec loop (acc, last) = function
@@ -197,12 +197,14 @@ let build_validator (data: VerificationCondition.verification_condition) =
       (* |> (fun x -> Format.printf "generated predicate was %a@." Lang.Expr.pp x; x) *)
       |> Evaluator.eval_expr ctx env in
 
+    Format.printf "\ttest 01: checking initial pure@.";
     match prove ctx solver user_initial_pred with
     | (None | Some false) -> Z3.Solver.pop solver 1; `InvalidPure
     | Some true ->
+      Format.printf "\t         => PASSED@.";      
       Z3.Solver.add solver [user_initial_pred];
       let user_initial_values = gen_values data.initial.param_values |> Array.to_list in
-
+      Format.printf "\ttest 02: checking initial values@.";
       match
         List.combine user_initial_values (Array.to_list data.initial.expr_values)
         |> List.map (fun (l, r) ->
@@ -220,6 +222,8 @@ let build_validator (data: VerificationCondition.verification_condition) =
       with
       | (`InvalidSpatial | `InvalidPure) as acc -> Z3.Solver.pop solver 1; acc
       | `Valid ->
+        Format.printf "\t         => PASSED@.";      
+        Format.printf "\ttest 03: checking preserved@.";
         let res = 
           List.fold_left (fun acc vc ->
             match acc with
@@ -232,4 +236,9 @@ let build_validator (data: VerificationCondition.verification_condition) =
               res
           )  `Valid data.conditions in
         Z3.Solver.pop solver 1;
+        begin
+          match res with
+          | `Valid -> Format.printf "\t         => PASSED@."
+          | _ -> Format.printf "\t         => FAILED@.";
+        end;
         res
