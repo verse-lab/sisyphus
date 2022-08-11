@@ -127,8 +127,8 @@ let get_fuels ctx fuel fname arg_tys =
 
   let get_fuel i arg =
     match arg with
-    | _ when i = 0 && has_empty_arg -> arg, fuel
-    | _ -> arg, fuel
+    | _ when i = 0 && has_empty_arg -> arg, fuel - 1
+    | _ -> arg, fuel - 1
   in
 
   List.mapi get_fuel arg_tys
