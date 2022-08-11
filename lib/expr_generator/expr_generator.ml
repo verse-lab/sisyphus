@@ -6,6 +6,26 @@ type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
 
 module StringMap = Map.Make(String)
 
+let (let+) x f = x f
+
+let rec gen_product_l (f : 'a -> 'b Gen.t) (ls: 'a Gen.t) : 'b list Gen.t =
+  match ls () with
+  | None -> Gen.of_list [ [] ]
+  | Some hd ->
+    let hd_elts = (f hd) in
+    let tl_elts  = gen_product_l f ls in
+    Gen.product hd_elts tl_elts
+    |> Gen.map (fun (hd, tl) -> hd :: tl)
+
+let mapM f ls kont =
+  let rec loop acc f ls kont =
+    match ls with
+    | [] -> kont (List.rev acc)
+    | h :: t ->
+      let+ h = f h in
+      loop (h :: acc) f t kont in
+  loop [] f ls kont
+
 type 'a type_map = 'a Types.TypeMap.t
 let pp_type_map f fmt vl =
   Types.TypeMap.pp
@@ -23,6 +43,16 @@ type ctx = {
 } [@@deriving show]
 
 let ctx_pats ctx = ctx.pats
+let ctx_consts_with_ty ctx ~ty =
+  Types.TypeMap.find_opt ty ctx.consts
+  |> Option.value  ~default:[]
+let ctx_funcs_with_ty ctx ~ty =
+  Types.TypeMap.find_opt ty ctx.funcs
+  |> Option.value  ~default:[]
+let ctx_pats_with_ty ctx ~ty =
+  Types.TypeMap.find_opt ty ctx.pats
+  |> Option.value  ~default:[]
+
 
 let make_raw_ctx :
   consts: (Lang.Type.t * Lang.Expr.t list) list ->
@@ -84,48 +114,57 @@ let get_fuels ctx fuel fname arg_tys =
 
   List.mapi get_fuel arg_tys
 
-let rec generate_expression ?(fuel=10) (ctx: ctx) (env: Types.env)  (ty: Lang.Type.t): Lang.Expr.t list =
+let rec generate_expression ?(fuel=3) (ctx: ctx) (env: Types.env)  (ty: Lang.Type.t) =
   match fuel with
   | fuel when fuel > 0 ->
-    let consts = Types.TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[] in
-    let funcs = Types.TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
-    let consts_funcs = List.filter_map (function
-        | (fname, [arg]) -> Some (fname, arg)
-        | (_, _)  -> None
-      ) funcs
-            |> List.flat_map (fun (fname, arg) ->
-                Types.TypeMap.find_opt arg ctx.consts |> Option.value  ~default:[]
-                |> List.map (fun arg -> `App (fname, [arg]))
-                         ) in
-    let consts = consts @ (if fuel = 1 then consts_funcs else []) in
-
-
-    let funcs =  List.flat_map (fun (fname, args) ->
+    let consts = ctx_consts_with_ty ctx ~ty in
+    let funcs = ctx_funcs_with_ty ctx ~ty in
+    let consts =
+      if fuel = 1
+      then
+        let consts_funcs =
+          (Gen.of_list funcs)
+          |> Gen.filter_map (function
+            | (fname, [arg]) -> Some (fname, arg)
+            | (_, _)  -> None
+          ) 
+          |> Gen.flat_map (fun (fname, ty) ->
+            ctx_consts_with_ty ctx ~ty
+            |> Gen.of_list
+            |> Gen.map (fun arg -> `App (fname, [arg]))
+          ) in
+        Gen.append (Gen.of_list consts) consts_funcs
+      else Gen.of_list consts in
+    let funcs =
+      (Gen.of_list funcs)
+      |> Gen.flat_map (fun (fname, args) ->
         let arg_with_fuels = get_fuels ctx fuel fname args in
-        List.map_product_l (fun (arg, fuel) ->
-            generate_expression ctx env ~fuel:fuel arg
-          ) arg_with_fuels
-        |> List.map (fun args -> `App (fname, args))
-      ) funcs in
-    funcs @ consts
-  | _ -> []
+        (Gen.of_list arg_with_fuels)
+        |> gen_product_l (fun (arg, fuel) ->
+          generate_expression ctx env ~fuel:fuel arg
+        ) 
+        |> Gen.map (fun args -> `App (fname, args))
+      ) in
+    Gen.append funcs consts
+  | _ -> Gen.of_list []
 
 
-let rec instantiate_pat ?(fuel=10)  ctx env pat : Lang.Expr.t list  =
+let rec instantiate_pat ?(fuel=3)  ctx env (pat: Types.pat) : Lang.Expr.t Gen.t  =
   match pat with
   | `App (fname, args) ->
-    List.map_product_l (instantiate_pat ctx env  ~fuel:(fuel)) args
-    |> List.map (fun args -> `App (fname, args))
+    Gen.of_list args
+    |> gen_product_l (instantiate_pat ctx env  ~fuel:(fuel)) 
+    |> Gen.map (fun args -> `App (fname, args))
   | `Constructor (name, args) ->
-    List.map_product_l (instantiate_pat ctx env ~fuel:(fuel)) args
-    |>  List.map (fun args -> `Constructor (name, args))
-  | `Int i as e -> [e]
+    Gen.of_list args
+    |> gen_product_l (instantiate_pat ctx env ~fuel:(fuel)) 
+    |>  Gen.map (fun args -> `Constructor (name, args))
+  | `Int i as e -> Gen.of_list [e]
   | `Tuple ls ->
-    let ls = List.map (instantiate_pat ctx env ~fuel:(fuel)) ls in
-    if List.exists (fun xs -> List.length xs = 0) ls
-    then []
-    else List.map (fun x -> `Tuple x) ls
-  | `Var v as e -> [e]
+    (Gen.of_list ls)
+    |> gen_product_l (instantiate_pat ctx env ~fuel:(fuel))
+    |> Gen.filter_map (function [] -> None | xs -> Some (`Tuple xs))
+  | `Var v as e -> Gen.of_list [e]
   | `PatVar (str, ty) ->
     generate_expression ctx env ~fuel:(fuel) ty
 
@@ -133,8 +172,8 @@ let rec instantiate_pat ?(fuel=10)  ctx env pat : Lang.Expr.t list  =
  * if initial = true then only use patterns as a template to generate candidate expressions *)
 let generate_expression ?(initial=true) ?fuel ctx env ty =
   if initial then
-    let pats = List.rev @@ (Types.TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
-    let pats = List.flat_map (instantiate_pat ctx env ?fuel) pats in
-    pats
+    ctx_pats_with_ty ctx ~ty
+    |> Gen.of_list
+    |> Gen.flat_map (instantiate_pat ctx env ?fuel) 
   else
     generate_expression ?fuel ctx env ty

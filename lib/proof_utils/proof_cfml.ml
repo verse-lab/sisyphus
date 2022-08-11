@@ -59,6 +59,7 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
   | Constr.App (fname, args), _ when Utils.is_ind_eq "Coq.Init.Datatypes.prod" fname ->
     Product (Array.to_iter args |> Iter.map (extract_typ ?rel) |> Iter.to_list)
   | Constr.Var name, _ -> Var (Names.Id.to_string name)
+  | Constr.Const _, _ when Utils.is_const_eq "Coq.Numbers.BinNums.Z" c -> Int
   | Constr.Const _, _ when Utils.is_const_eq "CFML.Semantics.loc" c -> Loc
   | Constr.Const _, _ when Utils.is_const_eq "CFML.WPBuiltin.func" c -> Func
   | Constr.Const _, _ when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hprop" c ->
@@ -274,6 +275,12 @@ let extract_env hyp =
       when Utils.is_const_eq "CFML.WPLifted.Wpgen_body" fn
         || Utils.is_const_eq "CFML.WPLifted.Wpgen_negpat" fn ->
       None                    (* specifications *)
+    | Constr.Ind ((ty_name, _), _) when String.equal (Names.MutInd.to_string ty_name) "Coq.Numbers.BinNums.Z" ->
+      Some (name, `Val Lang.Type.Int)
+    | Constr.Ind ((ty_name, _), _) when String.equal (Names.MutInd.to_string ty_name) "CFML.Semantics.val" ->
+      Some (name, `Val Lang.Type.Val)
+    | Constr.Ind ((ty_name, _), _) when String.equal (Names.MutInd.to_string ty_name) "Coq.Init.Datatypes.nat" ->
+      Some (name, `Val Lang.Type.Int)
     | Constr.Ind ((ty_name, _), _) ->
       Some (name, `Val (Lang.Type.Var (Names.MutInd.to_string ty_name)))
     | Constr.Var _              (* init: A *)

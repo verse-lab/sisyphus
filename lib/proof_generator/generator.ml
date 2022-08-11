@@ -468,7 +468,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         |> List.fold_left (fun fns (ty,l,r) ->
           Lang.Expr.(functions (functions fns l) r)
         ) StringSet.empty
-        |> StringSet.to_list in
+        |> StringSet.add "+"
+        |> StringSet.add "-"
+        |> StringSet.to_list          
+      in
       vars,funcs in
 
     let from_id, to_id =
@@ -505,10 +508,11 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
             "found unsupported heaplet %a" pp v
       ) pre_heap in
 
-  let gen ?initial ?(fuel=3) = Expr_generator.generate_expression ?initial ~fuel ctx (typeof t) in
+  let gen ?initial ?(fuel=2) = Expr_generator.generate_expression ?initial ~fuel ctx (typeof t) in
+  Format.printf "generating pure@.";
   let pure =
     List.map_product_l List.(fun (v, ty) ->
-      List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~fuel:4 ~initial:false ty)
+      List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~fuel:3 ~initial:false ty)
     ) gen_pure_spec
     |> List.filter_map (function
         [] -> None
@@ -517,6 +521,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
           (fun acc vl -> `App ("&&", [vl; acc])) h t
         |> Option.some
     ) in
+  Format.printf "generated pure@.";
 
   let heap = List.map_product_l (gen) gen_heap_spec in
   let no_pure = List.length pure in
