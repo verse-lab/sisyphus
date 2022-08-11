@@ -127,7 +127,7 @@ let get_fuels ctx fuel fname arg_tys =
 
   let get_fuel i arg =
     match arg with
-    | _ when i = 0 && has_empty_arg -> arg, fuel - 1
+    | _ when i = 0 && has_empty_arg -> arg, fuel
     | _ -> arg, fuel - 1
   in
 

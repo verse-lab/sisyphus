@@ -88,6 +88,7 @@ let test_gen_heap () =
   ()
 
 let () =
+  test_gen_heap ();
   let open Lang.Type in
   let open Expr_generator.Types in
 
