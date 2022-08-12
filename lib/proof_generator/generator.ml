@@ -396,7 +396,11 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
     t.current_program_id <- Lang.Id.incr t.current_program_id;
     Proof_context.append t "xvalemptyarr."
   | `Write _ -> failwith "don't know how to handle write"
-  | `Value _ -> failwith "don't know how to handle value"
+  | `Value _ ->
+    Proof_context.append t "xvals.";
+    while (Proof_context.current_subproof t).goals |> List.length > 0 do 
+      Proof_context.append t "{ admit. }";
+    done
 and symexec_lambda t env name body rest =
   let fname = Proof_context.fresh ~base:name t in
   let h_fname = Proof_context.fresh ~base:("H" ^ name) t in
@@ -659,31 +663,35 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
      *   | _ -> false
      * end; *)
 
-    let pure = Gen.of_list pure in
-    let heap = Gen.of_list heap in
+    let pure_gen = ref (Gen.of_list pure) in
+    let heap_gen = Gen.of_list heap in
 
-    let rec loop i (pure_candidate, heap_candidate) =
+    let rec loop i ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) =
       Format.printf "[%d] testing@.\tPURE:%s@.\tHEAP:%s@." i
-        (Format.to_string Lang.Expr.pp (pure_candidate [`Var "arg0"; `Var "arg1"]) |> String.replace ~sub:"\n" ~by:" ")
-        (Format.to_string (Array.pp Lang.Expr.pp) (heap_candidate [`Var "arg0"; `Var "arg1"])  |> String.replace ~sub:"\n" ~by:" ");
-      match vc (pure_candidate, heap_candidate) with
+        (Format.to_string Lang.Expr.pp (pure_candidate) |> String.replace ~sub:"\n" ~by:" ")
+        (Format.to_string (List.pp Lang.Expr.pp) (heap_candidate)  |> String.replace ~sub:"\n" ~by:" ");
+      match vc (pure_candidate_vc, heap_candidate_vc) with
       | `InvalidPure ->
-        let+ pure_candidate = pure () in
+        let+ pure_candidate = !pure_gen () in
         if true_pure pure_candidate then
           Format.printf "==================@.VALID CANDIDATE@.=================@.";
-        let pure_candidate = expr_to_subst pure_candidate in
-        loop (i + 1) (pure_candidate, heap_candidate)
+        let pure_candidate_vc = expr_to_subst pure_candidate in
+        loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
       | `InvalidSpatial ->
-        let+ heap_candidate = heap () in
-        let heap_candidate = expr_to_subst_arr (Array.of_list heap_candidate) in
-        loop (i + 1) (pure_candidate, heap_candidate)
+        (* restart the pure generator *)
+        pure_gen := (Gen.of_list pure);
+        let+ pure_candidate = !pure_gen () in
+        let pure_candidate_vc = expr_to_subst pure_candidate in
+        let+ heap_candidate = heap_gen () in
+        let heap_candidate_vc = expr_to_subst_arr (Array.of_list heap_candidate) in
+        loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
       | `Valid -> Some (i, (pure_candidate, heap_candidate)) in
-    let+ pure_candidate = pure () in
-    let+ heap_candidate = heap () in
-    let pure_candidate = expr_to_subst pure_candidate in
-    let heap_candidate = expr_to_subst_arr (Array.of_list heap_candidate) in
+    let+ pure_candidate = !pure_gen () in
+    let+ heap_candidate = heap_gen () in
+    let pure_candidate_vc = expr_to_subst pure_candidate in
+    let heap_candidate_vc = expr_to_subst_arr (Array.of_list heap_candidate) in
     let start_time = Ptime_clock.now () in
-    let res = loop 0 (pure_candidate, heap_candidate) in
+    let res = loop 0 ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) in
     let end_time = Ptime_clock.now () in
 
     let no_candidates =
@@ -695,7 +703,58 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
   Format.printf "found valid candidate %b@." (Option.is_some _valid_candidate);
 
-  failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
+  let invariant = Option.get_exn_or "Failed to find suitable candidate" _valid_candidate in
+  Format.printf "TRUE INVARIANT IS %s@." (
+    [%show: Lang.Expr.t * Lang.Expr.t Containers.List.t] invariant
+  );
+
+  (* xapp lemma *)
+  Proof_context.append t
+    "xapp (%s %s (fun %a => \\[ %a ] %s))."
+    (Names.Constant.to_string lemma_name)
+    (arg_list_to_str (List.map fst f_args))
+    (List.pp
+       ~pp_sep:(fun fmt () -> Format.pp_print_string fmt " ")
+       (Pair.pp
+          ~pp_start:(fun fmt () -> Format.pp_print_string fmt "(")
+          ~pp_stop:(fun fmt () -> Format.pp_print_string fmt ")")
+          ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ": ")
+          Format.pp_print_string
+          Proof_utils.Printer.pp_ty))
+    (snd inv_ty)
+    Proof_utils.Printer.pp_expr
+    (fst invariant)
+    begin
+      match snd invariant with
+      | [] -> ""
+      | heap ->
+        " \\* " ^
+        (List.map (function
+           | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)), expr ->
+             Format.sprintf "%s ~> %s %a"
+               v f Proof_utils.Printer.pp_expr expr
+           | Proof_spec.Heap.Heaplet.PointsTo (_, _, v), _ -> 
+             Format.ksprintf ~f:failwith
+               "found unsupported heaplet %a" Lang.Expr.pp v
+         ) (List.combine pre_heap heap)
+         |> String.concat " \\* ")
+    end;
+
+  (* dispatch remaining subgoals by the best method: *)
+  while (Proof_context.current_subproof t).goals |> List.length > 1 do 
+    Proof_context.append t "{ admit. }";
+  done;
+
+  begin match pat with
+  | `Tuple _ -> failwith "tuple results from not supported"
+  | `Var (result, _) ->
+    let name = Proof_context.fresh ~base:result t in
+    let h_name = Proof_context.fresh ~base:("H" ^ result) t in
+    Proof_context.append t "intros %s %s." name h_name;
+    Proof_context.append t "xdestruct."
+  end;
+
+  symexec t env rest
 
 let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   Proof_context.append t {|xcf.|};
@@ -714,5 +773,6 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   | _ -> ()
   end;
   symexec t (Proof_env.initial_env ~logical_mappings ()) prog.body;
+  Proof_context.append t "Admitted.";
   Proof_context.extract_proof_script t
 
