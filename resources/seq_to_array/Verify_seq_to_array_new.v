@@ -1,75 +1,49 @@
 Set Implicit Arguments.
-Set Printing Universes.
-
-
-
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
-
 From Proofs Require Import Verify_seq_to_array_utils.
 From Proofs Require Import Seq_to_array_new_ml.
-
-Declare ML Module "proof_reduction".
-Declare ML Module "printreduced".
-
-Lemma to_array_spec : forall (A: Type) `{EA:Enc A} (l:list A) (s:func),
-    SPEC (to_array s)
-    PRE (\[LSeq l s])
-    POST (fun (a: loc) => a ~> Array l).
-Proof using.
-  xcf.
-  xpullpure H1.
-  xletopaque f Hf.
-  xapp (fold_spec f (0, nil) s l (fun '((i,acc) : int * list A) (x: A) => (i + 1, x :: acc))); auto;
-    first sep_solve.
-  xdestruct len ls Hlenls.
-  rewrite list_fold_length_rev in Hlenls.
-  sep_split_tuple Hlenls Hlen Hls.
-  case (rev l) as [| init rest] eqn:H.
-  - xmatch_case_0.
-    xvalemptyarr. { admit. }
-  - xmatch.
-    xalloc arr data Hdata.
-    xletopaque idx Hidx.
-    xletopaque ftmp Hftmp.
-
-    evar (sym_1: A).
-    evar (sym_2: A).
-    evar (sym_3: A).
-    evar (I: list A -> credits -> hprop).
-    evar (HI: (forall (acc : credits) (v : A) (t r : list A),
-        sym_1 :: sym_2 :: sym_3 :: nil = t ++ v :: r ->
-        SPEC (ftmp acc v)
-        PRE ?I t acc
-        POST (fun acc0 : credits => ?I (t & v) acc0))).
-    (* Set Printing Depth 1000000000. *)
-
-    (* print_reduced (list_fold_spec ftmp 3 (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI). *)
-
-(*     Set Printing Universes. *)
-
-(*     (* print_reduced (list_fold_spec ftmp n (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI). *) *)
-(*     pose (list_fold_spec ftmp 3 (cons sym_1 (cons sym_2 (cons sym_3 nil))) ?I ?HI). *)
-(*     Print make. *)
-(*     Print LibList.make. *)
-(*     Eval vm_compute in (drop 1 (cons sym_1 (cons sym_2 (cons sym_3 nil)))). *)
-(*   Set Printing All. *)
-(*   About CFML.Stdlib.List_ml.fold_left_cf__. *)
-(* Print Wpgen_body. *)
-(*     Check make. *)
-(*     Print Z. int. *)
-(*     Set Printing . *)
-(*     Check 10. *)
-
-(*     Eval compute in (make 10 0). *)
-(*     Print make. *)
-(*     xapp (list_fold_spec ftmp idx rest (fun (t: list A) (i: int) => *)
-(*         \[i = length l - length t - 2] \* *)
-(*         arr ~> Array ((make (i + 1) init) ++  *)
-(*                                  drop (i + 1) l) *)
-(*          )). { admit. } { admit. } { admit. } *)
-(*    intros i Hi. *)
-(*    xdestruct. *)
-(*    xvals. *)
-(*    { admit. } *)
+Lemma to_array_spec :
+  forall (A : Type) `{EA : Enc A} (l : list A) (s : func) (v : loc),
+  SPEC (to_array s)
+  PRE \[LSeq l s]
+  POST (fun a : loc => a ~> Array l).
+Proof  using
+(All).
+xcf.
+xpullpure H1.
+xletopaque tmp Htmp.
+evar ( ty_ls : Type ).
+evar ( ls : ty_ls ).
+xapp
+ (Proofs.Verify_seq_to_array_utils.fold_spec tmp (0, nil) s ?ls
+    (fun '((i, acc) : int * list A) (x : A) => (i + 1, x :: acc))).
+sep_solve.
+eauto.
+clear ty_ls ls.
+xdestruct len ls Hlenls.
+(rewrite list_fold_length_rev in Hlenls).
+(injection Hlenls; intros Hls Hlen).
+(destruct ls as [| init rest] eqn:H_eqn).
+-
+xmatch.
+xvalemptyarr.
+{
+admit.
+}
+-
+xmatch.
+xalloc a data Hdata.
+xletopaque idx Hidx.
+xletopaque tmp0 Htmp0.
+xapp
+ (Proofs.Verify_seq_to_array_utils.list_fold_spec tmp0 idx rest
+    (fun (arg0 : list A) (arg1 : int) =>
+     \[arg1 = length rest - length l + (length rest - length arg0)] \*
+     a ~> CFML.WPArray.Array (make (1 + arg1) init ++ drop (1 + arg1) l))).
+{ admit. } { admit. } { admit. }
+(intros unused Hunused).
+xdestruct.
+xvals.
+{ admit. }
 Admitted.
