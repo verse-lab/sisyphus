@@ -635,10 +635,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     |> Proof_validator.build_validator in
 
 
-  let _valid_candidate =
-    let pure = Gen.of_list pure in
-    let heap = Gen.of_list heap in
 
+  let _valid_candidate =
     let (let+ ) x f = Option.bind x f in
     let expr_to_subst expr =
       let expr = Lang.Expr.subst_functions (renormalise_name t) expr in
@@ -654,6 +652,16 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         let binding = StringMap.of_list (List.combine inv_args args) in
         let lookup name = StringMap.find_opt name binding in
         Array.map (Lang.Expr.subst lookup) exprs in
+
+    (* let true_pure', true_heap' = List.find true_pure pure, List.find true_heap heap in *)
+    (* assert begin match vc (expr_to_subst true_pure', expr_to_subst_arr (Array.of_list true_heap')) with
+     *   | `Valid -> true
+     *   | _ -> false
+     * end; *)
+
+    let pure = Gen.of_list pure in
+    let heap = Gen.of_list heap in
+
     let rec loop i (pure_candidate, heap_candidate) =
       Format.printf "[%d] testing@.\tPURE:%s@.\tHEAP:%s@." i
         (Format.to_string Lang.Expr.pp (pure_candidate [`Var "arg0"; `Var "arg1"]) |> String.replace ~sub:"\n" ~by:" ")

@@ -11,7 +11,7 @@ type candidate = pure_candidate * heap_candidate
 type validator = candidate -> [ `InvalidPure | `InvalidSpatial | `Valid ]
 
 let base_solver_timeout = 100
-let challenging_solver_timeout = 1_000
+let challenging_solver_timeout = 15_000
 
 let split_last =
   let rec loop (acc, last) = function
