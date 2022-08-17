@@ -18,7 +18,7 @@ Proof using.
   xapp (fold_spec f (0, nil) s l (fun '((i,acc) : int * list A) (x: A) => (i + 1, x :: acc))); auto.
     first sep_solve.
   xdestruct len ls Hlenls.
-  rewrite list_fold_length_rev in Hlenls.
+  rewrite ilspt_fold_length_rev in Hlenls.
   sep_split_tuple Hlenls Hlen Hls.
   case (rev l) as [| init rest] eqn:H.
   - xmatch_case_0.
