@@ -34,12 +34,12 @@ val generate_trace:
    [Sisyphus_tracing.observe]. *)
 
 val bitrace: CompilationContext.t -> program -> program ->
-  unit -> Sisyphus_tracing.trace * Sisyphus_tracing.trace
+  ?st:CCRandom.state -> unit -> Sisyphus_tracing.trace * Sisyphus_tracing.trace
 (** [bitrace ctx p1 p2] returns a function [unit -> trace * trace]
    that can be called one or more times to generate fresh traces of
    programs [p1] and [p2] on the same inputs. *)
 
-val execution_trace: CompilationContext.t -> program -> unit -> Sisyphus_tracing.trace
+val execution_trace: CompilationContext.t -> program -> ?st:CCRandom.state -> unit -> Sisyphus_tracing.trace
 (** [execution_trace ctx p1] returns a function [unit -> trace] that
    can be called one or more times to generate deep execution traces
    of the program [p1]. *)

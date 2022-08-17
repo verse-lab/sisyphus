@@ -1,4 +1,3 @@
-[@@@warning "-26"]
 open Containers
 
 module ExprSet = Set.Make(Lang.Expr)
@@ -10,6 +9,13 @@ let reduce pure =
   Format.printf "reduced %d -> %d unique@." no_pure_original no_pure_updated;
   pure
 
+let true_pure =
+  Lang.Expr.equal
+    (`App ("=", [ `Var "arg1"; `App ("-", [ `App ("-", [ `App ("length", [`Var "l"]); `App ("length", [`Var "arg0"]); ]); `Int 2 ]) ]))
+let true_heap =
+  List.equal Lang.Expr.equal
+    [`App ("++", [ `App ("make", [ `App ("+", [`Var "arg1"; `Int 1]) ; `Var "init" ]) ; `App ("drop", [ `App ("+", [`Var "arg1"; `Int 1]) ; `Var "l" ])
+  ])]
 
 let split_last =
   let rec loop last acc = function
@@ -184,9 +190,178 @@ let typeof t (s: string) : (Lang.Type.t list * Lang.Type.t) option =
         | _ -> None
       with
       | _ -> None in
-  Format.printf "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.Option.t] ty);
+  (* Format.printf "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.Option.t] ty); *)
   ty 
 
+let renormalise_name t (s: string) : string option =
+  let (let+) x f = Option.bind x f in
+  let s_norm = 
+    match s with
+    | "++" -> Some "TLC.LibList.app"
+    | "-" -> Some "-"
+    | "+" -> Some "+"
+    | s ->
+      try 
+        let s_base = String.split_on_char '.' s |> List.last_opt |> Option.value ~default:s in
+        let+ name = Proof_context.names t s_base in
+        match name with
+        | Names.GlobRef.ConstRef s ->
+          Some (Names.Constant.to_string s)
+        | _ -> None
+      with
+      | _ -> None in
+  (* Format.printf "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.Option.t] ty); *)
+  Option.map (fun s ->
+    if String.prefix ~pre:"TLC.LibListZ." s
+    then "TLC.LibList." ^ String.drop (String.length "TLC.LibListZ.") s
+    else s)
+    s_norm 
+
+let calculate_inv_ty t ~f:lemma_name ~args:f_args =
+  let instantiated_spec = Format.ksprintf ~f:(Proof_context.typeof t) "%s %s"
+                            (Names.Constant.to_string lemma_name)
+                            (arg_list_to_str (List.map fst f_args)) in
+  let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
+  let tys = Proof_utils.CFML.unwrap_invariant_type ty in
+  let tys = List.mapi (fun i v -> Format.sprintf "arg%d" i, v) tys in
+  name_to_string binder_name, tys 
+
+(** [build_testing_function t env ~pre ~f ~args obs] builds a test
+    specification from a partially reduced proof term of the lemma [f]
+    applied to values of its arguments [args] at the current position
+    in a concrete observation [obs] *)
+let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
+  let test_f =
+    List.find_map Option.(fun obs ->
+      let obs = Proof_env.normalize_observation env obs in
+      Proof_context.with_temporary_context t begin fun () ->
+        (* first, instantiate the concrete arguments using values from the trace *)
+        let* instantiated_params = instantiate_arguments t env f_args obs in
+        (* next, add evars for the remaining arguments to lemma *)
+        let lemma_complete_params, _ =
+          build_complete_params t lemma_name instantiated_params in
+        (* construct term to represent full application of lemma parameters *)
+        let trm = 
+          Format.ksprintf ~f:(Proof_context.term_of t) "%s %s"
+            (Names.Constant.to_string lemma_name)
+            (arg_list_to_str  lemma_complete_params) in
+
+        let lambda_env = env.Proof_env.lambda in
+        (* partially evaluate/reduce the proof term *)
+        let reduced =
+          let (evd, reduced) =
+            let env = Proof_context.env t in
+            let evd = Evd.from_env env in
+            Proof_reduction.reduce ~filter:(fun ~path ~label -> `Unfold)
+              env evd (Evd.MiniEConstr.of_constr trm) in
+          EConstr.to_constr evd reduced in
+        (* construct a evaluatable test specification for the invariant *)
+        let testf =
+          let inv_spec = Pair.map String.lowercase_ascii (List.map fst) inv_ty in
+          Proof_analysis.analyse lambda_env obs inv_spec reduced in
+        Some testf
+      end
+    ) observations
+    |> Option.get_exn_or "failed to construct an executable test specification" in
+  test_f t.Proof_context.compilation_context 
+
+let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
+  (* construct an expression generation context using the old proof *)
+  let ctx =
+    let vars, funcs =
+      (* collect all variables in the proof context that are available in the concrete context *)
+      let proof_vars =
+        let available_vars =
+          List.find_map (fun obs ->
+            let (pure, _) = Proof_env.normalize_observation env obs in
+            Some (List.map fst pure |> StringSet.of_list)
+          ) observations |> Option.get_or ~default:StringSet.empty in
+        let poly_vars, env = Proof_utils.CFML.extract_env (Proof_context.current_goal t).hyp in
+        List.filter (Pair.fst_map (Fun.flip StringSet.mem available_vars)) env in
+      (* collect any variables that will be available to the invariant *)
+      let invariant_vars = snd inv_ty in
+      (* variables available to the generation are variables in the proof and from the invariant *)
+      let vars = proof_vars @ invariant_vars in
+      (* collect functions used in the current proof context *)
+      let funcs =
+        Proof_utils.CFML.extract_assumptions (Proof_context.current_goal t).hyp
+        |> List.fold_left (fun fns (ty,l,r) ->
+          Lang.Expr.(functions (functions fns l) r)
+        ) StringSet.empty
+        |> StringSet.add "+"
+        |> StringSet.add "-"
+        |> StringSet.to_list in
+      vars,funcs in
+    let from_id, to_id =
+      Dynamic.Matcher.find_aligned_range `Right t.Proof_context.alignment
+        ((((t.Proof_context.current_program_id :> int) - 1)),
+         (((t.Proof_context.current_program_id :> int)))) in
+    Expr_generator.build_context ~ints:[1;2]
+      ~vars ~funcs ~env:(typeof t)
+      ~from_id ~to_id
+      t.Proof_context.old_proof.Proof_spec.Script.proof in
+
+  let gen_pure_spec =
+    snd inv_ty
+    |> List.filter_map (fun (v, ty) ->
+      match ty with
+      | Lang.Type.Var _
+      | Lang.Type.Int
+      | Lang.Type.Val -> Some (v,ty)
+      | _ -> None
+    ) in
+  let gen_heap_spec =
+    List.map
+      Proof_spec.Heap.Heaplet.(function
+          PointsTo (v, _, `App ("CFML.WPArray.Array", _)) ->
+          Lang.Type.List (Lang.Type.Var "A")
+        | PointsTo (v, _, `App ("Ref", _)) ->
+          Lang.Type.Var "A"
+        | v ->
+          Format.ksprintf ~f:failwith
+            "found unsupported heaplet %a" pp v
+      ) pre_heap in
+
+  let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx (typeof t) in
+  let pure =
+    List.map_product_l List.(fun (v, ty) ->
+      List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~blacklist:[v] ~fuel:3 ~initial:false ty)
+    ) gen_pure_spec
+    |> List.filter_map (function
+        [] -> None
+      | h :: t ->
+        List.fold_left
+          (fun acc vl -> `App ("&&", [vl; acc])) h t
+        |> Option.some
+    ) in
+  let heap = List.map_product_l (gen) gen_heap_spec in
+  pure, heap
+
+let prune_candidates_using_testf test_f (pure, heap) =
+  let start_time = Ptime_clock.now () in
+  let pure = 
+    List.filter_map (fun pure ->
+      match test_f (pure, [ ]) with 
+      | false -> None
+      | true ->
+        match pure with
+        | `App ("=", [`Var _;`Var _]) -> None
+        | _ ->
+          Some pure
+    ) pure in
+  let heap =
+    List.filter_map (fun heap ->
+      if test_f (`Constructor ("true", []), heap)
+      then Some heap
+      else None
+    ) heap in
+  let end_time = Ptime_clock.now () in
+  Format.printf "pruned down to %d pure candidates and %d heap candidates in %a @."
+    (List.length pure)
+    (List.length heap)
+    Ptime.Span.pp
+    (Ptime.diff end_time start_time);
+  pure, heap 
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   (* Format.printf "current program id is %s: %s@."
@@ -221,7 +396,11 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
     t.current_program_id <- Lang.Id.incr t.current_program_id;
     Proof_context.append t "xvalemptyarr."
   | `Write _ -> failwith "don't know how to handle write"
-  | `Value _ -> failwith "don't know how to handle value"
+  | `Value _ ->
+    Proof_context.append t "xvals.";
+    while (Proof_context.current_subproof t).goals |> List.length > 0 do 
+      Proof_context.append t "{ admit. }";
+    done
 and symexec_lambda t env name body rest =
   let fname = Proof_context.fresh ~base:name t in
   let h_fname = Proof_context.fresh ~base:("H" ^ name) t in
@@ -380,209 +559,202 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* for now we only handle lemmas with a single higher order invariant *) 
   ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
 
-  (* work out the type of the invariant *)
-  let inv_ty =
-    let instantiated_spec = Format.ksprintf ~f:(Proof_context.typeof t) "%s %s"
-                              (Names.Constant.to_string lemma_name)
-                              (arg_list_to_str (List.map fst f_args)) in
-    let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
-    let tys = Proof_utils.CFML.unwrap_invariant_type ty in
-    let tys = List.mapi (fun i v -> Format.sprintf "arg%d" i, v) tys in
-    name_to_string binder_name, tys in
-
   let pre_heap = 
     List.filter_map
       (function `Impure heaplet -> Some (Proof_utils.CFML.extract_impure_heaplet heaplet) | _ -> None)
       (match pre with | `Empty -> [] | `NonEmpty ls -> ls) in
 
-  let _vc = Specification.build_verification_condition t (Proof_env.env_to_defmap env) lemma_name in
+  let inv_ty = calculate_inv_ty t ~f:lemma_name ~args:f_args in 
 
   (* collect an observation for the current program point *)
   let observations =
     let cp = t.Proof_context.concrete () in
     Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
 
-  (* build a test specification from the partially reduced proof term applied to values at the current position *)
-  let test_f =
-    List.find_map Option.(fun obs ->
-      let obs = Proof_env.normalize_observation env obs in
-      Proof_context.with_temporary_context t begin fun () ->
-        (* first, instantiate the concrete arguments using values from the trace *)
-        let* instantiated_params = instantiate_arguments t env f_args obs in
-        (* next, add evars for the remaining arguments to lemma *)
-        let lemma_complete_params, _ =
-          build_complete_params t lemma_name instantiated_params in
-        (* construct term to represent full application of lemma parameters *)
-        let trm = 
-          Format.ksprintf ~f:(Proof_context.term_of t) "%s %s"
-            (Names.Constant.to_string lemma_name)
-            (arg_list_to_str  lemma_complete_params) in
+  (* build an initial test specification from the partially reduced proof term applied to values at the current position *)
+  let test_f = build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
 
-        let lambda_env = env.Proof_env.lambda in
-        (* partially evaluate/reduce the proof term *)
-        let reduced =
-          let (evd, reduced) =
-            let env = Proof_context.env t in
-            let evd = Evd.from_env env in
-            Proof_reduction.reduce ~filter:(fun ~path ~label -> `Unfold)
-              env evd (Evd.MiniEConstr.of_constr trm) in
-          EConstr.to_constr evd reduced in
-        (* construct a evaluatable test specification for the invariant *)
-        let testf =
-          let heap_spec =
-            List.map
-              Proof_spec.Heap.Heaplet.(function
-                  PointsTo (v, _, `App ("CFML.WPArray.Array", _)) -> v, `Array
-                | PointsTo (v, _, `App ("Ref", _)) -> v, `Ref
-                | v ->
-                  Format.ksprintf ~f:failwith
-                    "found unsupported heaplet %a" pp v
-              ) pre_heap in
-          let inv_spec = Pair.map String.lowercase_ascii (List.map fst) inv_ty in
-          Proof_analysis.analyse lambda_env obs inv_spec reduced in
-        Some testf
-      end
-    ) observations
-    |> Option.get_exn_or "failed to construct an executable test specification" in
-  let test_f = test_f t.Proof_context.compilation_context in
+  (* generate initial invariants *)
+  let pure, heap = generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
 
-  (* construct an expression generation context using the old proof *)
-  let ctx =
-    let vars, funcs =
-      (* collect all variables in the proof context that are available in the concrete context *)
-      let proof_vars =
-        let available_vars =
-          List.find_map (fun obs ->
-            let (pure, _) = Proof_env.normalize_observation env obs in
-            Some (List.map fst pure |> StringSet.of_list)
-          ) observations |> Option.get_or ~default:StringSet.empty in
-        let poly_vars, env = Proof_utils.CFML.extract_env (Proof_context.current_goal t).hyp in
-        List.filter (Pair.fst_map (Fun.flip StringSet.mem available_vars)) env in
-      (* collect any variables that will be available to the invariant *)
-      let invariant_vars = snd inv_ty in
-      (* variables available to the generation are variables in the proof and from the invariant *)
-      let vars = proof_vars @ invariant_vars in
-      (* collect functions used in the current proof context *)
-      let funcs =
-        Proof_utils.CFML.extract_assumptions (Proof_context.current_goal t).hyp
-        |> List.fold_left (fun fns (ty,l,r) ->
-          Lang.Expr.(functions (functions fns l) r)
-        ) StringSet.empty
-        |> StringSet.to_list in
-      vars,funcs in
+  let () =
+    let no_pure = List.length pure in
+    let no_impure = List.length heap in
+    Format.printf "found %d pure candidates and %d heap candidates@." no_pure no_impure in
 
-    let from_id, to_id =
-      Dynamic.Matcher.find_aligned_range `Right t.Proof_context.alignment
-        ((((t.Proof_context.current_program_id :> int) - 1)),
-         (((t.Proof_context.current_program_id :> int)))) in
-    Expr_generator.build_context ~ints:[1;2]
-      ~vars ~funcs ~env:(typeof t)
-      ~from_id ~to_id
-      t.Proof_context.old_proof.Proof_spec.Script.proof in
+  let _ =
+    Format.printf "pure candidate exists? %b@." @@
+    List.exists true_pure pure in
+  let _ =
+    Format.printf "heap candidate exists? %b@." @@
+    List.exists true_heap heap in
 
-  Format.printf "ctx is %a@." Expr_generator.pp_ctx ctx;
+  (* prune the candidates using the testing function *)
+  let (pure,heap) =
+    prune_candidates_using_testf test_f (pure,heap) in
 
-  Format.printf "env is %a@." Proof_env.pp env;
+  let _ =
+    Format.printf "pure candidate exists? %b@." @@
+    List.exists true_pure pure in
+  let _ =
+    Format.printf "heap candidate exists? %b@." @@
+    List.exists true_heap heap in
 
-  let gen_pure_spec =
-    snd inv_ty
-    |> List.filter_map (fun (v, ty) ->
-      match ty with
-      | Lang.Type.Var _
-      | Lang.Type.Int
-      | Lang.Type.Val -> Some (v,ty)
-      | _ -> None
-    ) in
-  let gen_heap_spec =
-    List.map
-      Proof_spec.Heap.Heaplet.(function
-          PointsTo (v, _, `App ("CFML.WPArray.Array", _)) ->
-          Lang.Type.List (Lang.Type.Var "A")
-        | PointsTo (v, _, `App ("Ref", _)) ->
-          Lang.Type.Var "A"
-        | v ->
-          Format.ksprintf ~f:failwith
-            "found unsupported heaplet %a" pp v
-      ) pre_heap in
+  (* do it again *)
+  let (pure,heap) = 
+    let test_f =
+      let cp = t.Proof_context.concrete () in
+      let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
+      build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
+    prune_candidates_using_testf test_f (pure,heap) in
+  let _ =
+    Format.printf "pure candidate exists? %b@." @@
+    List.exists true_pure pure in
+  let _ =
+    Format.printf "heap candidate exists? %b@." @@
+    List.exists true_heap heap in
 
-  let gen ?initial ?(fuel=3) = Expr_generator.generate_expression ?initial ~fuel ctx (typeof t) in
-  let pure =
-    List.map_product_l List.(fun (v, ty) ->
-      List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~fuel:4 ~initial:false ty)
-    ) gen_pure_spec
-    |> List.filter_map (function
-        [] -> None
-      | h :: t ->
-        List.fold_left
-          (fun acc vl -> `App ("&&", [vl; acc])) h t
-        |> Option.some
-    ) in
+  (* and again (50 ms) *)
+  let (pure,heap) = 
+    let test_f =
+      let cp = t.Proof_context.concrete () in
+      let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
+      build_testing_function t env  ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
+    prune_candidates_using_testf test_f (pure,heap) in
 
-  let heap = List.map_product_l (gen) gen_heap_spec in
-  let no_pure = List.length pure in
-  let no_impure = List.length heap in
-  Format.printf "found %d pure candidates and %d heap candidates@." no_pure no_impure ;
+  let _ =
+    Format.printf "pure candidate exists? %b@." @@
+    List.exists true_pure pure in
+  let _ =
+    Format.printf "heap candidate exists? %b@." @@
+    List.exists true_heap heap in
 
+  (* List.iteri (fun i expr -> Format.printf "pure candidate %d: %s@." i ([%show: Lang.Expr.t] expr)) pure;
+   * List.iteri (fun i expr -> Format.printf "heap candidate %d: %s@." i ([%show: Lang.Expr.t list] expr)) heap; *)
 
-  let start_time = Ptime_clock.now () in
-
-  let true_candidate =
-    let length ls = `App ("length", [ls]) in
-    let make n vl = `App ("make", [n; vl]) in
-    let drop n vl = `App ("drop", [n; vl]) in
-    let (-) l r = `App ("-", [l; r]) in
-    let (+) l r = `App ("+", [l; r]) in
-    let (++) l r = `App ("++", [l; r]) in
-    let (=) l r = `App ("=", [l; r]) in
-    let i1 = `Int 1 in
-    let i2 = `Int 2 in
-    let l = `Var "l" in
-    let t = `Var "arg0" in
-    let i = `Var "arg1" in
-    let init = `Var "init" in
-    ( i = length l - length t - i2, [ make (i + i1) init ++ drop (i + i1) l ] ) in
-
-  assert (test_f true_candidate);
-
-  let pure_candidates = 
-    let count_pure = ref 0 in
-    List.filter_map (fun pure ->
-      incr count_pure;
-      (* Format.printf "testing [%d/%d]@." !count_pure no_pure;
-       * if Int.(!count_pure mod 1000 = 0) then
-       *   Format.printf "[%d/%d] pure candidate %a@." !count_pure no_pure pp_expr pure; *)
-      match test_f (pure, [ ]) with 
-      | false -> None
-      | true ->
-        match pure with
-        | `App ("=", [`Var _;`Var _]) -> None
-        | _ ->
-          (* Format.printf "[%d/%d] found valid !pure candidate %a@." !count_pure no_pure pp_expr pure; *)
-          Some pure
-    ) pure in
-  let heap_candidates =
-    let count_impure = ref 0 in
-    List.filter_map (fun heap ->
-      incr count_impure;
-      (* Format.printf "\t testing impure [%d/%d]@." !count_impure no_impure; *)
-      if test_f (`Constructor ("true", []), heap)
-      then Some heap
-      else None
-    ) heap in
-  let end_time = Ptime_clock.now () in
-  Format.printf "found %d pure candidates and %d heap candidates in %a @."
-    (List.length pure_candidates)
-    (List.length heap_candidates)
-    Ptime.Span.pp
-    (Ptime.diff end_time start_time)
-  ;
+  (* build a verification condition *)
+  let vc =
+    Specification.build_verification_condition
+      t (Proof_env.env_to_defmap env) lemma_name
+    |> Proof_validator.build_validator in
 
 
 
-  print_endline @@ Format.sprintf "args: (%s)"@@
-  (List.map (fun (exp, _) -> Lang.Expr.show exp) f_args |> String.concat ", ");
+  let _valid_candidate =
+    let (let+ ) x f = Option.bind x f in
+    let expr_to_subst expr =
+      let expr = Lang.Expr.subst_functions (renormalise_name t) expr in
+      let inv_args = (snd inv_ty) |> List.map fst in      
+      fun args ->
+        let binding = StringMap.of_list (List.combine inv_args args) in
+        let lookup name = StringMap.find_opt name binding in
+        Lang.Expr.subst lookup expr in
+    let expr_to_subst_arr exprs =
+      let exprs = Array.map (Lang.Expr.subst_functions (renormalise_name t)) exprs in
+      let inv_args = (snd inv_ty) |> List.map fst in
+      fun args ->
+        let binding = StringMap.of_list (List.combine inv_args args) in
+        let lookup name = StringMap.find_opt name binding in
+        Array.map (Lang.Expr.subst lookup) exprs in
 
-  failwith ("TODO: implement handling of let _ = " ^ Format.to_string Lang.Expr.pp body ^ " expressions")
+    (* let true_pure', true_heap' = List.find true_pure pure, List.find true_heap heap in *)
+    (* assert begin match vc (expr_to_subst true_pure', expr_to_subst_arr (Array.of_list true_heap')) with
+     *   | `Valid -> true
+     *   | _ -> false
+     * end; *)
+
+    let pure_gen = ref (Gen.of_list pure) in
+    let heap_gen = Gen.of_list heap in
+
+    let rec loop i ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) =
+      Format.printf "[%d] testing@.\tPURE:%s@.\tHEAP:%s@." i
+        (Format.to_string Lang.Expr.pp (pure_candidate) |> String.replace ~sub:"\n" ~by:" ")
+        (Format.to_string (List.pp Lang.Expr.pp) (heap_candidate)  |> String.replace ~sub:"\n" ~by:" ");
+      match vc (pure_candidate_vc, heap_candidate_vc) with
+      | `InvalidPure ->
+        let+ pure_candidate = !pure_gen () in
+        if true_pure pure_candidate then
+          Format.printf "==================@.VALID CANDIDATE@.=================@.";
+        let pure_candidate_vc = expr_to_subst pure_candidate in
+        loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
+      | `InvalidSpatial ->
+        (* restart the pure generator *)
+        pure_gen := (Gen.of_list pure);
+        let+ pure_candidate = !pure_gen () in
+        let pure_candidate_vc = expr_to_subst pure_candidate in
+        let+ heap_candidate = heap_gen () in
+        let heap_candidate_vc = expr_to_subst_arr (Array.of_list heap_candidate) in
+        loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
+      | `Valid -> Some (i, (pure_candidate, heap_candidate)) in
+    let+ pure_candidate = !pure_gen () in
+    let+ heap_candidate = heap_gen () in
+    let pure_candidate_vc = expr_to_subst pure_candidate in
+    let heap_candidate_vc = expr_to_subst_arr (Array.of_list heap_candidate) in
+    let start_time = Ptime_clock.now () in
+    let res = loop 0 ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) in
+    let end_time = Ptime_clock.now () in
+
+    let no_candidates =
+      Option.map fst res
+      |> Option.map_or ~default:"NONE" string_of_int in
+    Format.printf "found a valid candidate in %a (checked %s candidates)@."
+      Ptime.Span.pp Ptime.(diff end_time start_time) no_candidates;
+    Option.map snd res in
+
+  Format.printf "found valid candidate %b@." (Option.is_some _valid_candidate);
+
+  let invariant = Option.get_exn_or "Failed to find suitable candidate" _valid_candidate in
+  Format.printf "TRUE INVARIANT IS %s@." (
+    [%show: Lang.Expr.t * Lang.Expr.t Containers.List.t] invariant
+  );
+
+  (* xapp lemma *)
+  Proof_context.append t
+    "xapp (%s %s (fun %a => \\[ %a ] %s))."
+    (Names.Constant.to_string lemma_name)
+    (arg_list_to_str (List.map fst f_args))
+    (List.pp
+       ~pp_sep:(fun fmt () -> Format.pp_print_string fmt " ")
+       (Pair.pp
+          ~pp_start:(fun fmt () -> Format.pp_print_string fmt "(")
+          ~pp_stop:(fun fmt () -> Format.pp_print_string fmt ")")
+          ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ": ")
+          Format.pp_print_string
+          Proof_utils.Printer.pp_ty))
+    (snd inv_ty)
+    Proof_utils.Printer.pp_expr
+    (fst invariant)
+    begin
+      match snd invariant with
+      | [] -> ""
+      | heap ->
+        " \\* " ^
+        (List.map (function
+           | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)), expr ->
+             Format.sprintf "%s ~> %s %a"
+               v f Proof_utils.Printer.pp_expr expr
+           | Proof_spec.Heap.Heaplet.PointsTo (_, _, v), _ -> 
+             Format.ksprintf ~f:failwith
+               "found unsupported heaplet %a" Lang.Expr.pp v
+         ) (List.combine pre_heap heap)
+         |> String.concat " \\* ")
+    end;
+
+  (* dispatch remaining subgoals by the best method: *)
+  while (Proof_context.current_subproof t).goals |> List.length > 1 do 
+    Proof_context.append t "{ admit. }";
+  done;
+
+  begin match pat with
+  | `Tuple _ -> failwith "tuple results from not supported"
+  | `Var (result, _) ->
+    let name = Proof_context.fresh ~base:result t in
+    let h_name = Proof_context.fresh ~base:("H" ^ result) t in
+    Proof_context.append t "intros %s %s." name h_name;
+    Proof_context.append t "xdestruct."
+  end;
+
+  symexec t env rest
 
 let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   Proof_context.append t {|xcf.|};
@@ -601,5 +773,6 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   | _ -> ()
   end;
   symexec t (Proof_env.initial_env ~logical_mappings ()) prog.body;
+  Proof_context.append t "Admitted.";
   Proof_context.extract_proof_script t
 

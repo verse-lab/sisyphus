@@ -5,6 +5,12 @@ module Types = Types
 type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
 
 module StringMap = Map.Make(String)
+module StringSet = Set.Make (String)
+
+let filter_blacklisted blacklisted_vars ls =
+  List.filter (function
+    | `Var v when (StringSet.mem v blacklisted_vars) -> false
+    | _ -> true) ls
 
 type 'a type_map = 'a Types.TypeMap.t
 let pp_type_map f fmt vl =
@@ -34,6 +40,55 @@ let make_raw_ctx :
     pats = Types.TypeMap.of_list pats;
     funcs = Types.TypeMap.of_list funcs;
   }
+
+let (let+) x f = x f
+let (|>>) x f kont = x (fun x -> f x kont)
+
+let mapM f ls kont =
+  let rec loop acc f ls kont =
+    match ls with
+    | [] -> kont (List.rev acc)
+    | h :: t ->
+      let+ h = f h in
+      loop (h :: acc) f t kont in
+  loop [] f ls kont
+
+let rec fold_leftM f accu l kont =
+  match l with
+    [] -> kont accu
+  | a::l ->
+    let+ accu = f accu a in
+    fold_leftM f accu l kont
+
+let mapM_product_l f l kont =
+  (* [left]: elements picked so far
+     [right]: sets to pick elements from
+     [acc]: accumulator for the result, to pass to continuation
+     [k]: continuation *)
+  let rec prod_rec left right k acc kont = match right with
+    | [] -> kont (k acc (List.rev left))
+    | l1 :: tail ->
+      let+ l1 = f l1 in
+      fold_leftM
+        (fun acc x -> prod_rec (x::left) tail k acc)
+        acc l1 kont
+  in
+  prod_rec [] l (fun acc l' -> (l' :: acc)) [] kont
+
+let flat_mapM f l kont =
+  let rec aux f l kont = match l with
+    | [] -> kont []
+    | x::l' ->
+      let+ y = f x in
+      let kont' tail = match y with
+        | [] -> kont tail
+        | [x] -> kont (x :: tail)
+        | [x;y] -> kont (x::y::tail)
+        | l -> kont (List.append l tail)
+      in
+      aux f l' kont'
+  in
+  aux f l kont
 
 
 let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env proof_script =
@@ -79,62 +134,69 @@ let get_fuels ctx fuel fname arg_tys =
   let get_fuel i arg =
     match arg with
     | _ when i = 0 && has_empty_arg -> arg, fuel
-    | _ -> arg, fuel
+    | _ -> arg, fuel - 1
   in
 
   List.mapi get_fuel arg_tys
 
-let rec generate_expression ?(fuel=10) (ctx: ctx) (env: Types.env)  (ty: Lang.Type.t): Lang.Expr.t list =
+let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.env)  (ty: Lang.Type.t) k =
   match fuel with
   | fuel when fuel > 0 ->
-    let consts = Types.TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[] in
+    let consts = Types.TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[]
+                 |> filter_blacklisted blacklisted_vars in
     let funcs = Types.TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
-    let consts_funcs = List.filter_map (function
+    let consts_funcs =
+      List.filter_map (function
         | (fname, [arg]) -> Some (fname, arg)
         | (_, _)  -> None
       ) funcs
-            |> List.flat_map (fun (fname, arg) ->
-                Types.TypeMap.find_opt arg ctx.consts |> Option.value  ~default:[]
-                |> List.map (fun arg -> `App (fname, [arg]))
-                         ) in
+      |> List.flat_map (fun (fname, arg) ->
+        Types.TypeMap.find_opt arg ctx.consts |> Option.value  ~default:[]
+        |> filter_blacklisted blacklisted_vars
+        |> List.map (fun arg -> `App (fname, [arg]))
+      ) in
     let consts = consts @ (if fuel = 1 then consts_funcs else []) in
+    let+ funcs =  flat_mapM (fun (fname, args) kont ->
+      let arg_with_fuels = get_fuels ctx fuel fname args in
+      let+ funcs =
+        mapM_product_l (fun (arg, fuel) ->
+          generate_expression ~blacklisted_vars ctx env ~fuel:fuel arg
+        ) arg_with_fuels in
+      let+ funcs = mapM (fun args kont -> kont (`App (fname, args))) funcs in
+      kont funcs
+    ) funcs in
+    k (funcs @ consts)
+  | _ -> k []
 
 
-    let funcs =  List.flat_map (fun (fname, args) ->
-        let arg_with_fuels = get_fuels ctx fuel fname args in
-        List.map_product_l (fun (arg, fuel) ->
-            generate_expression ctx env ~fuel:fuel arg
-          ) arg_with_fuels
-        |> List.map (fun args -> `App (fname, args))
-      ) funcs in
-    funcs @ consts
-  | _ -> []
-
-
-let rec instantiate_pat ?(fuel=10)  ctx env pat : Lang.Expr.t list  =
+let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx env pat kont  =
   match pat with
   | `App (fname, args) ->
-    List.map_product_l (instantiate_pat ctx env  ~fuel:(fuel)) args
-    |> List.map (fun args -> `App (fname, args))
+    let+ args = mapM_product_l (instantiate_pat ~blacklisted_vars ctx env  ~fuel:(fuel)) args in
+    kont (List.map (fun args -> `App (fname, args)) args)
   | `Constructor (name, args) ->
-    List.map_product_l (instantiate_pat ctx env ~fuel:(fuel)) args
-    |>  List.map (fun args -> `Constructor (name, args))
-  | `Int i as e -> [e]
+    let+ args = mapM_product_l (instantiate_pat ~blacklisted_vars ctx env ~fuel:(fuel)) args in
+    kont (List.map (fun args -> `Constructor (name, args)) args)
+  | `Int i as e -> kont [e]
   | `Tuple ls ->
-    let ls = List.map (instantiate_pat ctx env ~fuel:(fuel)) ls in
+    let+ ls = mapM (instantiate_pat ~blacklisted_vars ctx env ~fuel:(fuel)) ls in
     if List.exists (fun xs -> List.length xs = 0) ls
-    then []
-    else List.map (fun x -> `Tuple x) ls
-  | `Var v as e -> [e]
+    then kont []
+    else kont (List.map (fun x -> `Tuple x) ls)
+  | `Var v as e ->
+    if not (StringSet.mem v blacklisted_vars)
+    then kont [e]
+    else kont []
   | `PatVar (str, ty) ->
-    generate_expression ctx env ~fuel:(fuel) ty
+    generate_expression  ~blacklisted_vars ctx env ~fuel:(fuel) ty kont
 
 (* generates a list of candidate expressions of a desired type;
  * if initial = true then only use patterns as a template to generate candidate expressions *)
-let generate_expression ?(initial=true) ?fuel ctx env ty =
+let generate_expression ?(blacklisted_vars=[]) ?(initial=true) ?fuel ctx env ty =
+  let blacklisted_vars = StringSet.of_list blacklisted_vars in
   if initial then
     let pats = List.rev @@ (Types.TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
-    let pats = List.flat_map (instantiate_pat ctx env ?fuel) pats in
+    let pats = flat_mapM (instantiate_pat ~blacklisted_vars ctx env ?fuel) pats Fun.id in
     pats
   else
-    generate_expression ?fuel ctx env ty
+    generate_expression ?fuel  ~blacklisted_vars ctx env ty Fun.id 

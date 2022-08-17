@@ -31,7 +31,7 @@ Lemma to_array_spec : forall (A: Type) `{EA:Enc A} (l:list A) (s:func) (v: loc),
     SPEC (to_array s)
     PRE (\[LSeq l s])
     POST (fun (a: loc) => a ~> Array l).
-Proof using.
+Proof using All.
 |}
 
 

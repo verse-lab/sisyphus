@@ -171,12 +171,10 @@ let fresh ?(base="tmp") t =
 let with_temporary_context {ctx; _} f =
   let module Ctx = (val ctx) in
   let original_proof_size = Ctx.size () in
-  Format.printf "original goal size is %d@." original_proof_size;
   Fun.protect
     ~finally:(fun () ->
       let new_proof_size = Ctx.size () in
       let count = new_proof_size - original_proof_size in
-      Format.printf "new goal size is %d - need to remove %d steps@." new_proof_size count;
       if count > 0 then
         Ctx.cancel ~count
     ) f

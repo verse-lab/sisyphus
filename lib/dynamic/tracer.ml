@@ -400,8 +400,8 @@ module Generator = struct
           [Nolabel, encode_list contents]
       )
 
-  let sample (schema: schema) : instantiation =
-    Random.run (Random.list_seq (List.map sample_expr schema))
+  let sample ?st (schema: schema) : instantiation =
+    Random.run ?st (Random.list_seq (List.map sample_expr schema))
 
 end
 
@@ -472,8 +472,8 @@ let bitrace env (deps1, prog1) (deps2, prog2) =
   assert (List.equal Generator.equal_arg_schema schema (Generator.extract_schema prog2));
   let prog1 = CompilationContext.eval_definition_with_annotations env ~deps:deps1 ~prog:prog1 in
   let prog2 = CompilationContext.eval_definition_with_annotations env ~deps:deps2 ~prog:prog2 in
-  fun () -> 
-    let input = Generator.sample schema in
+  fun ?st () -> 
+    let input = Generator.sample ?st schema in
     let trace1 = generate_trace env prog1 input in
     let trace2 = generate_trace env prog2 input in
     (trace1, trace2)
@@ -481,7 +481,7 @@ let bitrace env (deps1, prog1) (deps2, prog2) =
 let execution_trace env (deps2, prog2) =
   let schema = Generator.extract_schema prog2 in
   let prog2 = CompilationContext.eval_definition_with_annotations  env ~deps:deps2 ~prog:prog2 in
-  fun () -> 
-    let input = Generator.sample schema in
+  fun ?st () -> 
+    let input = Generator.sample ?st schema in
     let trace2 = generate_trace env prog2 input in
     trace2

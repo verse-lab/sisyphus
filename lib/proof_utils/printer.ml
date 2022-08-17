@@ -33,6 +33,8 @@ let rec pp_expr fmt (expr: Lang.Expr.t) =
       ~pp_stop:(fun fmt () -> Format.fprintf fmt ")")
       ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") pp_expr
       fmt args
+  | `App ("++", [l;r]) -> Format.fprintf fmt "(%a ++ %a)" pp_expr l pp_expr r
+  | `App ("=", [l;r]) -> Format.fprintf fmt "(%a = %a)" pp_expr l pp_expr r
   | `App ("+", [l;r]) ->
     Format.fprintf fmt "(%a + %a)"
       pp_expr l pp_expr r
@@ -41,7 +43,7 @@ let rec pp_expr fmt (expr: Lang.Expr.t) =
       pp_expr l pp_expr r
   | `App (f, args) ->
     Format.fprintf fmt "(%s %a)"
-      f (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") pp_expr)
+      f (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt " ") pp_expr)
       args
   | `Lambda (params, body) ->
     Format.fprintf fmt "(fun %a => %a)"
