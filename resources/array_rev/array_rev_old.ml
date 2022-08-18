@@ -3,7 +3,7 @@ let rev t =
   let last = len-1 in
   let rec loop i =
     if i < len/2 then begin
-      let x = t.(i) ni
+      let x = t.(i) in
       t.(i) <- t.(last-i);
       t.(last-i) <- x;
       loop (i + 1)
