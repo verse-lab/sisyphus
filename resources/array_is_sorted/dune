@@ -3,12 +3,12 @@
 )
 
 (coq.theory
- (name ProofsArraySorted)
+ (name ProofsArrayIsSorted)
  (modules
    Common_ml
    Verify_array_is_sorted_utils
-   array_is_sorted_old_ml Verify_array_is_sorted_old
-   array_is_sorted_new_ml Verify_array_is_sorted_new)
+   Array_is_sorted_old_ml Verify_array_is_sorted_old
+   Array_is_sorted_new_ml Verify_array_is_sorted_new)
  (libraries sisyphus.plugin)
 )
 
@@ -25,9 +25,9 @@
           (run sed -E "s/\\[@.*\\]//" array_is_sorted_old.ml))))
 
 (rule
- (target array_is_sorted_old_ml.v)
+ (target Array_is_sorted_old_ml.v)
  (deps array_is_sorted_old.sisyphus.ml common.ml common.cmj)
- (action (run cfmlc -o ./array_is_sorted_old_ml.v array_is_sorted_old.sisyphus.ml)))
+ (action (run cfmlc -o ./Array_is_sorted_old_ml.v array_is_sorted_old.sisyphus.ml)))
 
 (rule
  (target array_is_sorted_new.sisyphus.ml)
@@ -36,9 +36,9 @@
           (run sed -E "s/\\[@.*\\]//" ./array_is_sorted_new.ml))))
 
 (rule
- (target array_is_sorted_new_ml.v)
+ (target Array_is_sorted_new_ml.v)
  (deps array_is_sorted_new.sisyphus.ml common.ml common.cmj Common_ml.v)
- (action (run cfmlc -o ./array_is_sorted_new_ml.v array_is_sorted_new.sisyphus.ml)))
+ (action (run cfmlc -o ./Array_is_sorted_new_ml.v array_is_sorted_new.sisyphus.ml)))
 
 (env
   (dev
