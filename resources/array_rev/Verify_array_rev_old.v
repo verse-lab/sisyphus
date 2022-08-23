@@ -223,5 +223,4 @@ Proof using.
     do 2 math_rewrite ((length l - 0) = length l).
     rewrite take_full_length, <- length_rev, drop_at_length, app_nil_r; auto.
   - xsimpl*.
-    Unshelve.
-Qed.  
+Qed.
