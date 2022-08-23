@@ -12,25 +12,11 @@ Fixpoint is_sorted_internal A (f_p: A -> A -> int) (x: A) (l: list A) :=
   | h :: t => (f_p x h <=? 0) && is_sorted_internal f_p h t
   end.
 
-Fixpoint is_sorted A (f_p: A -> A -> int) (l: list A) :=
+Definition is_sorted A (f_p: A -> A -> int) (l: list A) :=
   match l with
   | nil => true
   | h :: t => is_sorted_internal f_p h t
   end.
-
-Lemma not_is_sorted A `{EA: Enc A} (IA: Inhab A) (f_p: A -> A -> int) (l: list A) (i: int) :
-  length l > 1 ->
-  0 < i <= length l - 1 ->
-  ~ f_p l[i-1] l[i] <= 0 ->
-  ~ is_sorted f_p l.
-Proof.
-  intros H1 H2.
-  intros Hf. intros H_sorted.
-  apply Hf.
-  induction l as [ | h l' IHl']; intros.
-  +
-Admitted.
-
 
 Lemma drop_read A `{EA: Enc A} (IA: Inhab A) (l: list A) (i: int) :
   0 < i <= length l  ->
@@ -46,6 +32,42 @@ Proof.
       rewrite ?read_zero, ?read_cons_pos, 1?read_drop.
     all: (try apply int_index_prove); try f_equal; math.
 Qed.
+
+Lemma is_sorted_cons A (hd: A) (tl: list A) fp :
+  is_sorted fp (hd :: tl) -> is_sorted fp tl.
+Proof.
+  case tl as [| hd2 tl]; simpl; auto; rewrite istrue_and_eq.
+  intros []; auto.
+Qed.
+
+Lemma not_is_sorted_god_mode A `{EA: Enc A} (IA: Inhab A) (f_p: A -> A -> int) (l: list A) (i: int) :
+  length l > 1 ->
+  0 < i <= length l - 1 ->
+  ~ f_p l[i-1] l[i] <= 0 ->
+  ~ is_sorted f_p l.
+Proof.
+  intros H1 H2 Hf H_sorted; apply Hf; clear Hf; gen i H_sorted H2 H1.
+  destruct l as [| hd tl]; [rewrite length_nil; math | ]; simpl.
+  gen hd.
+  induction tl as [| nxt_hd tl H].
+  + intros hd i; rewrite length_cons, length_nil; math.
+  + intros hd i; simpl; rewrite !length_cons, istrue_and_eq.
+    intros [Hfp Hsorted_tl].
+    math_rewrite (1 + (1 + length tl) - 1 = length tl + 1).
+    intros Hi Hlen.
+    case (Z.eqb_spec i 1); [intros -> | intros Hneq1].
+    * math_rewrite (1 - 1 = 0).
+      rewrite read_zero, read_cons_pos; try math.
+      math_rewrite (1 - 1 = 0).
+      rewrite read_zero.
+      apply Z.leb_le; auto.
+    * assert (i > 1) by math.
+      rewrite read_cons_pos; try math.
+      rewrite (read_cons_pos IA hd); try math.
+      apply H; auto; try (rewrite length_cons; math).
+Qed.
+
+
 
 
 Lemma array_is_sorted : forall A `{EA:Enc A} (l:list A) (arr: array A) (f: val) (f_p: A -> A -> int),
@@ -107,7 +129,8 @@ Proof using.
               }
               destruct Hr_cons as [h [tl [H_r_eq H_r_read]]].
               simpl.
-              rewrite H_r_eq. rewrite <- H_r_eq.
+              rewrite H_r_eq; simpl.
+              rewrite H_r_eq in Hr; simpl in Hr.
               rewrite Hr.
               rewrite istrue_and_eq. split; auto.
               rewrite istrue_eq_eq_true.
@@ -116,7 +139,7 @@ Proof using.
               rewrite H_r_read.
               auto.
           +++ xsimpl*.
-       ++ xvals. apply (@not_is_sorted _ _ _ _ _ i); (try math || auto).
+       ++ xvals. apply (@not_is_sorted_god_mode _ _ _ _ _ i); (try math || auto).
   }
 
   case l as [| h l'] eqn: Heq.
