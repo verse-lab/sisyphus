@@ -29,11 +29,7 @@ Proof.
   apply Hf.
   induction l as [ | h l' IHl']; intros.
   +
-
-
-Module USSR.
-
-Require Import ssreflect.
+Admitted.
 
 
 Lemma drop_read A `{EA: Enc A} (IA: Inhab A) (l: list A) (i: int) :
@@ -42,17 +38,15 @@ Lemma drop_read A `{EA: Enc A} (IA: Inhab A) (l: list A) (i: int) :
 Proof.
   intros.
   eapply eq_of_extens.
-  + rewrite length_cons !length_drop_nonneg; math.
-  + intros j; rewrite index_eq_index_length int_index_eq length_cons length_drop_nonneg;
+  + rewrite length_cons, !length_drop_nonneg; math.
+  + intros j; rewrite index_eq_index_length, int_index_eq, length_cons, length_drop_nonneg;
       try math; intros H'.
-    rewrite read_drop; [ math | apply int_index_prove; try math| ].
-    case: (Z.eqb_spec j 0)=>[->|?]; rewrite (read_zero, read_cons_pos) 1?read_drop.
+    rewrite read_drop; [ | math | apply int_index_prove; try math ].
+    case (Z.eqb_spec j 0); [intros -> | intros Heq];
+      rewrite ?read_zero, ?read_cons_pos, 1?read_drop.
     all: (try apply int_index_prove); try f_equal; math.
 Qed.
 
-End USSR.
-
-Export USSR.
 
 Lemma array_is_sorted : forall A `{EA:Enc A} (l:list A) (arr: array A) (f: val) (f_p: A -> A -> int),
     ( forall (x y: A),
