@@ -416,7 +416,7 @@ module CompilationContext = struct
   let init () =
     let env = Evaluator.initial_env () in
     let env = Evaluator.add_static_module_def ~mod_name:"Sisyphus_tracing"
-                ~ast:(Evaluator.raw_parse_str [%blob "./sisyphus_tracing.ml"]) env in
+                ~ast:(Evaluator.raw_parse_str [%blob "./lib/dynamic/sisyphus_tracing.ml"]) env in
     {
     loaded_modules=StringSet.empty;
     evaluation_env=env

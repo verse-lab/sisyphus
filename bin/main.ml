@@ -3,6 +3,16 @@ open Containers
 
 
 let generate_proof_script coq_verbose deps old_program new_program  coq_dir coq_lib_name old_proof new_proof_base new_proof_name =
+
+  Format.printf
+    "coq_verbose=%b deps=%a old_program=%a new_program=%a  coq_dir=%a coq_lib_name=%a old_proof=%a new_proof_base=%a new_proof_name=%a@."
+    coq_verbose (List.pp String.pp) deps Fpath.pp old_program Fpath.pp new_program Fpath.pp coq_dir String.pp coq_lib_name String.pp old_proof String.pp new_proof_base String.pp new_proof_name;
+
+
+  let old_program = Bos.OS.File.read old_program |> Result.get_exn in
+  let new_program = Bos.OS.File.read new_program |> Result.get_exn in
+
+
   let env = Dynamic.CompilationContext.init () in
   let old_program = Lang.Sanitizer.parse_str old_program in
   let new_program = Lang.Sanitizer.parse_str new_program in
@@ -55,13 +65,13 @@ let deps =
   Arg.value @@
   Arg.opt_all Arg.file []
     (Arg.info
-       ~doc:"$(docv) is a list of ml files that the project depends on to build and run."
-       ~docv:"DEPS"
-       ["d"; "deps"]
+       ~doc:"$(docv) declares an ml file that the project depends on to build and run."
+       ~docv:"ML_DEP"
+       ["d"; "dep"]
     )
 
 let old_program =
-  Arg.(required @@ pos 1 (some file) None
+  Arg.(required @@ pos 0 (some fpath) None
                      (info
                        ~doc:"$(docv) is the path to the source code of the old program."
                         ~docv:"OLD_PROGRAM"
@@ -69,7 +79,7 @@ let old_program =
                      ))
 
 let new_program =
-  Arg.(required @@ pos 2 (some file) None
+  Arg.(required @@ pos 1 (some fpath) None
                      (info
                        ~doc:"$(docv) is the path to the source code of the new program."
                         ~docv:"NEW_PROGRAM"
@@ -77,7 +87,7 @@ let new_program =
                      ))
 
 let coq_dir =
-  Arg.(required @@ pos 3 (some fpath) None
+  Arg.(required @@ pos 2 (some fpath) None
                      (info
                        ~doc:"$(docv) is the path to the root of the coq library under which the proof lives."
                         ~docv:"COQ_DIR"
@@ -85,7 +95,7 @@ let coq_dir =
                      ))
 
 let coq_lib_name =
-  Arg.(required @@ pos 4 (some string) None
+  Arg.(required @@ pos 3 (some string) None
                      (info
                        ~doc:"$(docv) is the name of the coq library in which the proof should live."
                         ~docv:"COQ_LIB_NAME"
@@ -93,7 +103,7 @@ let coq_lib_name =
                      ))
 
 let old_proof_name =
-  Arg.(required @@ pos 5 (some string) None
+  Arg.(required @@ pos 4 (some string) None
                      (info
                        ~doc:"$(docv) is the file name of old proof, should be found under COQ_DIR."
                         ~docv:"COQ_OLD_PROOF"
@@ -101,7 +111,7 @@ let old_proof_name =
                      ))
 
 let new_proof_base =
-  Arg.(required @@ pos 6 (some string) None
+  Arg.(required @@ pos 5 (some string) None
                      (info
                        ~doc:"$(docv) is the file name of new proof stub, should be found under COQ_DIR."
                         ~docv:"COQ_NEW_PROOF_STUB"
@@ -109,7 +119,7 @@ let new_proof_base =
                      ))
 
 let output_file =
-  Arg.(required @@ pos 7 (some string) None
+  Arg.(required @@ pos 6 (some string) None
                      (info
                        ~doc:"$(docv) is the file name of new proof stub, should be found under COQ_DIR."
                         ~docv:"COQ_OUT_FILE"

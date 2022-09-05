@@ -28,5 +28,5 @@ Proof using.
                      (fun (ls: list A) => arr ~> Array (ls ++ drop (length ls) (make (length l) x)))
          ). { admit. } { admit. } { admit. }
     (* unification point 2 *)
-    xvals. { admit. }
+    xmatch. xvals. { admit. }
 Admitted.

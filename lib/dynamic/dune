@@ -2,6 +2,7 @@
  (public_name sisyphus.dynamic)
  (modules (:standard \ "main" "sisyphus_tracing"))
  (preprocess (staged_pps ppx_blob ppx_deriving.std ppx_deriving.ord ppx_import))
+ (preprocessor_deps (file sisyphus_tracing.ml))
  (libraries
    lang
    sisyphus_tracing

@@ -1,4 +1,4 @@
-(lang dune 2.9)
+(lang dune 3.0)
 (name sisyphus)
 (using menhir 2.1)
 (using coq 0.3)
