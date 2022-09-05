@@ -1,5 +1,6 @@
 (executable
- (public_name verification)
+ (public_name sisyphus)
  (name main)
  (preprocess (pps ppx_deriving.std))
- (libraries proof_repair seq))
+ (flags -rectypes)
+ (libraries proof_generator proof_parser dynamic coq seq cmdliner))
