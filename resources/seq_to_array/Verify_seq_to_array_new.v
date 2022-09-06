@@ -8,8 +8,7 @@ Lemma to_array_spec :
   SPEC (to_array s)
   PRE \[LSeq l s]
   POST (fun a : loc => a ~> Array l).
-Proof  using
-(All).
+Proof using (All).
 xcf.
 xpullpure H1.
 xletopaque tmp Htmp.

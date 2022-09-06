@@ -8,7 +8,8 @@ let array_of_rev_list l =
     let a = Array.make len x in
     let r = ref tl in
     for i = len - 2 downto 0 do
-      a.(i) <- List.hd !r;
-      r := List.tl !r
+      let hd,tl = match !r with hd :: tl -> (hd,tl) | _ -> assert false in
+      a.(i) <- hd;
+      r := tl;
     done;
     a

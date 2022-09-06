@@ -56,8 +56,8 @@ let () =
   let old_proof = old_proof ctx in
   let ctx =
     Proof_generator.Proof_context.init
-      ~compilation_context:compilation_env ~old_proof ~prelude
-      ~spec ~alignment ~concrete ~ctx in
+      ~compilation_context:compilation_env ~old_proof ~new_proof_base:(prelude ^ "\n" ^ spec)
+       ~alignment ~concrete ~ctx in
 
   print_endline @@ Proof_generator.Generator.generate ~logical_mappings:[("s", "l")] ctx new_program
 

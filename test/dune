@@ -1,10 +1,11 @@
 (tests
- (names test_verification)
+ (names test_seq_to_array)
  (modules (:standard \ "testing_utils"))
- (libraries proof_parser testing_utils alcotest containers)
+ (libraries alcotest bos containers testing_utils)
+ (deps ../bin/main.exe (glob_files_rec ../resources/*.{ml,v}) (glob_files_rec ../resources/_CoqProject))
  (preprocess (pps ppx_deriving.std))
 )
 
 (library (name testing_utils)
  (modules testing_utils)
- (libraries alcotest))
+ (libraries alcotest bos containers))

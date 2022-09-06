@@ -1,3 +1,5 @@
+val sisyphus_runs_on: path:string -> coq_name:string -> unit -> unit
+
 val run : string -> unit
 
 module Make : functor (S : sig val name : string end) -> sig
