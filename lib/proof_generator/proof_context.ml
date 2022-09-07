@@ -6,6 +6,7 @@ module StringSet = Set.Make(String)
 type coq_ctx = (module Coq.Proof.PROOF)
 
 type t = {
+  mutable generated_proof_script: string list;
   compilation_context: Dynamic.CompilationContext.t;
   old_proof: Proof_spec.Script.script;
   ctx: coq_ctx;
@@ -14,31 +15,31 @@ type t = {
   concrete: unit -> Dynamic.Concrete.t;
 }
 
+let cancel_last ({ctx;_} as prf) =
+  let module Ctx = (val ctx) in
+  prf.generated_proof_script <- List.tl prf.generated_proof_script;
+  Ctx.cancel_last ()
+
+let cancel ({ctx;_} as prf) ~count =
+  let module Ctx = (val ctx) in
+  prf.generated_proof_script <- List.drop count prf.generated_proof_script;
+  Ctx.cancel ~count
+
+
 let next_program_id t =
   t.current_program_id <- Lang.Id.incr t.current_program_id
 
-let append {ctx; _} =
+let append ({ctx; _} as prf) =
   let module Ctx = (val ctx) in
   Format.ksprintf ~f:(fun res ->
+    prf.generated_proof_script <- res :: prf.generated_proof_script;
     Ctx.add res;
     Ctx.exec ()
   )
 
-let extract_proof_script {ctx; _} =
+let extract_proof_script ({ctx; _} as t) =
   let module Ctx = (val ctx) in
-  let proof_length = Ctx.size () in
-  let buf = Buffer.create 100 in
-  for at = proof_length - 1 downto 0 do
-    let ast =
-      match Ctx.query ~at Serapi.Serapi_protocol.Ast with
-      | Some [Serapi.Serapi_protocol.CoqAst ast] -> ast
-      | _ -> failwith "unexpected response from Serapi" in
-    let ast_str =
-      Proof_utils.Debug.coqobj_to_string (Serapi.Serapi_protocol.CoqAst ast) in
-    Buffer.add_string buf ast_str;
-    Buffer.add_string buf "\n";
-  done;
-  Buffer.contents buf
+  (List.rev t.generated_proof_script |> String.concat "\n")
 
 let subproofs {ctx; _} =
   let module Ctx = (val ctx) in
@@ -87,7 +88,7 @@ let typeof t expr =
       ~f:failwith "attempted to check type of invalid expression (%s)." expr;
   let (_, _, ty) = List.hd (current_goal t).hyp in
   let module Ctx = (val t.ctx) in
-  Ctx.cancel_last ();
+  cancel_last t;
   ty
 
 let term_of t expr =
@@ -98,7 +99,7 @@ let term_of t expr =
       ~f:failwith "attempted to check type of invalid expression (%s)." expr;
   let (_, def, _) = List.hd (current_goal t).hyp in
   let module Ctx = (val t.ctx) in
-  Ctx.cancel_last ();
+  cancel_last t;
   Option.get_exn_or "invalid assumptions" def
 
 let definition_of {ctx; _} txt =
@@ -168,7 +169,7 @@ let fresh ?(base="tmp") t =
   then loop 0
   else base
 
-let with_temporary_context {ctx; _} f =
+let with_temporary_context ({ctx; _} as t) f =
   let module Ctx = (val ctx) in
   let original_proof_size = Ctx.size () in
   Fun.protect
@@ -176,7 +177,7 @@ let with_temporary_context {ctx; _} f =
       let new_proof_size = Ctx.size () in
       let count = new_proof_size - original_proof_size in
       if count > 0 then
-        Ctx.cancel ~count
+        cancel t ~count
     ) f
 
 let rec eval_tracing_value t (ty: Lang.Type.t) (vl: Dynamic.Concrete.value) : Lang.Expr.t option =
@@ -211,6 +212,7 @@ let init ~compilation_context ~old_proof ~new_proof_base ~alignment ~concrete ~c
   Ctx.add new_proof_base;
   Ctx.exec ();
   {
+    generated_proof_script=[];
     ctx; compilation_context;
     alignment; concrete; old_proof;
     current_program_id=Lang.Id.init
