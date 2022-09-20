@@ -36,8 +36,10 @@ let generate_proof_script coq_verbose deps old_program new_program  coq_dir coq_
     Proof_generator.Proof_context.init
       ~compilation_context:env ~old_proof ~new_proof_base
       ~alignment ~concrete ~ctx in
+  let new_proof =
+    (new_proof_base ^ "\n" ^ Proof_generator.Generator.generate ~logical_mappings:[("s", "l")] ctx new_program) in
   Bos.OS.File.write Fpath.(coq_dir / new_proof_name)
-    (Proof_generator.Generator.generate ~logical_mappings:[("s", "l")] ctx new_program)
+    new_proof
   |> Result.get_exn
 
 
