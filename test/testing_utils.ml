@@ -33,28 +33,31 @@ let run_sisyphus path coq_lib_name =
   let* test_dir = OS.Dir.tmp ("sisyphus_test_" ^^ (Scanf.format_from_string basename "") ^^ "_%s") in
 
   let old_program, new_program, old_proof, new_proof, deps = ref None, ref None, ref None, ref None, ref [] in
+  let cfml_output_path = Fpath.(path / "_output") in
   (* setup test directory *)
   let* _ =
     OS.Dir.fold_contents (fun path acc ->
       let* () = acc in
       Format.printf "%a ==> %s@." Fpath.pp path (Fpath.basename path);
       let base_name = Fpath.basename path in
+      let in_output = Fpath.is_prefix cfml_output_path path in
+      Format.printf "is %a a prefix of %a = %b@." Fpath.pp cfml_output_path Fpath.pp path in_output;
       (* extract old program, new program, old proof, new proof_stub *)
-      let should_copy = begin match () with
-        | _ when String.suffix ~suf:"_old.ml" base_name -> old_program := Some Fpath.(test_dir / base_name); true
-        | _ when String.suffix ~suf:"_new.ml" base_name -> new_program := Some Fpath.(test_dir / base_name); true
-        | _ when String.suffix ~suf:"_old.v" base_name -> old_proof :=    Some Fpath.(test_dir / base_name); true
-        | _ when String.suffix ~suf:"_new.v" base_name -> new_proof :=    Some path; false
+      let should_copy = begin match in_output with
+        | false when String.suffix ~suf:"_old.ml" base_name -> old_program := Some Fpath.(test_dir / base_name); true
+        | false when String.suffix ~suf:"_new.ml" base_name -> new_program := Some Fpath.(test_dir / base_name); true
+        | false  when String.suffix ~suf:"_old.v" base_name -> old_proof :=    Some Fpath.(test_dir / base_name); true
+        | false when String.suffix ~suf:"_new.v" base_name -> new_proof :=    Some path; false
         (* temporary ml files are generated with the suffix <filename>.sisyphus.ml, so these should be ignored when testing. *)
-        | _ when Fpath.has_ext ".ml" path && not (String.suffix ~suf:"sisyphus.ml" base_name) ->
+        | false when Fpath.has_ext ".ml" path && not (String.suffix ~suf:"sisyphus.ml" base_name) ->
           deps := Fpath.(test_dir / base_name) :: !deps; true
-        | _ when Fpath.has_ext ".v" path -> true
+        | false when Fpath.has_ext ".v" path  -> true
         | _ -> false
       end in
       (* copy over the files *)
-      if should_copy
+      if should_copy && not in_output
       then OS.Cmd.run Cmd.(copy % p path %  p Fpath.(test_dir / base_name))
-      else Ok () 
+      else Ok ()
     ) (Ok ()) path in
   let deps = !deps in
   let old_program = Option.get_exn_or "" !old_program in
@@ -90,7 +93,7 @@ let run_sisyphus path coq_lib_name =
            % old_proof_name % stub_file_name % output_name) in
     OS.Cmd.run sisyphus_cmd
     |> Result.map_err (fun (`Msg err) -> `Msg ("Running Sisyphus failed with error: " ^ err)) in
-  
+
   (* build result file *)
   let* () =
     OS.Dir.with_current test_dir (fun () ->
@@ -130,5 +133,5 @@ module Make (S: sig val name: string end) = struct
     module_tests := (name, `Slow, test) :: !module_tests
 
   let run () = run S.name
-  
+
 end
