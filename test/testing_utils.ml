@@ -6,6 +6,15 @@ let coqdep = Cmd.v "coqdep"
 let coqc = Cmd.v "coqc"
 let copy = Cmd.v "cp"
 
+let is_debug_mode =
+  let env_vars =     
+    OS.Env.var "OCAMLRUNPARAM"
+    |> Option.map (String.split_on_char ',')
+    |> Option.value ~default:[]
+    |> List.map (String.trim)
+    |> List.filter String.is_empty in
+  List.mem "b" env_vars
+
 let build_coq_project ~coq_lib_name test_dir =
   let open Result in
   (* build coq project *)
@@ -17,11 +26,15 @@ let build_coq_project ~coq_lib_name test_dir =
         then Cmd.(b % p file)
         else b)
         Cmd.(coqdep % "-sort" % "-R" % "./" % coq_lib_name) contents in
-    let* deps, _ = OS.Cmd.run_out coq_dep_cmd |> OS.Cmd.out_string in
+    let err =
+      if is_debug_mode
+      then Some OS.Cmd.err_stderr
+      else Some OS.Cmd.err_null in
+    let* deps, _ = OS.Cmd.run_out ?err coq_dep_cmd |> OS.Cmd.out_string in
     let deps = String.split_on_char ' ' deps |> List.filter (Fun.negate String.is_empty) in
     let* () =
       Result.fold_l (fun () dep ->
-        OS.Cmd.run Cmd.(coqc % "-R" % "./" % coq_lib_name % dep)
+        OS.Cmd.run ?err Cmd.(coqc % "-R" % "./" % coq_lib_name % dep)
       ) () deps in
     Ok ()
   ) () |> Result.flat_map Fun.id
