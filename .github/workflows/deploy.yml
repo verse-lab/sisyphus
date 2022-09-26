@@ -1,0 +1,25 @@
+# Thanks Yasu
+name: Build and unit tests
+on:
+  push:
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+
+      - name: Setup OCaml 4.14.0
+        uses: ocaml/setup-ocaml@v2
+        with:
+          ocaml-compiler: 4.14.0
+
+      - name: Install and Build
+        run: |
+          opam install . --deps-only
+          opam exec -- dune build
+      - name: Run unit tests
+        run: |
+          opam exec -- dune runtest ./tests
