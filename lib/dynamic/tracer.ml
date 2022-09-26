@@ -139,7 +139,7 @@ let build_heap_enc_exp (v: Lang.Type.t) var =
   let array_to_list a =
     AH.Exp.(apply (ident (str Longident.(Ldot ((Lident "Array"), "to_list")))) [ Nolabel, a ]) in
   let bang v =
-    AH.Exp.(apply (ident (str Longident.(Lident "(!)"))) [ Nolabel, v ]) in
+    AH.Exp.(apply (ident (str Longident.(Lident "!"))) [ Nolabel, v ]) in
 
   match v with
   | Lang.Type.Array ty ->

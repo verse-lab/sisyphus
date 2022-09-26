@@ -1,3 +1,0 @@
-(library (name testing_utils)
- (modules testing_utils)
- (libraries alcotest bos containers))
