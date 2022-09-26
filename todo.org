@@ -17,6 +17,9 @@ CLOSED: [2022-09-26 Mon 04:51]
 CLOSED: [2022-09-26 Mon 07:27]
 ** DONE Fix failing program parser
 CLOSED: [2022-09-26 Mon 07:49]
+** DONE configure code to only take branch for symexec higher order pure function when the spec itself is appropriate
+CLOSED: [2022-09-26 Mon 09:18]
+** TODO Work out way to fix for pure programs
 ** TODO Implement CI
 ** TODO Implement logging system
 ** TODO Implement support for make_rev_list

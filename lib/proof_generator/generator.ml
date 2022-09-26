@@ -15,7 +15,7 @@ let true_pure =
 let true_heap =
   List.equal Lang.Expr.equal
     [`App ("++", [ `App ("make", [ `App ("+", [`Var "arg1"; `Int 1]) ; `Var "init" ]) ; `App ("drop", [ `App ("+", [`Var "arg1"; `Int 1]) ; `Var "l" ])
-  ])]
+                 ])]
 
 let split_last =
   let rec loop last acc = function
@@ -363,6 +363,26 @@ let prune_candidates_using_testf test_f (pure, heap) =
     (Ptime.diff end_time start_time);
   pure, heap 
 
+let has_pure_specification t =
+  let (_f_name, raw_spec) =
+    (* extract the proof script name for the function being called *)
+    let (_, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
+    let f_app = Proof_utils.CFML.extract_x_app_fun post in
+    (* use Coq's searching functionality to work out the spec for the function *)
+    find_spec t f_app in
+  let (params, invariants, _) = Proof_utils.CFML.extract_spec raw_spec in
+  List.for_all (fun (name, invariant) ->
+    let params, invariants, spec =
+      Proof_utils.CFML.extract_spec invariant in
+    assert (List.is_empty invariants);
+    if not (Constr.isApp spec) || not @@ Proof_utils.is_const_eq "CFML.SepLifted.Triple" (fst (Constr.destApp spec)) then
+      Format.ksprintf ~f:failwith "unexpected invariant structure, expecting app of triple: %s"
+        (Proof_utils.Debug.constr_to_string_pretty spec);
+    let[@warning "-8"] [| _; _; _; pre; _ |] = snd (Constr.destApp spec) in
+    Proof_utils.CFML.is_hempty pre
+  ) invariants
+
+
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   Format.printf "current program id is %s: %s@."
     (t.Proof_context.current_program_id |>  Lang.Id.show)
@@ -379,7 +399,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
       when List.exists (function
         |`Var v -> Proof_env.is_pure_lambda env v
         | _ -> false
-      ) prog_args ->
+      ) prog_args && (has_pure_specification t) ->
       symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest      
     | `App (_, args)
       when List.exists (function
@@ -398,8 +418,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   | `Write _ -> failwith "don't know how to handle write"
   | `Value _ ->
     Proof_context.append t "xvals.";
-    let proof_script = Proof_context.extract_proof_script t in
-    print_endline proof_script;
+
     while (Proof_context.current_subproof t).goals |> List.length > 0 do 
       Proof_context.append t "{ admit. }";
     done
@@ -469,7 +488,8 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
     let f_app = Proof_utils.CFML.extract_x_app_fun post in
     (* use Coq's searching functionality to work out the spec for the function *)
     find_spec t f_app in
-  let (params, invariant, spec) = Proof_utils.CFML.extract_spec raw_spec in
+  print_endline @@ Proof_utils.Debug.constr_to_string_pretty raw_spec;
+  let (params, _invariant, spec) = Proof_utils.CFML.extract_spec raw_spec in
 
   (* work out the parameters to instantiate *)
   let evar_params =
@@ -512,6 +532,7 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   (* solve immediate subgoal of xapp automatically. *)
   Proof_context.append t "sep_solve.";
 
+  print_endline (Proof_context.extract_proof_script t);
   (* TODO: repeat based on goal shape, not no goals   *)
   (* any remaining subgoals we assume we can dispatch automatically by eauto. *)
   while List.length (Proof_context.current_subproof t).goals > 1 do
@@ -774,7 +795,7 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
     Proof_context.append t "xpullpure %s." pat;
   | _ -> ()
   end;
-  print_endline @@ Lang.Program.show_stmt Lang.Expr.print prog.body;
+
   symexec t (Proof_env.initial_env ~logical_mappings ()) prog.body;
   Proof_context.append t "Admitted.";
   Proof_context.extract_proof_script t
