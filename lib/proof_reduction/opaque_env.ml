@@ -6,7 +6,6 @@ let is_constant_blacklisted cnst =
   cnst, (!Config.filter ~path ~label)
 
 let constant_value_in env ((c, u) as t) =
-  (* Feedback.msg_warning (Pp.str @@ "evalling: " ^ Names.Constant.to_string c); *)
   let (mod_path, label), decision = is_constant_blacklisted c in
   match decision  with
   | `KeepOpaque ->

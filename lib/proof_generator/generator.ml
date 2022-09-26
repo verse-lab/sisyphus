@@ -48,7 +48,10 @@ module StringSet = Set.Make(String)
 let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name)
 
 let arg_list_to_str args =
-  (List.map (fun vl -> "(" ^ Proof_utils.Printer.show_expr vl ^ ")") args
+  (List.map (function
+       `Untyped vl -> "(" ^ Proof_utils.Printer.show_expr vl ^ ")"
+     | `Typed (vl, ty) -> "(" ^ Proof_utils.Printer.show_expr vl ^ ": " ^ Proof_utils.Printer.show_ty ty ^ ")"
+   ) args
    |> String.concat " ")
 
 let find_spec t const =
@@ -108,7 +111,7 @@ let build_complete_params t lemma_name init_params =
     Format.ksprintf
       "%s %s"
       (Names.Constant.to_string lemma_name)
-      (arg_list_to_str params)
+      (arg_list_to_str (List.map (fun v -> v) params))
       ~f:(Proof_context.typeof t) in
   let rec loop params lemma_instantiated_type =
     match Constr.kind lemma_instantiated_type with
@@ -118,7 +121,7 @@ let build_complete_params t lemma_name init_params =
                         t in
       Proof_context.append t "evar (%s: %s)." evar_name
         (Proof_utils.Debug.constr_to_string_pretty ty);
-      let params = params @ [`Var evar_name] in
+      let params = params @ [`Untyped (`Var evar_name)] in
       let lemma_instantiated_type = mk_lemma_instantiated_type params in
       loop params lemma_instantiated_type
     | _ -> params, lemma_instantiated_type in
@@ -150,8 +153,8 @@ let instantiate_arguments t env args (ctx, heap_ctx) =
               | `PointsTo vl -> Proof_context.eval_tracing_value t ty vl
             )
           )
-      end                
-    | expr -> Some expr
+      end |> Option.map (fun vl -> (vl, ty))
+    | expr -> Some (expr, ty)
   ) args
   |> List.all_some
 
@@ -218,9 +221,10 @@ let renormalise_name t (s: string) : string option =
     s_norm 
 
 let calculate_inv_ty t ~f:lemma_name ~args:f_args =
-  let instantiated_spec = Format.ksprintf ~f:(Proof_context.typeof t) "%s %s"
-                            (Names.Constant.to_string lemma_name)
-                            (arg_list_to_str (List.map fst f_args)) in
+  let instantiated_spec =
+    Format.sprintf "%s %s" (Names.Constant.to_string lemma_name)
+      (arg_list_to_str (List.map (fun (v, ty) -> `Typed (v, ty)) f_args)) in
+  let instantiated_spec = (Proof_context.typeof t instantiated_spec) in
   let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
   let tys = Proof_utils.CFML.unwrap_invariant_type ty in
   let tys = List.mapi (fun i v -> Format.sprintf "arg%d" i, v) tys in
@@ -239,12 +243,16 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
         let* instantiated_params = instantiate_arguments t env f_args obs in
         (* next, add evars for the remaining arguments to lemma *)
         let lemma_complete_params, _ =
-          build_complete_params t lemma_name instantiated_params in
+          build_complete_params t lemma_name (List.map (fun (vl, ty) -> `Typed (vl, ty)) instantiated_params) in
+
+        Format.printf "considering app (%s %s)@."
+            (Names.Constant.to_string lemma_name)
+            (arg_list_to_str (lemma_complete_params));
         (* construct term to represent full application of lemma parameters *)
         let trm = 
           Format.ksprintf ~f:(Proof_context.term_of t) "%s %s"
             (Names.Constant.to_string lemma_name)
-            (arg_list_to_str  lemma_complete_params) in
+            (arg_list_to_str (lemma_complete_params)) in
 
         let lambda_env = env.Proof_env.lambda in
         (* partially evaluate/reduce the proof term *)
@@ -372,9 +380,8 @@ let has_pure_specification t =
     find_spec t f_app in
   let (params, invariants, _) = Proof_utils.CFML.extract_spec raw_spec in
   List.for_all (fun (name, invariant) ->
-    let params, invariants, spec =
+    let _, _, spec =
       Proof_utils.CFML.extract_spec invariant in
-    assert (List.is_empty invariants);
     if not (Constr.isApp spec) || not @@ Proof_utils.is_const_eq "CFML.SepLifted.Triple" (fst (Constr.destApp spec)) then
       Format.ksprintf ~f:failwith "unexpected invariant structure, expecting app of triple: %s"
         (Proof_utils.Debug.constr_to_string_pretty spec);
@@ -735,7 +742,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   Proof_context.append t
     "xapp (%s %s (fun %a => \\[ %a ] %s))."
     (Names.Constant.to_string lemma_name)
-    (arg_list_to_str (List.map fst f_args))
+    (arg_list_to_str (List.map (fun (v, ty) -> `Untyped v) f_args))
     (List.pp
        ~pp_sep:(fun fmt () -> Format.pp_print_string fmt " ")
        (Pair.pp

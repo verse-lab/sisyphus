@@ -19,8 +19,12 @@ CLOSED: [2022-09-26 Mon 07:27]
 CLOSED: [2022-09-26 Mon 07:49]
 ** DONE configure code to only take branch for symexec higher order pure function when the spec itself is appropriate
 CLOSED: [2022-09-26 Mon 09:18]
+** DONE Implement CI
+CLOSED: [2022-09-26 Mon 11:45]
+** TODO Debug proof reduction to work out why it isn't expanding 
+** TODO Update cmdliner to take in logical bindings
+** TODO Update tests to pass in logical bindings
 ** TODO Work out way to fix for pure programs
-** TODO Implement CI
 ** TODO Implement logging system
 ** TODO Implement support for make_rev_list
 ** TODO You're the BEST around
