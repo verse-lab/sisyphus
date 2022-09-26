@@ -5,7 +5,11 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** TODO Fix bug in translating programs
-** TODO Add unit test for translating programs
+** DONE Fix bug in translating programs
+CLOSED: [2022-09-26 Mon 03:29]
+** DONE Add unit test for translating programs
+CLOSED: [2022-09-26 Mon 03:29]
+** TODO Fix bug in proof parser
+** TODO Add regression test for proof parser
 ** TODO Implement support for make_rev_list
 ** TODO You're the BEST around

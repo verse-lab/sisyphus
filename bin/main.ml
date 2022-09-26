@@ -4,11 +4,6 @@ open Containers
 
 let generate_proof_script coq_verbose deps old_program new_program  coq_dir coq_lib_name old_proof new_proof_base new_proof_name =
 
-  Format.printf
-    "coq_verbose=%b deps=%a old_program=%a new_program=%a  coq_dir=%a coq_lib_name=%a old_proof=%a new_proof_base=%a new_proof_name=%a@."
-    coq_verbose (List.pp String.pp) deps Fpath.pp old_program Fpath.pp new_program Fpath.pp coq_dir String.pp coq_lib_name String.pp old_proof String.pp new_proof_base String.pp new_proof_name;
-
-
   let old_program = Bos.OS.File.read old_program |> Result.get_exn in
   let new_program = Bos.OS.File.read new_program |> Result.get_exn in
 
