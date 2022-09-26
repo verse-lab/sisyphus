@@ -15,7 +15,9 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: 4.14.0
-
+          opam-repositories: |
+            default: https://github.com/ocaml/opam-repository.git
+            coq-released: https://coq.inria.fr/opam/released
       - name: Install and Build
         run: |
           opam install . --deps-only
