@@ -364,9 +364,9 @@ let prune_candidates_using_testf test_f (pure, heap) =
   pure, heap 
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
-  (* Format.printf "current program id is %s: %s@."
-   *   (t.Proof_context.current_program_id |>  Lang.Id.show)
-   *   (Lang.Program.show_stmt_line Lang.Expr.print body |> String.replace ~sub:"\n" ~by:" "); *)
+  Format.printf "current program id is %s: %s@."
+    (t.Proof_context.current_program_id |>  Lang.Id.show)
+    (Lang.Program.show_stmt_line Lang.Expr.print body |> String.replace ~sub:"\n" ~by:" ");
   match body with
   | `LetLambda (name, body, rest) ->
     symexec_lambda t env name body rest
@@ -398,6 +398,8 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   | `Write _ -> failwith "don't know how to handle write"
   | `Value _ ->
     Proof_context.append t "xvals.";
+    let proof_script = Proof_context.extract_proof_script t in
+    print_endline proof_script;
     while (Proof_context.current_subproof t).goals |> List.length > 0 do 
       Proof_context.append t "{ admit. }";
     done
@@ -772,6 +774,7 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
     Proof_context.append t "xpullpure %s." pat;
   | _ -> ()
   end;
+  print_endline @@ Lang.Program.show_stmt Lang.Expr.print prog.body;
   symexec t (Proof_env.initial_env ~logical_mappings ()) prog.body;
   Proof_context.append t "Admitted.";
   Proof_context.extract_proof_script t

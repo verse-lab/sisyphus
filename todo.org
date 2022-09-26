@@ -13,5 +13,11 @@ CLOSED: [2022-09-26 Mon 03:29]
 CLOSED: [2022-09-26 Mon 04:51]
 ** DONE Add regression test for proof parser
 CLOSED: [2022-09-26 Mon 04:51]
+** DONE Work out why proofs are failing
+CLOSED: [2022-09-26 Mon 07:27]
+** DONE Fix failing program parser
+CLOSED: [2022-09-26 Mon 07:49]
+** TODO Implement CI
+** TODO Implement logging system
 ** TODO Implement support for make_rev_list
 ** TODO You're the BEST around

@@ -1,2 +1,3 @@
 (library (name testing_utils)
+ (preprocess (pps ppx_deriving.std))
  (libraries lang alcotest bos containers))

@@ -1,3 +1,6 @@
 (tests (names test_make_rev_list)
- (deps ../../resources/make_rev_list/make_rev_list_old.ml)
+ (deps
+   ../../resources/make_rev_list/make_rev_list_old.ml
+   ../../resources/make_rev_list/make_rev_list_new.ml
+ )
  (libraries lang alcotest containers testing_utils))

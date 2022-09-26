@@ -12,4 +12,6 @@ Lemma make_rev_list_spec : forall A `{EA:Enc A} (l:list A),
     PRE (\[])
     POST (fun l' => \[l' = rev l]).
 Proof using (All).
+  xcf.
+  
 Admitted.

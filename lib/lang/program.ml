@@ -8,7 +8,7 @@ type 'a stmt = [
   | `Write of string * string * 'a Expr.simple_shape * 'a stmt
   | `Value of 'a Expr.simple_shape
   | `EmptyArray
-] [@@deriving show, eq]
+] [@@deriving show, eq][@@end]
 let ppr_stmt = pp_stmt
 let showr_stmt = show_stmt
 
@@ -29,7 +29,7 @@ type 'a t = {
 }
 [@@deriving show]
 let ppr = pp
-let showr = pp
+let showr = show
 
 let equal eq t1 t2 =
   String.equal t1.name t2.name
