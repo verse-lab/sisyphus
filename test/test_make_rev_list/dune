@@ -1,0 +1,6 @@
+(tests
+ (names test_make_rev_list)
+ (libraries alcotest bos containers testing_utils)
+ (deps ../../bin/main.exe (glob_files_rec ../../resources/*.{ml,v}) (glob_files_rec ../../resources/_CoqProject))
+ (preprocess (pps ppx_deriving.std))
+)

@@ -1,7 +1,7 @@
 open Containers
 open Bos
 
-let sisyphus = Cmd.v "../bin/main.exe"
+let sisyphus = Cmd.v "../../bin/main.exe"
 let coqdep = Cmd.v "coqdep"
 let coqc = Cmd.v "coqc"
 let copy = Cmd.v "cp"
@@ -129,7 +129,7 @@ let result =
 
 let sisyphus_runs_on ~path ~coq_name () =
   let path = Fpath.of_string path |> Result.get_exn in
-  Alcotest.check result (Format.sprintf "Sisyphus builds project") (run_sisyphus path coq_name) (Ok ())
+  Alcotest.check result (Format.sprintf "Sisyphus builds project") (Ok ()) (run_sisyphus path coq_name) 
 
 let tests = ref []
 
