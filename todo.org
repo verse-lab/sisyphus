@@ -9,7 +9,9 @@ lemma, the proof calls out to an external lemma to reduce the proof.
 CLOSED: [2022-09-26 Mon 03:29]
 ** DONE Add unit test for translating programs
 CLOSED: [2022-09-26 Mon 03:29]
-** TODO Fix bug in proof parser
-** TODO Add regression test for proof parser
+** DONE Fix bug in proof parser
+CLOSED: [2022-09-26 Mon 04:51]
+** DONE Add regression test for proof parser
+CLOSED: [2022-09-26 Mon 04:51]
 ** TODO Implement support for make_rev_list
 ** TODO You're the BEST around

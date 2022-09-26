@@ -40,6 +40,7 @@ let collect_constants from_id to_id (steps: Proof_spec.Script.step list) =
       List.fold_left collect_spec_arg cs spec_args
     | `SepSplitTuple _ | `Xmatchcase _ |`Intros _ |`Xpurefun _ |`Xvals _
     | `Xvalemptyarr _ |`Case _ |`Xletopaque _ |`Xdestruct _ |`Xalloc _
+    | `Xref _ | `Xunit _ | `Xsimpl _
     |`Apply _ |`Xseq _ |`Rewrite _ |`Xcf _ |`Xpullpure _ -> cs in
   PS.Script.fold_proof_script ~start:from_id ~stop:to_id
     collect_step ConstantSet.empty steps
