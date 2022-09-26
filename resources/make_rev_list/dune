@@ -9,7 +9,6 @@
    Verify_make_rev_list_utils
    Make_rev_list_old_ml Verify_make_rev_list_old
    Make_rev_list_new_ml Verify_make_rev_list_new
-
  )
  (libraries sisyphus.plugin)
 )

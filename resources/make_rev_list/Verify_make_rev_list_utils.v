@@ -39,6 +39,21 @@ Proof using.
 Qed.
 Arguments list_fold_spec {A} {HA} {B} {HB} f init l I Hf : rename.
 
+Lemma list_iter_spec : forall [A : Type] {EA : Enc A}
+                              (f : func) (l : list A)
+                              (I : list A -> hprop),
+    (forall (x : A) (t r : list A), l = t ++ x :: r -> SPEC (f x)
+                                                         PRE I t
+                                                         POSTUNIT I (t & x)) ->
+SPEC (List_ml.iter f l)
+PRE I nil
+POSTUNIT I l.
+Proof using.
+  intros A EA f l I HI.
+  apply List_proof.iter_spec; auto.
+Qed.
+Arguments list_iter_spec {A} {EA} f l I HI : rename.
+
 Ltac sep_solve_int := lazymatch goal with
   | [|- forall Y, ?X] => let y := fresh in intros y; sep_solve_int
   | [|- Triple ?Code ?Pre ?Post ] => xgo*
@@ -86,6 +101,10 @@ Tactic Notation "xalloc"
        simple_intropattern(data)
        simple_intropattern(Hdata) :=
     xapp; try math; intros arr data Hdata.
+
+Tactic Notation "xref"
+       simple_intropattern(r) :=
+    xapp; intros r.
 
 Tactic Notation "xpullpure"
        simple_intropattern(H1) :=
@@ -160,3 +179,6 @@ Tactic Notation "xletopaque"
 
 Tactic Notation "xvalemptyarr" :=
   xapp; xsimpl.
+
+Tactic Notation "xunit" :=
+  xmatch; xapp.

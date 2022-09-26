@@ -12,12 +12,11 @@ Lemma make_rev_list_spec : forall A `{EA:Enc A} (l:list A),
     POST (fun l' => \[l' = rev l]).
 Proof.
   xcf.
-  xapp. intros r.
+  xref r.
   xletopaque f Hf.
-  xapp (@List_proof.iter_spec A EA l f
+  xapp (list_iter_spec f l
            (fun (ls : list A) => r ~~> rev ls)
        ). { intros. apply Hf. xapp. xapp. xsimpl*. rew_list. auto. }
-  xmatch.
-  xapp.
+  xunit.
   xsimpl*.
 Qed.

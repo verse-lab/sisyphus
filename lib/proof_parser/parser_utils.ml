@@ -173,7 +173,7 @@ let rec unwrap_expr sexp : Lang.Expr.t =
 let unwrap_assertion sexp : Proof_spec.Heap.Assertion.t =
   let open Sexplib.Sexp in
   match unwrap_tagged sexp with
-  | "CNotation", [_; List[Atom "InConstrEntry"; Atom "_ ~> _"]; List (List [vl; body] :: _)] ->
+  | "CNotation", [_; (List[Atom "InConstrEntry"; Atom ("_ ~> _" | "_ ~~> _")]); List (List [vl; body] :: _)] ->
     let vl = unwrap_value_with_loc vl |> fst |> unwrap_cref in
     let body =
       let body, _ = unwrap_value_with_loc body in
@@ -181,7 +181,9 @@ let unwrap_assertion sexp : Proof_spec.Heap.Assertion.t =
     Proof_spec.Heap.(Assertion.emp |> Assertion.add_heaplet (PointsTo (vl, None, body)))
   | "CNotation", [_; List[Atom "InConstrEntry"; Atom notation]; _] ->
     failwith @@ Format.sprintf "found unknown notation %s" notation
-  | tag, _ -> failwith @@ Format.sprintf "found unhandled assertion tag %s: %a" tag Sexplib.Sexp.pp_hum sexp
+  | tag, _ ->
+    Format.ksprintf ~f:failwith
+      "found unhandled assertion tag %s: %a" tag Sexplib.Sexp.pp_hum sexp
 
 let unwrap_spec_arg sexp : spec_arg =
   let open Sexplib.Sexp in
@@ -213,12 +215,14 @@ let unwrap_tac_capp sexp =
     fname, args
 
 let unwrap_tactic_name sexp =
-  let tactics = ["xcf"; "xpullpure"; "xapp"; "xdestruct"; "rewrite"; "destruct"; "xmatch_case"; "xmatch"; "xvalemptyarr"; "xalloc"; "xletopaque"; "xvals"; "apply"; "intros"; "sep_split_tuple"; "admitted"; "xseq"] in
+  let tactics = ["xcf"; "xpullpure"; "xapp"; "xdestruct"; "rewrite"; "destruct"; "xmatch_case"; "xmatch"; "xvalemptyarr"; "xalloc"; "xletopaque"; "xvals"; "apply"; "intros"; "sep_split_tuple"; "admitted"; "xseq"; "xunit"; "xref"; "xsimpl"] in
 
   let open Sexplib.Sexp in
   match [@warning "-8"] unwrap_tagged sexp with
   | "KerName", [_; List [_; Atom id]] ->
-    (List.find (fun t -> String.prefix ~pre:t id) tactics)
+    match (List.find_opt (fun t -> String.prefix ~pre:t id) tactics) with
+    | Some tactic -> tactic
+    | None -> Format.ksprintf ~f:failwith "unable to normalize tactic %s" id
 
 let unwrap_tacalias sexp =
   let open Sexplib.Sexp in
@@ -248,7 +252,10 @@ let unwrap_xapp sexp =
   match [@warning "-8"] unwrap_tagged arg with
   | "CRef", _ -> unwrap_cref arg, []
   | "CApp", _  -> unwrap_tac_capp arg
-  | _ -> failwith "unhandled xapp argument type"
+  | name, args ->
+    Format.ksprintf ~f:failwith
+      "unhandled xapp argument type %s args [%a]"
+      name (List.pp Sexplib.Sexp.pp_hum) args
 
 let get_id sexp =
   match [@warning "-8"] unwrap_list sexp with
