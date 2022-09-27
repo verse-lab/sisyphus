@@ -805,7 +805,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     let name = Proof_context.fresh ~base:result t in
     let h_name = Proof_context.fresh ~base:("H" ^ result) t in
     Proof_context.append t "intros %s %s." name h_name;
-    Proof_context.append t "xdestruct."
+    match snd invariant with
+    | [] -> ()
+    | _ ->
+      Proof_context.append t "xdestruct."
   end;
 
   symexec t env rest
