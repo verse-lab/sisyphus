@@ -1,0 +1,285 @@
+#    -*- mode: org -*-
+
+
+Archived entries from file /home/kirang/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+
+
+* DONE Extract forall sequence to a sequence of args + properties + body
+CLOSED: [2022-05-11 Wed 04:37]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Calculate parameters to instantiate by dropping implicit arguments 
+CLOSED: [2022-05-11 Wed 04:48]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE First parameters are arguments.
+CLOSED: [2022-05-11 Wed 06:43]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE If body is pure, last argument is function, evars for all intermediate arguments. 
+CLOSED: [2022-05-11 Wed 06:43]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Print expressions in Coq format
+CLOSED: [2022-05-11 Wed 08:53]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Look at pattern of let-exp - if complex (tuple), then emit destruct w.names, 
+CLOSED: [2022-05-11 Wed 10:15]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE update sanitiser with annotations for patterns 
+CLOSED: [2022-05-12 Thu 03:46]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE if annotations w. patterns, then rewrite
+CLOSED: [2022-05-12 Thu 03:56]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE sepsplittuple if pattern was tuple
+CLOSED: [2022-05-12 Thu 04:02]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE if match, emit a case on match argument
+CLOSED: [2022-05-12 Thu 05:00]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE for each branch, 
+CLOSED: [2022-05-12 Thu 05:00]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+** emit xmatch
+** solve body
+
+* DONE if value [| |] then xvalemptyarr
+CLOSED: [2022-05-12 Thu 05:00]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE let of alloc then xalloc
+CLOSED: [2022-05-12 Thu 05:00]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE if let then xletopaque
+CLOSED: [2022-05-12 Thu 05:00]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Define VC data structure
+CLOSED: [2022-05-17 Tue 04:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Write function to pretty print VC
+CLOSED: [2022-05-17 Tue 05:12]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Write function to extract vc from coq ctxt
+CLOSED: [2022-06-24 Fri 09:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Write function to convert VC to a Z3-checkable VC
+CLOSED: [2022-06-24 Fri 09:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:39
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Refactor proof reduction plugin to be customisable
+CLOSED: [2022-06-24 Fri 13:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:40
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+** DONE Update plugin to setup proof reduction
+CLOSED: [2022-06-24 Fri 13:50]
+
+* DONE Build binding of program variables to concrete values
+CLOSED: [2022-07-29 Fri 04:14]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:40
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+** DONE Update dynamic tracer to return bindings
+CLOSED: [2022-06-24 Fri 14:51]
+** DONE Fix proof generator state to update program point tracking correctly
+CLOSED: [2022-06-25 Sat 04:50]
+** DONE Map proof variables to program variables to concrete values 
+CLOSED: [2022-07-11 Mon 04:05]
+*** DONE Store Observation id at start of lambda in function
+CLOSED: [2022-06-26 Sun 18:40]
+*** DONE Update context to track mapping of Coq variables to program variables
+CLOSED: [2022-06-26 Sun 19:32]
+*** DONE Print out thte concrete values at the current lambda state
+CLOSED: [2022-07-11 Mon 04:05]
+
+* DONE Work on proof analysis
+CLOSED: [2022-07-29 Fri 04:15]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:40
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+** DONE generate evars for arguments
+CLOSED: [2022-06-29 Wed 02:28]
+** DONE call print reduced tactic on argument to retrieve reduced proof term 
+CLOSED: [2022-07-29 Fri 04:15]
+** DONE perform analysis on proof term
+CLOSED: [2022-07-29 Fri 04:15]
+
+* DONE Implement generator function for higher order functions
+CLOSED: [2022-07-29 Fri 04:15]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-26 Mon 01:40
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+** DONE Extract proof arguments, determine no. invariants
+CLOSED: [2022-06-27 Mon 05:32]
+** DONE calculate type of instantiated invariant with explicit parameters
+CLOSED: [2022-06-28 Tue 22:10]
+** DONE collect full explicit parameters for spec using evars for invariant & properties
+CLOSED: [2022-06-29 Wed 02:29]
+*** DONE fold over type tracking parameters
+CLOSED: [2022-06-29 Wed 02:29]
+**** DONE split params into invariants and evars (tuple)
+CLOSED: [2022-06-29 Wed 02:29]
+***** DONE gen fresh var using proof context
+CLOSED: [2022-06-29 Wed 02:29]
+***** DONE create evar with type
+CLOSED: [2022-06-29 Wed 02:29]
+***** DONE add evar to params
+CLOSED: [2022-06-29 Wed 02:29]
+** DONE Generate concrete values for the current point
+CLOSED: [2022-06-29 Wed 11:29]
+*** generate concrete values at current program point
+*** iterate through concrete values
+*** loop through parameters to specification
+** DONE Bind concrete values to proof variables
+CLOSED: [2022-06-29 Wed 11:29]
+** DONE Convert concrete values to Coq terms
+CLOSED: [2022-06-29 Wed 11:29]
+** DONE Create concrete proof term from concrete args
+CLOSED: [2022-06-29 Wed 11:29]
+*** Pretty print application as Coq string
+*** Pose proof to add it to context
+*** Extract from last element in context then revert, just like typeof function
+** DONE Apply ultimate reduction
+CLOSED: [2022-06-29 Wed 11:29]
+** DONE Perform data flow analysis over reduced proof term
+CLOSED: [2022-07-29 Fri 04:15]
+*** DONE Check type of properties evar applied to concrete arguments
+CLOSED: [2022-07-29 Fri 04:15]
+*** DONE extract arguments to evar
+CLOSED: [2022-07-29 Fri 04:15]

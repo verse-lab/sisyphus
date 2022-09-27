@@ -1,0 +1,31 @@
+# Thanks Yasu
+name: Build and all tests
+on:
+  pull_request:
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+
+      - name: Setup OCaml 4.14.0
+        uses: ocaml/setup-ocaml@v2
+        with:
+          ocaml-compiler: 4.14.0
+          opam-repositories: |
+            default: https://github.com/ocaml/opam-repository.git
+            coq-released: https://coq.inria.fr/opam/released
+      - name: Install and Build
+        run: |
+          opam install . --deps-only
+          opam exec -- dune build
+      - name: Run unit tests
+        run: |
+          opam exec -- dune runtest ./tests
+      - name: Run integration tests
+        run: |
+          opam exec -- dune runtest ./benchmarks
+

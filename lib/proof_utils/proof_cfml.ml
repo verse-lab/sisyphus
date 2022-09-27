@@ -115,6 +115,7 @@ let extract_fun_typ name c' =
     corresponding terms in the wider typing environment. *)
 let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
   match Constr.kind c, rel with
+  | Constr.Cast (c, _, _), _ -> extract_expr ?rel c
   | Constr.Rel ind, Some f -> `Var (f ind)
   | Constr.Var v, _ -> `Var (Names.Id.to_string v)
   | Constr.App (value, [| c |]), _ when Utils.is_const_eq "CFML.Semantics.trms_vals" value ->

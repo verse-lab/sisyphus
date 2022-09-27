@@ -1,8 +1,6 @@
 [@@@warning "-33"]
 open Containers
 
-let (|>>) x v i = v x i
-
 let () =
 
   let program_txt = IO.with_in "../../resources/seq_to_array/seq_to_array_new.ml" IO.read_all in

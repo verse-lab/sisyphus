@@ -11,7 +11,7 @@ type candidate = pure_candidate * heap_candidate
 type validator = candidate -> [ `InvalidPure | `InvalidSpatial | `Valid ]
 
 let base_solver_timeout = 100
-let challenging_solver_timeout = 15_000
+let challenging_solver_timeout = 30_000
 
 let split_last =
   let rec loop (acc, last) = function
@@ -30,7 +30,7 @@ let update_with_binding env name (vl,ty)  =
   Evaluator.{
     values = StringMap.add name vl env.values;
     types = StringMap.add name ty env.types
-  }      
+  }
 
 let check solver x =
   match Z3.Solver.check solver [x] with
@@ -67,7 +67,7 @@ let check_verification_condition ctx env solver
     (* 2nd. check user generated post values (with post param values) are equal to
        user generated pre values symbolically evaluated *)
     let user_post_values = gen_values vc.post_param_values |> Array.to_list in
-    let user_preval_values = 
+    let user_preval_values =
       let user_pre_values = gen_values vc.param_values |> Array.to_list in
       List.combine user_pre_values (Array.to_list vc.expr_values)
       |> List.map (fun (expr, f) -> f expr) in
@@ -88,7 +88,7 @@ let check_verification_condition ctx env solver
 
 let preload_update_axioms (ctx: Evaluator.ctx) poly_vars =
   List.iter (fun (name, _sort) ->
-    let fdecl = 
+    let fdecl =
       Z3.FuncDecl.mk_fresh_func_decl ctx.ctx
         (Format.sprintf "TLC.LibContainer.update(%s)" name) [
         Evaluator.eval_type ctx (List (Var name));
@@ -101,7 +101,7 @@ let preload_update_axioms (ctx: Evaluator.ctx) poly_vars =
 let declare_function (ctx: Evaluator.ctx) poly_vars (fname, Lang.Type.Forall (vars, sign)) =
   let (let+) x f = List.(>>=) x f in
   let param_tys = split_last sign |> Option.get_exn_or "unexpected func signature" |> fst in
-  let bindings = 
+  let bindings =
     let+ vars = List.map_product_l (fun v -> List.map Pair.(make v) poly_vars) vars in
     let fname = fname ^ "(" ^ String.concat "," (List.map snd vars) ^ ")" in
     let poly_binding =
@@ -116,13 +116,13 @@ let declare_function (ctx: Evaluator.ctx) poly_vars (fname, Lang.Type.Forall (va
     [List.map (fun (_, v) -> Lang.Type.Var v) vars, fb] in
   Hashtbl.add ctx.fun_map fname (param_tys, bindings)
 
-let evaluate_property (ctx: Evaluator.ctx) env poly_vars name ((property_poly_vars, _, _, _) as p) = 
+let evaluate_property (ctx: Evaluator.ctx) env poly_vars name ((property_poly_vars, _, _, _) as p) =
   List.map_product_l (fun v -> List.map Pair.(make v) poly_vars) property_poly_vars
   |> List.filter_map (fun vars ->
     let instantiation =
       List.map (fun (v, poly_var) -> (v, Lang.Type.Var poly_var)) vars
       |> StringMap.of_list in
-    try 
+    try
       Some (Evaluator.instantiate_property_bound ctx env ~instantiation p)
     with
     | _ ->
@@ -135,7 +135,7 @@ let build_validator (data: VerificationCondition.verification_condition) =
   let ctx = Z3.mk_context [ ] in
   let solver = Z3.Solver.mk_solver_t ctx (Z3.Tactic.mk_tactic ctx "default") in
 
-  let poly_var_map = 
+  let poly_var_map =
     List.map Fun.(Pair.dup_map @@ Z3.Sort.mk_uninterpreted ctx % Z3.Symbol.mk_string ctx) data.poly_vars
     |> Hashtbl.of_list in
   let int_sort = Z3.Arithmetic.Integer.mk_sort ctx in
@@ -164,7 +164,7 @@ let build_validator (data: VerificationCondition.verification_condition) =
                       |> StringMap.add_iter env.values} in
 
   (* add initial assumptions *)
-  let assumptions = 
+  let assumptions =
     List.map (fun (ty, l, r) ->
       let l = Evaluator.eval_expr ~ty ctx env l in
       let r = Evaluator.eval_expr ~ty ctx env r in
@@ -201,7 +201,7 @@ let build_validator (data: VerificationCondition.verification_condition) =
     match prove ctx solver user_initial_pred with
     | (None | Some false) -> Z3.Solver.pop solver 1; `InvalidPure
     | Some true ->
-      Format.printf "\t         => PASSED@.";      
+      Format.printf "\t         => PASSED@.";
       Z3.Solver.add solver [user_initial_pred];
       let user_initial_values = gen_values data.initial.param_values |> Array.to_list in
       Format.printf "\ttest 02: checking initial values@.";
@@ -222,9 +222,9 @@ let build_validator (data: VerificationCondition.verification_condition) =
       with
       | (`InvalidSpatial | `InvalidPure) as acc -> Z3.Solver.pop solver 1; acc
       | `Valid ->
-        Format.printf "\t         => PASSED@.";      
+        Format.printf "\t         => PASSED@.";
         Format.printf "\ttest 03: checking preserved@.";
-        let res = 
+        let res =
           List.fold_left (fun acc vc ->
             match acc with
             | (`InvalidSpatial | `InvalidPure) as acc -> acc

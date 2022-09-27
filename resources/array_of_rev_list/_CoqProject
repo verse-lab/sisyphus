@@ -1,0 +1,6 @@
+-R ../../_build/default/resources/array_of_rev_list ProofsArrayOfRevList
+
+-I ../../_build/default/lib/proof_reduction
+-I ../../_build/default/lib/plugin
+
+../../lib/plugin/printreduced.mld

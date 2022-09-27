@@ -1,4 +1,7 @@
+open Containers
 open Utils
+
+module IntMap : module type of Map.Make(Int)
 
 type sanitized_state = {
   id : int;

@@ -4,7 +4,7 @@ open Containers
     existential type, using an evaluation context provided by [ctx]. *) 
 let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
   let open Sisyphus_tracing.Wrap in
-  function[@warning "-8"]
+  function
   | `Tuple [a;b] ->
     wrap (unwrap (eval ctx a), unwrap (eval ctx b)) 
   | `Tuple [a;b;c] ->
@@ -23,6 +23,10 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (Array.to_list (unwrap (eval ctx l)))
   | `App ("=", [l;r]) ->
     wrap (Equal.poly (unwrap (eval ctx l)) (unwrap (eval ctx r)))
+  | `App ("&&", [l;r]) ->
+    wrap ((unwrap (eval ctx l)) && (unwrap (eval ctx r)))
+  | `App ("||", [l;r]) ->
+    wrap ((unwrap (eval ctx l)) || (unwrap (eval ctx r)))
   | `App (("+" | "(+)"), [l;r]) ->
     wrap ((unwrap (eval ctx l)) + (unwrap (eval ctx r)))
   | `App (("-" | "(-)"), [l;r]) ->
@@ -74,4 +78,7 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap ((unwrap (eval ctx hd)) :: (unwrap (eval ctx tl)))
   | `Constructor (("[]" | "nil"), []) ->
     wrap ([])
+  | expr ->
+    Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
+      Lang.Expr.pp expr
 

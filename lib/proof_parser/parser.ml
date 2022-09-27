@@ -54,10 +54,12 @@ let get_tactic name args state : Proof_spec.Script.step =
   | "xcf" ->
     `Xcf vexpr_str
   | "xpullpure" -> `Xpullpure vexpr_str
-  | "xapp" ->
+  | "xapp" when List.compare_length_with args 1 = 0 ->
     let+ id = with_current_pid state in
     let fname, spec_args = Parser_utils.unwrap_xapp (List.hd args) in
     `Xapp (id, fname, spec_args)
+  | "xsimpl" ->
+    `Xsimpl vexpr_str
   | "xdestruct" -> `Xdestruct vexpr_str
   | "rewrite" -> `Rewrite vexpr_str
   | "xmatch_case" | "xmatch" ->
@@ -71,6 +73,12 @@ let get_tactic name args state : Proof_spec.Script.step =
   | "xletopaque" ->
     let+ id = with_current_pid state in
     `Xletopaque (id, vexpr_str)
+  | "xref" ->
+    let+ id = with_current_pid state in
+    `Xref (id, vexpr_str)
+  | "xunit" ->
+    let+ id = with_current_pid state in
+    `Xunit (id, vexpr_str)
   |  "xvals" ->
     let+ id = with_current_pid state in
     `Xvals (id, vexpr_str)
@@ -78,7 +86,10 @@ let get_tactic name args state : Proof_spec.Script.step =
     `SepSplitTuple vexpr_str
   | "xseq" ->
     `Xseq vexpr_str
-  | _ -> assert false
+  | name ->
+    Format.ksprintf ~f:failwith
+      "Failed to parse proof script. Unsupported tactic %s; args [%a]"
+      name (List.pp Sexplib.Sexp.pp) args
 
 
 (* partitions based on bullet; assumes single-level case / destruct

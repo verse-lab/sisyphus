@@ -6,6 +6,7 @@ let whitelisted_modules = [
   "Coq.Init.Nat";
   "Coq.Arith.PeanoNat.Nat";
   "Proofs.Verify_seq_to_array_utils";
+  "ProofsMakeRevList.Verify_make_rev_list_utils";
   "TLC.LibList";
   "CFML.Stdlib.List_ml";
   "CFML.WPTactics";
@@ -47,6 +48,7 @@ let proof_irrelevance_def =
     (Names.Label.make "proof_irrelevance_def")
 
 let filter ~path:mod_path ~label =
+  Feedback.msg_warning (Pp.str @@ "evalling: " ^ mod_path ^ ":" ^ label);
   match mod_path, label with
   | "Coq.Init.Wf", "Acc_rect" -> `Unfold
   (* | "TLC.LibAxioms", "fun_ext_dep" -> `Subst (fun_ext_def)

@@ -1,3 +1,5 @@
 _build/
 _opam/
 **/*/.DS_Store
+.lia.cache
+.swp

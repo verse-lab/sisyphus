@@ -1,0 +1,46 @@
+(library (name make_rev_list)
+  (modules common)
+)
+
+(coq.theory
+ (name ProofsMakeRevList)
+ (modules
+   Common_ml
+   Verify_make_rev_list_utils
+   Make_rev_list_old_ml Verify_make_rev_list_old
+   Make_rev_list_new_ml Verify_make_rev_list_new
+ )
+ (libraries sisyphus.plugin)
+)
+
+
+(rule
+ (target Common_ml.v)
+ (deps common.ml)
+ (action (run cfmlc -o ./Common_ml.v common.ml)))
+
+(rule
+ (target make_rev_list_old.sisyphus.ml)
+ (deps make_rev_list_old.ml)
+ (action (with-stdout-to make_rev_list_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" make_rev_list_old.ml))))
+
+(rule
+ (target Make_rev_list_old_ml.v)
+ (deps make_rev_list_old.sisyphus.ml common.ml Common_ml.v)
+ (action (run cfmlc -o ./Make_rev_list_old_ml.v make_rev_list_old.sisyphus.ml)))
+
+(rule
+ (target make_rev_list_new.sisyphus.ml)
+ (deps make_rev_list_new.ml)
+ (action (with-stdout-to make_rev_list_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" ./make_rev_list_new.ml))))
+
+(rule
+ (target Make_rev_list_new_ml.v)
+ (deps make_rev_list_new.sisyphus.ml common.ml Common_ml.v)
+ (action (run cfmlc -o ./Make_rev_list_new_ml.v make_rev_list_new.sisyphus.ml)))
+
+(env
+  (dev
+    (flags (:standard -w -32))))
