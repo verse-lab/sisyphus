@@ -21,7 +21,7 @@ let globref_to_string = function
   | Names.GlobRef.ConstructRef ((c, _), _) -> Names.MutInd.to_string c
 
 let rec extract_property acc (c: Constr.t) =
-  match Constr.kind c with
+  match Constr.kind_nocast c with
   | Constr.Prod ({binder_name=Name n; _}, ty, c) when Constr.is_Type ty ->
     extract_property (Names.Id.to_string n :: acc) c
   | Constr.Prod (_, _, _) ->
@@ -31,7 +31,7 @@ let rec extract_property acc (c: Constr.t) =
   | _ ->
     failwith (Format.sprintf "(extract property) found unsupported assertion %s" (Proof_utils.Debug.constr_to_string_pretty c))
 and extract_params tys acc (c: Constr.t) =
-  match Constr.kind c with
+  match Constr.kind_nocast c with
   | Constr.Prod ({binder_name=Name n; _}, ty, rest) ->
     let rel ind =
       let ind = ind - 1 in
@@ -62,7 +62,7 @@ and extract_assertions tys params acc (c: Constr.t) =
     if ind < List.length params
     then List.nth params ind |> fst
     else failwith "(extract assertions) attempt to index out of bounds" in
-  match Constr.kind c with
+  match Constr.kind_nocast c with
   | Constr.Prod (_, exp, c) when Constr.isApp exp && Constr.destApp exp |> fst |> PU.is_coq_eq ->
     let[@warning "-8"] _, [| ty; l; r |] = Constr.destApp exp in
     let ty = PCFML.extract_typ ~rel ty in
@@ -97,7 +97,7 @@ and extract_conclusion tys params assertions (c: Constr.t) =
     if ind < List.length params
     then List.nth params ind |> fst
     else failwith (Format.sprintf "(extract equality) attempt to index out of bounds") in
-  match Constr.kind c with
+  match Constr.kind_nocast c with
   | Constr.App (fname, [| ty; l; r |]) when PU.is_coq_eq fname ->
     let ty = PCFML.extract_typ ~rel ty in
     let l = PCFML.extract_expr ~rel:rel_exp l in
@@ -124,13 +124,19 @@ let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure
 
 let build_hole_var id = ((Format.sprintf "S__hole_%d" id))
 
+let rec normalize_constr c =
+  if Constr.isCast c
+  then let c, _, _ = Constr.destCast c in normalize_constr c
+  else c
+
 let unwrap_invariant_spec formals
       (env: PV.def_map)
       (hole_binding: int StringMap.t)
       (sym_heap: Proof_spec.Heap.Heap.t) no_conditions (c: Constr.t) =
-  let check_or_fail name pred v = 
+  let check_or_fail ?(fmt=fun () -> "opaque") name pred v = 
     if pred v then v
-    else Format.ksprintf ~f:failwith "failed to find %s  within goal %s" name
+    else Format.ksprintf ~f:failwith "failed to find \"%s\" in %s within goal %s" name
+           (fmt ())
            (Proof_utils.Debug.constr_to_string_pretty c) in
   let no_formals = List.length formals in
   let rec collect_params acc c = 
@@ -139,7 +145,7 @@ let unwrap_invariant_spec formals
       let ind = ind - no_conditions in
       let ind = ind - no_formals in
       snd (List.nth acc ind) in
-    match Constr.kind c with
+    match Constr.kind_nocast c with
     | Constr.Prod ({binder_name=Name name; _}, ty, rest) ->
       collect_params ((Names.Id.to_string name, Proof_utils.CFML.extract_typ ~rel ty) :: acc) rest
     | Constr.Prod (_, _, _) -> collect_assumptions acc [] c
@@ -149,7 +155,7 @@ let unwrap_invariant_spec formals
          to be a invariant spec (forall ..., eqns, SPEC (_), _)"
         (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
   and collect_assumptions params acc c = 
-    match Constr.kind c with
+    match Constr.kind_nocast c with
     | Constr.Prod (_, ty, rest) ->
       let rel ind =
         let ind = ind - 1 in
@@ -165,7 +171,7 @@ let unwrap_invariant_spec formals
          expected to be a invariant spec. Expecting (eqns, SPEC (_), \
          _)" (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
   and collect_spec params assums c =
-    match Constr.kind c with
+    match Constr.kind_nocast c with
     | Constr.App (fname, [| f_app; _; _; pre; post |]) when PU.is_const_eq "CFML.SepLifted.Triple" fname ->
       let rel ind =
         let ind = ind - 1 in
@@ -178,13 +184,15 @@ let unwrap_invariant_spec formals
           |> Constr.destApp
           |> check_or_fail "Trm Apps" Fun.(PU.is_const_eq "CFML.SepLifted.Trm_apps" % fst)
           |> snd
-          |> fun arr -> (arr.(0), arr.(1)) in
+          |> fun arr -> (normalize_constr arr.(0), arr.(1)) in
         let f_app =
-          check_or_fail "var function ref" Constr.isVar f_app
+          check_or_fail ~fmt:(fun () -> PU.Debug.constr_to_string_pretty f_app)
+            "var function ref" Constr.isVar f_app
           |> Constr.destVar
           |> Names.Id.to_string in
         let args = PU.unwrap_inductive_list args
                    |> List.to_iter
+                   |> Iter.map normalize_constr
                    |> Iter.map (PCFML.extract_dyn_var ~rel)
                    |> Iter.to_list in
         f_app, args in
@@ -295,9 +303,12 @@ let unwrap_invariant_spec formals
               ) expr
           )
           |> fun mapping ->
-          let imap = IntMap.of_list mapping in
-          let len = fst (IntMap.max_binding imap) + 1 in
-          Array.init len (Fun.flip IntMap.find imap) in
+          match mapping with
+          | [] -> [| |]
+          | mapping ->
+            let imap = IntMap.of_list mapping in
+            let len = fst (IntMap.max_binding imap) + 1 in
+            Array.init len (Fun.flip IntMap.find imap) in
 
         let post_param_values =
           let subst expr =
@@ -329,7 +340,7 @@ let unwrap_invariant_spec formals
 
 let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_heap (c: Constr.t) =
   let rec collect_invariants acc c = 
-    match Constr.kind c with
+    match Constr.kind_nocast c with
     | Constr.Prod ({binder_name=Name name;_}, ty, rest) when PU.is_unnamed_prod ty ->
       collect_invariants ((Names.Id.to_string name, PCFML.unwrap_invariant_type ty) :: acc) rest
     | Constr.Prod (_, ty, _) when not @@ PU.is_unnamed_prod ty ->
@@ -341,7 +352,7 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
          a specification"
         (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c) 
   and collect_invariant_conditions formals acc c =
-    match Constr.kind c with
+    match Constr.kind_nocast c with
     | Constr.Prod (_, ty, rest) ->
       collect_invariant_conditions formals
         ((unwrap_invariant_spec formals env hole_binding sym_heap (List.length acc) ty) :: acc) rest
@@ -374,7 +385,7 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
   let instantiated_spec =
     Format.ksprintf "%s %s"
       (Names.Constant.to_string spec)
-      (List.map (fun (vl,_) -> "(" ^ Proof_utils.Printer.show_expr vl ^ ")") args
+      (List.map (fun (vl,ty) -> "(" ^ Proof_utils.Printer.show_expr vl ^ ": " ^ Proof_utils.Printer.show_ty ty ^ ")") args
        |> String.concat " ")
       ~f:(Proof_context.typeof t) in
 

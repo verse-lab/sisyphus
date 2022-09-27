@@ -140,6 +140,14 @@ let rec eval_expr ?(ty: Lang.Type.t option)
     let l = eval_expr ctx env l in
     let r = eval_expr ctx env r in
     Z3.Arithmetic.mk_sub ctx.ctx [l;r]
+  | (`App ("&&", [l;r]), _) ->
+    let l = eval_expr ctx env l in
+    let r = eval_expr ctx env r in
+    Z3.Boolean.mk_and ctx.ctx [l;r]
+  | (`App ("||", [l;r]), _) ->
+    let l = eval_expr ctx env l in
+    let r = eval_expr ctx env r in
+    Z3.Boolean.mk_or ctx.ctx [l;r]
   | (`App (("TLC.LibList.length" as fname), [ls]), None) when Option.is_none (typeof env ls) ->
     let _, fdecls = Hashtbl.find ctx.fun_map fname in
     let pvar = List.hd (Hashtbl.keys_list ctx.poly_var_map) in

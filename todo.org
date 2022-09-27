@@ -29,6 +29,7 @@ CLOSED: [2022-09-27 Tue 02:36]
 CLOSED: [2022-09-27 Tue 02:36]
 ** DONE Work out way to fix for pure programs
 CLOSED: [2022-09-27 Tue 08:02]
+** TODO Fix issues with Z3 encoding construction
 ** TODO Implement logging system
 ** TODO Implement support for make_rev_list
 ** TODO You're the BEST around
