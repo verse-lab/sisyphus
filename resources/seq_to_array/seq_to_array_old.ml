@@ -16,3 +16,4 @@ let to_array (l: ('a t[@collection Common.of_list, Common.to_list])) =
       l in
     (* 5 *)
     a
+[@@with_logical_mapping ["s", "l"]]

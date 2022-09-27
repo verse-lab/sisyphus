@@ -225,7 +225,7 @@ let rec encode_expr (expr: Lang.Expr.t) =
       AH.Exp.fun_ Nolabel None pat body  in
     List.fold_right encode_fun args (encode_expr body)
 
-let annotate ?(deep=false) ({ prelude; name; args; body }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
+let annotate ?(deep=false) ({ prelude; name; args; body; _ }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
   let add_param (param: Lang.Expr.typed_param) env =
     match param with

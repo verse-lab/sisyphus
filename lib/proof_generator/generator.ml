@@ -133,6 +133,10 @@ let build_complete_params t lemma_name init_params =
     To do this, it may introduce additional evars in proof context [t]
     to represent polymorphic values. *)
 let instantiate_arguments t env args (ctx, heap_ctx) =
+  Format.printf "instantiate_arguments t env=[%a] args=[%s] %s@."
+    Proof_env.pp env
+    ([%show: (Lang.Expr.t * Lang.Type.t) Containers.List.t] args)
+    (show_obs (ctx, heap_ctx));
   let open Option in
   List.map (fun (vl, ty) ->
     match vl with

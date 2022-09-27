@@ -21,9 +21,12 @@ CLOSED: [2022-09-26 Mon 07:49]
 CLOSED: [2022-09-26 Mon 09:18]
 ** DONE Implement CI
 CLOSED: [2022-09-26 Mon 11:45]
-** TODO Debug proof reduction to work out why it isn't expanding 
-** TODO Update cmdliner to take in logical bindings
-** TODO Update tests to pass in logical bindings
+** DONE Debug proof reduction to work out why it isn't expanding 
+CLOSED: [2022-09-27 Tue 02:08]
+** DONE Update cmdliner to take in logical bindings
+CLOSED: [2022-09-27 Tue 02:36]
+** DONE Update tests to pass in logical bindings
+CLOSED: [2022-09-27 Tue 02:36]
 ** TODO Work out way to fix for pure programs
 ** TODO Implement logging system
 ** TODO Implement support for make_rev_list

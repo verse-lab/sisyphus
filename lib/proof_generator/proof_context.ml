@@ -15,20 +15,27 @@ type t = {
   concrete: unit -> Dynamic.Concrete.t;
 }
 
+(** [cancel_last t] reverts the proof context [t] to the state it was
+   before the most recently executed command.  *)
 let cancel_last ({ctx;_} as prf) =
   let module Ctx = (val ctx) in
   prf.generated_proof_script <- List.tl prf.generated_proof_script;
   Ctx.cancel_last ()
 
+(** [cancel t ~count] reverts the proof context [t] to the state it
+   was before the [count] most recently executed commands.  *)
 let cancel ({ctx;_} as prf) ~count =
   let module Ctx = (val ctx) in
   prf.generated_proof_script <- List.drop count prf.generated_proof_script;
   Ctx.cancel ~count
 
-
+(** [next_program_id t] updates the proof context to record that the
+   program state has moved to the next program id. *)
 let next_program_id t =
   t.current_program_id <- Lang.Id.incr t.current_program_id
 
+(** [append t fmt ...] updates the proof context with the result of
+   executing the command returned by [sprintf fmt ...].  *)
 let append ({ctx; _} as prf) =
   let module Ctx = (val ctx) in
   Format.ksprintf ~f:(fun res ->
@@ -37,10 +44,13 @@ let append ({ctx; _} as prf) =
     Ctx.exec ()
   )
 
+(** [extract_proof_script t] returns the current proof script state
+   from the proof context [t]. *)
 let extract_proof_script ({ctx; _} as t) =
   let module Ctx = (val ctx) in
   (List.rev t.generated_proof_script |> String.concat "\n")
 
+(** [subproofs t] returns all the subproofs of the current goal, raising an exception if there are no subproofs. *)
 let subproofs {ctx; _} =
   let module Ctx = (val ctx) in
   Ctx.query Serapi.Serapi_protocol.Goals
@@ -145,6 +155,7 @@ let pretty_print_current_goal t =
                    Format.sprintf "%a" Pp.pp_with
                      (Serapi.Serapi_protocol.gen_pp_obj
                         env Evd.empty (Serapi.Serapi_protocol.CoqGoal (current_subproof t)))
+
 let debug_print_current_goal t =
   print_endline @@ "current goal: \n" ^ Proof_utils.Debug.constr_to_string (current_goal t).ty
 
@@ -156,6 +167,9 @@ let current_names t =
   |> Iter.map Names.Id.to_string
   |> StringSet.of_iter
 
+(** [fresh ?base t] returns a fresh variable name that is guaranteed
+   not to clash with any of the names in the proof context [t], and if
+   provided has prefix [base].  *)
 let fresh ?(base="tmp") t =
   let names = current_names t in
   let name_in_use name =
@@ -169,6 +183,12 @@ let fresh ?(base="tmp") t =
   then loop 0
   else base
 
+(** [with_temporary_context t f] runs the function [f] with a
+   temporary proof context bound to [t].
+
+    All bindings prior to calling the function will be present in this
+   temporary context, but any new bindings will be cleared at the end
+   of [f]. *)
 let with_temporary_context ({ctx; _} as t) f =
   let module Ctx = (val ctx) in
   let original_proof_size = Ctx.size () in
@@ -180,6 +200,12 @@ let with_temporary_context ({ctx; _} as t) f =
         cancel t ~count
     ) f
 
+(** [eval_tracing_value t ty vl] given a concrete observation value
+   [vl] with type [ty] will return an expression that can be sent to
+   Coq.
+
+    Note: updates the proof context with evars for any symbolic
+   variables that occur in the expression.  *)
 let rec eval_tracing_value t (ty: Lang.Type.t) (vl: Dynamic.Concrete.value) : Lang.Expr.t option =
   let open Option in
   match ty, vl with
@@ -196,6 +222,12 @@ let rec eval_tracing_value t (ty: Lang.Type.t) (vl: Dynamic.Concrete.value) : La
     Some (`Var var)
   | (_ , `Constructor _) -> None (* todo: implement handling of constructors *)
   | _ -> None
+
+(** [eval_tracing_list t ty elts] given a list of concrete observation
+   values [ls] with type [ty] will return an expression that can be
+   sent to Coq.
+
+    Note: updates the proof context with evars for any symbolic variables that occur in the expression. *)
 and eval_tracing_list t ty elts =
   let open Option in
   let rec loop = function

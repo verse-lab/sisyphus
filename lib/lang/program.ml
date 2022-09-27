@@ -23,6 +23,7 @@ let pp_structure_item fmt vl = Pprintast.structure fmt [vl]
 
 type 'a t = {
   prelude: structure_item list;
+  logical_mappings: (string * string) list;
   name: string;
   args: (string * Type.t) list;
   body: 'a stmt
@@ -33,6 +34,7 @@ let showr = show
 
 let equal eq t1 t2 =
   String.equal t1.name t2.name
+  && List.equal (fun (l,r) (l', r') -> String.equal l l' && String.equal r r') t1.logical_mappings t2.logical_mappings
   && List.equal (fun (l,r) (l', r') -> String.equal l l' && Type.equal r r') t1.args t2.args
   && equal_stmt eq t1.body t2.body
 
