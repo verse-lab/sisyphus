@@ -377,11 +377,18 @@ let prune_candidates_using_testf test_f (pure, heap) =
       else None
     ) heap in
   let end_time = Ptime_clock.now () in
+  let no_pure = (List.length pure) in
+  let no_impure = (List.length heap) in
   Format.printf "pruned down to %d pure candidates and %d heap candidates in %a @."
-    (List.length pure)
-    (List.length heap)
+    no_pure
+    no_impure
     Ptime.Span.pp
     (Ptime.diff end_time start_time);
+  if no_pure < 10 then
+    Format.printf "pure candidates: %s@." ([%show: Lang.Expr.t Containers.List.t] pure);
+  if no_impure < 10 then
+    Format.printf "heap candidates: %s@." ([%show: Lang.Expr.t list list] heap);
+
   pure, heap 
 
 let has_pure_specification t =

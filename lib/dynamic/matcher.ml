@@ -1,6 +1,8 @@
 open Containers
 open Utils
 
+module IntMap = IntMap
+
 type sanitized_state = {
   id: int;
   env: Runtime.value stringmap;
@@ -112,6 +114,7 @@ let find_aligned_range ?k side (t: t) =
   Format.printf "internal states are %s@." ([%show: float intpairmap] t);
   let mapping = top_k ?k side t in
   Format.printf "mapping is %s@." ([%show: (int * float) list intmap] mapping);
+  (* [is bound pos] returns whether there exists a list of equivalent program points for [pos]. *)
   let is_bound pos =
     IntMap.find_opt pos mapping
     |> Option.exists (fun v -> List.length v > 0) in
@@ -139,9 +142,11 @@ let find_aligned_range ?k side (t: t) =
     List.product
       (fun (start_, start_score) (end_, end_score) ->
          let+ () = Option.if_ (fun () -> start_ < end_) () in
-         Some (-. (start_score +. end_score), (end_ - start_), (start_, end_))
+         Some (-. (start_score +. end_score), - (end_ - start_), (start_, end_))
       ) start_ end_
     |> List.filter_map Fun.id
-    |> List.sort (fun (score1, dif1, _) (score2, dif2, _) -> Pair.compare Float.compare Int.compare (score1, dif1) (score2, dif2))
+    |> List.sort
+         (fun (score1, dif1, _) (score2, dif2, _) ->
+            Pair.compare Float.compare Int.compare (score1, dif1) (score2, dif2))
     |> List.hd
     |> fun (_, _, range) -> range

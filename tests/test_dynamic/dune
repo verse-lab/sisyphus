@@ -2,4 +2,5 @@
  (deps ../../resources/make_rev_list/make_rev_list_old.ml
        ../../resources/make_rev_list/make_rev_list_new.ml
  )
+  (preprocess (pps ppx_deriving.show))
  (libraries dynamic lang alcotest containers testing_utils))
