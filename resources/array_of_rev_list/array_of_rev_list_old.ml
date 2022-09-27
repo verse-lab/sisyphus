@@ -1,15 +1,18 @@
 open Common
 
-let array_of_rev_list l =
+let array_of_rev_list (l: 'a list) =
   match l with
-    [] -> [| |]
-  | x :: tl ->
-    let len = List.length l in
-    let a = Array.make len x in
-    let r = ref tl in
-    for i = len - 2 downto 0 do
-      let hd,tl = match !r with hd :: tl -> (hd,tl) | _ -> assert false in
-      a.(i) <- hd;
-      r := tl;
-    done;
+  |  [] -> [| |]
+  | (x: 'a) :: (t: 'a list) ->
+    let (len: int) = List.length l in
+    let (a: 'a array) = Array.make len x in
+    let (r: 'a list ref) = ref t in
+    let rec loop (i: int) =
+      if i >= 0 then begin
+        let _ = a.(i) <- hd !r in
+        let _ = r := tl !r in
+        loop (i - 1)
+      end else ()
+    in
+    let _ = loop (len - 2) in
     a

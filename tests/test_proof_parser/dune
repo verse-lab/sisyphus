@@ -1,8 +1,14 @@
-(tests (names test_make_rev_list)
+(tests (names test_make_rev_list test_array_of_rev_list)
  (deps ../../resources/make_rev_list/Verify_make_rev_list_old.v
        ../../resources/make_rev_list/Verify_make_rev_list_utils.vo
        ../../resources/make_rev_list/Make_rev_list_old_ml.vo
        ../../resources/make_rev_list/Common_ml.vo
+
+       ../../resources/array_of_rev_list/Verify_array_of_rev_list_old.v
+       ../../resources/array_of_rev_list/Verify_array_of_rev_list_utils.vo
+       ../../resources/array_of_rev_list/Array_of_rev_list_old_ml.vo
+       ../../resources/array_of_rev_list/Common_ml.vo
  )
+
  (flags -rectypes)
  (libraries proof_parser alcotest containers testing_utils))

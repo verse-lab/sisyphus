@@ -33,11 +33,14 @@ CLOSED: [2022-09-27 Tue 08:02]
 ** TODO Implement support for make_rev_list
 ** TODO You're the BEST around
 * Tasks for the proof demigod
-** TODO Add array of rev list
+** DONE Add array of rev list
+CLOSED: [2022-09-27 Tue 16:35]
 *** Make it build
-** TODO Add benchmark test for array_of_rev list
+** DONE Add benchmark test for array_of_rev list
+CLOSED: [2022-09-27 Tue 17:02]
 ** TODO How to handle HO loops?
 *** Add xfor and xwhile [1 hr]
+*** Look through examples and find minimal set of combinators that capture all recursion
 *** Rewrite array_of_rev_list using HO iterator
 *** Define & prove specification for for-loop iterator (nat_fold_left)
 *** Prove new program
