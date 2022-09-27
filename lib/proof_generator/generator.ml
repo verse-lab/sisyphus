@@ -308,15 +308,24 @@ let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name 
       Dynamic.Matcher.find_aligned_range `Right t.Proof_context.alignment
         ((((t.Proof_context.current_program_id :> int) - 1)),
          (((t.Proof_context.current_program_id :> int)))) in
+    Format.printf "%d, %d --> from_id: %d, to_id: %d@."
+      (((t.Proof_context.current_program_id :> int) - 1))
+      (((t.Proof_context.current_program_id :> int)))
+      from_id to_id;
     Expr_generator.build_context ~ints:[1;2]
       ~vars ~funcs ~env:(typeof t)
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
 
+  Format.printf "generation context is %a@." Expr_generator.pp_ctx ctx;
+
   let gen_pure_spec =
     snd inv_ty
     |> List.filter_map (fun (v, ty) ->
       match ty with
+      (* if the heap is empty, then everything is useful *)
+      | _ when List.is_empty pre_heap -> Some (v, ty)
+      (* we only generate equalities for trivial *)
       | Lang.Type.Var _
       | Lang.Type.Int
       | Lang.Type.Val -> Some (v,ty)
@@ -614,7 +623,11 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let () =
     let no_pure = List.length pure in
     let no_impure = List.length heap in
-    Format.printf "found %d pure candidates and %d heap candidates@." no_pure no_impure in
+    Format.printf "found %d pure candidates and %d heap candidates@." no_pure no_impure;
+    if no_pure < 10 then
+      Format.printf "pure candidates: %s@." ([%show: Lang.Expr.t Containers.List.t] pure);
+    if no_impure < 10 then
+      Format.printf "heap candidates: %s@." ([%show: Lang.Expr.t list list] heap) in
 
   let _ =
     Format.printf "pure candidate exists? %b@." @@
@@ -807,7 +820,7 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   | _ -> ()
   end;
 
-  symexec t (Proof_env.initial_env ~logical_mappings ()) prog.body;
+  symexec t (Proof_env.initial_env ~logical_mappings prog.args) prog.body;
   Proof_context.append t "Admitted.";
   Proof_context.extract_proof_script t
 

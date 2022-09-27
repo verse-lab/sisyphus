@@ -27,11 +27,32 @@ let pp fmt (t: t) =
     (StringMap.pp String.pp String.pp)
     t.bindings
 
-let initial_env ?(logical_mappings=[]) () = {
-  lambda=StringMap.empty;
-  bindings=StringMap.empty;
-  logical_mappings=StringMap.of_list logical_mappings
-}
+let rec is_pure_ty : Lang.Type.t -> bool = function
+  | Lang.Type.Int
+  | Lang.Type.Unit
+  | Lang.Type.Var _ -> true
+  | Lang.Type.List ty -> is_pure_ty ty
+  | Lang.Type.Product elts ->
+    List.for_all is_pure_ty elts
+  | Lang.Type.Func
+  | Lang.Type.Loc
+  | Lang.Type.Array _
+  | Lang.Type.Ref _
+  | Lang.Type.ADT (_, _, _)
+  | Lang.Type.Val -> false
+
+let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
+
+  {
+    lambda=StringMap.empty;
+    bindings=
+      List.to_iter args
+      |> Iter.filter (Pair.snd_map is_pure_ty)
+      |> Iter.map fst
+      |> Iter.map Pair.dup
+      |> StringMap.of_iter;
+    logical_mappings=StringMap.of_list logical_mappings
+  }
 
 let has_definition env v = StringMap.mem v env.lambda
 

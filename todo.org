@@ -27,7 +27,8 @@ CLOSED: [2022-09-27 Tue 02:08]
 CLOSED: [2022-09-27 Tue 02:36]
 ** DONE Update tests to pass in logical bindings
 CLOSED: [2022-09-27 Tue 02:36]
-** TODO Work out way to fix for pure programs
+** DONE Work out way to fix for pure programs
+CLOSED: [2022-09-27 Tue 08:02]
 ** TODO Implement logging system
 ** TODO Implement support for make_rev_list
 ** TODO You're the BEST around
