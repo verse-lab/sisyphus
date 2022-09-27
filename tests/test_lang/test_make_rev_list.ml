@@ -25,7 +25,8 @@ let () = T.add_test "make_rev_list old parsed without error" (fun () ->
                       `App (("List.iter",
                              [`Var ("tmp");
                               `Var ("ls")])),
-                      `Value (`App (("!", [`Var ("r")])))))))))
+                      `Value (`App (("!", [`Var ("r")])))))))));
+    logical_mappings=[]
   }
     prog
 )
@@ -49,7 +50,8 @@ let () = T.add_test "make_rev_list new parsed without error" (fun () ->
            (`Var ("result", List (Var "'a")), None,
             `App ("List.fold_left", [
               `Var "tmp"; `Constructor ("[]", []); `Var "ls"
-            ]), `Value (`Var "result")))))
+            ]), `Value (`Var "result")))));
+    logical_mappings=[];
   }
     prog
 )
