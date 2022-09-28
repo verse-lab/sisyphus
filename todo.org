@@ -13,6 +13,10 @@ CLOSED: [2022-09-28 Wed 03:35]
 CLOSED: [2022-09-28 Wed 04:03]
 ** DONE Prove correctness of rev list using loop combinator
 CLOSED: [2022-09-28 Wed 06:08]
+** DONE Get benchmark running on array of rev list
+CLOSED: [2022-09-28 Wed 06:15]
+** DONE Fix issues with program structure of array of rev list 
+CLOSED: [2022-09-28 Wed 06:18]
 ** TODO Handle proof parsing of array of rev list
 ** TODO Print out Z3 queries
 ** TODO Get to Proof term analysis or better w.r.t array of rev list
