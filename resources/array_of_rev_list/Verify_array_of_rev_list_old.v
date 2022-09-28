@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 
-From CFML Require Import WPLib Stdlib WPTactics WPLifted WPHeader WPBuiltin.
+From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
 From ProofsArrayOfRevList Require Import Verify_array_of_rev_list_utils.

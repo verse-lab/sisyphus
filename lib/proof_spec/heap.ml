@@ -179,6 +179,9 @@ module Assertion = struct
 
   let empty =  {phi=ExprSet.empty; sigma=Heap.empty}    
 
+  let union {phi=phi1;sigma=sigma1} {phi=phi2;sigma=sigma2} =
+    {phi=ExprSet.union phi1 phi2; sigma=Heap.(union sigma1 sigma2)}
+
   let diff {phi=phi1;sigma=sigma1} {phi=phi2;sigma=sigma2} =
     {phi=ExprSet.diff phi1 phi2; sigma=Heap.(diff sigma1 sigma2)}
 
