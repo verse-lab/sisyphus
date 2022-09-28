@@ -14,8 +14,7 @@ Proof using (All).
   xcf.
   case l as [ | x l'] eqn: H.
   - xmatch_case_0.
-    xapp Array_proof.of_list_spec.
-    xsimpl.
+    xvalemptyarr.
   - xmatch.
     xletopaque len Hlen.
     xalloc arr data Hdata.
