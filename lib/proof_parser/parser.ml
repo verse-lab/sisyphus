@@ -95,15 +95,20 @@ let get_tactic name args state : Proof_spec.Script.step =
 (* partitions based on bullet; assumes single-level case / destruct
    only; assume that a bullet immediately follows case *)
 let partition_cases asts =
-  let rec part_cases_aux asts curr acc =
+  let rec part_cases_aux asts curr acc lvl =
     match asts with
     | [] -> (List.rev curr) :: acc
-    | (Vernacexpr.VernacBullet x) :: t ->
-      part_cases_aux t [] (List.rev curr :: acc)
+    | (Vernacexpr.VernacBullet x) :: t when lvl = 0 ->
+      part_cases_aux t [] (List.rev curr :: acc) lvl
     | h :: t ->
-      part_cases_aux t (h :: curr) acc
+      let lvl = match h with
+        | Vernacexpr.VernacSubproof _ -> lvl + 1
+        | Vernacexpr.VernacEndSubproof -> lvl - 1
+        | _ -> lvl
+      in
+      part_cases_aux t (h :: curr) acc lvl
   in
-  List.rev (part_cases_aux (List.tl asts) [] [])
+  List.rev (part_cases_aux (List.tl asts) [] [] 0)
 
 let rec handle_case name args state =
   let destr_id, eqn, vars = Parser_utils.unwrap_case args in
@@ -154,6 +159,7 @@ and parse_step sexp vexp state  =
   unwrap_tactic sexp state
 
 and parse_proof state =
+  print_endline "Parsing proof now";
   let rec parse_proof_aux steps lvl =
     match (state.asts) with
     | [] -> steps
