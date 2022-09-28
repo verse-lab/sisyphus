@@ -28,6 +28,7 @@ depends: [
   "sedlex" {>= "2.5"}
   "ppx_blob" {>= "0.7.2"}
   "odoc" {with-doc}
+  "ptime" {>= "1.0.0"}
 ]
 build: [
   ["dune" "subst"] {dev}
