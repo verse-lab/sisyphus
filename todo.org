@@ -9,8 +9,10 @@ lemma, the proof calls out to an external lemma to reduce the proof.
 CLOSED: [2022-09-28 Wed 03:13]
 ** DONE Rewrite array of rev list in terms of for loop combinator
 CLOSED: [2022-09-28 Wed 03:35]
-** TODO Prove correctness of for loop combinator
-** TODO Prove correctness of rev list using loop combinator
+** DONE Prove correctness of for loop combinator
+CLOSED: [2022-09-28 Wed 04:03]
+** DONE Prove correctness of rev list using loop combinator
+CLOSED: [2022-09-28 Wed 06:08]
 ** TODO Handle proof parsing of array of rev list
 ** TODO Print out Z3 queries
 ** TODO Get to Proof term analysis or better w.r.t array of rev list

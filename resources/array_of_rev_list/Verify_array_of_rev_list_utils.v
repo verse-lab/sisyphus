@@ -7,7 +7,7 @@ From ProofsArrayOfRevList Require Import Common_ml.
 
 Lemma for_downto_spec : forall (from: int) (down_to: int) (f: func),
   forall (I: int -> hprop),
-    (from >= down_to) ->
+    (from >= down_to - 1) ->
     (forall i, down_to <= i <= from ->
      SPEC (f i)
      PRE (I i)
@@ -26,13 +26,41 @@ Proof using.
     xsimpl*.
   - rewrite Px0__, istrue_isTrue_eq; intros Hneq.
     xif; try math.
-    intros Hgt.
-    xapp (HI from); try math.
-    xapp (IH (from - 1)); try (apply downto_intro; try math); try math; auto.
-    * intros i Hi; apply HI; math.
-    * xsimpl*.
+    + intros Hgt.
+      xapp (HI from); try math.
+      xapp (IH (from - 1)); try (apply downto_intro; try math); try math; auto.
+      * intros i Hi; apply HI; math.
+      * xsimpl*.
+    + intros Hgt.
+      assert (H: from = down_to - 1) by math.
+      rewrite H.
+      xvals*.
 Qed.
-Arguments for_downto_spec from down_to f I Hf HI : rename.
+Arguments for_downto_spec from down_to f I Hf HI : rename, clear implicits.
+
+Lemma hd_spec: forall (A: Type) `{EA: Enc A} `{IA: Inhab A} (ls: list A),
+    length ls > 0 ->
+    SPEC_PURE (hd ls)
+      POST (fun (a: A) => \[a = ls[0]]).
+Proof.
+  intros A EA IA ls Hls.
+  xcf.
+  xmatch.
+  - rew_list in Hls; math.
+  - xvals. rew_list; auto.
+Qed.    
+
+Lemma tl_spec: forall (A: Type) `{EA: Enc A} (ls: list A),
+    length ls > 0 ->
+    SPEC_PURE (tl ls)
+      POST (fun (ls': list A) => \[ls' = drop 1 ls]).
+Proof.
+  intros A EA ls Hls.
+  xcf.
+  xmatch.
+  - rew_list in Hls; math.
+  - xvals. rew_list; auto.
+Qed.    
 
 Lemma list_iter_spec : forall [A : Type] {EA : Enc A}
                               (f : func) (l : list A)
@@ -48,6 +76,32 @@ Proof using.
   apply List_proof.iter_spec; auto.
 Qed.
 Arguments list_iter_spec {A} {EA} f l I HI : rename.
+
+Lemma read_rev_helper (A: Type) `{IA: Inhab A} (l: list A) (i: int):
+  0 <= i < length l ->
+  l[i] = (rev l)[length l - i - 1].
+Proof.
+  gen i; induction l as [| l ls IHls].
+  + intros i; rewrite length_nil; math.
+  + intros i; rewrite length_cons; intros Hi.
+    case (Z.eqb_spec i 0); intros Hi_zero.
+    * rewrite Hi_zero, rev_cons, read_zero, read_last_case, If_l; auto; rewrite length_rev; math.
+    * rewrite read_cons_pos, rev_cons, read_last_case, If_r; try rewrite length_rev; try math.
+      rewrite IHls; try math.
+      f_equal; math.
+Qed.      
+
+Lemma read_rev (A: Type) `{IA: Inhab A} (l: list A) (i: int):
+  0 <= i < length l ->
+  (rev l)[i] = l[length l - i - 1].
+Proof.
+  intros Hvld.
+  rewrite (read_rev_helper l); try math.
+  f_equal.
+  math.
+Qed.
+
+
 
 Ltac sep_solve_int := lazymatch goal with
   | [|- forall Y, ?X] => let y := fresh in intros y; sep_solve_int
@@ -176,4 +230,4 @@ Tactic Notation "xvalemptyarr" :=
   xapp; xsimpl.
 
 Tactic Notation "xunit" :=
-  xmatch; xapp.
+  xmatch; [xapp || xval].
