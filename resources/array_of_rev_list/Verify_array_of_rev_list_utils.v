@@ -5,39 +5,34 @@ From TLC Require Import LibListZ.
 
 From ProofsArrayOfRevList Require Import Common_ml.
 
-(** NOTE: The following is copied from resources/seq_to_array.
-    TODO: Figure out a better build hierarchy to avoid copying tactics
- *)
-
-Lemma list_fold_spec : forall A `{EA: Enc A} B `{EB: Enc B}
-                              (f: func) (init: B) (l: list A),
-  forall (I: list A -> B -> hprop),
-  (forall acc v t r, (l = t++v::r) ->
-     SPEC (f acc v)
-     PRE (I t acc)
-     POST (fun acc => I (t&v) acc)) ->
-  SPEC (List_ml.fold_left f init l)
-    PRE (I nil init)
-    POST (fun acc => I l acc).
+Lemma for_downto_spec : forall (from: int) (down_to: int) (f: func),
+  forall (I: int -> hprop),
+    (from >= down_to) ->
+    (forall i, down_to <= i <= from ->
+     SPEC (f i)
+     PRE (I i)
+     POST (fun (_: unit) => I (i - 1))) ->
+  SPEC (for_downto from down_to f)
+    PRE (I from)
+    POST (fun (_: unit) => I (down_to - 1)).
 Proof using.
-  intros A EA B EB f init l I f_spec. gen init.
-  cuts G: (forall r t init,
-              l = t ++ r ->
-              SPEC (List_ml.fold_left f init r)
-              PRE I t init
-              POST (fun acc : B => I l acc)).
-  { intros init; applys~ (G l nil init). }
-  intros r. induction_wf IH: list_sub r.
-  intros t init Ht. xcf.
-  xmatch.
-  - xvals.
-    rewrite Ht. rewrite <- TEMP; rew_list; xsimpl.
-  - xapp (f_spec init a t l1); auto. { rewrite Ht. rewrite TEMP. auto. }
-    intros acc.
-    xapp. rewrite <- TEMP. apply list_sub_cons. { rew_list; try rewrite TEMP; auto. }
-    xsimpl.
+  intros from down_to.
+  induction_wf IH: (downto down_to) from.
+  intros f I Hvld HI.
+  xcf. 
+  xif.
+  - rewrite Px0__, istrue_isTrue_eq; intros ->.  
+    xapp (HI down_to); try math.
+    xsimpl*.
+  - rewrite Px0__, istrue_isTrue_eq; intros Hneq.
+    xif; try math.
+    intros Hgt.
+    xapp (HI from); try math.
+    xapp (IH (from - 1)); try (apply downto_intro; try math); try math; auto.
+    * intros i Hi; apply HI; math.
+    * xsimpl*.
 Qed.
-Arguments list_fold_spec {A} {HA} {B} {HB} f init l I Hf : rename.
+Arguments for_downto_spec from down_to f I Hf HI : rename.
 
 Lemma list_iter_spec : forall [A : Type] {EA : Enc A}
                               (f : func) (l : list A)
