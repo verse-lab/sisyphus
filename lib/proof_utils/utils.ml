@@ -107,3 +107,14 @@ let unwrap_inductive_list (c: Constr.t) =
       Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a list"
         (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c) in
   loop [] c
+
+(** [extract_trm_app trm] when given a Coq term [trm] of the form
+   [(<constant> <args...>)] returns [Some <constant>] otherwise
+   [None].  *)
+let extract_trm_app trm =
+  match Constr.kind_nocast trm with
+  | Constr.App (f, _) -> begin match Constr.kind_nocast f with
+    | Constr.Const (n, _) -> Some n
+    | _ -> None
+  end
+  | _ -> None

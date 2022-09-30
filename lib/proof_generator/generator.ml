@@ -62,7 +62,10 @@ let find_spec t const =
   ] |> function
   | [(Names.GlobRef.ConstRef name, _, ty)] -> (name, ty)
   | [_] -> failwith "failure finding specification for function application: non-constant name for reference"
-  | [] -> failwith "failure finding specification for function application: could not find an appropriate specification"
+  | [] ->
+    Format.ksprintf ~f:failwith
+      "failure finding specification for function application of %s: could not find an appropriate specification"
+      (Names.Constant.to_string const)
   | _ -> failwith "failure finding specification for function application: ambiguity - more than one valid specification found"
 
 type constr = Constr.constr
@@ -133,33 +136,43 @@ let build_complete_params t lemma_name init_params =
     To do this, it may introduce additional evars in proof context [t]
     to represent polymorphic values. *)
 let instantiate_arguments t env args (ctx, heap_ctx) =
-  Format.printf "instantiate_arguments t env=[%a] args=[%s] %s@."
-    Proof_env.pp env
-    ([%show: (Lang.Expr.t * Lang.Type.t) Containers.List.t] args)
-    (show_obs (ctx, heap_ctx));
-  let open Option in
-  List.map (fun (vl, ty) ->
-    match vl with
-      `Var v ->
-      begin match StringMap.find_opt v env.Proof_env.bindings with
-      | None -> Some (`Var v)
-      | Some v ->
-        Option.or_lazy
-          (List.Assoc.get ~eq:String.equal v ctx |> Option.flat_map (Proof_context.eval_tracing_value t ty))
-          ~else_:(fun () ->
-            List.Assoc.get ~eq:String.equal v heap_ctx
-            |> Option.flat_map (function
-              | `Array ls ->
-                begin match ty with
-                | Lang.Type.List ty -> Proof_context.eval_tracing_list t ty ls
-                | _ -> None
-                end
-              | `PointsTo vl -> Proof_context.eval_tracing_value t ty vl
-            )
+  let lookup_var v ty =
+    begin match StringMap.find_opt v env.Proof_env.bindings with
+    | None -> Some (`Var v)
+    | Some v ->
+      Option.or_lazy
+        (List.Assoc.get ~eq:String.equal v ctx
+         |> Option.flat_map (Proof_context.eval_tracing_value t ty))
+        ~else_:(fun () ->
+          List.Assoc.get ~eq:String.equal v heap_ctx
+          |> Option.flat_map (function
+            | `Array ls ->
+              begin match ty with
+              | Lang.Type.List ty -> Proof_context.eval_tracing_list t ty ls
+              | _ -> None
+              end
+            | `PointsTo vl -> Proof_context.eval_tracing_value t ty vl
           )
-      end |> Option.map (fun vl -> (vl, ty))
-    | expr -> Some (expr, ty)
-  ) args
+        )        
+    end in
+  let rec instantiate_expr (vl, ty) =
+    match vl, ty with
+    | `Var v, ty -> (lookup_var v ty) |> Option.map (fun vl -> (vl, ty))
+    | (`Constructor ("::", [h;t])), (Lang.Type.List ty as ty_ls) ->
+      let result =
+        let open Option in
+        let* (h, _) = instantiate_expr (h, ty) in
+        let* (t, _) = instantiate_expr (t, ty_ls) in
+        Some (`Constructor ("::", [h; t]), ty_ls) in
+      Option.or_ result ~else_:(Some (vl, ty))
+    | (`Tuple elts), Lang.Type.Product tys when List.compare_lengths elts tys = 0 ->
+      List.combine elts tys
+      |> List.map instantiate_expr
+      |> List.all_some
+      |> Option.map (fun elts -> (`Tuple (List.map fst elts), ty))
+      |> Option.or_ ~else_:(Some (vl, ty))
+    | expr, ty -> Some (expr, ty) in
+  List.map instantiate_expr args
   |> List.all_some
 
 (** [ensure_single_invariant ~name ~ty ~args] when given the
@@ -234,24 +247,54 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
   let tys = List.mapi (fun i v -> Format.sprintf "arg%d" i, v) tys in
   name_to_string binder_name, tys 
 
+
+(** [reduce_term t trm] reduces a proof term [trm] using ultimate
+    reduction.  *)
+let reduce_term t trm =
+  let env = Proof_context.env t in
+  let (evd, reduced) =
+    let evd = Evd.from_env env in
+    Proof_reduction.reduce ~filter:(fun ~path ~label -> `Unfold)
+      env evd (Evd.MiniEConstr.of_constr trm) in
+  let trm = (EConstr.to_constr evd reduced) in
+  let f_app = Proof_utils.extract_trm_app trm in
+  match f_app with
+  (* when we fail to reduce the term to an application of a constant wp function, then we have to force the evaluation *)
+  | Some f_app when not (Proof_utils.CFML.is_const_wp_fn f_app) ->
+    let (evd, reduced) =
+      Proof_reduction.reduce
+        ~unfold:[f_app]
+        ~filter:(fun ~path ~label -> `Unfold)
+        env evd reduced in
+    EConstr.to_constr evd reduced
+  | _ -> trm
+
+    
+
 (** [build_testing_function t env ~pre ~f ~args obs] builds a test
     specification from a partially reduced proof term of the lemma [f]
     applied to values of its arguments [args] at the current position
     in a concrete observation [obs] *)
 let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
+  Format.printf "%s@." (Proof_context.extract_proof_script t);
   let test_f =
     List.find_map Option.(fun obs ->
       let obs = Proof_env.normalize_observation env obs in
       Proof_context.with_temporary_context t begin fun () ->
+        Format.printf "initial args=%s@."
+          ([%show: (Lang.Expr.t * Lang.Type.t) List.t] f_args);
         (* first, instantiate the concrete arguments using values from the trace *)
         let* instantiated_params = instantiate_arguments t env f_args obs in
+        Format.printf "instantiated args=%s@."
+          ([%show: (Lang.Expr.t * Lang.Type.t) List.t] instantiated_params);
+
         (* next, add evars for the remaining arguments to lemma *)
         let lemma_complete_params, _ =
           build_complete_params t lemma_name (List.map (fun (vl, ty) -> `Typed (vl, ty)) instantiated_params) in
 
         Format.printf "considering app (%s %s)@."
-            (Names.Constant.to_string lemma_name)
-            (arg_list_to_str (lemma_complete_params));
+          (Names.Constant.to_string lemma_name)
+          (arg_list_to_str (lemma_complete_params));
         (* construct term to represent full application of lemma parameters *)
         let trm = 
           Format.ksprintf ~f:(Proof_context.term_of t) "%s %s"
@@ -260,13 +303,7 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
 
         let lambda_env = env.Proof_env.lambda in
         (* partially evaluate/reduce the proof term *)
-        let reduced =
-          let (evd, reduced) =
-            let env = Proof_context.env t in
-            let evd = Evd.from_env env in
-            Proof_reduction.reduce ~filter:(fun ~path ~label -> `Unfold)
-              env evd (Evd.MiniEConstr.of_constr trm) in
-          EConstr.to_constr evd reduced in
+        let reduced = reduce_term t trm in
         (* construct a evaluatable test specification for the invariant *)
         let testf =
           let inv_spec = Pair.map String.lowercase_ascii (List.map fst) inv_ty in

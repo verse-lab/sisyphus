@@ -7,6 +7,8 @@ let whitelisted_modules = [
   "Coq.Arith.PeanoNat.Nat";
   "Proofs.Verify_seq_to_array_utils";
   "ProofsMakeRevList.Verify_make_rev_list_utils";
+  "ProofsArrayOfRevList.Verify_array_of_rev_list_utils";
+  "ProofsArrayOfRevList.Common_ml";
   "TLC.LibList";
   "CFML.Stdlib.List_ml";
   "CFML.WPTactics";
@@ -55,6 +57,9 @@ let filter ~path:mod_path ~label =
    * | "TLC.LibAxioms", "prop_ext" -> `Subst (prop_ext_def) *)
   (* | "ProofIrrelevance", "proof_irrelevance" -> `Subst (proof_irrelevance_def) *)
   | _ ->
+    (* Feedback.msg_warning
+     *   (Pp.str @@ "evalling: " ^ mod_path ^ ":" ^ label ^ " ==> unfolding = " ^
+     *              string_of_bool (StringSet.mem mod_path whitelisted_modules)); *)
     if StringSet.mem mod_path whitelisted_modules
     then `Unfold
     else `KeepOpaque
@@ -89,9 +94,15 @@ let print_reduced_tac (t: Evd.econstr) =
   let evd = Proofview.Goal.sigma gl in
   (* Ultimate_reduction *)
   Feedback.msg_warning (Pp.str "Forgive me sensei, for I must go all out, just this once...");
-  (* let (evd, t) = Ultimate_tactics.reduce ~cbv:true env evd t in *)
-  let (evd, t) = Proof_reduction.reduce ~filter env evd t in
-  (* let (evd, t) = Ultimate_tactics.reduce ~cbv:true env evd t in *)
-  (* Feedback.msg_info (Constr.debug_print (EConstr.Unsafe.to_constr t)); *)
+  let unfold =
+    match Constr.kind_nocast (Evd.MiniEConstr.unsafe_to_constr t) with
+    | Constr.App (f, _) -> begin match Constr.kind_nocast f with
+      | Constr.Const (n, _) -> Some [n]
+      | _ -> None
+    end
+    | _ -> None in
+  let (evd, t) = Proof_reduction.reduce ?unfold ~filter env evd t in
+  (* let (evd, t) = Proof_reduction.reduce ~cbv:true ~filter:(fun ~path:_ ~label:_ -> `Unfold) env evd t in *)
+  (* let (evd, t) = Proof_reduction.reduce ~filter:(fun ~path:_ ~label:_ -> `Unfold) env evd t in *)
   Feedback.msg_info (Printer.pr_econstr_env env evd t);
   Tacticals.tclIDTAC

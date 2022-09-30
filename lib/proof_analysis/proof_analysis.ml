@@ -11,14 +11,6 @@ type invariant_spec = string * string list
 type invariant = Lang.Expr.t * Lang.Expr.t list
 type 'a tester = 'a -> bool
 
-(** [is_const_wp_fn cst] determines whether a {!Constr.t} term
-    represents a constant weakest precondition helper. *)
-let is_const_wp_fn cst =
-  Constr.isConst cst && begin
-    let cst, _ = Constr.destConst cst  in
-    String.suffix ~suf:"_cf__" @@  Names.Constant.to_string cst
-  end
-
 (** [is_case_of_eq_sym] determines whether a {!Constr.t} term
    represents a case over an [Logic.eq_sym] equality.
 
@@ -457,7 +449,7 @@ let rec reify_proof_term (env: env) (trm: Constr.t) : Proof_term.t  =
                  | v -> `ProofTerm ([%show: Proof_term.proof_value] v))
                |> Iter.to_list in
     VarApp (var, args)
-  | Constr.App (trm, args) when is_const_wp_fn trm && Array.length args > 5 ->
+  | Constr.App (trm, args) when PCFML.is_const_wp_fn_trm trm && Array.length args > 5 ->
     let pre = args.(Array.length args - 5) |> extract_sym_heap env in
     let proof = args.(Array.length args - 1) in
     let args = 
@@ -537,7 +529,7 @@ let analyse
       invariant_spec
       (trm: Constr.t)  =
   match Constr.kind trm with
-  | Constr.App (trm, args) when is_const_wp_fn trm && Array.length args > 0 ->
+  | Constr.App (trm, args) when PCFML.is_const_wp_fn_trm trm && Array.length args > 0 ->
     let wp = args.(Array.length args - 1) in
     let env = empty_env () in
     let proof_term = reify_proof_term env wp in

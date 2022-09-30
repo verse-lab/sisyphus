@@ -93,7 +93,16 @@ let _ = CErrors.register_handler (wrap_unhandled tactic_interp_error_handler)
  *   end *)
 
 
-let reduce ?(cbv=false) env evd cl =
+let reduce ?unfold ?(cbv=false) env evd cl =
+  let (evd, cl) =
+    match unfold with
+    | None -> evd, cl
+    | Some cls ->
+      let redexp =
+        Unfold (List.map (fun v -> Locus.AtLeastOneOccurrence, Tacred.EvalConstRef v) cls) in
+      let redexp = Ultimate_redexpr.eval_red_expr env redexp in
+      let redfun, _ = Ultimate_redexpr.reduction_of_red_expr_val redexp in
+      redfun env evd cl in
   let redexp =
     if cbv
     then Cbv { rBeta=true; rMatch=true; rFix=true; rCofix=true; rZeta=true; rDelta=true; rConst=[] }

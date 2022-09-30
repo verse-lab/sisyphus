@@ -452,3 +452,16 @@ let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a heaplet"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+
+(** [is_const_wp_fn cst] determines whether a {!Names.Constant.t} constant
+    represents a constant weakest precondition helper. *)
+let is_const_wp_fn cst =
+  String.suffix ~suf:"_cf__" @@  Names.Constant.to_string cst
+
+(** [is_const_wp_fn_trm cst] determines whether a {!Constr.t} term
+    represents a constant weakest precondition helper. *)
+let is_const_wp_fn_trm cst =
+  Constr.isConst cst && begin
+    let cst, _ = Constr.destConst cst  in
+    is_const_wp_fn cst
+  end

@@ -433,3 +433,93 @@ CLOSED: [2022-09-28 Wed 03:06]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Create branch for array of rev list
+CLOSED: [2022-09-28 Wed 03:13]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Rewrite array of rev list in terms of for loop combinator
+CLOSED: [2022-09-28 Wed 03:35]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Prove correctness of for loop combinator
+CLOSED: [2022-09-28 Wed 04:03]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Prove correctness of rev list using loop combinator
+CLOSED: [2022-09-28 Wed 06:08]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Get benchmark running on array of rev list
+CLOSED: [2022-09-28 Wed 06:15]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Fix issues with program structure of array of rev list 
+CLOSED: [2022-09-28 Wed 07:54]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Handle proof parsing of array of rev list
+CLOSED: [2022-09-28 Wed 07:54]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Print out Z3 queries
+CLOSED: [2022-09-28 Wed 11:47]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Get to Proof term analysis or better w.r.t array of rev list
+CLOSED: [2022-09-28 Wed 11:48]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

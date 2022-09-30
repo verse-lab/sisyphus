@@ -13,3 +13,13 @@ let rec for_downto from down_to f =
     f from;
     for_downto (from - 1) down_to f
   end else ()
+
+let rec list_iteri_aux f i ls =
+  match ls with
+  | [] -> ()
+  | h :: t ->
+    f i h;
+    list_iteri_aux f (i + 1) t
+
+let list_iteri f ls =
+  list_iteri_aux f 0 ls

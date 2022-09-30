@@ -5,7 +5,7 @@ let is_constant_blacklisted cnst =
   let cnst = path, label in
   cnst, (!Config.filter ~path ~label)
 
-let constant_value_in env ((c, u) as t) =
+let constant_value_in (env: Environ.env) ((c, u) as t) =
   let (mod_path, label), decision = is_constant_blacklisted c in
   match decision  with
   | `KeepOpaque ->
@@ -13,14 +13,19 @@ let constant_value_in env ((c, u) as t) =
   | `Subst name ->
     Environ.constant_value_in env (name, u)
   | `Unfold ->
+    (* Feedback.msg_warning (Pp.str @@ Format.sprintf "unfolding %s . %s" mod_path label); *)
     match Global.body_of_constant Library.indirect_accessor c with
-    | Some (e, _, _) -> e
-    | _ -> Environ.constant_value_in env t
+    | Some (e, _, _) ->
+      (* Feedback.msg_warning (Pp.str @@ Format.sprintf "unfolding %s . %s ==> <definition>" mod_path label); *)
+      e
+    | _ ->
+      (* Feedback.msg_warning (Pp.str @@ Format.sprintf "unfolding %s . %s ==> NO DEFINITION" mod_path label); *)
+      Environ.constant_value_in env t
 
 (* A global const is evaluable if it is defined and not opaque *)
 let evaluable_constant kn env =
   let cb = Environ.lookup_constant kn env in
-  Feedback.msg_warning (Pp.str @@ "is evaluable: " ^ Names.Constant.to_string kn);
+  Feedback.msg_warning (Pp.str @@ "checking if is evaluable: " ^ Names.Constant.to_string kn);
     match cb.const_body with
     | Def _ -> true
     | Undef _ | Primitive _ -> false

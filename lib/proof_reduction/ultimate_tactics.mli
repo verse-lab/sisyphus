@@ -12,4 +12,4 @@
 
 (** {6 Reduction tactics. } *)
 
-val reduce: ?cbv:bool -> Environ.env -> Evd.evar_map -> Evd.econstr -> Evd.evar_map * Evd.econstr
+val reduce: ?unfold:Names.Constant.t list -> ?cbv:bool -> Environ.env -> Evd.evar_map -> Evd.econstr -> Evd.evar_map * Evd.econstr
