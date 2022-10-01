@@ -293,11 +293,10 @@ let reduce_term t term =
         ~filter
         env evd (Evd.MiniEConstr.of_constr term) in
     let term = EConstr.to_constr evd reduced in
-    IO.with_out "/tmp/reduced"
-      (Fun.flip IO.write_line (Proof_utils.Debug.constr_to_string term));
-    IO.with_out "/tmp/reduced-pretty"
-      (Fun.flip IO.write_line (Proof_utils.Debug.constr_to_string_pretty term));
-
+    (* IO.with_out "/tmp/reduced"
+     *   (Fun.flip IO.write_line (Proof_utils.Debug.constr_to_string term));
+     * IO.with_out "/tmp/reduced-pretty"
+     *   (Fun.flip IO.write_line (Proof_utils.Debug.constr_to_string_pretty term)); *)
     term
   | _ -> trm
 
