@@ -128,12 +128,12 @@ let is_in_let_fun_context env =
 
 let add_binding ?ty var env =
   let var =
-    if not (List.mem_assq var env.bindings)
+    if not (List.mem_assoc ~eq:String.equal var env.bindings)
     then var
     else
       let rec loop i =
         let var = var ^ "_" ^ string_of_int i in
-        if not (List.mem_assq var env.bindings)
+        if not (List.mem_assoc ~eq:String.equal var env.bindings)
         then var
         else loop (i + 1) in
       loop 0 in
