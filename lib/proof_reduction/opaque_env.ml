@@ -25,7 +25,7 @@ let constant_value_in (env: Environ.env) ((c, u) as t) =
 (* A global const is evaluable if it is defined and not opaque *)
 let evaluable_constant kn env =
   let cb = Environ.lookup_constant kn env in
-  Feedback.msg_warning (Pp.str @@ "checking if is evaluable: " ^ Names.Constant.to_string kn);
+  (* Feedback.msg_warning (Pp.str @@ "checking if is evaluable: " ^ Names.Constant.to_string kn); *)
     match cb.const_body with
     | Def _ -> true
     | Undef _ | Primitive _ -> false
