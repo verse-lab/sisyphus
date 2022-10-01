@@ -248,25 +248,57 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
   name_to_string binder_name, tys 
 
 
-(** [reduce_term t trm] reduces a proof term [trm] using ultimate
+(** [reduce_term t term] reduces a proof term [term] using ultimate
     reduction.  *)
-let reduce_term t trm =
+let reduce_term t term =
+  let filter ~path ~label =
+    match path with
+    | "Coq.ZArith.BinInt.Z"
+    | "Coq.ZArith.Znat.Nat2Z"
+    | "Coq.ZArith.Znat"
+    | "Coq.micromega.ZifyInst"
+    | "Coq.Init.Nat"
+    | "Coq.PArith.BinPos.Pos"
+    | "Coq.Init.Peano"
+    | "Coq.micromega.Tauto"
+    | "Coq.micromega.VarMap"
+    | "Coq.micromega.ZifyClasses"
+    | "Coq.micromega.ZMicromega"
+    | "Coq.Init.Wf"
+    | "Coq.Init.Datatypes"
+    | "Coq.Classes.Morphisms"
+    | "Coq.Init.Logic"
+      -> `KeepOpaque
+
+    | _ when String.prefix ~pre:"Proofs" path
+          ||  String.prefix ~pre:"CFML" path
+          || String.prefix ~pre:"TLC" path -> `Unfold
+    | _ -> failwith ("UNKNOWN PATH " ^ path) in
   let env = Proof_context.env t in
   let (evd, reduced) =
     let evd = Evd.from_env env in
     Proof_reduction.reduce ~filter:(fun ~path ~label -> `Unfold)
-      env evd (Evd.MiniEConstr.of_constr trm) in
+      env evd (Evd.MiniEConstr.of_constr term) in
   let trm = (EConstr.to_constr evd reduced) in
   let f_app = Proof_utils.extract_trm_app trm in
+  Format.printf "initial reduction phase passed @.";
   match f_app with
   (* when we fail to reduce the term to an application of a constant wp function, then we have to force the evaluation *)
   | Some f_app when not (Proof_utils.CFML.is_const_wp_fn f_app) ->
+    Format.printf "Reduction did not complete - entering phase 2 %s@."
+      (Names.Constant.to_string f_app);
     let (evd, reduced) =
       Proof_reduction.reduce
         ~unfold:[f_app]
-        ~filter:(fun ~path ~label -> `Unfold)
-        env evd reduced in
-    EConstr.to_constr evd reduced
+        ~filter
+        env evd (Evd.MiniEConstr.of_constr term) in
+    let term = EConstr.to_constr evd reduced in
+    IO.with_out "/tmp/reduced"
+      (Fun.flip IO.write_line (Proof_utils.Debug.constr_to_string term));
+    IO.with_out "/tmp/reduced-pretty"
+      (Fun.flip IO.write_line (Proof_utils.Debug.constr_to_string_pretty term));
+
+    term
   | _ -> trm
 
     
@@ -304,6 +336,7 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
         let lambda_env = env.Proof_env.lambda in
         (* partially evaluate/reduce the proof term *)
         let reduced = reduce_term t trm in
+        Format.printf "reduction complete!@.";
         (* construct a evaluatable test specification for the invariant *)
         let testf =
           let inv_spec = Pair.map String.lowercase_ascii (List.map fst) inv_ty in
