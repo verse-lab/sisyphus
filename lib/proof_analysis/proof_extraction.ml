@@ -208,7 +208,8 @@ let rec extract ?replacing (trm: Proof_term.t) =
           let args = List.filter_map (function `Expr e -> Some e |`ProofTerm _ -> None ) params in
           encode_expr (`App ("loop", args))
         | _ ->
-          Format.ksprintf ~f:failwith "found non-var app application of recursive call.... %s" (String.take 1000 ([%show: Proof_term.t] trm))
+          Format.ksprintf ~f:failwith "found non-var app application of recursive call.... %s"
+            (String.take 1000 ([%show: Proof_term.t] trm))
       end
       else encode_expr (`App (f, args)) in
     if contains_symexec proof then

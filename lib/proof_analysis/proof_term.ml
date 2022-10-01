@@ -49,6 +49,10 @@ type t =
       value_code: expr;
       proof: t
     }
+  | XLetFun of {
+      pre: sym_heap;
+      proof: t
+    }
   | XMatch of {value: (expr * expr) list; pre: sym_heap; proof: t}
   | XApp of {
       application: string * expr list;

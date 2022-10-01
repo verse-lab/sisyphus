@@ -218,6 +218,8 @@ let rec reify_proof_term (env: env) (trm: Constr.t) : Proof_term.t  =
     Lambda ( binder_name, proof_ty,
       reify_proof_term env proof
     )
+  | Constr.App (trm, [| q1; q2; hla; nc; proof |]) when PCFML.is_xsimpl_lr_qwand_unit trm ->
+    reify_proof_term env proof
   | Constr.App (trm, [| hla; hrg; haffine; proof |]) when PCFML.is_xsimpl_lr_hgc_nocredits trm ->
     reify_proof_term env proof    
   | Constr.App (trm, args (* [| ty; vl; prop; proof; vl'; proof_vl_eq_vl'; |] *)) when PCFML.is_const_named "eq_ind_r" trm ->
@@ -288,6 +290,20 @@ let rec reify_proof_term (env: env) (trm: Constr.t) : Proof_term.t  =
       reify_proof_term env proof      
     )
   | Constr.App (trm, [|
+    pre;
+    post;
+    code;
+    proof                       (* proof is a function with a binding *)
+  |]) when PCFML.is_hwand_hpure_r_intro trm ->
+    let ({Context.binder_name=binding;_}, ty, proof) = Constr.destLambda proof in
+    let binding_name = name_to_string binding in
+    let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
+    let env = add_binding ?ty binding_name env in
+    Lambda (
+      binding_name, proof_ty,
+      reify_proof_term env proof
+    )
+  | Constr.App (trm, [|
     pre;                        (* current heap state at current program point *)
     code;                       (* code of rest of program *)
     _res_ty; _res_ty_enc;       (* result type, result type encoding  *)
@@ -342,6 +358,19 @@ let rec reify_proof_term (env: env) (trm: Constr.t) : Proof_term.t  =
       value;
       pre=pre;
       proof=reify_proof_term env proof;
+    }
+  | Constr.App (trm, [|
+    _ret_ty;                 (* type of return type of the current function *)
+    _ret_ty_enc;             (* Enc type of return type of the current function *)
+    fun_body;                (* body of the function *)
+    pre;                     (* lambda that returns the code of the body of the binding  *)
+    _post;                   (* post-condition of the term *)
+    proof;                   (* rest of proof, should be a lambda that firsts binds fun  *)
+  |]) when PCFML.is_xlet_fun_lemma trm ->
+    let pre = extract_sym_heap env pre in
+    XLetFun {
+      pre;
+      proof=reify_proof_term env proof
     }
   | Constr.App (trm, [|
     binding_ty; enc_binding_ty;
