@@ -1,20 +1,24 @@
 open Common
 
-let partition p xs =
-  let n = Array.length xs in
-  if n = 0 then ([| |], [| |])
+let partition (p: 'a -> bool) (xs: 'a array) =
+  let (n: int) = Array.length xs in
+  if n = 0
+  then
+    let (a_t : 'a array) = [| |] in
+    let (a_f : 'a array) = [| |] in
+    (a_t, a_f)
   else
-    let left =
+    let (left: 'a array) =
       Array.make n (xs.(0)) in
-    let right =
+    let (right: 'a array) =
       Array.make n (xs.(0)) in
-    let li = ref 0 in
-    let ri = ref 0 in
-    array_iter (fun vl ->
+    let (li: int ref) = ref 0 in
+    let (ri: int ref) = ref 0 in
+    array_iter (fun (vl: 'a) ->
       if p vl
       then (left.(!li) <- vl; incr li)
       else (right.(!ri) <- vl; incr ri)
     ) xs;
-    let left = Array.sub left 0 !li in
-    let right = Array.sub right 0 !li in
+    let left: 'a array = array_take !li left in
+    let right: 'a array = array_take !ri right in
     left, right

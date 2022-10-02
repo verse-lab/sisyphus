@@ -1,9 +1,4 @@
-let count a =
-  let i = ref 0 in
-  Array.iter (function true -> incr i | _ -> ()) a;
-  !i
 
-let length arr = Array.length arr
 
 let array_iter f a =
   let len = Array.length a in
@@ -12,3 +7,20 @@ let array_iter f a =
     then (f a.(i); loop (i + 1))
     else () in
   loop 0
+
+
+let array_take i a =
+  let len = Array.length a in
+  if len = 0 then [| |]
+  else
+    let sz = if i < len then i else len in
+    let arr =
+      Array.make sz a.(0) in
+    let pos = ref 0 in
+    array_iter (fun vl ->
+      let ind = !pos in
+      incr pos;
+      if ind < sz then
+        arr.(ind) <- vl
+    ) a;
+    arr

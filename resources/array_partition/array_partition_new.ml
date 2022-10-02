@@ -1,9 +1,9 @@
 open Common
 
 let partition p xs =
-  let n = length xs in
+  let n = Array.length xs in
   let left, right = ref [], ref [] in
-  Array.iter (fun vl ->
+  array_iter (fun vl ->
     if p vl
     then left := p :: !left
     else right := p :: !right
