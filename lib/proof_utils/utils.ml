@@ -47,6 +47,11 @@ let is_constr_nil fn =
   is_constr_eq "Coq.Init.Datatypes.list" fn
   && (Constr.destConstruct fn |> fst |> snd) = 1
 
+let is_constr_unit fn =
+  is_constr_eq "Coq.Init.Datatypes.unit" fn
+  && (Constr.destConstruct fn |> fst |> snd) = 1
+
+
 let is_constr_z0 fn =
   is_constr_eq "Coq.Numbers.BinNums.Z" fn
   && (Constr.destConstruct fn |> fst |> snd) = 1

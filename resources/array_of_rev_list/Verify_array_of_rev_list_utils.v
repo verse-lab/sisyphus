@@ -107,12 +107,12 @@ Lemma list_iteri_aux_spec : forall A `{EA: Enc A},
     (forall i x t r, (l = t ++ x :: r) -> i = length t ->
                      SPEC (f i x) 
                        PRE (I t) 
-                       POSTUNIT (I (t & x))) ->  
+                       POST (fun (unused: unit) => I (t & x))) ->  
     l = t ++ r ->
     i = length t ->
     SPEC (list_iteri_aux f i r)
       PRE (I t)
-      POSTUNIT (I l).
+      POST (fun (unused: unit) => I l).
 Proof using.
   introv Hf. gen r t. induction_wf IH: (upto (length l)) i.
   intros r t Hl Hi.
@@ -131,7 +131,7 @@ Lemma list_iteri_spec : forall A `{EA: Enc A},
     (forall i x t r, (l = t ++ x :: r) -> i = length t ->
      SPEC (f i x) 
      PRE (I t) 
-     POSTUNIT (I (t & x))) ->  
+     POST (fun (unused: unit) => I (t & x))) ->  
   SPEC (list_iteri f l)
     PRE (I nil)
     POSTUNIT (I l).
@@ -147,10 +147,10 @@ Lemma list_ml_iteri_spec : forall A `{EA: Enc A},
     (forall i x t r, (l = t ++ x :: r) -> i = length t ->
      SPEC (f i x) 
      PRE (I t) 
-     POSTUNIT (I (t & x))) ->  
+     POST (fun (unused: unit) => I (t & x))) ->  
   SPEC (List_ml.iteri f l)
     PRE (I nil)
-    POSTUNIT (I l).
+    POST (fun (unused: unit) => I l).
 Proof using.
   =>> Hf; xcf.
   xlet as;=> tmp Htmp.
@@ -338,3 +338,8 @@ Tactic Notation "xvalemptyarr" :=
 
 Tactic Notation "xunit" :=
   xmatch; [xapp || xval].
+
+Definition eq_ind_reduce :
+  forall [A : Type] (x : A) (P : A -> Prop), P x -> forall y : A, x = y -> P x :=
+  fun (A: Type) => fun (x: A) (P: A -> Prop) =>
+    fun (Hp: P x) (y: A) => fun (Heq: x = y) => Hp.
