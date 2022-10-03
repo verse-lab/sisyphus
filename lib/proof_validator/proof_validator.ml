@@ -94,6 +94,15 @@ let check_verification_condition ctx env solver
           (Z3.Expr.to_string user_pre_pred)
           (Z3.Expr.to_string user_post_pred)
           (Z3.Expr.to_string goal);
+        if !should_print then begin
+          IO.with_out ("/tmp/query-" ^ (string_of_int @@ Random.bits ()) ^ ".z3") (fun oc ->
+            (* my oc, don't steal pls *)
+            IO.write_line oc (Z3.Solver.to_string solver);
+            IO.write_line oc "";
+            (* hahah, copyright slaver, I WILL DO what I want! *)
+            IO.write_line oc (Z3.Expr.to_string ((Z3.Boolean.mk_not ctx.ctx goal)))
+          )
+        end;
         match prove ctx solver goal with
         | (None | Some false) -> `InvalidSpatial
         | Some true -> acc

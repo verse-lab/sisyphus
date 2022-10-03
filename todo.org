@@ -19,7 +19,9 @@ CLOSED: [2022-10-03 Mon 05:10]
 CLOSED: [2022-10-03 Mon 05:23]
 ** DONE try reversing the candidates
 CLOSED: [2022-10-03 Mon 06:19]
-** TODO Try proving the new proof yourself
+** DONE Try proving the new proof yourself
+CLOSED: [2022-10-03 Mon 06:41]
+** TODO Print out the full query to z3 for preservation and send to z3 manually
 ** TODO Print out check preserved query and debug in Z3
 ** TODO You're the BEST around
 

@@ -210,6 +210,18 @@ Qed.
 Arguments list_fold_spec {A} {HA} {B} {HB} f init l I Hf : rename.
 
 
+Lemma make_rev_update: forall (A: Type) (x v: A) (t r: list A),
+    (make (length r + 1) x ++ take (length t) (rev t))[length r:=v] =
+  make (length r) x ++ take (1 + length t) (v :: rev t).
+Proof.
+  intros.
+  rewrite make_succ_r; [|math].
+  rewrite app_last_l, update_middle; rewrite ?length_make; try math.
+  rewrite take_cons_pos; try math.
+  rewrite app_last_l; repeat f_equal; try math.
+Qed.
+
+
 Ltac sep_solve_int := lazymatch goal with
   | [|- forall Y, ?X] => let y := fresh in intros y; sep_solve_int
   | [|- Triple ?Code ?Pre ?Post ] => xgo*
