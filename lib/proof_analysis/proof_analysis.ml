@@ -57,6 +57,12 @@ type env = {
       of the form [((fun (x: _) => <body>) vl)], we add [x] to [bindings]
       and [x -> vl] to [values] and evaluate [<body>]. *)
 
+  bound_variables: string_set;
+  (** [bound_variables] is a string set used to track variables bound
+     in the current context, and thereby avoid naming clashes.
+
+      Whenever a new binding is added, this set must be updated. *)
+
 
   lambdas: (string, unit) Hashtbl.t;
   (** [lambdas] is a hash set of all the function symbols used in
@@ -97,9 +103,10 @@ type env = {
     traverse proof terms. *)
 [@@deriving show]
 
-let empty_env () = {
+let empty_env vars = {
   bindings=[];
   values = StringMap.empty;
+  bound_variables=StringSet.of_iter vars;
   lambdas=Hashtbl.create 10;
   in_let_fun_context=false;
   auxiliary_function_lemmas=StringSet.empty
@@ -128,16 +135,16 @@ let is_in_let_fun_context env =
 
 let add_binding ?ty var env =
   let var =
-    if not (List.mem_assoc ~eq:String.equal var env.bindings)
+    if not (StringSet.mem var env.bound_variables)
     then var
     else
       let rec loop i =
         let var = var ^ "_" ^ string_of_int i in
-        if not (List.mem_assoc ~eq:String.equal var env.bindings)
+        if not (StringSet.mem var env.bound_variables)
         then var
         else loop (i + 1) in
       loop 0 in
-  var, {env with bindings = (var, ty) :: env.bindings}
+  var, {env with bindings = (var, ty) :: env.bindings; bound_variables=StringSet.add var env.bound_variables}
 
 let add_definition var value env =
   {env with values=StringMap.add var value env.values}
@@ -719,11 +726,18 @@ let analyse (coq_env: Environ.env)
       invariant_spec
       (trm: Constr.t)  =
   match Constr.kind trm with
+  (* check that we first have a characteristic formula term at our
+     proof root (these terms will always block as CFML actually uses
+     axioms to encode them). *)
   | Constr.App (trm, args) when PCFML.is_const_wp_fn_trm trm && Array.length args > 0 ->
+    (* the last argument to the CF is the proof of correctness that we care about *)
     let wp = args.(Array.length args - 1) in
-    let env = empty_env () in
+    (* initialise the env with the invariant and any temporary functions bound  *)
+    let env = empty_env (Iter.cons (fst invariant_spec) (StringMap.keys lambda_env)) in
+    (* convert proof term to simplified representation *)
     let proof_term = reify_proof_term coq_env env wp in
     IO.with_out "/tmp/extracted" (fun chn -> Proof_term.pp ( Format.of_chan chn) proof_term);
+    (* extract a testing function from the code *)
     let test_spec = (Proof_extraction.extract proof_term) in
     let used_functions =
       used_functions env
