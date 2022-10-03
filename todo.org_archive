@@ -523,3 +523,73 @@ CLOSED: [2022-09-28 Wed 11:48]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Make term fully expand
+CLOSED: [2022-09-30 Fri 13:51]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Run tests to ensure current proofs still go through
+CLOSED: [2022-10-01 Sat 04:39]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Refactor code to force reduce if normal reduction fails
+CLOSED: [2022-09-30 Fri 14:23]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Fix printing of proof terms to make reading manageable
+CLOSED: [2022-10-01 Sat 04:47]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update env to track local_fun_vars
+CLOSED: [2022-10-01 Sat 05:38]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update reduction to handle var apps correctly
+CLOSED: [2022-10-01 Sat 08:12]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Analyze proof term to work out how to handle it
+CLOSED: [2022-10-02 Sun 09:32]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

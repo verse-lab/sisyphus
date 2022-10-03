@@ -5,11 +5,20 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** DONE Make term fully expand
-CLOSED: [2022-09-30 Fri 13:51]
-** DONE Refactor code to force reduce if normal reduction fails
-CLOSED: [2022-09-30 Fri 14:23]
-** TODO Run tests to ensure current proofs still go through
+** DONE Identify what causes the name clashes when extracting
+CLOSED: [2022-10-02 Sun 10:14]
+** DONE Solve name clash error with extraction
+CLOSED: [2022-10-02 Sun 10:14]
+** DONE Work out cause of error in specification generator 
+CLOSED: [2022-10-02 Sun 11:24]
+** DONE update code to handle empty pure conditions
+CLOSED: [2022-10-03 Mon 05:10]
+** DONE Handle units in z3
+CLOSED: [2022-10-03 Mon 05:10]
+** DONE Check that old behaviour is preserved
+CLOSED: [2022-10-03 Mon 05:23]
+** TODO try reversing the candidates
+** TODO Print out check preserved query and debug in Z3
 ** TODO You're the BEST around
 
 * Tasks for the proof demigod
