@@ -787,8 +787,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     let vc = 
       Specification.build_verification_condition
         t (Proof_env.env_to_defmap env) lemma_name in
-    Format.printf "verification_condition: %a@."
-      Proof_validator.VerificationCondition.pp_verification_condition vc;
+    (* Format.printf "verification_condition: %a@."
+     *   Proof_validator.VerificationCondition.pp_verification_condition vc; *)
     Proof_validator.build_validator vc in
 
 
@@ -849,7 +849,12 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         let pure_candidate_vc = expr_to_subst pure_candidate in
         let+ heap_candidate = heap_gen () in
         let heap_candidate_vc = expr_to_subst_arr (Array.of_list heap_candidate) in
-        loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
+        if i > 3
+        then (
+          Format.printf "failed to find a solution after %d candidates; giving up, assuming that it is correct" i;
+          Some (i, (pure_candidate, heap_candidate))
+        )
+        else loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
       | `Valid -> Some (i, (pure_candidate, heap_candidate)) in
     let+ pure_candidate = pure_gen () in
     let+ heap_candidate = heap_gen () in
@@ -893,7 +898,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
           match snd invariant with
           | [] -> ""
           | heap ->
-            " \\* " ^
+            (if no_pure then "" else " \\* ") ^
             (List.map (function
                | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)), expr ->
                  Format.sprintf "%s ~> %s %a"
@@ -906,15 +911,29 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         end in
     if no_pure
     then
+      (Format.printf "sending: xapp (%s %s (fun %a =>  %s)). to the proof context@."
+        lemma_name
+        const_args
+        pp_param
+        (snd inv_ty)
+        heap_state;
       Proof_context.append t
         "xapp (%s %s (fun %a =>  %s))."
         lemma_name
         const_args
         pp_param
         (snd inv_ty)
-        heap_state
+        heap_state)
     else
-      Proof_context.append t
+      (Format.printf "sending: xapp (%s %s (fun %a => \\[ %a ] %s)). to the proof context@."
+                 lemma_name
+        const_args
+        pp_param
+        (snd inv_ty)
+        Proof_utils.Printer.pp_expr
+        (fst invariant)
+        heap_state;
+        Proof_context.append t
         "xapp (%s %s (fun %a => \\[ %a ] %s))."
         lemma_name
         const_args
@@ -922,7 +941,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         (snd inv_ty)
         Proof_utils.Printer.pp_expr
         (fst invariant)
-        heap_state;
+        heap_state)
   end;
 
   (* dispatch remaining subgoals by the best method: *)
@@ -930,8 +949,15 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     Proof_context.append t "{ admit. }";
   done;
 
+  Format.printf "pattern was %s@."
+    ([%show: Lang.Expr.typed_param] pat);
   begin match pat with
+
   | `Tuple _ -> failwith "tuple results from not supported"
+
+  | `Var (_, Lang.Type.Unit) ->
+    Proof_context.append t "xmatch."
+
   | `Var (result, _) ->
     let name = Proof_context.fresh ~base:result t in
     let h_name = Proof_context.fresh ~base:("H" ^ result) t in
@@ -939,8 +965,9 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     match snd invariant with
     | [] -> ()
     | _ ->
-      Proof_context.append t "xdestruct."
+      Proof_context.append t "try xdestruct."
   end;
+  Format.printf "proof is %s@." (Proof_context.extract_proof_script t);
 
   symexec t env rest
 

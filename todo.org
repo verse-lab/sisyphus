@@ -21,8 +21,12 @@ CLOSED: [2022-10-03 Mon 05:23]
 CLOSED: [2022-10-03 Mon 06:19]
 ** DONE Try proving the new proof yourself
 CLOSED: [2022-10-03 Mon 06:41]
-** TODO Print out the full query to z3 for preservation and send to z3 manually
-** TODO Print out check preserved query and debug in Z3
+** DONE Add extra column for ifs/matches
+CLOSED: [2022-10-03 Mon 13:50]
+** DONE Print out the full query to z3 for preservation and send to z3 manually
+CLOSED: [2022-10-03 Mon 13:50]
+** DONE Print out check preserved query and debug in Z3
+CLOSED: [2022-10-03 Mon 13:50]
 ** TODO You're the BEST around
 
 * Tasks for the proof demigod

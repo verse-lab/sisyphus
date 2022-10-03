@@ -104,10 +104,10 @@ Arguments list_iter_spec {A} {EA} f l I HI : rename.
 
 Lemma list_iteri_aux_spec : forall A `{EA: Enc A},
   forall (f:func) (i: int) (r t l: list A) (I: list A -> hprop)  ,
-    (forall i x t r, (l = t ++ x :: r) -> i = length t ->
-                     SPEC (f i x) 
+    (forall i v t r, (l = t ++ v :: r) -> i = length t ->
+                     SPEC (f i v) 
                        PRE (I t) 
-                       POST (fun (unused: unit) => I (t & x))) ->  
+                       POST (fun (unused: unit) => I (t & v))) ->  
     l = t ++ r ->
     i = length t ->
     SPEC (list_iteri_aux f i r)

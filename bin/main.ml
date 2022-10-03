@@ -3,7 +3,7 @@ open Containers
 
 
 let generate_proof_script coq_verbose deps old_program new_program  coq_dir coq_lib_name old_proof new_proof_base new_proof_name =
-  Random.init 1010;
+  Random.init 2;
 
   let old_program = Bos.OS.File.read old_program |> Result.get_exn in
   let new_program = Bos.OS.File.read new_program |> Result.get_exn in

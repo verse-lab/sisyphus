@@ -23,6 +23,11 @@ Proof using (All).
 (* xalloc a data Hdata. *)
 (* xletopaque tmp Htmp. *)
 
+(* (* xapp (ProofsArrayOfRevList.Verify_array_of_rev_list_utils.list_ml_iteri_spec (tmp) (tl) *) *)
+(* (*         (fun (arg0: list (A)) => *) *)
+(* (*            a ~> Array *) *)
+(* (*              ((make ((length l) - (length arg0)) x) ++ *) *)
+(* (*                 (take (length arg0) (rev arg0))))). *) *)
 (* xapp (@list_ml_iteri_spec _ _ tmp (x :: tl) *)
 (*         (fun (t: list A) => *)
 (*            a ~> Array ((make (length l - (length t)) x) ++ (take (length t) (rev t))) *)
