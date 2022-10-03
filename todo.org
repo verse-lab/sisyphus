@@ -17,7 +17,9 @@ CLOSED: [2022-10-03 Mon 05:10]
 CLOSED: [2022-10-03 Mon 05:10]
 ** DONE Check that old behaviour is preserved
 CLOSED: [2022-10-03 Mon 05:23]
-** TODO try reversing the candidates
+** DONE try reversing the candidates
+CLOSED: [2022-10-03 Mon 06:19]
+** TODO Try proving the new proof yourself
 ** TODO Print out check preserved query and debug in Z3
 ** TODO You're the BEST around
 
