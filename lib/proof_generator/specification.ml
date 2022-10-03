@@ -129,6 +129,11 @@ let rec normalize_constr c =
   then let c, _, _ = Constr.destCast c in normalize_constr c
   else c
 
+(** [unwrap_invariant_spec formals env hole_binding sym_heap
+   no_conditions trm] given an term [trm] that represents the type of
+   a specification for a higher order function to a combinator,
+   extracts a description of the condition in a form that can be sent
+   to Z3. *)
 let unwrap_invariant_spec formals
       (env: PV.def_map)
       (hole_binding: int StringMap.t)
@@ -139,6 +144,9 @@ let unwrap_invariant_spec formals
            (fmt ())
            (Proof_utils.Debug.constr_to_string_pretty c) in
   let no_formals = List.length formals in
+  (* [collect_params] assumes that the named arguments to the higher
+     order specification are additional parameters to the invariant,
+     and then calls {!collect_assumptions}: *)
   let rec collect_params acc c = 
     let rel ind =
       let ind = ind - 1 in
@@ -154,6 +162,10 @@ let unwrap_invariant_spec formals
         "found unhandled Coq term (%s)[%s] in (%s) which was expected \
          to be a invariant spec (forall ..., eqns, SPEC (_), _)"
         (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
+  (* [collect_assumptions params acc c] accumulates the pure side
+     conditions of a higher order specification into [acc] and then
+     calls {!collect_spec} once it reaches the hoare triple describing
+     the invariant. *)
   and collect_assumptions params acc c = 
     match Constr.kind_nocast c with
     | Constr.Prod (_, ty, rest) ->
@@ -170,6 +182,7 @@ let unwrap_invariant_spec formals
         "found unhandled Coq term (%s)[%s] in (%s) which was \
          expected to be a invariant spec. Expecting (eqns, SPEC (_), \
          _)" (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c)
+  (* [collect_spec params assums trm] *)
   and collect_spec params assums c =
     match Constr.kind_nocast c with
     | Constr.App (fname, [| f_app; _; _; pre; post |]) when PU.is_const_eq "CFML.SepLifted.Triple" fname ->
@@ -225,7 +238,7 @@ let unwrap_invariant_spec formals
         let name =
           name
           |> (fun name -> name.binder_name)
-          |> check_or_fail "named function arg" Names.Name.is_name
+          |> check_or_fail "named post return arg" Names.Name.is_name
           |> (function[@warning "-8"] Names.Name.Name name -> Names.Id.to_string name) in
         let ty =
           let rel ind =
@@ -267,6 +280,20 @@ let unwrap_invariant_spec formals
                     | _ -> failwith "tuple parameters in higher order functions not supported")
                   |> StringMap.of_list in
 
+        (** During symbolic execution and elsewhere in the system, we
+           represent heap values as [PointsTo(var, _, body)], where if
+           [var] is an array, then [body] will be annotated with the
+           form [`App ("CFML.WPArray.Array", [_])] to capture the fact
+           that var points to an array. As such, when we return the
+           results of symbolic execution to Z3, we must make sure to
+           strip these annotations *)
+        let unwrap_heap_expression  (expr: Lang.Expr.t) =
+          match expr with
+          | `App ("CFML.WPArray.Array", [vl]) -> vl
+          | `App (fname, _) ->
+            Format.printf "ignoring possible application %s@." fname;
+            expr
+          | _ -> expr in
         let rec eval_expr (env: (Lang.Expr.t * Lang.Type.t) StringMap.t) (sym_heap: Proof_spec.Heap.Heap.t)
                   (body: Lang.Expr.t) =
           Lang.Expr.subst Fun.(Option.map fst % flip StringMap.find_opt env) body in
@@ -282,10 +309,16 @@ let unwrap_invariant_spec formals
             let sym_heap =
               let arr_vl = `App ("Array.set", [arr_vl; i; vl]) in
               Proof_spec.Heap.Heap.add_heaplet
-                (Proof_spec.Heap.Heaplet.PointsTo (arr, ty, arr_vl)) sym_heap in
+                (Proof_spec.Heap.Heaplet.PointsTo (arr, ty, `App ("CFML.WPArray.Array", [arr_vl]))) sym_heap in
             eval_stmt env sym_heap (c1 @ constraints) rest
           | `Value expr ->
+            let should_unwrap = match expr with
+              | `Var v ->
+                Proof_spec.Heap.Heap.mem_var v sym_heap
+              | _ -> false in 
             let res = eval_expr env sym_heap expr in
+            let res = if should_unwrap then unwrap_heap_expression res else res in
+            
             res, constraints, sym_heap
           | _ -> failwith (Format.sprintf "unsupported higher order function body %s" (Lang.Program.show_stmt
                                                                                          Lang.Expr.print_simple
@@ -293,7 +326,10 @@ let unwrap_invariant_spec formals
         let (res, constraints, sym_heap) = eval_stmt env sym_heap [] body in
         let post_expr_values =
           Proof_spec.Heap.Heap.to_list sym_heap
-          |> List.map (fun (Proof_spec.Heap.Heaplet.PointsTo (var, _, expr)) -> StringMap.find var hole_binding, expr)
+          |> List.map (fun (Proof_spec.Heap.Heaplet.PointsTo (var, _, expr)) ->
+            StringMap.find var hole_binding,
+            unwrap_heap_expression expr
+          )
           |> List.map (fun (id, expr) ->
             let var_id = build_hole_var id in
             id, fun hole ->
@@ -338,11 +374,30 @@ let unwrap_invariant_spec formals
         (Proof_utils.Debug.constr_to_string_pretty c) in
   collect_params [] c
 
+(** [unwrap_instantiated_specification t env hb pre trm] when given a
+   term [trm] representing the type of an instantiated specification
+   extracts a triple of [formals, conditions, initial_args].
+
+    [hole_binding] is a mapping from heap variables (i.e [arr], [r],
+   etc.) to an integer id that represents the position of the
+   expression that should describe the heap variable's contents in the
+   result. *)
 let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_heap (c: Constr.t) =
+  (* collect invariants first accumulates the list of formal
+     parameters, and then calls {!collect_invariant_conditions} to
+     collect invariant conditions.Z
+
+     Example:
+
+     [forall (A: Type) (x: A) ..., (forall x: int, SPEC (f x) PRE _
+     POST _) -> SPEC (iter _) PRE _ POST _] *)
   let rec collect_invariants acc c = 
     match Constr.kind_nocast c with
+    (* we assume named arguments are formal parameters *)
     | Constr.Prod ({binder_name=Name name;_}, ty, rest) when PU.is_unnamed_prod ty ->
       collect_invariants ((Names.Id.to_string name, PCFML.unwrap_invariant_type ty) :: acc) rest
+    (* as soon as we hit a named argument, we know we have stumbled
+       upon the first invariant condition.  *)
     | Constr.Prod (_, ty, _) when not @@ PU.is_unnamed_prod ty ->
       collect_invariant_conditions acc [] c
     | _ -> 
@@ -351,11 +406,18 @@ let unwrap_instantiated_specification (t: Proof_context.t) env hole_binding sym_
          in (%s) which was expected to be \
          a specification"
         (Proof_utils.Debug.constr_to_string c) (Proof_utils.Debug.tag c) (Proof_utils.Debug.constr_to_string_pretty c) 
+  (* collect invariant conditions, assumes that all the formals have
+     been collected, and now the remaining arguments are higher-order
+     constraints ending in a hoare Triple of the higher order iterator
+     itself. *)
   and collect_invariant_conditions formals acc c =
     match Constr.kind_nocast c with
+    (* if it's a prod, then this must be an pure condition  *)
     | Constr.Prod (_, ty, rest) ->
       collect_invariant_conditions formals
         ((unwrap_invariant_spec formals env hole_binding sym_heap (List.length acc) ty) :: acc) rest
+    (* otherwise, we've reached the end, and our type MUST be that of
+       a hoare triple: *)
     | Constr.App (triple, [| term; _; _; pre; post |]) when PU.is_const_eq "CFML.SepLifted.Triple" triple ->
       let initial_inv_args = 
         let _, args = pre |> Constr.destApp in

@@ -96,6 +96,9 @@ module Heap = struct
 
   let diff h1 h2 = fold (Fun.flip remove_heaplet) h1 h2
 
+  let mem_var ptr map =
+    StringMap.mem ptr map
+
   let mem (Heaplet.PointsTo (ptr,_,body)) map =
     StringMap.find_opt ptr map
     |> Option.exists (Pair.snd_map (Expr.equal body))

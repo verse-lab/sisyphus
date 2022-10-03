@@ -60,6 +60,7 @@ module Heap : sig
   val diff : t -> t -> t
 
   val mem : Heaplet.t -> t -> bool
+  val mem_var : string -> t -> bool
 
 end
 
