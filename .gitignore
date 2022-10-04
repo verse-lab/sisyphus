@@ -1,5 +1,6 @@
 _build/
 _opam/
+.vscode/*
 **/*/.DS_Store
 .lia.cache
 .swp
