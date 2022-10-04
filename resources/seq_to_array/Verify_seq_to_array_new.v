@@ -40,9 +40,9 @@ xapp
     (fun (arg0 : list A) (arg1 : int) =>
      \[arg1 = length rest - length l + (length rest - length arg0)] \*
      a ~> CFML.WPArray.Array (make (1 + arg1) init ++ drop (1 + arg1) l))).
-{ admit. } { admit. } { admit. }
+{ admit. } {  admit. } { admit. }
 (intros unused Hunused).
-xdestruct.
+try xdestruct.
 xvals.
 { admit. }
 Admitted.

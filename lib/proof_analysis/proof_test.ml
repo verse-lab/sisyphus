@@ -101,6 +101,7 @@ let build_test
         (AH.Pat.var (Location.mknoloc (fst invariant))) @@
       AH.Exp.apply (AH.Exp.ident Location.(mknoloc Longident.(Lident "ignore")))
         [Nolabel, ast] in
+    Format.printf "generated test_fun was %a@." Pprintast.expression ast;
     let body : ((string -> Sisyphus_tracing.Wrap.t) -> unit) -> unit =
       Dynamic.CompilationContext.eval ctx ast in
     fun inv ->

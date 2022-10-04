@@ -60,6 +60,7 @@ module Heap : sig
   val diff : t -> t -> t
 
   val mem : Heaplet.t -> t -> bool
+  val mem_var : string -> t -> bool
 
 end
 
@@ -88,6 +89,7 @@ module Assertion : sig
   val with_heaplets : Heaplet.t list -> t -> t
   val with_heaplets_iter : Heaplet.t Iter.t -> t -> t
   val empty : t
+  val union : t -> t -> t
   val diff : t -> t -> t
   val vars : ?with_funs:bool -> t -> StringSet.t -> StringSet.t
   val subst : (string -> Expr.t option) -> t -> t

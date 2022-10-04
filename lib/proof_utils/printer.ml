@@ -41,6 +41,12 @@ let rec pp_expr fmt (expr: Lang.Expr.t) =
   | `App ("-", [l;r]) ->
     Format.fprintf fmt "(%a - %a)"
       pp_expr l pp_expr r
+  | `App ("&&", [l;r]) ->
+    Format.fprintf fmt "(%a /\\ %a)"
+      pp_expr l pp_expr r
+  | `App ("||", [l;r]) ->
+    Format.fprintf fmt "(%a \\/ %a)"
+      pp_expr l pp_expr r
   | `App (f, args) ->
     Format.fprintf fmt "(%s %a)"
       f (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt " ") pp_expr)

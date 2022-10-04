@@ -1,10 +1,19 @@
 open Containers
 open Bos
 
-let sisyphus = Cmd.v "../bin/main.exe"
+let sisyphus = Cmd.v "../../bin/main.exe"
 let coqdep = Cmd.v "coqdep"
 let coqc = Cmd.v "coqc"
 let copy = Cmd.v "cp"
+
+let is_debug_mode =
+  let env_vars =     
+    OS.Env.var "OCAMLRUNPARAM"
+    |> Option.map (String.split_on_char ',')
+    |> Option.value ~default:[]
+    |> List.map (String.trim)
+    |> List.filter String.is_empty in
+  List.mem "b" env_vars
 
 let build_coq_project ~coq_lib_name test_dir =
   let open Result in
@@ -17,11 +26,15 @@ let build_coq_project ~coq_lib_name test_dir =
         then Cmd.(b % p file)
         else b)
         Cmd.(coqdep % "-sort" % "-R" % "./" % coq_lib_name) contents in
-    let* deps, _ = OS.Cmd.run_out coq_dep_cmd |> OS.Cmd.out_string in
+    let err =
+      if is_debug_mode
+      then Some OS.Cmd.err_stderr
+      else Some OS.Cmd.err_null in
+    let* deps, _ = OS.Cmd.run_out ?err coq_dep_cmd |> OS.Cmd.out_string in
     let deps = String.split_on_char ' ' deps |> List.filter (Fun.negate String.is_empty) in
     let* () =
       Result.fold_l (fun () dep ->
-        OS.Cmd.run Cmd.(coqc % "-R" % "./" % coq_lib_name % dep)
+        OS.Cmd.run ?err Cmd.(coqc % "-R" % "./" % coq_lib_name % dep)
       ) () deps in
     Ok ()
   ) () |> Result.flat_map Fun.id
@@ -33,28 +46,35 @@ let run_sisyphus path coq_lib_name =
   let* test_dir = OS.Dir.tmp ("sisyphus_test_" ^^ (Scanf.format_from_string basename "") ^^ "_%s") in
 
   let old_program, new_program, old_proof, new_proof, deps = ref None, ref None, ref None, ref None, ref [] in
+  let cfml_output_path = Fpath.(path / "_output") in
   (* setup test directory *)
   let* _ =
     OS.Dir.fold_contents (fun path acc ->
       let* () = acc in
-      Format.printf "%a ==> %s@." Fpath.pp path (Fpath.basename path);
       let base_name = Fpath.basename path in
-      (* extract old program, new program, old proof, new proof_stub *)
-      let should_copy = begin match () with
-        | _ when String.suffix ~suf:"_old.ml" base_name -> old_program := Some Fpath.(test_dir / base_name); true
-        | _ when String.suffix ~suf:"_new.ml" base_name -> new_program := Some Fpath.(test_dir / base_name); true
-        | _ when String.suffix ~suf:"_old.v" base_name -> old_proof :=    Some Fpath.(test_dir / base_name); true
-        | _ when String.suffix ~suf:"_new.v" base_name -> new_proof :=    Some path; false
+      let in_output = Fpath.is_prefix cfml_output_path path in
+      let valid_file =
+        Fpath.has_ext ".v" path ||
+        (Fpath.has_ext ".ml" path &&
+         not (String.suffix ~suf:"sisyphus.ml" base_name)) in
+      if valid_file && not in_output
+      then begin
+        Format.printf "%a ==> %s@." Fpath.pp path (Fpath.basename path);
+        (* extract old program, new program, old proof, new proof_stub *)
+        begin match () with
+        | _ when String.suffix ~suf:"_old.ml" base_name -> old_program := Some Fpath.(test_dir / base_name)
+        | _ when String.suffix ~suf:"_new.ml" base_name -> new_program := Some Fpath.(test_dir / base_name)
+        | _  when String.suffix ~suf:"_old.v" base_name -> old_proof   := Some Fpath.(test_dir / base_name)
+        | _ when String.suffix ~suf:"_new.v" base_name ->  new_proof   := Some path
         (* temporary ml files are generated with the suffix <filename>.sisyphus.ml, so these should be ignored when testing. *)
         | _ when Fpath.has_ext ".ml" path && not (String.suffix ~suf:"sisyphus.ml" base_name) ->
-          deps := Fpath.(test_dir / base_name) :: !deps; true
-        | _ when Fpath.has_ext ".v" path -> true
-        | _ -> false
-      end in
-      (* copy over the files *)
-      if should_copy
-      then OS.Cmd.run Cmd.(copy % p path %  p Fpath.(test_dir / base_name))
-      else Ok () 
+          deps := Fpath.(test_dir / base_name) :: !deps
+        | _ -> ()
+        end;
+        (* copy over the files *)
+        OS.Cmd.run Cmd.(copy % p path %  p Fpath.(test_dir / base_name))
+      end
+      else Ok ()
     ) (Ok ()) path in
   let deps = !deps in
   let old_program = Option.get_exn_or "" !old_program in
@@ -90,7 +110,7 @@ let run_sisyphus path coq_lib_name =
            % old_proof_name % stub_file_name % output_name) in
     OS.Cmd.run sisyphus_cmd
     |> Result.map_err (fun (`Msg err) -> `Msg ("Running Sisyphus failed with error: " ^ err)) in
-  
+
   (* build result file *)
   let* () =
     OS.Dir.with_current test_dir (fun () ->
@@ -109,7 +129,7 @@ let result =
 
 let sisyphus_runs_on ~path ~coq_name () =
   let path = Fpath.of_string path |> Result.get_exn in
-  Alcotest.check result (Format.sprintf "Sisyphus builds project") (run_sisyphus path coq_name) (Ok ())
+  Alcotest.check result (Format.sprintf "Sisyphus builds project") (Ok ()) (run_sisyphus path coq_name) 
 
 let tests = ref []
 
@@ -130,5 +150,5 @@ module Make (S: sig val name: string end) = struct
     module_tests := (name, `Slow, test) :: !module_tests
 
   let run () = run S.name
-  
+
 end

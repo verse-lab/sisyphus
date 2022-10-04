@@ -1,16 +1,14 @@
 Set Implicit Arguments.
-
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
-
 From Proofs Require Import Verify_seq_to_array_utils.
 From Proofs Require Import Seq_to_array_old_ml.
-
-Lemma to_array_spec : forall A `{EA:Enc A} (l:list A) (s:func),
+Lemma to_array_spec :
+  forall (A : Type) `{EA : Enc A} (l : list A) (s : func) (v : loc),
   SPEC (to_array s)
-    PRE (\[LSeq l s])
-    POST (fun a => a ~> Array l).
-Proof using.
+  PRE \[LSeq l s]
+  POST (fun a : loc => a ~> Array l).
+Proof using (All).
   xcf.
   xpullpure HLseq.
   apply LSeq_if in HLseq as Hs.

@@ -15,5 +15,5 @@ type 'a tester = 'a -> bool
    given a candidate invariant [inv] will return a boolean indicating
    whether the invariant dynamically holds during the execution of the
    function or not. *)
-val analyse : lambda_env -> obs -> invariant_spec -> Constr.t ->
+val analyse : Environ.env -> lambda_env -> obs -> invariant_spec -> Constr.t ->
     Dynamic.CompilationContext.t -> invariant tester

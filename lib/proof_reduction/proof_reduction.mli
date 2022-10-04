@@ -14,6 +14,7 @@ type filter =
        constant that is transparent instead.  *)
 
 val reduce :
+  ?unfold:Names.Constant.t list ->
   ?filter:filter ->
   ?cbv:bool ->
   Environ.env -> Evd.evar_map -> Evd.econstr -> Evd.evar_map * Evd.econstr

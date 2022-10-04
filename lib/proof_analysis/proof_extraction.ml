@@ -5,50 +5,20 @@ module AT = Asttypes
 
 let () = Printexc.register_printer (function Failure e -> Some e | _ -> None)
 
-let extract_xmatch_cases n trm =
-  let rec extract_eq trm =
-    match trm with
-    | Proof_term.Lambda (_, `Eq (_, `Var var, vl), rest) ->
-      (var, vl, rest)
-    | Proof_term.Lambda (_, _, rest) ->
-      extract_eq rest
-    | _ -> Format.ksprintf ~f:failwith "extract_eq: found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm)) in
-  let rec loop n acc trm =
-    match trm with
-    | Proof_term.HimplHandR (inv, l, r) ->
-      let acc =
-        let vl = extract_eq l in
-        vl :: acc in
-      let n = n - 1 in
-      if n > 0
-      then loop n acc r
-      else n, acc
-    | Proof_term.Lambda (_, _, rest) ->
-      loop n acc rest
-    | Proof_term.Refl -> n, acc
-    | Proof_term.HimplTrans (_, _, l1, l2) ->
-      let n, acc = loop n acc l1 in
-      if n > 0
-      then loop n acc l2
-      else n, acc
-    | _ ->
-      Format.ksprintf ~f:failwith "extract_xmatch_cases: found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm)) in
-  loop n [] trm |> snd |> List.rev 
-
-let loc v = Location.{txt=v; loc=none}
+let loc v = Location.{txt=v; loc=none} 
 
 let pvar s = AH.Pat.var (loc s)
-let lid s = Longident.Lident s
 
+let lid s = Longident.Lident s
 let const v = AH.Exp.constant v
+
 let pconst v = AH.Pat.constant v
 let str_const v = const (Parsetree.Pconst_string (v, Location.none, None))
 let int_const v = const (Parsetree.Pconst_integer (string_of_int v, None))
 let pstr_const v = pconst (Parsetree.Pconst_string (v, Location.none, None))
 let pint_const v = pconst (Parsetree.Pconst_integer (string_of_int v, None))
-
-
 let var v = AH.Exp.ident (loc (lid v))
+
 
 let fun_ args body =
   List.fold_left
@@ -65,8 +35,8 @@ let normalize = function
   | s -> lowercase s
 
 let extract_sym s = String.drop (String.length "symbol_") s
-let sym_of_raw = Longident.Ldot (Ldot (Lident "Sisyphus_tracing", "Symbol"), "of_raw")
 
+let sym_of_raw = Longident.Ldot (Ldot (Lident "Sisyphus_tracing", "Symbol"), "of_raw")
 let rec encode_expr_as_pat (expr: Lang.Expr.t) : Parsetree.pattern =
   match expr with
   | `Tuple vls ->
@@ -111,16 +81,59 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
     contains_symexec l1 || contains_symexec l2
   | Proof_term.Lambda (_, _, rest) ->
     contains_symexec rest
-  | Proof_term.VarApp _ -> failwith "lol"
+  | Proof_term.AuxVarApp _
+  | Proof_term.VarApp _ ->
+    failwith "attempt to call contains symexec on Variable Application term"
   | Proof_term.CharacteristicFormulae { args; pre; proof } -> contains_symexec proof
   | Proof_term.AccRect { proof={ proof; _ }; _ } -> contains_symexec proof
   | Proof_term.Refl -> false
+  | Proof_term.XLetFun _
   | Proof_term.XLetVal _ 
   | Proof_term.XLetTrmCont _
   | Proof_term.XMatch _ 
   | Proof_term.XApp _ 
   | Proof_term.XVal _ 
   | Proof_term.XDone _ -> true
+
+(** [extract_xmatch_cases n trm] extracts [n] xmatch cases from [trm].
+
+    The general structure of a proof term used to analyse a match
+   construct is with an xmatch lemma at the root, and then a subproof
+   consistent of a sequence of `himplhandr` lemmas, one for each case,
+   with the final `himplhandr` being terminated with an xdone lemma by
+   contradiction (this doesn't correspond to anything in the program,
+   but rather is required in the proof to capture the exhaustiveness
+   of the match so we ignore it). *)
+let extract_xmatch_cases n trm =
+  let rec extract_eq acc trm =
+    match trm with
+    | Proof_term.Lambda (_, `Eq (_, left, right), rest) ->
+      (left,right,rest)
+    | Proof_term.Lambda (_, _, rest) ->
+      extract_eq acc rest
+    | _ ->
+      Format.ksprintf ~f:failwith "extract_eq: found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm)) in
+  let rec loop n acc trm =
+    match trm with
+    | Proof_term.HimplHandR (inv, l, r) ->
+      let acc =
+        let vl = extract_eq [] l in
+        vl :: acc in
+      let n = n - 1 in
+      if n > 0
+      then loop n acc r
+      else n, acc
+    | Proof_term.Lambda (_, _, rest) ->
+      loop n acc rest
+    | Proof_term.Refl -> n, acc
+    | Proof_term.HimplTrans (_, _, l1, l2) ->
+      let n, acc = loop n acc l1 in
+      if n > 0
+      then loop n acc l2
+      else n, acc
+    | _ ->
+      Format.ksprintf ~f:failwith "extract_xmatch_cases: found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm)) in
+  loop n [] trm |> snd |> List.rev
 
 
 let rec wrap_with_invariant_check (pre: Proof_term.sym_heap) ~then_ =
@@ -129,6 +142,14 @@ let rec wrap_with_invariant_check (pre: Proof_term.sym_heap) ~then_ =
   | `Invariant expr :: t ->
     AH.Exp.sequence (encode_expr expr) (wrap_with_invariant_check t ~then_)
 
+(** [find_next_program_binding_name trm] when given a proof term,
+   calculates the next lambda that binds a variable with an
+   OCaml-representable type.
+
+   Sometimes symbolic execution steps in a proof use lambda subterms
+   to name the values they instantiate, and in these cases, this
+   function is useful for "peeking" into the proof term to work out an
+   appropriate name. *)
 let rec find_next_program_binding_name (trm: Proof_term.t) =
   match trm with
   | Proof_term.Lambda (name, `Ty _, _) -> name
@@ -144,6 +165,7 @@ let rec find_next_program_binding_name (trm: Proof_term.t) =
   | _ -> raise Not_found
   
 let rec extract ?replacing (trm: Proof_term.t) =
+  Format.printf "extract %s@." (Proof_term.tag trm);
   let extract trm = extract ?replacing trm in
   match trm with
   | Proof_term.XLetVal { pre; binding_ty; let_binding=(var, _); eq_binding; value; proof } ->
@@ -158,11 +180,11 @@ let rec extract ?replacing (trm: Proof_term.t) =
     proof
   } ->
     let cases = extract_xmatch_cases (List.length value) proof
-                |> List.group_by ~hash:(fun (v, _, _) -> Hash.string v) ~eq:(fun (v, _, _) (v', _, _) -> String.equal v v') in
+                |> List.group_by ~hash:(fun (v, _, _) -> Hash.poly v) ~eq:(fun (v, _, _) (v', _, _) -> Equal.poly v v') in
     if not Int.(List.length cases = 1) then
       Format.ksprintf ~f:failwith "found unsupported match expression on multiple values?";
     let cases = List.hd cases in
-    let match_vl : Lang.Expr.t = List.hd cases |> fun (vl, _, _) -> `Var vl in
+    let match_vl : Lang.Expr.t = List.hd cases |> fun (vl, _, _) -> vl in
     wrap_with_invariant_check pre ~then_:begin fun () ->
       AH.Exp.match_ (encode_expr match_vl)
         (List.map (fun (_, pat, rest) ->
@@ -199,7 +221,20 @@ let rec extract ?replacing (trm: Proof_term.t) =
     else
       wrap_with_invariant_check pre ~then_:begin fun () ->
         extract_recursive_function ~application ~prop_type ~proof:proof_fun ~vl ~args
-      end    
+      end 
+  | Proof_term.XApp { application=_; pre; fun_pre=_; proof_fun=AuxVarApp (_, _, proof_fun); proof } ->
+    (* idea is that when we have a auxiliary helper, we don't emit the
+       application, but instead leave it to the proof by the helper. *)
+    if contains_symexec proof then
+      wrap_with_invariant_check pre ~then_:begin fun () ->
+        AH.Exp.sequence
+          (extract proof_fun)
+          (extract proof)
+      end
+    else
+      wrap_with_invariant_check pre ~then_:begin fun () ->
+        extract proof_fun
+      end 
   | Proof_term.XApp { application=(f, args); pre; fun_pre; proof_fun; proof } ->
     let expr =
       if Option.exists (String.equal f) replacing
@@ -208,7 +243,8 @@ let rec extract ?replacing (trm: Proof_term.t) =
           let args = List.filter_map (function `Expr e -> Some e |`ProofTerm _ -> None ) params in
           encode_expr (`App ("loop", args))
         | _ ->
-          Format.ksprintf ~f:failwith "found non-var app application of recursive call.... %s" (String.take 1000 ([%show: Proof_term.t] trm))
+          Format.ksprintf ~f:failwith "found non-var app application of recursive call.... %s"
+            (String.take 1000 ([%show: Proof_term.t] trm))
       end
       else encode_expr (`App (f, args)) in
     if contains_symexec proof then
@@ -225,7 +261,12 @@ let rec extract ?replacing (trm: Proof_term.t) =
     end
   | Proof_term.XDone _ ->
     AH.Exp.apply (var "failwith") [AT.Nolabel, str_const "invalid assumptions"]
+  | Proof_term.AuxVarApp (_, _, proof) ->
+    extract proof
+  | Proof_term.XLetFun { pre; proof } ->
+    extract proof
   | Proof_term.CharacteristicFormulae { args; pre; proof } -> extract proof
+
   | Proof_term.VarApp _ 
   | Proof_term.Refl 
   | Proof_term.HimplHandR (_, _, _) ->

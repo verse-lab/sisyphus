@@ -7,19 +7,24 @@ let pp_ty = Lang.Type.pp_raw
 type sym_heap =
   [
     (* `Heaplet of Proof_spec.Heap.Heaplet.t *)
-  | `Invariant of expr
+    | `Invariant of expr
   ] list [@@deriving show]
+
+type truncated_string = string
+let pp_truncated_string fmt vl =
+  Format.fprintf fmt "\"%s...\"" (String.escaped String.(sub vl 0 10))
+let show_truncated_string = Format.asprintf "%a" pp_truncated_string
 
 type proof_value = [
   | `Expr of expr
   | `Ty of ty
   | `Eq of ty * expr * expr
-  | `Proof of string
+  | `Proof of truncated_string
 ] [@@deriving show]
 
 type spec_arg = [
   | `Expr of expr
-  | `ProofTerm of string
+  | `ProofTerm of truncated_string
 ] [@@deriving show]
 type spec_app = string * spec_arg list
 [@@deriving show] 
@@ -49,6 +54,10 @@ type t =
       value_code: expr;
       proof: t
     }
+  | XLetFun of {
+      pre: sym_heap;
+      proof: t
+    }
   | XMatch of {value: (expr * expr) list; pre: sym_heap; proof: t}
   | XApp of {
       application: string * expr list;
@@ -60,6 +69,7 @@ type t =
   | XVal of { pre: sym_heap; value_ty: ty; value: expr }
   | XDone of sym_heap
   | VarApp of spec_app
+  | AuxVarApp of string * spec_arg list * t
   | CharacteristicFormulae of {
       args: proof_value list;
       pre: sym_heap;
@@ -79,3 +89,19 @@ and acc_rect_proof = {
   proof: t
 } [@@deriving show]
 
+let tag = function
+  | HimplHandR _ -> "HimplHandR"
+  | HimplTrans _ -> "HimplTrans"
+  | Lambda _ -> "Lambda"
+  | XLetVal _ -> "XLetVal"
+  | XLetTrmCont _ -> "XLetTrmCont"
+  | XLetFun _ -> "XLetFun"
+  | XMatch _ -> "XMatch"
+  | XApp _ -> "XApp"
+  | XVal _ -> "XVal"
+  | XDone _ -> "XDone"
+  | VarApp _ -> "VarApp"
+  | AuxVarApp _ -> "AuxVarApp"
+  | CharacteristicFormulae _ -> "CharacteristicFormulae"
+  | AccRect _ -> "AccRect"
+  | Refl -> "Refl"

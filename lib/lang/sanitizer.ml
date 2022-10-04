@@ -221,12 +221,38 @@ let split_last ls =
   | h :: t ->
     loop [] h t
 
+let rec convert_list : Parsetree.expression -> Parsetree.expression list =
+  function
+    { pexp_desc=Pexp_construct ({txt=Lident "::";_}, Some { pexp_desc=Pexp_tuple [hd; tl]; _}) ; _ } ->
+    hd :: convert_list tl
+  | { pexp_desc=Pexp_construct ({txt=Lident "[]";_}, None) ; _ } ->
+    []
+  | expr ->
+    Format.ksprintf ~f:failwith "convert_list expecting either a cons or nil constructor, but called with expression %a"
+      Pprintast.expression expr
+
+let convert_pair : Parsetree.expression -> Parsetree.expression * Parsetree.expression =
+  function
+    { pexp_desc=Pexp_tuple [fst;snd] ; _ } ->
+    (fst,snd)
+  | expr ->
+    Format.ksprintf ~f:failwith "convert_pair expecting a tuple of two elements, but called with expression %a"
+      Pprintast.expression expr
+
+let convert_string_const : Parsetree.expression -> string =
+  function
+    { pexp_desc=Pexp_constant (Pconst_string (s, _, _)) ; _ } -> s
+  | expr ->
+    Format.ksprintf ~f:failwith "convert_string_const expecting a string literal, but called with expression %a"
+      Pprintast.expression expr
+
 let convert : Parsetree.structure -> 'a Program.t = function
   | pats ->
     let prelude, {
       pstr_desc=Pstr_value (Nonrecursive,
                             [{pvb_pat={ppat_desc=Ppat_var {txt=name}};
-                              pvb_expr}])} = split_last pats in
+                              pvb_expr; pvb_attributes}])} = split_last pats in
+
     (* let prelude = to_str pres in *)
     let rec collect_params acc : Parsetree.expression -> _ = function
       | {pexp_desc=
@@ -241,7 +267,22 @@ let convert : Parsetree.structure -> 'a Program.t = function
         let body = convert_stmt ctx body in
         (params, body) in
     let args, body = collect_params [] pvb_expr in
-    {prelude;name;args;body}
+    let logical_mappings =
+      begin
+        let open Option in
+        let* mapping = List.find_opt (fun attr ->
+          String.equal "with_logical_mapping" attr.Parsetree.attr_name.txt 
+        ) pvb_attributes in
+        match mapping.attr_payload with
+        | Parsetree.PStr [{ pstr_desc=Pstr_eval (expr, _); pstr_loc }] ->
+          let elts = convert_list expr
+                     |> List.map convert_pair
+                     |> List.map (Pair.map_same convert_string_const) in
+          Some elts
+        | _ -> failwith "invalid structure for logical mappings"
+      end |> Option.value ~default:[] in
+
+    {prelude; logical_mappings;name;args;body}
 
 let parse_lambda_str str = raw_parse_expr_str str |> convert_lambda StringSet.empty
 let parse_expr_str str = raw_parse_expr_str str |> convert_expr

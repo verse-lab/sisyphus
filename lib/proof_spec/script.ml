@@ -86,107 +86,38 @@ let pp_simple = Expr.pp_simple
 type step = [
   | `Xcf of string
   | `Xpullpure of string
-  (**
-     Γ ∪ {x1: P1 ᠁ xn: Pn} {P; H} C {res ↠ Q}
-     ------------------------ XPullPure (x1,...,xn)
-     Γ, {P1,᠁ Pn, P;H} C {res ↠ Q}
-  *)
   | `Xpurefun of string * string * [`Lambda of Expr.typed_param list * simple]
-  (**
-     lam = fun args -> body, pure_expr(body)
-     Γ ∪ {f : func, Hf: f = lam}, {P} e {res ↠ Q}
-     ------------------------ XPureFun (f,Hf, lam)
-     Γ, {P} let f = fun args -> body in e  {res ↠ Q}
-  *)
   | `Xapp of Lang.Expr.program_id * string * spec_arg list
-  (**
-     spec = ∀ v1..vn, {Pf} f args res => {res ↠ res = vl, Qf1...Qfm; Hf}
-     {P} ⊫ {Pf}[ai/vi]  vl' = vl[ai/vi]
-     Γ ∪ {∀ i,  ei: Qfi[ai/vi]} {P} let f = vl' in e {res ↠ Q}
-     ------------------------ XApp (spec, a1...an, e,e1..em)
-     Γ, {P} let f = f args in e  {res ↠ Q}
-  *)
+  | `Xref of Lang.Expr.program_id * string
   | `Xdestruct of string
-  (**
-     pure_expr(e_s)
-     Γ ∪ {∀ i, vi: τi} ∪ {H: (v1,..,vn) = e_s}, {P} e {res ↠ Q}    
-     ------------------------ XDestruct (v1,..,vn,H)
-     Γ, {P} let (v1,..,vn) = e_s in e  {res ↠ Q}    
-  *)
   | `Rewrite of string
-  (**
-     pure_expr(e_s)
-     Γ ∪ {Hfrom: e1 = e2, Hin: e3[e2/e1]}, {P} e {res ↠ Q}    
-     ------------------------ Rewrite (Hfrom,Hin)
-     Γ ∪ {Hfrom: e1 = e2, Hin: e3}, {P} e {res ↠ Q}    
-     xval  *)
   | `SepSplitTuple of string
-  (**
-     pure_expr(e_s)
-     Γ ∪ {∀ i, Hi: eli = eri}, {P} e {res ↠ Q}    
-     ------------------------ SepSplitTuple (Heq,H1,..,Hn)
-     Γ ∪ {Heq: (el1,...eln) = (er1,...ern)}, {P} e {res ↠ Q}    
-  *)
   | `Case of Lang.Expr.program_id * string * string * (string list * step list) list
-  (**
-     τ = C1 a11..a1m | ... | Cn an1 ... anm
-
-     ∀ i,
-     Γ ∪ {ail : τ1,..., aim : τm, H: l = Ci ail..aim}, {P} e {res ↠ Q}
-     ------------------------ Case(l,H)
-     Γ ∪ {l : τ}, {P} e {res ↠ Q}
-  *)
   | `Xmatchcase of string
-  (**
-     τ = C1 a11..a1m | ... | Cn an1 ... anm
-     Γ, {P} ⊫ e = Ci x1 ... xn
-     Γ ∪ {∀ i, xi : τi}, {P} ei  {res ↠ Q}    
-     ------------------------ XMatchCase(i,x1,...,xn)
-     Γ, {P} match e with C1 a1...am -> e1 | ... | Cn an1 ... anm -> en  {res ↠ Q}    
-  *)
   | `Xvalemptyarr of Lang.Expr.program_id * string
-  (**
-     Γ, {P} ⊫ Q * res → Array []
-     ------------------------ XValEmptyArr
-     Γ, {P} [| |] {res ↠ Q * res → Array ls}
-  *)
   | `Xalloc of Lang.Expr.program_id * string
-  (**
-     Γ ∪ {vl: τ, arr: loc, data: list τ, Hdata: data = repeat sz vl},
-              {P * arr  → Array data} e {res ↠ Q}
-              ------------------------ XAlloc(arr,data,Hdata)
-              Γ ∪ {vl: τ}, {P} let arr = Array.make sz vl in e {res ↠ Q}
-            *)
   | `Xletopaque of Lang.Expr.program_id * string
-  (**
-     simple_expr(ev)
-     Γ ∪ {v: τ, Hv: v = ev}, {P} e {res ↠ Q}
-     ------------------------ XLetOpaque(v,Hv)
-     Γ, {P} let v = ev in e {res ↠ Q}
-
-
-     Γ ∪ {v: τ, Hv: code_of(v, ev)}, {P} e {res ↠ Q}
-              ------------------------ XLetOpaque(v,Hv)
-              Γ, {P} let v = ev in e {res ↠ Q}
-            *)
   | `Xvals of Lang.Expr.program_id * string
-  (**
-     Γ ∪ {P} ⊫ {Q[v/res]}
-     ------------------------ XLetOpaque(v,Hv)
-     Γ, {P} v {res ↠ Q}
-  *)
+  | `Xunit of Lang.Expr.program_id * string
   | `Apply of  string
   | `Intros of string
   | `Xseq of string
+  | `Xsimpl of string
 ]
 
 let print_step print_steps : step -> PP.document =
   let open PP in
   let ppid pid = string_of_int pid ^ ": " in
   function
+  | `Xsimpl str ->
+    (string @@ str ^ ".")
   | `SepSplitTuple str ->
     (string @@ str ^ ".")
   | `Xvals (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
+  | `Xref (pid, str) ->
+    (string @@ ppid pid ^ str ^ ".")
+  | `Xunit (pid, str) ->
     (string @@ ppid pid ^ str ^ ".")
   | `Xvalemptyarr (pid, str) ->
     (string @@ ppid pid ^ str ^ ".")
@@ -249,13 +180,15 @@ let pp_parsed_script script =
 
 let extract_step_id (step: step) =
   match step with
+  | `Xunit (id, _)
   | `Xapp (id, _, _)
+  | `Xref (id, _)
   | `Case (id, _, _, _)
   | `Xvalemptyarr (id, _)
   | `Xalloc (id, _)
   | `Xletopaque (id, _)
   | `Xvals (id, _) -> Some id
-  | (`SepSplitTuple _ |`Xmatchcase _ | `Intros _ |`Xpurefun _
+  | (`Xsimpl _ | `SepSplitTuple _ |`Xmatchcase _ | `Intros _ |`Xpurefun _
     |`Xdestruct _ | `Apply _ |`Xseq _ | `Rewrite _  | `Xcf _ |`Xpullpure _) -> None
 
 let rec fold_proof_script f acc ~start ~stop (steps: step list) =

@@ -8,7 +8,7 @@ type 'a stmt = [
   | `Write of string * string * 'a Expr.simple_shape * 'a stmt
   | `Value of 'a Expr.simple_shape
   | `EmptyArray
-] [@@deriving show]
+] [@@deriving show, eq][@@end]
 let ppr_stmt = pp_stmt
 let showr_stmt = show_stmt
 
@@ -18,14 +18,25 @@ type 'a lambda = [ `Lambda of Expr.typed_param list * 'a stmt ]
 let ppr_lambda = pp_lambda
 let showr_lambda = show_lambda
 
+type structure_item = Parsetree.structure_item
+let pp_structure_item fmt vl = Pprintast.structure fmt [vl]
 
 type 'a t = {
-  prelude: Parsetree.structure_item list;
+  prelude: structure_item list;
+  logical_mappings: (string * string) list;
   name: string;
   args: (string * Type.t) list;
   body: 'a stmt
 }
+[@@deriving show]
+let ppr = pp
+let showr = show
 
+let equal eq t1 t2 =
+  String.equal t1.name t2.name
+  && List.equal (fun (l,r) (l', r') -> String.equal l l' && String.equal r r') t1.logical_mappings t2.logical_mappings
+  && List.equal (fun (l,r) (l', r') -> String.equal l l' && Type.equal r r') t1.args t2.args
+  && equal_stmt eq t1.body t2.body
 
 let lookup_statement (id: Id.t) prog =
   let rec loop pos (body: 'a stmt) =

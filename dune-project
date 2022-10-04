@@ -26,6 +26,7 @@
   (z3 (>= 4.8.14))
   (sedlex (>= 2.5))
   (ppx_blob (>= 0.7.2))
+  (ptime (>= 1.0.0))
 ))
 (generate_opam_files true)
 (license AGPL-3.0+)

@@ -6,6 +6,7 @@ type ctx = {
   ctx: Z3.context;
   solver: Z3.Solver.solver;
   int_sort: Z3.Sort.sort;
+  unit_sort: Z3.Sort.sort;
   poly_var_map: (string, Z3.Sort.sort) Hashtbl.t;
   update_map: (Lang.Type.t, Z3.FuncDecl.func_decl) Hashtbl.t;
   type_map: (Lang.Type.t, Z3.Sort.sort) Hashtbl.t;
@@ -34,6 +35,7 @@ let rec typeof env (expr: Lang.Expr.t) : Lang.Type.t option =
    | `Int _ -> Some Lang.Type.Int
    | `App ("-", _) -> Some Lang.Type.Int
    | `App ("+", _) -> Some Lang.Type.Int
+   | `Constructor ("()", []) -> Some Lang.Type.Unit
    | `Constructor ("[]", []) -> None
    | `Constructor ("::", [h; t]) ->
      Option.choice [
@@ -49,7 +51,7 @@ let rec typeof env (expr: Lang.Expr.t) : Lang.Type.t option =
 let rec eval_type (ctx: ctx) (ty: Lang.Type.t) : Z3.Sort.sort =
   Hashtbl.get_or_add ctx.type_map ~k:ty ~f:(fun ty ->
     match ty with
-    | Unit -> Z3.Sort.mk_uninterpreted ctx.ctx (Z3.Symbol.mk_string ctx.ctx "unit")
+    | Unit -> ctx.unit_sort
     | Var "Coq.Numbers.BinNums.Z" -> ctx.int_sort
     | Int -> ctx.int_sort
     | Var v -> begin match Hashtbl.find_opt ctx.poly_var_map v with
@@ -140,6 +142,14 @@ let rec eval_expr ?(ty: Lang.Type.t option)
     let l = eval_expr ctx env l in
     let r = eval_expr ctx env r in
     Z3.Arithmetic.mk_sub ctx.ctx [l;r]
+  | (`App ("&&", [l;r]), _) ->
+    let l = eval_expr ctx env l in
+    let r = eval_expr ctx env r in
+    Z3.Boolean.mk_and ctx.ctx [l;r]
+  | (`App ("||", [l;r]), _) ->
+    let l = eval_expr ctx env l in
+    let r = eval_expr ctx env r in
+    Z3.Boolean.mk_or ctx.ctx [l;r]
   | (`App (("TLC.LibList.length" as fname), [ls]), None) when Option.is_none (typeof env ls) ->
     let _, fdecls = Hashtbl.find ctx.fun_map fname in
     let pvar = List.hd (Hashtbl.keys_list ctx.poly_var_map) in
@@ -221,6 +231,8 @@ let rec eval_expr ?(ty: Lang.Type.t option)
                                    (Var (Hashtbl.keys ctx.poly_var_map |> Iter.head_exn))
                                 )) in
     Z3.Expr.mk_app ctx.ctx nil []
+  | (`Constructor ("true", []), _) -> Z3.Boolean.mk_true ctx.ctx
+  | (`Constructor ("false", []), _) -> Z3.Boolean.mk_false ctx.ctx
   | (`Lambda _, _)
   | (`Constructor _, _) -> invalid_arg (Format.sprintf "attempt to convert unsupported expression %s to Z3"
                                           (Lang.Expr.show expr))
