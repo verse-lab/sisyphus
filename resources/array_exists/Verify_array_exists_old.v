@@ -5,7 +5,7 @@ From ProofsArrayExists Require Import Verify_array_exists_utils.
 From ProofsArrayExists Require Import array_exists_old_ml.
 
 
-Lemma to_array_spec :
+Lemma array_exists_spec :
   forall (A : Type) `{EA : Enc A} (a : array A) (f : func) (l : list A) (fp: A -> bool),
     (forall (a: A),
         SPEC_PURE (f a)

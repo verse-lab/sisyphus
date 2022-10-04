@@ -1,4 +1,4 @@
--R ../../_build/default/resources/array_partition ProofsArrayFindi
+-R ../../_build/default/resources/array_findi ProofsArrayFindi
 
 -I ../../_build/default/lib/proof_reduction
 -I ../../_build/default/lib/plugin
