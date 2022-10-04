@@ -1,13 +1,13 @@
-open Common
+open Sseq
 
-let to_array (l: ('a t[@collection Common.of_list, Common.to_list])) =
+let to_array (l: ('a Sseq.t[@collection Sseq.of_list, Sseq.to_list])) =
   (* 0 *)
   match l() with
   | Nil -> (* 1 *)
     [| |]
   | Cons ((x: 'a), (_tl: 'a t)) ->
     (* 2 *)
-    let (n : int) = length' l in
+    let (n : int) = Sseq.length' l in
     (* 3 *)
     let (a : 'a array) = Array.make n x in (* need first elem to create [a] *)
     (* 4 *)

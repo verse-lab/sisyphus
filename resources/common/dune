@@ -1,0 +1,47 @@
+(library
+ (name common)
+ (wrapped false))
+
+(coq.theory
+ (name Common)
+ (modules Sseq_ml)
+)
+
+(rule
+ (target Arr_ml.v)
+ (deps arr.ml)
+ (action (run cfmlc -o ./Arr_ml.v arr.ml)))
+
+(rule
+ (target Combinators_ml.v)
+ (deps combinators.ml)
+ (action (run cfmlc -o ./Combinators_ml.v combinators.ml)))
+
+(rule
+ (target Lst_ml.v)
+ (deps lst.ml)
+ (action (run cfmlc -o ./Lst_ml.v lst.ml)))
+
+(rule
+ (targets Sseq_ml.v)
+ (deps sseq.ml)
+ (action (run cfmlc -o ./Sseq_ml.v sseq.ml)))
+
+(rule
+ (target Sll_ml.v)
+ (deps sll.ml)
+ (action (run cfmlc -o ./Sll_ml.v sll.ml)))
+
+(rule
+ (target Tree_ml.v)
+ (deps tree.ml)
+ (action (run cfmlc -o ./Tree_ml.v tree.ml)))
+
+(rule
+ (targets Vec_ml.v)
+ (deps vec.ml)
+ (action (run cfmlc -o ./Vec_ml.v vec.ml)))
+
+(rule
+ (target _output)
+  (action (run mkdir -p _output)))
