@@ -26,7 +26,7 @@ let build_concrete_trace ?compilation_env ~deps program =
     | Some env -> env
     | None -> Tracer.CompilationContext.init () in
   let build_trace = Tracer.execution_trace compilation_env (deps, program) in
+  let st = Random.get_state () in
   fun () ->
-    let st = Random.State.make_self_init () in
     let trace = build_trace ~st () in
     Concrete.build trace

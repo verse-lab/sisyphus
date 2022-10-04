@@ -5,9 +5,179 @@ From TLC Require Import LibListZ.
 
 From ProofsArrayOfRevList Require Import Common_ml.
 
-(** NOTE: The following is copied from resources/seq_to_array.
-    TODO: Figure out a better build hierarchy to avoid copying tactics
- *)
+Lemma for_downto_spec : forall (from: int) (down_to: int) (f: func),
+  forall (I: int -> hprop),
+    (from >= down_to - 1) ->
+    (forall i, down_to <= i <= from ->
+     SPEC (f i)
+     PRE (I i)
+     POST (fun (_: unit) => I (i - 1))) ->
+  SPEC (for_downto from down_to f)
+    PRE (I from)
+    POST (fun (_: unit) => I (down_to - 1)).
+Proof using.
+  intros from down_to.
+  induction_wf IH: (downto down_to) from.
+  intros f I Hvld HI.
+  xcf. 
+  xif.
+  - rewrite Px0__, istrue_isTrue_eq; intros ->.  
+    xapp (HI down_to); try math.
+    xsimpl*.
+  - rewrite Px0__, istrue_isTrue_eq; intros Hneq.
+    xif; try math.
+    + intros Hgt.
+      xapp (HI from); try math.
+      xapp (IH (from - 1)); try (apply downto_intro; try math); try math; auto.
+      * intros i Hi; apply HI; math.
+      * xsimpl*.
+    + intros Hgt.
+      assert (H: from = down_to - 1) by math.
+      rewrite H.
+      xvals*.
+Qed.
+Arguments for_downto_spec from down_to f I Hf HI : rename, clear implicits.
+
+Lemma hd_spec: forall (A: Type) `{EA: Enc A} `{IA: Inhab A} (ls: list A),
+    length ls > 0 ->
+    SPEC_PURE (hd ls)
+      POST (fun (a: A) => \[a = ls[0]]).
+Proof.
+  intros A EA IA ls Hls.
+  xcf.
+  xmatch.
+  - rew_list in Hls; math.
+  - xvals. rew_list; auto.
+Qed.    
+
+Lemma tl_spec: forall (A: Type) `{EA: Enc A} (ls: list A),
+    length ls > 0 ->
+    SPEC_PURE (tl ls)
+      POST (fun (ls': list A) => \[ls' = drop 1 ls]).
+Proof.
+  intros A EA ls Hls.
+  xcf.
+  xmatch.
+  - rew_list in Hls; math.
+  - xvals. rew_list; auto.
+Qed.    
+
+Lemma read_rev_helper (A: Type) `{IA: Inhab A} (l: list A) (i: int):
+  0 <= i < length l ->
+  l[i] = (rev l)[length l - i - 1].
+Proof.
+  gen i; induction l as [| l ls IHls].
+  + intros i; rewrite length_nil; math.
+  + intros i; rewrite length_cons; intros Hi.
+    case (Z.eqb_spec i 0); intros Hi_zero.
+    * rewrite Hi_zero, rev_cons, read_zero, read_last_case, If_l; auto; rewrite length_rev; math.
+    * rewrite read_cons_pos, rev_cons, read_last_case, If_r; try rewrite length_rev; try math.
+      rewrite IHls; try math.
+      f_equal; math.
+Qed.      
+
+Lemma read_rev (A: Type) `{IA: Inhab A} (l: list A) (i: int):
+  0 <= i < length l ->
+  (rev l)[i] = l[length l - i - 1].
+Proof.
+  intros Hvld.
+  rewrite (read_rev_helper l); try math.
+  f_equal.
+  math.
+Qed.
+
+Lemma list_iter_spec : forall [A : Type] {EA : Enc A}
+                              (f : func) (l : list A)
+                              (I : list A -> hprop),
+    (forall (x : A) (t r : list A), l = t ++ x :: r -> SPEC (f x)
+                                                         PRE I t
+                                                         POSTUNIT I (t & x)) ->
+SPEC (List_ml.iter f l)
+PRE I nil
+POSTUNIT I l.
+Proof using.
+  intros A EA f l I HI.
+  apply List_proof.iter_spec; auto.
+Qed.
+Arguments list_iter_spec {A} {EA} f l I HI : rename.
+
+
+Lemma list_iteri_aux_spec : forall A `{EA: Enc A},
+  forall (f:func) (i: int) (r t l: list A) (I: list A -> hprop)  ,
+    (forall i v t r, (l = t ++ v :: r) -> i = length t ->
+                     SPEC (f i v) 
+                       PRE (I t) 
+                       POST (fun (unused: unit) => I (t & v))) ->  
+    l = t ++ r ->
+    i = length t ->
+    SPEC (list_iteri_aux f i r)
+      PRE (I t)
+      POST (fun (unused: unit) => I l).
+Proof using.
+  introv Hf. gen r t. induction_wf IH: (upto (length l)) i.
+  intros r t Hl Hi.
+  xcf.
+  xmatch.
+  - xvals.
+    rew_list in Hl; rewrite Hl; xsimpl.
+  - xapp (Hf i h t t0); auto.
+    xapp; try xsimpl; rew_list; try apply upto_intro; try math.
+    rewrite Hl; rew_list; math.
+    auto.
+Qed.
+
+Lemma list_iteri_spec : forall A `{EA: Enc A},
+  forall (f:func)  (l: list A) (I: list A -> hprop)  ,
+    (forall i x t r, (l = t ++ x :: r) -> i = length t ->
+     SPEC (f i x) 
+     PRE (I t) 
+     POST (fun (unused: unit) => I (t & x))) ->  
+  SPEC (list_iteri f l)
+    PRE (I nil)
+    POSTUNIT (I l).
+Proof using.
+  =>> Hf; xcf.
+  xapp (@list_iteri_aux_spec _ _ f 0  l); auto; try xsimpl; rew_list; try math.
+  auto.
+Qed.
+Arguments list_iteri_spec {A} {HA} f s l I Hf : rename.
+
+Lemma list_ml_iteri_spec : forall A `{EA: Enc A},
+  forall (f:func)  (l: list A) (I: list A -> hprop)  ,
+    (forall i x t r, (l = t ++ x :: r) -> i = length t ->
+     SPEC (f i x) 
+     PRE (I t) 
+     POST (fun (unused: unit) => I (t & x))) ->  
+  SPEC (List_ml.iteri f l)
+    PRE (I nil)
+    POST (fun (unused: unit) => I l).
+Proof using.
+  =>> Hf; xcf.
+  xlet as;=> tmp Htmp.
+
+  assert (tmp_spec:
+  forall  (i: int) (r t: list A),
+    l = t ++ r ->
+    i = length t ->
+    SPEC (tmp i r)
+      PRE (I t)
+      POSTUNIT (I l)). {
+    introv Hl0 Hlen.
+    gen r t. induction_wf IH: (upto (length l)) i.
+    intros r t Hl Hi.
+    apply Htmp; clear Htmp.
+    xmatch.
+    - xvals.
+      rew_list in Hl; rewrite Hl; xsimpl.
+    - xapp (Hf i a t l1); auto.
+      xapp; try xsimpl; rew_list; try apply upto_intro; try math.
+      rewrite Hl; rew_list; math.
+      auto.
+  }
+  xapp (tmp_spec 0 l); auto; try xsimpl; rew_list; try math.
+Qed.
+Arguments list_ml_iteri_spec {A} {HA} f s l I Hf : rename.
+
 
 Lemma list_fold_spec : forall A `{EA: Enc A} B `{EB: Enc B}
                               (f: func) (init: B) (l: list A),
@@ -39,20 +209,18 @@ Proof using.
 Qed.
 Arguments list_fold_spec {A} {HA} {B} {HB} f init l I Hf : rename.
 
-Lemma list_iter_spec : forall [A : Type] {EA : Enc A}
-                              (f : func) (l : list A)
-                              (I : list A -> hprop),
-    (forall (x : A) (t r : list A), l = t ++ x :: r -> SPEC (f x)
-                                                         PRE I t
-                                                         POSTUNIT I (t & x)) ->
-SPEC (List_ml.iter f l)
-PRE I nil
-POSTUNIT I l.
-Proof using.
-  intros A EA f l I HI.
-  apply List_proof.iter_spec; auto.
+
+Lemma make_rev_update: forall (A: Type) (x v: A) (t r: list A),
+    (make (length r + 1) x ++ take (length t) (rev t))[length r:=v] =
+  make (length r) x ++ take (1 + length t) (v :: rev t).
+Proof.
+  intros.
+  rewrite make_succ_r; [|math].
+  rewrite app_last_l, update_middle; rewrite ?length_make; try math.
+  rewrite take_cons_pos; try math.
+  rewrite app_last_l; repeat f_equal; try math.
 Qed.
-Arguments list_iter_spec {A} {EA} f l I HI : rename.
+
 
 Ltac sep_solve_int := lazymatch goal with
   | [|- forall Y, ?X] => let y := fresh in intros y; sep_solve_int
@@ -181,4 +349,9 @@ Tactic Notation "xvalemptyarr" :=
   xapp; xsimpl.
 
 Tactic Notation "xunit" :=
-  xmatch; xapp.
+  xmatch; [xapp || xval].
+
+Definition eq_ind_reduce :
+  forall [A : Type] (x : A) (P : A -> Prop), P x -> forall y : A, x = y -> P x :=
+  fun (A: Type) => fun (x: A) (P: A -> Prop) =>
+    fun (Hp: P x) (y: A) => fun (Heq: x = y) => Hp.

@@ -283,3 +283,313 @@ CLOSED: [2022-07-29 Fri 04:15]
 CLOSED: [2022-07-29 Fri 04:15]
 *** DONE extract arguments to evar
 CLOSED: [2022-07-29 Fri 04:15]
+
+* DONE Fix bug in translating programs
+CLOSED: [2022-09-26 Mon 03:29]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add unit test for translating programs
+CLOSED: [2022-09-26 Mon 03:29]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Fix bug in proof parser
+CLOSED: [2022-09-26 Mon 04:51]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add regression test for proof parser
+CLOSED: [2022-09-26 Mon 04:51]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Work out why proofs are failing
+CLOSED: [2022-09-26 Mon 07:27]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Fix failing program parser
+CLOSED: [2022-09-26 Mon 07:49]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE configure code to only take branch for symexec higher order pure function when the spec itself is appropriate
+CLOSED: [2022-09-26 Mon 09:18]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Implement CI
+CLOSED: [2022-09-26 Mon 11:45]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Debug proof reduction to work out why it isn't expanding
+CLOSED: [2022-09-27 Tue 02:08]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update cmdliner to take in logical bindings
+CLOSED: [2022-09-27 Tue 02:36]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update tests to pass in logical bindings
+CLOSED: [2022-09-27 Tue 02:36]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Work out way to fix for pure programs
+CLOSED: [2022-09-27 Tue 08:02]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Fix issues with Z3 encoding construction
+CLOSED: [2022-09-28 Wed 03:06]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Implement logging system
+CLOSED: [2022-09-28 Wed 03:06]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Implement support for make_rev_list
+CLOSED: [2022-09-28 Wed 03:06]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-28 Wed 03:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Create branch for array of rev list
+CLOSED: [2022-09-28 Wed 03:13]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Rewrite array of rev list in terms of for loop combinator
+CLOSED: [2022-09-28 Wed 03:35]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Prove correctness of for loop combinator
+CLOSED: [2022-09-28 Wed 04:03]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Prove correctness of rev list using loop combinator
+CLOSED: [2022-09-28 Wed 06:08]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Get benchmark running on array of rev list
+CLOSED: [2022-09-28 Wed 06:15]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Fix issues with program structure of array of rev list 
+CLOSED: [2022-09-28 Wed 07:54]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Handle proof parsing of array of rev list
+CLOSED: [2022-09-28 Wed 07:54]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Print out Z3 queries
+CLOSED: [2022-09-28 Wed 11:47]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Get to Proof term analysis or better w.r.t array of rev list
+CLOSED: [2022-09-28 Wed 11:48]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-09-30 Fri 13:51
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Make term fully expand
+CLOSED: [2022-09-30 Fri 13:51]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Run tests to ensure current proofs still go through
+CLOSED: [2022-10-01 Sat 04:39]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Refactor code to force reduce if normal reduction fails
+CLOSED: [2022-09-30 Fri 14:23]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Fix printing of proof terms to make reading manageable
+CLOSED: [2022-10-01 Sat 04:47]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update env to track local_fun_vars
+CLOSED: [2022-10-01 Sat 05:38]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update reduction to handle var apps correctly
+CLOSED: [2022-10-01 Sat 08:12]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Analyze proof term to work out how to handle it
+CLOSED: [2022-10-02 Sun 09:32]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-02 Sun 09:32
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

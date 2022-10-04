@@ -11,7 +11,16 @@ type candidate = pure_candidate * heap_candidate
 type validator = candidate -> [ `InvalidPure | `InvalidSpatial | `Valid ]
 
 let base_solver_timeout = 100
-let challenging_solver_timeout = 30_000
+let challenging_solver_timeout = 15_000
+let should_print = ref false
+let log fmt =
+  Format.ksprintf ?margin:None ~f:(fun s -> if !should_print then Format.printf "%s@." s)
+    fmt
+let with_logging_context f =
+  let saved_should_print = !should_print in
+  Fun.protect ~finally:(fun () -> should_print := saved_should_print) (fun () ->
+    should_print := true;
+    f ())
 
 let split_last =
   let rec loop (acc, last) = function
@@ -60,6 +69,7 @@ let check_verification_condition ctx env solver
   (* 1st. check that implies predicate with post param values *)
   let user_post_pred = gen_pred vc.post_param_values |> Evaluator.eval_expr ctx env in
 
+  log "checking that %s ==> %s" (Z3.Expr.to_string user_pre_pred) (Z3.Expr.to_string user_post_pred);
   match prove ctx solver user_post_pred with
   | (None | Some false) -> `InvalidPure
   | Some true ->
@@ -80,6 +90,19 @@ let check_verification_condition ctx env solver
       match acc with
       | (`InvalidPure | `InvalidSpatial as s) -> s
       | acc ->
+        log "checking that %s /\ %s ==> %s"
+          (Z3.Expr.to_string user_pre_pred)
+          (Z3.Expr.to_string user_post_pred)
+          (Z3.Expr.to_string goal);
+        if !should_print then begin
+          IO.with_out ("/tmp/query-" ^ (string_of_int @@ Random.bits ()) ^ ".z3") (fun oc ->
+            (* my oc, don't steal pls *)
+            IO.write_line oc (Z3.Solver.to_string solver);
+            IO.write_line oc "";
+            (* hahah, copyright slaver, I WILL DO what I want! *)
+            IO.write_line oc (Z3.Expr.to_string ((Z3.Boolean.mk_not ctx.ctx goal)))
+          )
+        end;
         match prove ctx solver goal with
         | (None | Some false) -> `InvalidSpatial
         | Some true -> acc
@@ -139,8 +162,10 @@ let build_validator (data: VerificationCondition.verification_condition) =
     List.map Fun.(Pair.dup_map @@ Z3.Sort.mk_uninterpreted ctx % Z3.Symbol.mk_string ctx) data.poly_vars
     |> Hashtbl.of_list in
   let int_sort = Z3.Arithmetic.Integer.mk_sort ctx in
+  let unit_sort = Z3.Sort.mk_uninterpreted ctx (Z3.Symbol.mk_string ctx "unit") in
 
   let ctx = Evaluator.{ctx; solver; int_sort; poly_var_map;
+                       unit_sort;
                        type_map=Hashtbl.create 10;
                        fun_map=Hashtbl.create 10;
                        update_map=Hashtbl.create 10; } in
@@ -231,7 +256,9 @@ let build_validator (data: VerificationCondition.verification_condition) =
             | _ ->
               (* push a new context *)
               Z3.Solver.push solver;
-              let res = check_verification_condition ctx env  solver vc (gen_pred, gen_values) in
+              let res = with_logging_context (fun () ->
+                check_verification_condition ctx env  solver vc (gen_pred, gen_values)
+              ) in
               Z3.Solver.pop solver 1;
               res
           )  `Valid data.conditions in
@@ -239,6 +266,7 @@ let build_validator (data: VerificationCondition.verification_condition) =
         begin
           match res with
           | `Valid -> Format.printf "\t         => PASSED@."
-          | _ -> Format.printf "\t         => FAILED@.";
+          | `InvalidPure -> Format.printf "\t         => FAILED (pure)@.";
+          | `InvalidSpatial -> Format.printf "\t         => FAILED (spatial)@.";
         end;
         res

@@ -42,7 +42,7 @@ xapp
      a ~> CFML.WPArray.Array (make (1 + arg1) init ++ drop (1 + arg1) l))).
 { admit. } {  admit. } { admit. }
 (intros unused Hunused).
-xdestruct.
+try xdestruct.
 xvals.
 { admit. }
 Admitted.

@@ -13,6 +13,6 @@ let to_array (s: ('a t[@collection Common.of_list, Common.to_list])) =
        (* 5 *)
        let (idx: int) = len - 2 in
        (* 8 *)
-       let _ = List.fold_left (fun (i: int) (x: 'a) -> (* 6 *) a.(i) <- x; (* 7 *) i - 1) idx rest in
+       let (unused: int) = List.fold_left (fun (i: int) (x: 'a) -> (* 6 *) a.(i) <- x; (* 7 *) i - 1) idx rest in
        (* 9 *)
        a

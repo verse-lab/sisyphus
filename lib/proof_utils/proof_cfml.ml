@@ -15,8 +15,14 @@ let is_hpure const = is_const_named "hpure" const
 let is_wptag const = is_const_named "Wptag" const
 let is_wp_gen_let_trm const = is_const_named "Wpgen_let_trm" const
 let is_wp_gen_app const = is_const_named "Wpgen_app" const
+let is_xlet_fun_lemma const = is_const_named "xlet_fun_lemma" const
 let is_xlet_val_lemma const = is_const_named "xlet_val_lemma" const
+let is_xlet_trm_cont_lemma const = is_const_named "xlet_trm_cont_lemma" const
+let is_xseq_cont_lemma const = is_const_named "xseq_cont_lemma" const
 let is_xmatch_lemma const = is_const_named "xmatch_lemma" const
+let is_xapp_lemma const = is_const_named "xapp_lemma" const
+let is_xval_lemma const = is_const_named "xval_lemma" const
+let is_xdone_lemma const = is_const_named "xdone_lemma" const
 let is_mkstruct_erase const = is_const_named "MkStruct_erase" const
 let is_himpl_hand_r const = is_const_named "himpl_hand_r" const
 let is_himpl_hexists_r const = is_const_named "himpl_hexists_r" const
@@ -30,13 +36,11 @@ let is_hstars_simpl_cancel const = is_const_named "hstars_simpl_cancel" const
 let is_hstars_simpl_pick_lemma const = is_const_named "hstars_simpl_pick_lemma" const
 let is_himpl_refl const = is_const_named "himpl_refl" const
 let is_xsimpl_lr_exit_nogc_nocredits const = is_const_named "xsimpl_lr_exit_nogc_nocredits" const
-let is_xdone_lemma const = is_const_named "xdone_lemma" const
-let is_xval_lemma const = is_const_named "xval_lemma" const
 let is_himpl_hforall_r const = is_const_named "himpl_hforall_r" const
-let is_xlet_trm_cont_lemma const = is_const_named "xlet_trm_cont_lemma" const
-let is_xapp_lemma const = is_const_named "xapp_lemma" const
+let is_hwand_hpure_r_intro const = is_const_named "hwand_hpure_r_intro" const
 let is_xsimpl_lr_cancel_same const = is_const_named "xsimpl_lr_cancel_same" const
 let is_xsimpl_lr_qwand const = is_const_named "xsimpl_lr_qwand" const
+let is_xsimpl_lr_qwand_unit const = is_const_named "xsimpl_lr_qwand_unit" const
 let is_xsimpl_lr_hgc_nocredits const = is_const_named "xsimpl_lr_hgc_nocredits" const
 let is_xsimpl_lr_refl_nocredits const = is_const_named "xsimpl_lr_refl_nocredits" const
 
@@ -50,6 +54,7 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
       | "Coq.Numbers.BinNums.Z" -> Int
       | "CFML.Semantics.val" -> Val
       | "Coq.Init.Datatypes.nat" -> Int
+      | "Coq.Init.Datatypes.unit" -> Unit
       | _ -> Format.ksprintf ~f:failwith "found unknown type %s" (Names.MutInd.to_string name)
     end
   | Constr.App (fname, [|ty|]), _ when Utils.is_ind_eq "Coq.Init.Datatypes.list" fname -> 
@@ -128,6 +133,9 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `Constructor ("::", [extract_expr ?rel h; extract_expr ?rel tl])
   | Constr.App (const, [|ty|]), _ when Utils.is_constr_nil const ->
     `Constructor ("[]", [])
+  | Constr.Construct _, _ when Utils.is_constr_unit c ->
+    `Constructor ("()", [])
+
   | Constr.Construct _, _ when Utils.is_constr_z0 c ->
     `Int 0
   | Constr.App (const, _), _ when Utils.is_constr_eq "Coq.Numbers.BinNums.Z" const ->
@@ -452,3 +460,16 @@ let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a heaplet"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+
+(** [is_const_wp_fn cst] determines whether a {!Names.Constant.t} constant
+    represents a constant weakest precondition helper. *)
+let is_const_wp_fn cst =
+  String.suffix ~suf:"_cf__" @@  Names.Constant.to_string cst
+
+(** [is_const_wp_fn_trm cst] determines whether a {!Constr.t} term
+    represents a constant weakest precondition helper. *)
+let is_const_wp_fn_trm cst =
+  Constr.isConst cst && begin
+    let cst, _ = Constr.destConst cst  in
+    is_const_wp_fn cst
+  end
