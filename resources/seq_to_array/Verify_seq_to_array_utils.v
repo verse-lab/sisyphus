@@ -3,20 +3,25 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
-From Proofs Require Import Common_ml.
+(* Require Import Sseq_ml. *)
+(* About Sseq_ml. *)
+
+From Common Require Import Sseq_ml.
+From Common Require Import Utils.
+
 
 (** Lazy values: a lazy value of type [a] is represented at type [unit->'a].
     [Lazyval P f] asserts that [f] is a lazy value whose evaluation produces
     a value satisfying the (pure) predicate [P]. *)
 
 Definition Lazyval A `{EA:Enc A} (P:A->Prop) (f:val) : Prop :=
-  SPEC_PURE (f tt) POST (fun a => \[P a]). 
+  SPEC_PURE (f tt) POST (fun a => \[P a]).
 
 Definition LSeq_node A `{EA:Enc A} (LSeq: list A -> t_ A -> Prop) (L:list A) (s: node_ A) : Prop :=
  match L with
  | nil => s = Nil
  | x::L' => exists f', s = Cons x f' /\ LSeq L' f'
- end. 
+ end.
 
 Lemma LSeq_node_Nil : forall A (EA:Enc A) (LSeq: list A -> t_ A -> Prop),
   LSeq_node LSeq (@nil A) Nil.
@@ -78,8 +83,8 @@ Proof using.
     apply H.
   }
   induction ls.
-  - intros a; simpl; rew_list; math. 
-  - intros a'; simpl; rewrite IHls; rew_list; math. 
+  - intros a; simpl; rew_list; math.
+  - intros a'; simpl; rewrite IHls; rew_list; math.
 Qed.
 
 Arguments length_spec {A} {HA} s ls : rename.
@@ -87,7 +92,7 @@ Arguments length_spec {A} {HA} s ls : rename.
 Lemma iteri_spec : forall A `{EA: Enc A},
   forall (f:func) (s: t_ A)  (l: list A) (I: list A -> hprop)  ,
   (forall x t r i, (l = t++x::r) -> i = length (t) ->
-     SPEC (f i x) PRE (I t) POSTUNIT (I (t&x))) ->  
+     SPEC (f i x) PRE (I t) POSTUNIT (I (t&x))) ->
   SPEC (iteri f s)
     PRE (\[@LSeq A EA l s] \* I nil)
     POSTUNIT (I l).
@@ -157,7 +162,7 @@ Proof using.
 Qed.
 Arguments list_fold_spec {A} {HA} {B} {HB} f init l I Hf : rename.
 
-Lemma list_fold_length_rev : forall A (xs : list A), 
+Lemma list_fold_length_rev : forall A (xs : list A),
     List.fold_left
          (fun '((i,acc) : credits * list A) (x : A) => (i + 1, x :: acc)) xs (0, nil) =
       (length xs, rev xs).
@@ -222,7 +227,7 @@ Proof.
          auto.
          Unshelve.
          rewrite Hxs. apply list_sub_cons.
-Qed.    
+Qed.
 
 Lemma drop_nth : forall A l v r i (xs: list A),
     xs = l ++ v :: r ->
@@ -246,7 +251,7 @@ Proof.
   - intros v l r; rewrite rev_nil; intros Hnil.
     apply nil_eq_app_inv in Hnil. case Hnil as [H1 H2].
     inversion H2.
-  - intros v l r. 
+  - intros v l r.
     intros Hr; assert (Hr' := Hr).
     rewrite rev_cons in Hr. rewrite (app_cons_r v) in Hr.
     apply last_eq_middle_inv in Hr.
@@ -270,126 +275,4 @@ Proof.
       rewrite rev_last.
       rew_list.
       auto.
-Qed.      
-
-Ltac sep_solve_int := lazymatch goal with
-  | [|- forall Y, ?X] => let y := fresh in intros y; sep_solve_int
-  | [|- Triple ?Code ?Pre ?Post ] => xgo* 
-  | [|- himpl ?X ?Y ] => xgo*
-  | [ H: ?X = ?Z |- ?X = ?Y ] => autorewrite with sep_solve_db; auto
-  | _ => idtac
-  end.
-Ltac sep_solve := repeat progress (auto; sep_solve_int).
-
-#[export] Hint Rewrite nil_eq_rev_inv: sep_solve_db.
-
-Ltac done := auto; tryif only 1 : idtac then fail else idtac.
-Tactic Notation "by" tactic(t) := t; done.
-Tactic Notation "first" tactic(t) := only 1 : t.
-
-Tactic Notation "xdestruct" := xmatch Xcase_as.
-Tactic Notation "xdestruct" simple_intropattern(p1) := xmatch Xcase_as; intros p1. 
-Tactic Notation "xdestruct"
-       simple_intropattern(p1)
-       simple_intropattern(p2):= xmatch Xcase_as; intros p1 p2. 
-Tactic Notation "xdestruct"
-       simple_intropattern(p1)
-       simple_intropattern(p2)
-       simple_intropattern(p3)
-  := xmatch Xcase_as; intros p1 p2 p3.
-Tactic Notation "sep_split_tuple"
-       hyp(H)
-       simple_intropattern(p1)
-       simple_intropattern(p2) :=
-  inversion H as [[p1 p2]].
-Tactic Notation "xalloc"
-       simple_intropattern(arr)
-       simple_intropattern(data)
-       simple_intropattern(Hdata) :=
-    xapp; try math; intros arr data Hdata.
-
-Tactic Notation "xpurefun" 
-  simple_intropattern(f)
-  simple_intropattern(Hf) "using"
-  constr(fn) :=
-    xlet fn as; (first by sep_solve); intros f Hf.
-
-Tactic Notation "xalloc"
-       simple_intropattern(arr)
-       simple_intropattern(data)
-       simple_intropattern(Hdata) :=
-    xapp; try math; intros arr data Hdata.
-
-Tactic Notation "xpullpure"
-       simple_intropattern(H1) :=
-  xpull; intro H1.
-Tactic Notation "xpullpure"
-       simple_intropattern(H1)
-       simple_intropattern(H2)
-  :=
-  xpull; intros H1 H2.
-Tactic Notation "xpullpure"
-       simple_intropattern(H1)
-       simple_intropattern(H2)
-       simple_intropattern(H3)
-  :=
-  xpull; intros H1 H2 H3.
-Tactic Notation "xpullpure"
-       simple_intropattern(H1)
-       simple_intropattern(H2)
-       simple_intropattern(H3)
-       simple_intropattern(H4)
-  :=
-  xpull; intros H1 H2 H3 H4.
-Tactic Notation "xpullpure"
-       simple_intropattern(H1)
-       simple_intropattern(H2)
-       simple_intropattern(H3)
-       simple_intropattern(H4)
-       simple_intropattern(H5)
-  :=
-  xpull; intros H1 H2 H3 H4 H5.
-
-Tactic Notation "xmatch_case_0"  :=
-  xmatch Xcase_as.
-Tactic Notation "xmatch_case_0" "with"
-       simple_intropattern(h1)
-  :=
-  xmatch Xcase_as; intros h1.
-Tactic Notation "xmatch_case_0" "with"
-       simple_intropattern(h1)
-       simple_intropattern(h2) :=
-  xmatch Xcase_as; intros h1 h2.
-
-Tactic Notation "xmatch_case_1"  :=
-  xmatch Xcase_as; (first sep_solve); intros _.
-Tactic Notation "xmatch_case_1" "with"
-       simple_intropattern(h1)
-  :=
-  xmatch Xcase_as; (first sep_solve); intros _ h1.
-Tactic Notation "xmatch_case_1" "with"
-       simple_intropattern(h1)
-       simple_intropattern(h2)
-  :=
-  xmatch Xcase_as; (first sep_solve); intros _ h1 h2.
-Tactic Notation "xmatch_case_1" "with"
-       simple_intropattern(h1)
-       simple_intropattern(h2)
-       simple_intropattern(h3)
-  :=
-  xmatch Xcase_as; (first sep_solve); intros _ h1 h2 h3.
-Tactic Notation "xmatch_case_1" "with"
-       simple_intropattern(h1)
-       simple_intropattern(h2)
-       simple_intropattern(h3)
-       simple_intropattern(h4)
-  :=
-  xmatch Xcase_as; (first sep_solve); intros _ h1 h2 h3 h4.
-
-Tactic Notation "xletopaque"
-       simple_intropattern(idx)
-       simple_intropattern(Hidx) :=
-  xlet as;=> idx Hidx.
-
-Tactic Notation "xvalemptyarr" :=
-  xapp; xsimpl.
+Qed.

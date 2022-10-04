@@ -4,7 +4,8 @@
 
 (coq.theory
  (name Common)
- (modules Sseq_ml)
+ (modules Sseq_ml Utils
+ )
 )
 
 (rule

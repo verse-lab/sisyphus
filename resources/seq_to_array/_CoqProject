@@ -1,5 +1,4 @@
 -R ../../_build/default/resources/seq_to_array Proofs
--Q ../../_build/default/resources/common Common
 -R ../../_build/default/resources/common Common
 
 -I ../../_build/default/lib/proof_reduction
