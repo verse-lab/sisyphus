@@ -1,7 +1,10 @@
 open Common
 
-let exists t ~f =
-  let rec exists_loop t ~f i =
-    if i < 0 then false else f t.(i) || exists_loop t ~f (i - 1)
-  in
-  exists_loop t ~f (length t - 1)
+let array_exists t ~f =
+  let len = Array.length t in
+  let result = ref false in
+  let _ = while_upto 0 len (fun i ->
+    result := f t.(i);
+    not !result
+  ) in
+  !result
