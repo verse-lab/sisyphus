@@ -308,6 +308,7 @@ let reduce_term t term =
   | Some f_app when not (Proof_utils.CFML.is_const_wp_fn f_app) ->
     Format.printf "Reduction did not complete - entering phase 2 %s@."
       (Names.Constant.to_string f_app);
+    Gc.full_major ();
     (* let helpers = match !eq_ind_reduce_name with
      *   | None -> []
      *   | Some (_, root_name) -> [root_name] in *)
