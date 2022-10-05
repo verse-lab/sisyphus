@@ -34,6 +34,14 @@ let handle_decs asts  =
     | Some (Vernacexpr.VernacSetOption (_, _, _)) | Some (Vernacexpr.VernacRequire (_, _, _)) -> true
     | _ -> false
   in
+
+  List.map Print_utils.string_of_coq_obj asts
+  |> List.map (fun s -> String.sub s 0 (min 10 (String.length s)))
+  |> String.concat "\n"
+  |> print_endline;
+
+
+
   let decs, rest = List.partition is_dec asts in
   let decs = List.map Print_utils.string_of_coq_obj decs in
 
@@ -209,8 +217,10 @@ let retrieve_ast (module Ctx: Coq.Proof.PROOF) proof_str =
   query start |> Iter.to_list
 
 let parse ctx proof_str : Proof_spec.Script.script =
+  print_endline @@ "Mayank proof" ^  "   I SUCK";
   let asts = retrieve_ast ctx proof_str in
   let prelude, import, rest = handle_decs asts in
+  print_endline prelude;
   let spec_str, rest = handle_spec rest in
   let steps = handle_script rest in
 

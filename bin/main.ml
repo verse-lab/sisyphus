@@ -2,7 +2,7 @@
 open Containers
 
 
-let generate_proof_script coq_verbose deps old_program new_program  coq_dir coq_lib_name old_proof new_proof_base new_proof_name =
+let generate_proof_script coq_verbose deps old_program new_program coq_dir coq_lib_name old_proof new_proof_base new_proof_name =
   Random.init 2;
 
   let old_program = Bos.OS.File.read old_program |> Result.get_exn in
@@ -19,7 +19,9 @@ let generate_proof_script coq_verbose deps old_program new_program  coq_dir coq_
     Dynamic.build_concrete_trace ~compilation_env:env
       ~deps new_program in
   let ctx = (Coq.Proof.make ~verbose:coq_verbose [
-    Coq.Coqlib.make ~path:(coq_dir) coq_lib_name
+      Coq.Coqlib.make ~path:Fpath.(of_string "./seq_to_array" |> Result.get_exn) "Proofs";
+      Coq.Coqlib.make ~path:Fpath.(of_string "./common" |> Result.get_exn) "Common";
+      (* Coq.Coqlib.make ~path:(coq_dir) coq_lib_name; *)
   ] ) in
   let old_proof =
     Bos.OS.File.read Fpath.(coq_dir / old_proof)
@@ -60,7 +62,7 @@ let coq_verbose =
               ~doc:"$(docv) indicates whether Sisyphus should run Coq with verbose output"
               ~docv:"COQ_VERBOSE"
               ["cv"; "coq-verbose"])
-            
+
 let deps =
   Arg.value @@
   Arg.opt_all Arg.file []
@@ -141,4 +143,3 @@ let () =
                  $ old_proof_name
                  $ new_proof_base
                  $ output_file, sisyphus_info)))
-
