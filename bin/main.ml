@@ -3,7 +3,7 @@ open Containers
 
 let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose
       disable_z3_validation z3_default_timeout z3_challenging_timeout
-      deps old_program new_program
+      deps coq_deps old_program new_program
       coq_dir coq_lib_name
       old_proof new_proof_base new_proof_name =
 
@@ -29,9 +29,10 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose
   let concrete =
     Dynamic.build_concrete_trace ~compilation_env:env
       ~deps new_program in
-  let ctx = (Coq.Proof.make ~verbose:coq_verbose [
-    Coq.Coqlib.make ~path:(coq_dir) coq_lib_name
-  ] ) in
+  let ctx = (Coq.Proof.make ~verbose:coq_verbose (
+    List.map (fun (lib_name, lib_dir) -> Coq.Coqlib.make ~path:(lib_dir) lib_name)
+      ((coq_lib_name, coq_dir) :: coq_deps)
+  )) in
   let old_proof =
     Bos.OS.File.read Fpath.(coq_dir / old_proof)
     |> Result.get_exn
@@ -180,6 +181,18 @@ let enable_debug =
                            ~docv:"DEBUG"
                            ["cv"; "coq-verbose"])
 
+let coq_deps =
+  Arg.(value @@
+       opt_all (t2 ~sep:':' string fpath) []
+         (info
+            ~doc:"$(docv) declares a pair of NAME:PATH that will be \
+                  used to instantiate the Coq process inside \
+                  Sisyphus. This argument can be passed multiple times \
+                  and can be thought of as functionally equivalent to \
+                  -R PATH NAME."
+            ~docv:"COQ_DEP" ["c"; "coqdep"])
+      )
+
 let deps =
   Arg.value @@
   Arg.opt_all Arg.file []
@@ -196,6 +209,7 @@ let old_program =
                         ~docv:"OLD_PROGRAM"
                         []
                      ))
+
 
 let new_program =
   Arg.(required @@ pos 1 (some fpath) None
@@ -260,6 +274,7 @@ let () =
                  $ z3_default_timeout
                  $ z3_challenging_timeout
                  $ deps
+                 $ coq_deps
                  $ old_program
                  $ new_program
                  $ coq_dir

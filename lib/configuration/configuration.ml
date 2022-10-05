@@ -11,6 +11,51 @@ let z3_default_timeout = ref 100
 let z3_challenging_timeout = ref 15_000
 let inner_dump_dir = ref None
 
+let pretty_reporter formatter = 
+  let report src level ~over k user's_callback =
+    let level_style, level =
+      match level with
+      | Logs.App ->     `White,   "     "
+      | Logs.Error ->   `Red,     "ERROR"
+      | Logs.Warning -> `Yellow,  " WARN"
+      | Logs.Info ->    `Green,   " INFO"
+      | Logs.Debug ->   `Blue,    "DEBUG" in
+    user's_callback @@ fun ?header:_ ?tags:_ format_and_arguments ->
+
+    let time =
+      let time = Ptime_clock.now () in
+      let ((y, m, d), ((hh, mm, ss), _tz_offset_s)) =
+        Ptime.to_date_time time in
+      Printf.sprintf "%02i.%02i.%02i %02i:%02i:%02i."
+        d m (y mod 100) hh mm ss in
+    let source =
+      let width = 5 in
+      if String.equal (Logs.Src.name src) (Logs.Src.name Logs.default) then
+        String.make width ' '
+      else
+        let name = Logs.Src.name src in
+        if String.length name > width then
+          String.sub name (String.length name - width) width
+        else
+          (String.make (width - String.length name) ' ') ^ name in
+    let source_prefix, source =
+      try
+        let dot_index = String.rindex source '.' + 1 in
+        String.sub source 0 dot_index,
+        String.sub source dot_index (String.length source - dot_index)
+      with Not_found ->
+        "", source in
+
+    let write _fmt = over (); k () in
+    (* The formatting proper. *)
+    Format.kfprintf write formatter
+      ("%a %a%s %a @[" ^^ format_and_arguments ^^ "@]@.")
+      Fmt.(styled `Faint string) time
+      Fmt.(styled `White string) source_prefix source
+      Fmt.(styled level_style string) level in
+  {Logs.report}
+
+
 let filter_reporter cond r =
   let report src level ~over k msgf =
     (* if matches the regex then report *)
@@ -84,7 +129,8 @@ let initialize ?default_timeout ?challenging_timeout ?filter_logs ?should_valida
       let log_file = with_fresh_log path in
       let oc = open_out log_file in
       let fmt = Format.of_chan oc in
-      Logs_fmt.reporter ~app:fmt ~dst:fmt () 
+      pretty_reporter fmt
+      (* Logs_fmt.reporter ~app:fmt ~dst:fmt ()  *)
     | None -> Logs_fmt.reporter () in
   let reporter = match filter_logs with
     | None -> reporter
