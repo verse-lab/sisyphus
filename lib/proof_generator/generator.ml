@@ -844,7 +844,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let no_pure = List.is_empty pure in
 
   let valid_candidate =
-    if Configuration.validate_with_z3 ()
+    if Configuration.validate_with_z3 () || Option.is_some (Configuration.max_z3_calls ())
     then begin
       (* build a verification condition *)
       let vc =

@@ -2,7 +2,7 @@
 open Containers
 
 let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose
-      disable_z3_validation z3_default_timeout z3_challenging_timeout
+      disable_z3_validation z3_default_timeout z3_challenging_timeout max_z3_calls
       deps coq_deps old_program new_program
       coq_dir coq_lib_name
       old_proof new_proof_base new_proof_name =
@@ -10,10 +10,10 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose
   Random.init 2;
 
   Configuration.initialize
-    ?log_level ?log_dir ?dump_dir
+    ?log_level ?log_dir ?dump_dir 
     ?filter_logs:log_filter
     ?default_timeout:z3_default_timeout
-    ?challenging_timeout:z3_challenging_timeout
+    ?challenging_timeout:z3_challenging_timeout ?max_calls:max_z3_calls
     ~should_validate_with_z3:(not disable_z3_validation) ();
 
   let old_program = Bos.OS.File.read old_program |> Result.get_exn in
@@ -62,7 +62,7 @@ let fpath =
     | `Error e -> Error (`Msg e)
     | `Ok s -> Fpath.of_string s in
   let printer fmt vl = Fpath.pp fmt vl in
-   Arg.conv (parser, printer)
+  Arg.conv (parser, printer)
 
 let log_level =
   let parse s =
@@ -151,6 +151,24 @@ let disable_z3_validation =
                   disable Z3 and 0 to enable it (default))."
          ~env:(env_var "SIS_DISABLE_Z3") ["disable-z3"])
   )
+
+let max_z3_calls =
+  Arg.(value @@
+       opt
+         (some int)
+         None
+         (info
+            ~doc:"$(docv) specifies the maximum number of calls to Z3 \
+                  that Sisyphus will perform while generating \
+                  invariants. If this option is combined with the \
+                  DISABLE_Z3_VALDIATION flag, then Z3 validation will \
+                  still be performed, but only $(docv) calls will be \
+                  made before assuming that the next candidate is \
+                  true. Can also be specified by the $(env) ENV \
+                  variable."
+            ~env:(env_var "SIS_MAX_Z3_CALLS")
+            ~docv:"MAX_Z3_CALLS"
+            ["m"; "max-z3-calls"]))
 
 let z3_default_timeout =
   Arg.(
@@ -273,6 +291,7 @@ let () =
                  $ disable_z3_validation
                  $ z3_default_timeout
                  $ z3_challenging_timeout
+                 $ max_z3_calls
                  $ deps
                  $ coq_deps
                  $ old_program
