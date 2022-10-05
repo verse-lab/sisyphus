@@ -27,6 +27,7 @@
   (sedlex (>= 2.5))
   (ppx_blob (>= 0.7.2))
   (ptime (>= 1.0.0))
+  (logs (>= 0.7.0))
 ))
 (generate_opam_files true)
 (license AGPL-3.0+)

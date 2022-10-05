@@ -80,7 +80,7 @@ Most of the magic happens in the `./lib` directory:
 | proof_spec      | Simplified encoding of CFML specifications                            |
 | proof_utils     | Collection of utilities for manipulating Coq objects from OCaml       |
 | proof_validator | Z3-based validator of proof specifications/invariant candidates       |
-
+| configuration   | Generic configuration, preferences and logging options for the tool   |
 
 ## Requirements
 

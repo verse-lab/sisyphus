@@ -1,0 +1,3 @@
+(library (name configuration)
+ (public_name sisyphus.configuration)
+ (libraries bos logs containers))
