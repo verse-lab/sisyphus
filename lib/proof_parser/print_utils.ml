@@ -1,5 +1,7 @@
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Utils for parsing proof scripts" "prf-parser.utils"))
+
 let get_vernac_tag = function
   |Vernacexpr.VernacLoad (_, _) -> "VernacLoad"
   |Vernacexpr.VernacReservedNotation (_, _)
@@ -139,11 +141,10 @@ let string_of_coq_obj obj =
 let pp_coq_obj obj =
   begin match obj with
   | Serapi.Serapi_protocol.CoqAst v ->
-    print_endline @@ get_vernac_tag v.v.expr
+    Log.debug (fun f -> f "%s" (get_vernac_tag v.v.expr))
   | _ -> ()
   end;
-
-  print_endline @@ string_of_coq_obj obj
+  Log.debug (fun f -> f "%s" (string_of_coq_obj obj))
 
 let pp_coq_objs objs =
   List.iter pp_coq_obj objs

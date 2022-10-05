@@ -1,5 +1,7 @@
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Parses proof scripts" "prf-parser.core"))
+
 let to_vernac = let open Serapi.Serapi_protocol in function [@warning "-8"]
     | CoqAst {v = {control; attrs; expr}; _} -> Some expr
     | _ -> None
@@ -159,7 +161,7 @@ and parse_step sexp vexp state  =
   unwrap_tactic sexp state
 
 and parse_proof state =
-  print_endline "Parsing proof now";
+  Log.debug (fun f -> f "Parsing proof now");
   let rec parse_proof_aux steps lvl =
     match (state.asts) with
     | [] -> steps

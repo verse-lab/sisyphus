@@ -1,5 +1,7 @@
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Debug utils for working with Coq" "prf.utils.dbg"))
+
 let coqobj_to_string v =
   Format.to_string Pp.pp_with @@
   Serapi.Serapi_protocol.gen_pp_obj Environ.empty_env Evd.empty v
@@ -45,9 +47,11 @@ let ast ?at (module Ctx: Coq.Proof.PROOF)  =
 
 
 let typeof ?at (module Ctx: Coq.Proof.PROOF) name =
-  Ctx.query ?at Serapi.Serapi_protocol.(TypeOf name)
-  |> Option.map (List.map coqobj_to_string)
-  |> Option.map (String.concat "; ")
-  |> Option.get_or ~default:"NONE"
-  |> (fun s -> "[" ^ s ^ "]")
-  |> print_endline
+  let ty =
+    Ctx.query ?at Serapi.Serapi_protocol.(TypeOf name)
+    |> Option.map (List.map coqobj_to_string)
+    |> Option.map (String.concat "; ")
+    |> Option.get_or ~default:"NONE"
+    |> (fun s -> "[" ^ s ^ "]") in
+  Log.debug (fun f -> f "%s" ty)
+

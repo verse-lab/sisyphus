@@ -593,3 +593,113 @@ CLOSED: [2022-10-02 Sun 09:32]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Identify what causes the name clashes when extracting
+CLOSED: [2022-10-02 Sun 10:14]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Solve name clash error with extraction
+CLOSED: [2022-10-02 Sun 10:14]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Work out cause of error in specification generator 
+CLOSED: [2022-10-02 Sun 11:24]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE update code to handle empty pure conditions
+CLOSED: [2022-10-03 Mon 05:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Handle units in z3
+CLOSED: [2022-10-03 Mon 05:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Check that old behaviour is preserved
+CLOSED: [2022-10-03 Mon 05:23]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE try reversing the candidates
+CLOSED: [2022-10-03 Mon 06:19]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Try proving the new proof yourself
+CLOSED: [2022-10-03 Mon 06:41]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add extra column for ifs/matches
+CLOSED: [2022-10-03 Mon 13:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Print out the full query to z3 for preservation and send to z3 manually
+CLOSED: [2022-10-03 Mon 13:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Print out check preserved query and debug in Z3
+CLOSED: [2022-10-03 Mon 13:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-05 Wed 04:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

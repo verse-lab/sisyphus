@@ -1,6 +1,8 @@
 open Containers
 open Utils
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Performs program alignment using traces" "dyn.match"))
+
 module IntMap = IntMap
 
 type sanitized_state = {
@@ -111,9 +113,9 @@ let top_k ?k side (t: t) =
 
 let find_aligned_range ?k side (t: t) =
   let (let+) x f = Option.bind x f in
-  Format.printf "internal states are %s@." ([%show: float intpairmap] t);
+  Log.debug (fun f -> f "internal states are %s@." ([%show: float intpairmap] t));
   let mapping = top_k ?k side t in
-  Format.printf "mapping is %s@." ([%show: (int * float) list intmap] mapping);
+  Log.debug (fun f -> f "mapping is %s@." ([%show: (int * float) list intmap] mapping));
   (* [is bound pos] returns whether there exists a list of equivalent program points for [pos]. *)
   let is_bound pos =
     IntMap.find_opt pos mapping
