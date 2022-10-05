@@ -10,9 +10,18 @@ val z3_challenging_timeout : unit -> int
 (** [z3_challenging_timeout ()] is the timeout used by Z3 for complex
     logical goals *)
 
+val max_z3_calls : unit -> int option
+(** [max_z3_calls ()] if is [Some v] then [v] indicates the maximum
+   number of calls to z3 that Sisyphus will make. If this is specified
+   along with setting [validate_with_z3] to false, then after
+   exceeding the max number of calls Sisyphus will just assume that its
+   current invariant is valid.  *)
+
+
 val initialize :
   ?default_timeout:int ->
   ?challenging_timeout:int ->
+  ?max_calls:int ->
   ?filter_logs:string ->
   ?should_validate_with_z3:bool ->
   ?log_level:Logs.level ->
