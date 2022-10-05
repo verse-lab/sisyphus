@@ -1,4 +1,4 @@
-val sisyphus_runs_on: path:string -> coq_name:string -> unit -> unit
+val sisyphus_runs_on: path:string -> coq_name:string -> common_path: string -> common_coq_name:string -> unit -> unit
 
 val run : string -> unit
 

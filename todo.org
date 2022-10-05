@@ -5,28 +5,14 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** DONE Identify what causes the name clashes when extracting
-CLOSED: [2022-10-02 Sun 10:14]
-** DONE Solve name clash error with extraction
-CLOSED: [2022-10-02 Sun 10:14]
-** DONE Work out cause of error in specification generator 
-CLOSED: [2022-10-02 Sun 11:24]
-** DONE update code to handle empty pure conditions
-CLOSED: [2022-10-03 Mon 05:10]
-** DONE Handle units in z3
-CLOSED: [2022-10-03 Mon 05:10]
-** DONE Check that old behaviour is preserved
-CLOSED: [2022-10-03 Mon 05:23]
-** DONE try reversing the candidates
-CLOSED: [2022-10-03 Mon 06:19]
-** DONE Try proving the new proof yourself
-CLOSED: [2022-10-03 Mon 06:41]
-** DONE Add extra column for ifs/matches
-CLOSED: [2022-10-03 Mon 13:50]
-** DONE Print out the full query to z3 for preservation and send to z3 manually
-CLOSED: [2022-10-03 Mon 13:50]
-** DONE Print out check preserved query and debug in Z3
-CLOSED: [2022-10-03 Mon 13:50]
+** DONE Refactor code with appropriate logging (logs)
+CLOSED: [2022-10-05 Wed 10:20]
+** DONE Update code to take in multiple coq-libs
+CLOSED: [2022-10-05 Wed 11:52]
+** DONE Conditionally send things to z3 if env SIS_Z3 is set
+CLOSED: [2022-10-05 Wed 15:29]
+** TODO Work on adding more examples
+** TODO Update codebase to work with Coq.8.16.0
 ** TODO You're the BEST around
 
 * Tasks for the proof demigod

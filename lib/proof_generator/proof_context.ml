@@ -3,6 +3,9 @@ open Containers
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Wrapper over the coq context" "prf.gen.ctx"))
+
+
 type coq_ctx = (module Coq.Proof.PROOF)
 
 type t = {
@@ -151,13 +154,13 @@ let search t query =
 
 let pretty_print_current_goal t =
   let env = env t in
-  print_endline @@ "current goal: \n" ^
-                   Format.sprintf "%a" Pp.pp_with
+  Log.debug (fun f -> f "%s%a" "current goal: \n"
+                   Pp.pp_with
                      (Serapi.Serapi_protocol.gen_pp_obj
-                        env Evd.empty (Serapi.Serapi_protocol.CoqGoal (current_subproof t)))
+                        env Evd.empty (Serapi.Serapi_protocol.CoqGoal (current_subproof t))))
 
 let debug_print_current_goal t =
-  print_endline @@ "current goal: \n" ^ Proof_utils.Debug.constr_to_string (current_goal t).ty
+  Log.debug (fun f -> f "%s%s" "current goal: \n"  (Proof_utils.Debug.constr_to_string (current_goal t).ty))
 
 let current_names t =
   let goal = current_goal t in

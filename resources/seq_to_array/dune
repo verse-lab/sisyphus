@@ -1,24 +1,25 @@
-(library (name seq_to_array)
-  (modules common)
+(library
+ (name seq_to_array)
+ (libraries common)
 )
 
 (coq.theory
  (name Proofs)
  (modules
-   Common_ml
    Verify_seq_to_array_utils
    Seq_to_array_old_ml Verify_seq_to_array_old
+   Dummy
    Seq_to_array_new_ml Verify_seq_to_array_new
-
  )
  (libraries sisyphus.plugin)
+ (flags -R resources/common Common)
 )
 
-
 (rule
- (target Common_ml.v)
- (deps common.ml)
- (action (run cfmlc -o ./Common_ml.v common.ml)))
+ (target Dummy.v)
+ (deps ../common/Sseq_ml.vo ../common/Utils.vo)
+ (action (run touch Dummy.v))
+)
 
 (rule
  (target seq_to_array_old.sisyphus.ml)
@@ -28,8 +29,8 @@
 
 (rule
  (target Seq_to_array_old_ml.v)
- (deps seq_to_array_old.sisyphus.ml common.ml Common_ml.v)
- (action (run cfmlc -o ./Seq_to_array_old_ml.v seq_to_array_old.sisyphus.ml)))
+ (deps seq_to_array_old.sisyphus.ml ../common/Sseq_ml.v ../common/sseq.ml)
+ (action (run cfmlc -I ../common -o ./Seq_to_array_old_ml.v seq_to_array_old.sisyphus.ml)))
 
 (rule
  (target seq_to_array_new.sisyphus.ml)
@@ -39,9 +40,9 @@
 
 (rule
  (target Seq_to_array_new_ml.v)
- (deps seq_to_array_new.sisyphus.ml common.ml Common_ml.v)
- (action (run cfmlc -o ./Seq_to_array_new_ml.v seq_to_array_new.sisyphus.ml)))
+ (deps seq_to_array_new.sisyphus.ml ../common/Sseq_ml.v ../common/sseq.ml)
+ (action (run cfmlc -I ../common -o ./Seq_to_array_new_ml.v seq_to_array_new.sisyphus.ml)))
 
 (env
   (dev
-    (flags (:standard -w -32))))
+    (flags (:standard -w -32 -w -26))))

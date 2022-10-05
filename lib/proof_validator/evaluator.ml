@@ -1,5 +1,7 @@
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Evaluates expressions to Z3 terms" "valid.eval"))
+
 module StringMap = Map.Make(String)
 
 type ctx = {
@@ -88,7 +90,7 @@ let rec eval_type (ctx: ctx) (ty: Lang.Type.t) : Z3.Sort.sort =
     | ADT (_, _, _) 
     | Val 
     | Func ->
-      Format.printf "treating type %s as opaque Z3 sort@." (Lang.Type.show ty);
+      Log.warn (fun f -> f "treating type %s as opaque Z3 sort@." (Lang.Type.show ty));
       Z3.Sort.mk_uninterpreted_s ctx.ctx ((Lang.Type.show ty))
   )
 
