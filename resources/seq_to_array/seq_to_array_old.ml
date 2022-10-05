@@ -1,6 +1,6 @@
 open Sseq
 
-let to_array (l: ('a Sseq.t[@collection Sseq.of_list, Sseq.to_list])) =
+let to_array (l: ('a t[@collection Sseq.of_list, Sseq.to_list])) =
   (* 0 *)
   match l() with
   | Nil -> (* 1 *)

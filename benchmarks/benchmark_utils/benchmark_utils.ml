@@ -47,34 +47,6 @@ let build_coq_project ~temp_dir path coq_lib_name common_path common_coq_lib_nam
       )) ()
   |> Result.flat_map Fun.id
 
-
-
-(* let build_coq_project ~temp_dir path coq_lib_name common_path common_coq_lib_name  = *)
-(*   let open Result in *)
-(*   (\* build coq project *\) *)
-(*   OS.Dir.with_current temp_dir (fun () -> *)
-(*       let* contents = OS.Dir.contents test_dir in *)
-(*       let coq_dep_cmd = *)
-(*         List.fold_left (fun b file -> *)
-(*             if Fpath.has_ext ".v" file *)
-(*             then Cmd.(b % p file) *)
-(*             else b) *)
-(*           Cmd.(coqdep % "-sort" % "-R" % "./" % coq_lib_name) contents in *)
-(*       let err = *)
-(*         if is_debug_mode *)
-(*         then Some OS.Cmd.err_stderr *)
-(*         else Some OS.Cmd.err_null in *)
-(*       let* deps, _ = OS.Cmd.run_out ?err coq_dep_cmd |> OS.Cmd.out_string in *)
-(*       let deps = String.split_on_char ' ' deps |> List.filter (Fun.negate String.is_empty) in *)
-(*       let* () = *)
-(*         Result.fold_l (fun () dep -> *)
-(*             let ro = OS.Cmd.run_out ?err Cmd.(coqc % "-R" % "./" % coq_lib_name % dep) in *)
-(*             OS.Cmd.to_stdout ro *)
-(*           ) () deps in *)
-(*       Ok () *)
-
-(*     ) () |> Result.flat_map Fun.id *)
-
 let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
   let open Result in
   let (basename : string) = Fpath.basename path in
@@ -135,9 +107,11 @@ let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
         let base_name = Fpath.basename path in
         let in_output = Fpath.is_prefix cfml_output_path path in
         let valid_file =
-          Fpath.has_ext ".v" path ||
+          (Fpath.has_ext ".v" path) ||
           (Fpath.has_ext ".ml" path &&
-           not (String.suffix ~suf:"sisyphus.ml" base_name)) in
+           not (String.suffix ~suf:"sisyphus.ml" base_name))
+        in
+        let is_new_proof = String.suffix ~suf:"_new.v" base_name in
         if valid_file && not in_output
         then begin
           Format.printf "%a ==> %s@." Fpath.pp path (Fpath.basename path);
@@ -152,8 +126,11 @@ let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
               deps := Fpath.(test_dir / base_name) :: !deps
             | _ -> ()
           end;
+
           (* copy over the files *)
-          OS.Cmd.run Cmd.(copy % p path %  p Fpath.(test_dir / base_name))
+          if not is_new_proof
+          then  OS.Cmd.run Cmd.(copy % p path %  p Fpath.(test_dir / base_name))
+          else Ok ()
         end
         else Ok ()
       ) (Ok ()) path
@@ -177,30 +154,39 @@ let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
     print_endline stub;
     OS.File.write Fpath.(test_dir / stub_file_name) stub in
 
-  (* TODO: Remove this *)
-  let* () = OS.Cmd.run Cmd.(copy % "-r" % p temp_dir  % p Fpath.(of_string "/Users/mayank/Desktop/tmp" |> Result.get_exn)) in
-
   (* build coq project *)
   let* () = build_coq_project ~temp_dir path coq_lib_name common_path common_coq_lib_name
             |> Result.map_err (fun (`Msg err) -> `Msg ("Initial project failed to build with error: " ^ err)) in
 
   (*  run sisyphus *)
-  let* () =
+  let* _ =
     let sisyphus_cmd =
       let binary =
         List.fold_left
           (fun b ml_file -> Cmd.(b % "--dep" % p ml_file))
           sisyphus deps in
+      let binary =
+        Cmd.(binary % "-c" % (Format.sprintf "%s:%a" common_coq_lib_name Fpath.pp common_dir)) in
       Cmd.(binary % p old_program % p new_program
            % p test_dir % coq_lib_name
            % old_proof_name % stub_file_name % output_name) in
-    OS.Cmd.run sisyphus_cmd
-    |> Result.map_err (fun (`Msg err) -> `Msg ("Running Sisyphus failed with error: " ^ err)) in
+
+    let err = OS.Cmd.err_stderr in
+    OS.Cmd.run_out ~err sisyphus_cmd |> OS.Cmd.out_string
+              |> Result.map_err (fun (`Msg err) -> `Msg ("Running Sisyphus failed with error: " ^ err)) in
 
   (* build result file *)
   let* () =
-    OS.Dir.with_current test_dir (fun () ->
-        OS.Cmd.run Cmd.(coqc  % "-R" % "./" % coq_lib_name % output_name)
+    OS.Dir.with_current temp_dir (fun () ->
+        let base_name = Fpath.basename path in
+        let common_base_name = Fpath.basename common_path in
+
+        let coq_dep_cmd = Cmd.(coqc
+                               % "-R" % ("./" ^ common_base_name) % common_coq_lib_name
+                               % "-R" % ("./" ^ base_name) % coq_lib_name
+                               % p Fpath.(test_dir / output_name)) in
+
+        OS.Cmd.run coq_dep_cmd
       ) () |> Result.flat_map Fun.id
     |> Result.map_err (fun (`Msg err) -> `Msg ("Output from sisyphus failed to build with error: " ^ err)) in
 

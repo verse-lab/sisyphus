@@ -1,6 +1,6 @@
 open Sseq
 
-let to_array (s: ('a Sseq.t[@collection Sseq.of_list, Sseq.to_list])) =
+let to_array (s: ('a t[@collection Sseq.of_list, Sseq.to_list])) =
   (* 1 *)
   let ((len: int), (ls: 'a list))[@rewrite list_fold_length_rev] =
     fold (fun ((i: int), (acc: 'a list)) (x: 'a) -> (* 0 *)(i + 1, x :: acc)) (0, []) s in
