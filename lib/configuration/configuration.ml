@@ -7,6 +7,7 @@ let update_opt opt vl =
   opt := (Option.value ~default:!opt vl)
 
 let validate_with_z3 = ref true
+let max_z3_calls = ref None
 let z3_default_timeout = ref 100
 let z3_challenging_timeout = ref 15_000
 let inner_dump_dir = ref None
@@ -108,10 +109,11 @@ let with_name_file base_path name =
 
 
 
-let initialize ?default_timeout ?challenging_timeout ?filter_logs ?should_validate_with_z3 ?log_level ?log_dir ?dump_dir () =
+let initialize ?default_timeout ?challenging_timeout ?max_calls ?filter_logs ?should_validate_with_z3 ?log_level ?log_dir ?dump_dir () =
   update_opt z3_default_timeout default_timeout;
   update_opt z3_challenging_timeout challenging_timeout;
   update_opt validate_with_z3 should_validate_with_z3;
+  max_z3_calls := Option.or_ ~else_:!max_z3_calls max_calls;
 
   Logs.set_level ~all:true log_level;
 
@@ -147,6 +149,8 @@ let validate_with_z3 () = !validate_with_z3
 let z3_default_timeout () = !z3_default_timeout
 
 let z3_challenging_timeout () = !z3_challenging_timeout
+
+let max_z3_calls () = !max_z3_calls
 
 let dump_output name f =
   match !inner_dump_dir with

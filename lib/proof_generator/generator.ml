@@ -302,11 +302,8 @@ let reduce_term t term =
   (* when we fail to reduce the term to an application of a constant wp function, then we have to force the evaluation *)
   | Some f_app when not (Proof_utils.CFML.is_const_wp_fn f_app) ->
     Log.info (fun f -> f "Reduction did not complete - entering phase 2 %s@."
-      (Names.Constant.to_string f_app));
+                         (Names.Constant.to_string f_app));
     Gc.full_major ();
-    (* let helpers = match !eq_ind_reduce_name with
-     *   | None -> []
-     *   | Some (_, root_name) -> [root_name] in *)
     let (evd, reduced) =
       Proof_reduction.reduce
         ~unfold:([f_app])
@@ -320,7 +317,7 @@ let reduce_term t term =
     term
   | _ -> trm
 
-    
+
 
 (** [build_testing_function t env ~pre ~f ~args obs] builds a test
     specification from a partially reduced proof term of the lemma [f]
@@ -508,6 +505,82 @@ let has_pure_specification t =
     Proof_utils.CFML.is_hempty pre
   ) invariants
 
+
+let expr_to_subst t inv_ty expr =
+  let expr = Lang.Expr.subst_functions (renormalise_name t) expr in
+  let inv_args = (snd inv_ty) |> List.map fst in      
+  fun args ->
+    let binding = StringMap.of_list (List.combine inv_args args) in
+    let lookup name = StringMap.find_opt name binding in
+    Lang.Expr.subst lookup expr
+
+let expr_to_subst_arr t inv_ty exprs =
+  let exprs = Array.map (Lang.Expr.subst_functions (renormalise_name t)) exprs in
+  let inv_args = (snd inv_ty) |> List.map fst in
+  fun args ->
+    let binding = StringMap.of_list (List.combine inv_args args) in
+    let lookup name = StringMap.find_opt name binding in
+    Array.map (Lang.Expr.subst lookup) exprs
+
+
+let find_first_valid_candidate_with_z3 t inv_ty vc ~heap ~pure =
+  let (let+) x f = Option.bind x f in
+  let no_pure = List.is_empty pure in
+  let heap_gen = Gen.of_list heap in
+  let pure_gen, reset_pure = 
+    let get_pure () =
+      (* if no pure, then just repeatedly return true as the pure *)
+      if no_pure
+      then (Gen.repeat (`Constructor ("true", [])))
+      else (Gen.of_list pure) in
+    let pure_ref = ref (get_pure ()) in
+    let pure_gen () = !pure_ref () in
+    let reset_pure () = pure_ref := get_pure () in
+    pure_gen, reset_pure in
+
+  let should_stop_iteration =
+    match Configuration.max_z3_calls () with
+    | None -> fun _ -> false
+    | Some max_calls -> fun i -> i > max_calls in
+
+  let rec loop i ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) =
+    Log.info (fun f ->
+      f "[%d] testing@.\tPURE:%s@.\tHEAP:%s@." i
+        (Format.to_string Lang.Expr.pp (pure_candidate) |> String.replace ~sub:"\n" ~by:" ")
+        (Format.to_string (List.pp Lang.Expr.pp) (heap_candidate)  |> String.replace ~sub:"\n" ~by:" "));
+    match vc (pure_candidate_vc, heap_candidate_vc) with
+    | `InvalidPure ->
+      let+ pure_candidate = pure_gen () in
+      let pure_candidate_vc = expr_to_subst t inv_ty pure_candidate in
+      loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
+    | `InvalidSpatial ->
+      (* restart the pure generator *)
+      reset_pure ();
+      let+ pure_candidate = pure_gen () in
+      let pure_candidate_vc = expr_to_subst t inv_ty pure_candidate in
+      let+ heap_candidate = heap_gen () in
+      let heap_candidate_vc = expr_to_subst_arr t inv_ty (Array.of_list heap_candidate) in
+      if should_stop_iteration i
+      then (
+        Log.warn (fun f -> f "failed to find a solution after %d candidates; giving up, assuming that it is correct" i);
+        Some (i, (pure_candidate, heap_candidate))
+      )
+      else loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
+    | `Valid -> Some (i, (pure_candidate, heap_candidate)) in
+  let+ pure_candidate = pure_gen () in
+  let+ heap_candidate = heap_gen () in
+  let pure_candidate_vc = expr_to_subst t inv_ty pure_candidate in
+  let heap_candidate_vc = expr_to_subst_arr t inv_ty (Array.of_list heap_candidate) in
+  let start_time = Ptime_clock.now () in
+  let res = loop 0 ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) in
+  let end_time = Ptime_clock.now () in
+  let no_candidates =
+    Option.map fst res
+    |> Option.map_or ~default:"NONE" string_of_int in
+  Log.info (fun f ->
+    f "found a valid candidate in %a (checked %s candidates)@."
+      Ptime.Span.pp Ptime.(diff end_time start_time) no_candidates);
+  Option.map snd res
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   Log.debug (fun f ->
@@ -766,104 +839,41 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   List.iteri (fun i expr -> Log.info  (fun f ->
     f "example heap candidate %d: %s@." i ([%show: Lang.Expr.t list] expr))) (List.take 1 heap);
 
-  (* build a verification condition *)
-  let vc =
-    let vc = 
-      Specification.build_verification_condition
-        t (Proof_env.env_to_defmap env) lemma_name in
-    Configuration.dump_output "verification-condition" (fun f ->
-      f "%a@." Proof_validator.VerificationCondition.pp_verification_condition vc);
-    Proof_validator.build_validator vc in
-
-
   (* we check if we found any pure constraints - it may sometimes be
      the case that no pure constraints are needed *)
   let no_pure = List.is_empty pure in
 
-  let _valid_candidate =
-    let (let+ ) x f = Option.bind x f in
-    let expr_to_subst expr =
-      let expr = Lang.Expr.subst_functions (renormalise_name t) expr in
-      let inv_args = (snd inv_ty) |> List.map fst in      
-      fun args ->
-        let binding = StringMap.of_list (List.combine inv_args args) in
-        let lookup name = StringMap.find_opt name binding in
-        Lang.Expr.subst lookup expr in
-    let expr_to_subst_arr exprs =
-      let exprs = Array.map (Lang.Expr.subst_functions (renormalise_name t)) exprs in
-      let inv_args = (snd inv_ty) |> List.map fst in
-      fun args ->
-        let binding = StringMap.of_list (List.combine inv_args args) in
-        let lookup name = StringMap.find_opt name binding in
-        Array.map (Lang.Expr.subst lookup) exprs in
+  let valid_candidate =
+    if Configuration.validate_with_z3 ()
+    then begin
+      (* build a verification condition *)
+      let vc =
+        let vc = 
+          Specification.build_verification_condition
+            t (Proof_env.env_to_defmap env) lemma_name in
+        Configuration.dump_output "verification-condition" (fun f ->
+          f "%a@." Proof_validator.VerificationCondition.pp_verification_condition vc);
+        Proof_validator.build_validator vc in
+      find_first_valid_candidate_with_z3 t inv_ty vc ~heap ~pure
+    end
+    else begin
+      Log.warn (fun f ->
+        f "validation with Z3 is disabled. Assuming that the first \
+           invariant we find is valid. (proof left as an exercise to \
+           the reader!)");
+      let (let+ ) x f = Option.bind x f in
+      let pure = match pure with [] -> (`Constructor ("true", [])) | h :: _ -> h in
+      let+ heap = List.head_opt heap in
+      Some (pure, heap)
+    end in
 
-    (* let true_pure', true_heap' = List.find true_pure pure, List.find true_heap heap in *)
-    (* assert begin match vc (expr_to_subst true_pure', expr_to_subst_arr (Array.of_list true_heap')) with
-     *   | `Valid -> true
-     *   | _ -> false
-     * end; *)
-
-    let heap_gen = Gen.of_list heap in
-    let pure_gen, reset_pure = 
-      let get_pure () =
-        (* if no pure, then just repeatedly return true as the pure *)
-        if no_pure
-        then (Gen.repeat (`Constructor ("true", [])))
-        else (Gen.of_list pure) in
-      let pure_ref = ref (get_pure ()) in
-      let pure_gen () = !pure_ref () in
-      let reset_pure () = pure_ref := get_pure () in
-      pure_gen, reset_pure in
-
-    let rec loop i ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) =
-      Log.info (fun f ->
-        f "[%d] testing@.\tPURE:%s@.\tHEAP:%s@." i
-          (Format.to_string Lang.Expr.pp (pure_candidate) |> String.replace ~sub:"\n" ~by:" ")
-          (Format.to_string (List.pp Lang.Expr.pp) (heap_candidate)  |> String.replace ~sub:"\n" ~by:" "));
-      match vc (pure_candidate_vc, heap_candidate_vc) with
-      | `InvalidPure ->
-        let+ pure_candidate = pure_gen () in
-        let pure_candidate_vc = expr_to_subst pure_candidate in
-        loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
-      | `InvalidSpatial ->
-        (* restart the pure generator *)
-        reset_pure ();
-        let+ pure_candidate = pure_gen () in
-        let pure_candidate_vc = expr_to_subst pure_candidate in
-        let+ heap_candidate = heap_gen () in
-        let heap_candidate_vc = expr_to_subst_arr (Array.of_list heap_candidate) in
-        if i > 3
-        then (
-          Log.warn (fun f -> f "failed to find a solution after %d candidates; giving up, assuming that it is correct" i);
-          Some (i, (pure_candidate, heap_candidate))
-        )
-        else loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
-      | `Valid -> Some (i, (pure_candidate, heap_candidate)) in
-    let+ pure_candidate = pure_gen () in
-    let+ heap_candidate = heap_gen () in
-    let pure_candidate_vc = expr_to_subst pure_candidate in
-    let heap_candidate_vc = expr_to_subst_arr (Array.of_list heap_candidate) in
-    let start_time = Ptime_clock.now () in
-    let res = loop 0 ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) in
-    let end_time = Ptime_clock.now () in
-
-    let no_candidates =
-      Option.map fst res
-      |> Option.map_or ~default:"NONE" string_of_int in
-    Log.info (fun f ->
-      f "found a valid candidate in %a (checked %s candidates)@."
-        Ptime.Span.pp Ptime.(diff end_time start_time) no_candidates);
-    Option.map snd res in
-
-  let invariant = Option.get_exn_or "Failed to find suitable candidate" _valid_candidate in
+  let invariant = Option.get_exn_or "Failed to find suitable candidate" valid_candidate in
   Log.info (fun f -> f "FOUND INVARIANT: %s@." (
     [%show: Lang.Expr.t * Lang.Expr.t Containers.List.t] invariant
   ));
 
-
   (* xapp lemma *)
   begin
-
     let lemma_name = Names.Constant.to_string lemma_name in
     let const_args = (arg_list_to_str (List.map (fun (v, ty) -> `Untyped v) f_args)) in
     let pp_param =
