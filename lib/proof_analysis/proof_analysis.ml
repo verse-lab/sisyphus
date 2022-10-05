@@ -5,6 +5,9 @@ module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 module PCFML = Proof_utils.CFML
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Analyses proof terms to generate executable specs" "analysis"))
+
+
 type t = Parsetree.expression
 type lambda_env = (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t
 type obs = Dynamic.Concrete.context * Dynamic.Concrete.heap_context
@@ -169,13 +172,10 @@ let extract_expr_opt env vl =
 let extract_proof_value env ty =
   try `Eq (PCFML.unwrap_eq ~rel:(rel_expr env) ty) with
   | e ->
-    (* Format.printf "received exception: %s@." (Printexc.to_string e); *)
     try  `Expr (PCFML.extract_expr ~rel:(rel_expr env) ty)  with
     | e ->
-      (* Format.printf "received exception: %s@." (Printexc.to_string e); *)
       try `Ty (PCFML.extract_typ ~rel:(rel_ty env) ty) with
       | e ->
-        (* Format.printf "received exception: %s@." (Printexc.to_string e); *)
         `Proof (Proof_utils.Debug.constr_to_string ty)
 
 let extract_typ_from_proof_value = function
@@ -684,11 +684,12 @@ and extract_fold_specification (coq_env: Environ.env) (env: env) (trm: Constr.t)
              |> Iter.map (extract_proof_value env)
              |> Iter.map (function `Expr e -> `Expr e | v -> `ProofTerm ([%show: Proof_term.proof_value] v))
              |> Iter.to_list in
-  Format.printf "args to fold spec were %s (input 2 was %s)@. env is %a@."
-    ([%show: [ `Expr of Lang.Expr.t
-             | `ProofTerm of string ] list] args)
-    (Proof_utils.Debug.constr_to_string_pretty oargs.(7))
-    pp_env env
+  Log.debug (fun f ->
+    f "args to fold spec were %s (input 2 was %s)@. env is %a@."
+      ([%show: [ `Expr of Lang.Expr.t
+               | `ProofTerm of string ] list] args)
+      (Proof_utils.Debug.constr_to_string_pretty oargs.(7))
+      pp_env env)
   ;
   (* t: args.(6)  == nil & x *)
   (* init: args.(7) == init *)

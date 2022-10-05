@@ -8,6 +8,8 @@ module PU = Proof_utils
 module PCFML = Proof_utils.CFML
 module PV = Proof_validator.VerificationCondition
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Generates Z3 verification conditions" "gen.spec"))
+
 let () =
   Printexc.register_printer (function
       Failure msg -> Some msg
@@ -291,7 +293,7 @@ let unwrap_invariant_spec formals
           match expr with
           | `App ("CFML.WPArray.Array", [vl]) -> vl
           | `App (fname, _) ->
-            Format.printf "ignoring possible application %s@." fname;
+            Log.warn (fun f -> f "ignoring possible application %s@." fname);
             expr
           | _ -> expr in
         let rec eval_expr (env: (Lang.Expr.t * Lang.Type.t) StringMap.t) (sym_heap: Proof_spec.Heap.Heap.t)
@@ -537,7 +539,7 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
       match extract_property constr with
       | Ok prop -> Some (name, prop)
       | Error e ->
-        (* Format.printf "failed to extract %s (%s) @.@." (globref_to_string name) e; *)
+        Log.warn (fun f -> f "failed to extract %s (%s) @.@." (globref_to_string name) e);
         None
     )
     |> List.filter (function
@@ -550,7 +552,7 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
     |> StringSet.to_list in
 
 
-  Format.printf "functions: %s@." (List.to_string Fun.id (functions));
+  Log.debug (fun f -> f "functions: %s@." (List.to_string Fun.id (functions)));
 
 
   let functions = List.filter_map (function
@@ -584,12 +586,6 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
     |> List.filter (fun (_, prop) -> PV.property_only_uses_functions_in supported_functions prop)
     |> List.map (Pair.map_fst globref_to_string) in
 
-  (* let () =
-   *   properties
-   *   |> List.iteri (fun ind (name, constr) ->
-   *     Format.printf "search[%d] result==>%s: %s@." ind name (PV.show_property constr)
-   *   );
-   * in *)
 
   {
     poly_vars;

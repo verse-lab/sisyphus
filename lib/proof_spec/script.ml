@@ -4,6 +4,8 @@ open Containers
 module Heap = Heap'
 module PP = PPrint
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Generic encoding of proof scripts" "prf.spec.script"))
+
 module StringMap = Containers.Map.Make(String)
 
 type 'a ctx = {
@@ -176,7 +178,7 @@ let show_parsed_script script =
   Format.sprintf "%s\n%s %s\n%s\n%s" script.prelude pre file script.spec (show_steps script.proof)
 
 let pp_parsed_script script =
-  print_endline @@ show_parsed_script script
+  Log.debug (fun f -> f "%s" (show_parsed_script script))
 
 let extract_step_id (step: step) =
   match step with

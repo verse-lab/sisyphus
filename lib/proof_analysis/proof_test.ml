@@ -1,6 +1,8 @@
 [@@@warning "-26"]
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Converts extracted proofs to OCaml programs" "analysis.test"))
+
 module AH = Ast_helper
 module StringMap = Map.Make(String)
 
@@ -89,9 +91,9 @@ let build_test
           [Nolabel, (build_binding_function invariant_args)] in
       let lambda =
         List.rev invariant_args
-            |> List.fold_left (fun lam arg ->
-              AH.Exp.fun_ Nolabel None (AH.Pat.var Location.(mknoloc arg)) lam
-            ) app_invariant in
+        |> List.fold_left (fun lam arg ->
+          AH.Exp.fun_ Nolabel None (AH.Pat.var Location.(mknoloc arg)) lam
+        ) app_invariant in
       kont (let_ invariant_name lambda body) in
   let ast_builder = with_pure_bindings pure in
   fun ctx ->
@@ -101,7 +103,7 @@ let build_test
         (AH.Pat.var (Location.mknoloc (fst invariant))) @@
       AH.Exp.apply (AH.Exp.ident Location.(mknoloc Longident.(Lident "ignore")))
         [Nolabel, ast] in
-    Format.printf "generated test_fun was %a@." Pprintast.expression ast;
+    Log.debug (fun f -> f "generated test_fun was %a@." Pprintast.expression ast);
     let body : ((string -> Sisyphus_tracing.Wrap.t) -> unit) -> unit =
       Dynamic.CompilationContext.eval ctx ast in
     fun inv ->
@@ -110,6 +112,7 @@ let build_test
       with
       | Assert_failure (_, _, _) -> false
       | e ->
-        Format.printf "evaluation of invariant failed dynamic tests \
-                       with exception %s@." (Printexc.to_string e);
+        Log.warn (fun f ->
+          f "evaluation of invariant failed dynamic tests \
+             with non-assert exception %s@." (Printexc.to_string e));
         false
