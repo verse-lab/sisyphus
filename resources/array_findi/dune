@@ -5,7 +5,8 @@
  (name ProofsArrayFindi)
  (modules
    Array_findi_old_ml Verify_array_findi_old
-   Array_findi_new_ml Verify_array_findi_new)
+   Array_findi_new_ml Verify_array_findi_new
+   Dummy)
  (libraries sisyphus.plugin)
  (flags -R resources/common Common))
 

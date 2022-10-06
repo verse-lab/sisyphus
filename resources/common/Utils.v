@@ -226,3 +226,38 @@ Proof.
       rew_list.
       auto.
 Qed.
+
+Lemma read_rev_helper (A: Type) `{IA: Inhab A} (l: list A) (i: int):
+  0 <= i < length l ->
+  l[i] = (rev l)[length l - i - 1].
+Proof.
+  gen i; induction l as [| l ls IHls].
+  + intros i; rewrite length_nil; math.
+  + intros i; rewrite length_cons; intros Hi.
+    case (Z.eqb_spec i 0); intros Hi_zero.
+    * rewrite Hi_zero, rev_cons, read_zero, read_last_case, If_l; auto; rewrite length_rev; math.
+    * rewrite read_cons_pos, rev_cons, read_last_case, If_r; try rewrite length_rev; try math.
+      rewrite IHls; try math.
+      f_equal; math.
+Qed.      
+
+Lemma read_rev (A: Type) `{IA: Inhab A} (l: list A) (i: int):
+  0 <= i < length l ->
+  (rev l)[i] = l[length l - i - 1].
+Proof.
+  intros Hvld.
+  rewrite (read_rev_helper l); try math.
+  f_equal.
+  math.
+Qed.
+
+Lemma make_rev_update: forall (A: Type) (x v: A) (t r: list A),
+    (make (length r + 1) x ++ take (length t) (rev t))[length r:=v] =
+  make (length r) x ++ take (1 + length t) (v :: rev t).
+Proof.
+  intros.
+  rewrite make_succ_r; [|math].
+  rewrite app_last_l, update_middle; rewrite ?length_make; try math.
+  rewrite take_cons_pos; try math.
+  rewrite app_last_l; repeat f_equal; try math.
+Qed.

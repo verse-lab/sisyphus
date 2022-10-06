@@ -2,6 +2,7 @@
 (rule
  (target Dummy.v)
  (deps ../common/Combinators_ml.vo
+../common/Lst_ml.vo
 ../common/Opt_ml.vo
 ../common/Sseq_ml.vo ../common/Tactics.vo
 ../common/Utils.vo
@@ -22,8 +23,10 @@
 (rule
  (target Array_exists_new_ml.v)
  (deps array_exists_new.sisyphus.ml ../common/Combinators_ml.v
+../common/Lst_ml.v
 ../common/Opt_ml.v
 ../common/Sseq_ml.v ../common/combinators.ml
+../common/lst.ml
 ../common/opt.ml
 ../common/sseq.ml)
  (action (run cfmlc -I ../common -o ./Array_exists_new_ml.v array_exists_new.sisyphus.ml)))
@@ -37,8 +40,10 @@
 (rule
  (target Array_exists_old_ml.v)
  (deps array_exists_old.sisyphus.ml ../common/Combinators_ml.v
+../common/Lst_ml.v
 ../common/Opt_ml.v
 ../common/Sseq_ml.v ../common/combinators.ml
+../common/lst.ml
 ../common/opt.ml
 ../common/sseq.ml)
  (action (run cfmlc -I ../common -o ./Array_exists_old_ml.v array_exists_old.sisyphus.ml)))

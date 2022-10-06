@@ -70,3 +70,37 @@ Proof.
       { intros b; xsimpl*. }
 Qed.
 
+
+Lemma for_downto_spec : forall (from: int) (down_to: int) (f: func),
+  forall (I: int -> hprop),
+    (from >= down_to - 1) ->
+    (forall i, down_to <= i <= from ->
+     SPEC (f i)
+     PRE (I i)
+     POST (fun (_: unit) => I (i - 1))) ->
+  SPEC (for_downto from down_to f)
+    PRE (I from)
+    POST (fun (_: unit) => I (down_to - 1)).
+Proof using.
+  intros from down_to.
+  induction_wf IH: (downto down_to) from.
+  intros f I Hvld HI.
+  xcf. 
+  xif.
+  - rewrite Px0__, istrue_isTrue_eq; intros ->.  
+    xapp (HI down_to); try math.
+    xsimpl*.
+  - rewrite Px0__, istrue_isTrue_eq; intros Hneq.
+    xif; try math.
+    + intros Hgt.
+      xapp (HI from); try math.
+      xapp (IH (from - 1)); try (apply downto_intro; try math); try math; auto.
+      * intros i Hi; apply HI; math.
+      * xsimpl*.
+    + intros Hgt.
+      assert (H: from = down_to - 1) by math.
+      rewrite H.
+      xvals*.
+Qed.
+Arguments for_downto_spec from down_to f I Hf HI : rename, clear implicits.
+
