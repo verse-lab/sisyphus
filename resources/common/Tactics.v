@@ -40,6 +40,10 @@ Tactic Notation "xalloc"
        simple_intropattern(Hdata) :=
     xapp; try math; intros arr data Hdata.
 
+Tactic Notation "xref"
+       simple_intropattern(r) :=
+    xapp; intros r.
+
 Tactic Notation "xpurefun"
   simple_intropattern(f)
   simple_intropattern(Hf) "using"
@@ -117,6 +121,10 @@ Tactic Notation "xmatch_case_1" "with"
        simple_intropattern(h4)
   :=
   xmatch Xcase_as; (first sep_solve); intros _ h1 h2 h3 h4.
+
+
+Tactic Notation "xunit" :=
+  xmatch; [xapp || xval].
 
 Tactic Notation "xletopaque"
        simple_intropattern(idx)

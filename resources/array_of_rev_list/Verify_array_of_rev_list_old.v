@@ -3,7 +3,11 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
-From ProofsArrayOfRevList Require Import Verify_array_of_rev_list_utils.
+From Common Require Import Utils Tactics. 
+
+From Common Require Import Verify_combinators. 
+From Common Require Import Verify_list. 
+
 From ProofsArrayOfRevList Require Import Array_of_rev_list_old_ml.
     
 Lemma array_of_rev_list : forall A `{EA:Enc A} (l:list A),

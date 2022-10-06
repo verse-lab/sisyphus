@@ -4,7 +4,6 @@
 (coq.theory
  (name ProofsArrayOfRevList)
  (modules
-   Verify_array_of_rev_list_utils
    Array_of_rev_list_old_ml Verify_array_of_rev_list_old
    Array_of_rev_list_new_ml Verify_array_of_rev_list_new
    Dummy)
