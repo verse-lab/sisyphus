@@ -1,3 +1,4 @@
+#+PROPERTY: Effort_ALL 0 0:10 0:30 1:00 2:00 3:00 4:00 5:00 6:00 7:00
 * Limitations
 ** Invariants hidden in external lemmas
 An example of such a case would be when we're dealing with a proof
@@ -5,16 +6,31 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** DONE Refactor code with appropriate logging (logs)
-CLOSED: [2022-10-05 Wed 10:20]
-** DONE Update code to take in multiple coq-libs
-CLOSED: [2022-10-05 Wed 11:52]
-** DONE Conditionally send things to z3 if env SIS_Z3 is set
-CLOSED: [2022-10-05 Wed 15:29]
+** DONE Read through SLING To work out why it outputs such poor invariants
+CLOSED: [2022-10-06 Thu 06:53]
+:PROPERTIES:
+:Effort:   0:10
+:END:
+:LOGBOOK:
+CLOCK: [2022-10-06 Thu 06:34]--[2022-10-06 Thu 06:53] =>  0:19
+:END:
+** TODO Update Dune file to work more nicely across projects
+:PROPERTIES:
+:Effort:   1:00
+:END:
+:LOGBOOK:
+CLOCK: [2022-10-06 Thu 07:03]
+:END:
 ** TODO Work on adding more examples
+:PROPERTIES:
+:Effort:   1:00
+:END:
+** TODO Work on array find map
+:PROPERTIES:
+:Effort:   4:00
+:END:
 ** TODO Update codebase to work with Coq.8.16.0
 ** TODO You're the BEST around
-
 * Tasks for the proof demigod
 ** DONE Add array of rev list
 CLOSED: [2022-09-27 Tue 16:35]
