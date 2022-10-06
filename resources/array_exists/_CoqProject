@@ -1,6 +1,2 @@
 -R ../../_build/default/resources/array_exists ProofsArrayExists
-
--I ../../_build/default/lib/proof_reduction
--I ../../_build/default/lib/plugin
-
-../../lib/plugin/printreduced.ml
+-R ../../_build/default/resources/common Common

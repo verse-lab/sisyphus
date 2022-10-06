@@ -1,4 +1,4 @@
-open Common
+open Combinators
 
 let array_exists t f =
   let len = Array.length t in

@@ -1,10 +1,14 @@
 Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
-From Proofs Require Import Verify_seq_to_array_utils.
-From Proofs Require Import Seq_to_array_old_ml.
+
+From Common Require Import Verify_sseq.
+
+From Common Require Import Tactics.
 From Common Require Import Utils.
-From Common Require Import Sseq_ml.
+
+From Proofs Require Import Seq_to_array_old_ml.
+
 Lemma to_array_spec :
   forall (A : Type) `{EA : Enc A} (l : list A) (s : func) (v : loc),
   SPEC (to_array s)

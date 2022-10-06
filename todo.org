@@ -19,7 +19,8 @@ CLOCK: [2022-10-06 Thu 06:34]--[2022-10-06 Thu 06:53] =>  0:19
 :Effort:   1:00
 :END:
 :LOGBOOK:
-CLOCK: [2022-10-06 Thu 07:03]
+CLOCK: [2022-10-06 Thu 07:41]
+CLOCK: [2022-10-06 Thu 07:03]--[2022-10-06 Thu 07:30] =>  0:27
 :END:
 ** TODO Work on adding more examples
 :PROPERTIES:

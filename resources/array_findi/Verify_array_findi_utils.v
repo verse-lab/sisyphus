@@ -69,103 +69,6 @@ Proof.
       { intros b; xsimpl*. }
 Qed.
 
-Fixpoint findi (A: Type) (i: int) (f: int -> A -> bool) (ls: list A) : option (int * A) :=
-  match ls with
-  | nil => None
-  | h :: t =>
-      if f i h then Some (i, h)
-      else findi (i + 1) f t
-  end.
-
-Lemma findi_app_r (A: Type) (B: Type) i (f: int -> A -> bool) l1 l2:
-  findi i f l1 = None ->
-  (findi i f (l1 ++ l2)) = findi (i + length l1) f l2.
-Proof.
-  gen i l2; induction l1.
-  - intros i l2; simpl; rew_list; auto; intros _; repeat f_equal; math.
-  - intros i l2; rew_list; simpl.
-    case_eq (f i a); intros; simpl; try inversion H0.
-    rewrite IHl1; auto.
-    f_equal; try math.
-Qed.
-
-Lemma findi_app_l (A: Type) i (f: int -> A -> bool) l1 l2:
-  is_some (findi i f l1) ->
-  (findi i f (l1 ++ l2)) = findi i f l1.
-Proof.
-  gen i l2; induction l1.
-  - intros i l2; simpl; rew_list; intros Hf. inversion Hf.
-  - intros i l2; rew_list; simpl.
-    case_eq (f i a); intros; simpl. try inversion H0; auto.
-    rewrite IHl1; auto.
-Qed.
-
-
-
-Fixpoint findi_map (A: Type) (B: Type) (i: int) (f: A -> option B) (ls: list A) : option (int * B) :=
-  match ls with
-  | nil => None
-  | h :: t =>
-      match f h with
-      | Some v => Some (i, v)
-      | None => findi_map (i + 1) f t
-      end
-  end.
-
-Lemma findi_map_app_r (A: Type) (B: Type) i (f: A -> option B) l1 l2:
-  findi_map i f l1 = None ->
-  (findi_map i f (l1 ++ l2)) = findi_map (i + length l1) f l2.
-Proof.
-  gen i l2; induction l1.
-  - intros i l2; simpl; rew_list; auto; intros _; repeat f_equal; math.
-  - intros i l2; rew_list; simpl.
-    case_eq (f a); intros; simpl; try inversion H0.
-    rewrite IHl1; auto.
-    f_equal; try math.
-Qed.
-
-Lemma findi_map_app_l (A: Type) (B: Type) i (f: A -> option B) l1 l2:
-  is_some (findi_map i f l1) ->
-  (findi_map i f (l1 ++ l2)) = findi_map i f l1.
-Proof.
-  gen i l2; induction l1.
-  - intros i l2; simpl; rew_list; intros Hf. inversion Hf.
-  - intros i l2; rew_list; simpl.
-    case_eq (f a); intros; simpl. try inversion H0; auto.
-    rewrite IHl1; auto.
-Qed.
-
-Fixpoint find_map (A: Type) (B: Type) (f: A -> option B) (ls: list A) : option (B) :=
-  match ls with
-  | nil => None
-  | h :: t =>
-      match f h with
-      | Some v => Some (v)
-      | None => find_map f t
-      end
-  end.
-
-Lemma find_map_app_r (A: Type) (B: Type) (f: A -> option B) l1 l2:
-  find_map f l1 = None ->
-  (find_map f (l1 ++ l2)) = find_map f l2.
-Proof.
-  gen l2; induction l1.
-  - intros l2; simpl; rew_list; auto; intros _; repeat f_equal; math.
-  - intros l2; rew_list; simpl.
-    case_eq (f a); intros; simpl; try inversion H0.
-    rewrite IHl1; auto.
-Qed.
-
-Lemma find_map_app_l (A: Type) (B: Type) (f: A -> option B) l1 l2:
-  is_some (find_map f l1) ->
-  (find_map f (l1 ++ l2)) = find_map f l1.
-Proof.
-  gen l2; induction l1.
-  - intros l2; simpl; rew_list; intros Hf. inversion Hf.
-  - intros l2; rew_list; simpl.
-    case_eq (f a); intros; simpl. try inversion H0; auto.
-    rewrite IHl1; auto.
-Qed.
 
 
 Lemma list_fold_spec : forall A `{EA: Enc A} B `{EB: Enc B}
@@ -197,17 +100,6 @@ Proof using.
     xsimpl.
 Qed.
 Arguments list_fold_spec {A} {HA} {B} {HB} f init l I Hf : rename.
-
-
-Lemma list_existsb_app (A: Type) (l1 l2: list A) (fp: A -> bool):
-  List.existsb fp (l1 ++ l2) =
-    List.existsb fp l1 || List.existsb fp l2.
-Proof.
-  gen l2; induction l1.
-  - intros l2; simpl; rew_list; rewrite if_then_true_else_false; auto.
-  - intros l2; rewrite app_cons_l; simpl; rewrite IHl1; simpl.
-    case (fp a); simpl; auto.
-Qed.
 
 
 

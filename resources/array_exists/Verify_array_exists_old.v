@@ -1,8 +1,13 @@
 Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
-From ProofsArrayExists Require Import Verify_array_exists_utils.
-From ProofsArrayExists Require Import array_exists_old_ml.
+
+From Common Require Import Verify_combinators.
+
+From Common Require Import Tactics.
+From Common Require Import Utils.
+
+From ProofsArrayExists Require Import Array_exists_old_ml.
 
 
 Lemma array_exists_spec :

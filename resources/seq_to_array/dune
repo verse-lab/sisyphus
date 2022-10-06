@@ -1,47 +1,22 @@
 (library
  (name seq_to_array)
- (libraries common)
-)
+ (libraries common))
 
 (coq.theory
  (name Proofs)
  (modules
-   Verify_seq_to_array_utils
    Seq_to_array_old_ml Verify_seq_to_array_old
-   Dummy
    Seq_to_array_new_ml Verify_seq_to_array_new
+   Dummy
  )
  (libraries sisyphus.plugin)
- (flags -R resources/common Common)
-)
+ (flags -R resources/common Common))
 
-(rule
- (target Dummy.v)
- (deps ../common/Sseq_ml.vo ../common/Utils.vo)
- (action (run touch Dummy.v))
-)
 
-(rule
- (target seq_to_array_old.sisyphus.ml)
- (deps seq_to_array_old.ml)
- (action (with-stdout-to seq_to_array_old.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" seq_to_array_old.ml))))
+(include build-rules.sexp)
+(rule (with-stdout-to build-rules.sexp.gen (run ../../scripts/gen_build_rules.sh)))
+(rule (alias gen-build-rules) (action (diff build-rules.sexp build-rules.sexp.gen)))
 
-(rule
- (target Seq_to_array_old_ml.v)
- (deps seq_to_array_old.sisyphus.ml ../common/Sseq_ml.v ../common/sseq.ml)
- (action (run cfmlc -I ../common -o ./Seq_to_array_old_ml.v seq_to_array_old.sisyphus.ml)))
-
-(rule
- (target seq_to_array_new.sisyphus.ml)
- (deps seq_to_array_new.ml)
- (action (with-stdout-to seq_to_array_new.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" ./seq_to_array_new.ml))))
-
-(rule
- (target Seq_to_array_new_ml.v)
- (deps seq_to_array_new.sisyphus.ml ../common/Sseq_ml.v ../common/sseq.ml)
- (action (run cfmlc -I ../common -o ./Seq_to_array_new_ml.v seq_to_array_new.sisyphus.ml)))
 
 (env
   (dev

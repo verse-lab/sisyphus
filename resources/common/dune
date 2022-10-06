@@ -4,7 +4,13 @@
 
 (coq.theory
  (name Common)
- (modules Sseq_ml Utils
+ (modules
+   Verify_sseq Sseq_ml
+   Verify_combinators Combinators_ml
+
+   Verify_list
+
+   Utils Tactics
  )
 )
 

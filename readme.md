@@ -37,6 +37,12 @@ To run a particular benchmark, simply run:
 dune runtest ./benchmarks/<name-of-benchmark>
 ```
 
+To update the build rules (for example, when you update resources/common, or add a new example):
+
+```
+dune build @gen-build-rules --auto-promote
+```
+
 ## Project structure
 ```
 .
