@@ -15,37 +15,75 @@ let is_debug_mode =
     |> List.filter String.is_empty in
   List.mem "b" env_vars
 
+let is_ml_file path =
+  let basename = Fpath.basename path in
+  Fpath.has_ext ".ml" path && not (String.suffix ~suf:"sisyphus.ml" basename)
+
 let build_coq_project ~temp_dir path coq_lib_name common_path common_coq_lib_name =
   let open Result in
   OS.Dir.with_current temp_dir (fun () -> (
-        let base_name = Fpath.basename path in
-        let common_base_name = Fpath.basename common_path in
+      let base_name = Fpath.basename path in
+      let common_base_name = Fpath.basename common_path in
 
-        let coq_dep_cmd = Cmd.(coqdep
-                               % "-sort"
-                               % "-R" % ("./" ^ common_base_name) % common_coq_lib_name
-                               % "-R" % ("./" ^ base_name) % coq_lib_name
-                               % base_name
-                               % common_base_name) in
+      let coq_dep_cmd = Cmd.(coqdep
+                             % "-sort"
+                             % "-R" % ("./" ^ common_base_name) % common_coq_lib_name
+                             % "-R" % ("./" ^ base_name) % coq_lib_name
+                             % base_name
+                             % common_base_name) in
 
-        let err =
-          if is_debug_mode
-          then Some OS.Cmd.err_stderr
-          else Some OS.Cmd.err_null in
+      let err =
+        if is_debug_mode
+        then Some OS.Cmd.err_stderr
+        else Some OS.Cmd.err_null in
 
-        let* deps, _ = OS.Cmd.run_out ?err coq_dep_cmd |> OS.Cmd.out_string in
-        let deps = String.split_on_char ' ' deps |> List.filter (Fun.negate String.is_empty) in
-        let* _ =
-          Result.fold_l (fun () dep ->
-              let coqc_cmd = Cmd.(coqc
-                                  % "-R" % ("./" ^ common_base_name) % common_coq_lib_name
-                                  % "-R" % ("./" ^ base_name) % coq_lib_name
-                                  % dep) in
-              OS.Cmd.run ?err coqc_cmd
-            ) () deps in
-        Ok ()
-      )) ()
+      let* deps, _ = OS.Cmd.run_out ?err coq_dep_cmd |> OS.Cmd.out_string in
+      let deps = String.split_on_char ' ' deps |> List.filter (Fun.negate String.is_empty) in
+      let* _ =
+        Result.fold_l (fun () dep ->
+          let coqc_cmd = Cmd.(coqc
+                              % "-R" % ("./" ^ common_base_name) % common_coq_lib_name
+                              % "-R" % ("./" ^ base_name) % coq_lib_name
+                              % dep) in
+          OS.Cmd.run ?err coqc_cmd
+        ) () deps in
+      Ok ()
+    )) ()
   |> Result.flat_map Fun.id
+
+(* setup test directory *)
+let copy_dep_files ~common_dir path =
+  let open Result in
+  let common_cfml_output_path = Fpath.(path / "_output") in
+
+  let deps = ref [] in
+
+  let res = OS.Dir.fold_contents (fun path acc ->
+    let* () = acc in
+
+    (* let* curr = OS.Dir.current () in *)
+    (* Format.printf "Current dir: %a @." Fpath.pp curr; *)
+    let base_name = Fpath.basename path in
+    (* Format.printf "%a @." Fpath.pp path; *)
+    let in_output = Fpath.is_prefix common_cfml_output_path path in
+    let valid_file =
+      Fpath.has_ext ".v" path ||
+      (Fpath.has_ext ".ml" path &&
+       not (String.suffix ~suf:"sisyphus.ml" base_name)) in
+    if valid_file && not in_output
+    then begin
+      Format.printf "%a ==> %s@." Fpath.pp path base_name;
+      if is_ml_file path then deps := Fpath.(common_dir / base_name) :: !deps;
+      OS.Cmd.run Cmd.(copy % p path %  p Fpath.(common_dir /  base_name))
+    end
+    else
+      Ok ()
+  ) (Ok ()) path in
+  match res with
+  | Ok _ -> !deps
+  | Error `Msg m ->
+    Format.ksprintf ~f:failwith
+      "failed to initialise setup directory with error: %s" m
 
 let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
   let open Result in
@@ -64,76 +102,72 @@ let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
   let old_program, new_program, old_proof, new_proof, deps = ref None, ref None, ref None, ref None, ref [] in
   let cfml_output_path = Fpath.(path / "_output") in
 
-  let is_ml_file path =
-    let basename = Fpath.basename path in
-    Fpath.has_ext ".ml" path && not (String.suffix ~suf:"sisyphus.ml" basename)
-  in
 
 
   (* setup test directory *)
-  let copy_dep_files path : unit =
-    let common_cfml_output_path = Fpath.(path / "_output") in
+  (* let copy_dep_files path : unit =
+   *   let common_cfml_output_path = Fpath.(path / "_output") in
+   * 
+   *   let _ = OS.Dir.fold_contents (fun path acc ->
+   *     let* () = acc in
+   * 
+   *     (\* let* curr = OS.Dir.current () in *\)
+   *     (\* Format.printf "Current dir: %a @." Fpath.pp curr; *\)
+   *     let base_name = Fpath.basename path in
+   *     (\* Format.printf "%a @." Fpath.pp path; *\)
+   *     let in_output = Fpath.is_prefix common_cfml_output_path path in
+   *     let valid_file =
+   *       Fpath.has_ext ".v" path ||
+   *       (Fpath.has_ext ".ml" path &&
+   *        not (String.suffix ~suf:"sisyphus.ml" base_name)) in
+   *     if valid_file && not in_output
+   *     then begin
+   *       Format.printf "%a ==> %s@." Fpath.pp path base_name;
+   *       if is_ml_file path then deps := Fpath.(common_dir / base_name) :: !deps;
+   *       OS.Cmd.run Cmd.(copy % p path %  p Fpath.(common_dir /  base_name))
+   *     end
+   *     else
+   *       Ok ()
+   *   ) (Ok ()) path
+   *   in
+   *   () in *)
 
-    let _ = OS.Dir.fold_contents (fun path acc ->
-        let* () = acc in
-
-        (* let* curr = OS.Dir.current () in *)
-        (* Format.printf "Current dir: %a @." Fpath.pp curr; *)
-        let base_name = Fpath.basename path in
-        (* Format.printf "%a @." Fpath.pp path; *)
-        let in_output = Fpath.is_prefix common_cfml_output_path path in
-        let valid_file =
-          Fpath.has_ext ".v" path ||
-          (Fpath.has_ext ".ml" path &&
-           not (String.suffix ~suf:"sisyphus.ml" base_name)) in
-        if valid_file && not in_output
-        then begin
-          Format.printf "%a ==> %s@." Fpath.pp path base_name;
-          if is_ml_file path then deps := Fpath.(common_dir / base_name) :: !deps;
-          OS.Cmd.run Cmd.(copy % p path %  p Fpath.(common_dir /  base_name))
-        end
-        else
-          Ok ()
-      ) (Ok ()) path
-    in
-    ()
-  in
-
-  copy_dep_files common_path;
+  let common_deps = copy_dep_files ~common_dir common_path in
+  deps := common_deps @ !deps;
 
   let* _ =
     OS.Dir.fold_contents (fun path acc ->
-        let* () = acc in
-        let base_name = Fpath.basename path in
-        let in_output = Fpath.is_prefix cfml_output_path path in
-        let valid_file =
-          (Fpath.has_ext ".v" path) ||
-          (Fpath.has_ext ".ml" path &&
-           not (String.suffix ~suf:"sisyphus.ml" base_name))
-        in
-        let is_new_proof = String.suffix ~suf:"_new.v" base_name in
-        if valid_file && not in_output
-        then begin
-          Format.printf "%a ==> %s@." Fpath.pp path (Fpath.basename path);
-          (* extract old program, new program, old proof, new proof_stub *)
-          begin match () with
-            | _ when String.suffix ~suf:"_old.ml" base_name -> old_program := Some Fpath.(test_dir / base_name)
-            | _ when String.suffix ~suf:"_new.ml" base_name -> new_program := Some Fpath.(test_dir / base_name)
-            | _  when String.suffix ~suf:"_old.v" base_name -> old_proof   := Some Fpath.(test_dir / base_name)
-            | _ when String.suffix ~suf:"_new.v" base_name ->  new_proof   := Some path
-            (* temporary ml files are generated with the suffix <filename>.sisyphus.ml, so these should be ignored when testing. *)
-            | _ when Fpath.has_ext ".ml" path && not (String.suffix ~suf:"sisyphus.ml" base_name) ->
-              deps := Fpath.(test_dir / base_name) :: !deps
-            | _ -> ()
-          end;
+      let* () = acc in
+      let base_name = Fpath.basename path in
+      let in_output = Fpath.is_prefix cfml_output_path path in
+      let valid_file =
+        (Fpath.has_ext ".v" path) ||
+        (Fpath.has_ext ".ml" path &&
+         not (String.suffix ~suf:"sisyphus.ml" base_name))
+      in
+      let is_new_proof = String.suffix ~suf:"_new.v" base_name in
+      if valid_file && not in_output
+      then begin
+        Format.printf "%a ==> %s@." Fpath.pp path (Fpath.basename path);
+        (* extract old program, new program, old proof, new proof_stub *)
+        begin match () with
+        | _ when String.suffix ~suf:"_old.ml" base_name -> old_program := Some Fpath.(test_dir / base_name)
+        | _ when String.suffix ~suf:"_new.ml" base_name -> new_program := Some Fpath.(test_dir / base_name)
+        | _  when String.suffix ~suf:"_old.v" base_name -> old_proof   := Some Fpath.(test_dir / base_name)
+        | _ when String.suffix ~suf:"_new.v" base_name ->  new_proof   := Some path
+        (* temporary ml files are generated with the suffix <filename>.sisyphus.ml, so these should be ignored when testing. *)
+        | _ when Fpath.has_ext ".ml" path && not (String.suffix ~suf:"sisyphus.ml" base_name) ->
+          deps := Fpath.(test_dir / base_name) :: !deps
+        | _ -> ()
+        end;
 
-          (* copy over the files *)
-          if not is_new_proof
-          then  OS.Cmd.run Cmd.(copy % p path %  p Fpath.(test_dir / base_name))
-          else Ok ()
-        end
+        (* copy over the files *)
+        if not is_new_proof
+        then  OS.Cmd.run Cmd.(copy % p path %  p Fpath.(test_dir / base_name))
         else Ok ()
-      ) (Ok ()) path
+      end
+      else Ok ()
+    ) (Ok ()) path
   in
 
   let deps = !deps in
@@ -158,6 +192,8 @@ let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
   let* () = build_coq_project ~temp_dir path coq_lib_name common_path common_coq_lib_name
             |> Result.map_err (fun (`Msg err) -> `Msg ("Initial project failed to build with error: " ^ err)) in
 
+  (* let _ = OS.Cmd.run Cmd.(copy % "-R" % p temp_dir % "/tmp/test-dir") in *)
+
   (*  run sisyphus *)
   let* _ =
     let sisyphus_cmd =
@@ -172,22 +208,22 @@ let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
            % old_proof_name % stub_file_name % output_name) in
 
     let err = OS.Cmd.err_stderr in
-    OS.Cmd.run_out ~err sisyphus_cmd |> OS.Cmd.out_string
-              |> Result.map_err (fun (`Msg err) -> `Msg ("Running Sisyphus failed with error: " ^ err)) in
+    OS.Cmd.run ~err sisyphus_cmd
+    |> Result.map_err (fun (`Msg err) -> `Msg ("Running Sisyphus failed with error: " ^ err)) in
 
   (* build result file *)
   let* () =
     OS.Dir.with_current temp_dir (fun () ->
-        let base_name = Fpath.basename path in
-        let common_base_name = Fpath.basename common_path in
+      let base_name = Fpath.basename path in
+      let common_base_name = Fpath.basename common_path in
 
-        let coq_dep_cmd = Cmd.(coqc
-                               % "-R" % ("./" ^ common_base_name) % common_coq_lib_name
-                               % "-R" % ("./" ^ base_name) % coq_lib_name
-                               % p Fpath.(test_dir / output_name)) in
+      let coq_dep_cmd = Cmd.(coqc
+                             % "-R" % ("./" ^ common_base_name) % common_coq_lib_name
+                             % "-R" % ("./" ^ base_name) % coq_lib_name
+                             % p Fpath.(test_dir / output_name)) in
 
-        OS.Cmd.run coq_dep_cmd
-      ) () |> Result.flat_map Fun.id
+      OS.Cmd.run coq_dep_cmd
+    ) () |> Result.flat_map Fun.id
     |> Result.map_err (fun (`Msg err) -> `Msg ("Output from sisyphus failed to build with error: " ^ err)) in
 
   Ok ()

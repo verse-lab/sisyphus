@@ -21,10 +21,11 @@ ML_FILES=$(ls "$FILE" | grep ".*\.ml$")
 COMMON_V_FILES=$(ls "$COMMON" | grep ".*\.v$")
 COMMON_MLI_FILES=$(ls "$COMMON" | grep ".*\.mli$")
 
-COMMON_ML_DEPS=$(echo "$COMMON_MLI_FILES" | sed 's/.mli/.ml/'  | sed 's/.*/..\/common\/&/')
-COMMON_V_DEPS=$(echo "$COMMON_MLI_FILES" | sed 's/.mli/_ml.v/' | sed 's/\([[:alpha:]]\)/\U\1/' | sed 's/.*/..\/common\/&/')
-COMMON_VO_DEPS=$(echo "$COMMON_MLI_FILES" | sed 's/.mli/_ml.vo/' | sed 's/\([[:alpha:]]\)/\U\1/' | sed 's/.*/..\/common\/&/')
-COMMON_V_VO_DEPS=$(echo "$COMMON_V_FILES" | sed 's/.v/.vo/'  | sed 's/.*/..\/common\/&/')
+COMMON_ML_DEPS=$(echo "$COMMON_MLI_FILES" | sed 's/\.mli/.ml/'  | sed 's/.*/..\/common\/&/')
+COMMON_CMJ_DEPS=$(echo "$COMMON_MLI_FILES" | sed 's/\.mli/.cmj/'  | sed 's/.*/..\/common\/&/')
+COMMON_V_DEPS=$(echo "$COMMON_MLI_FILES" | sed 's/\.mli/_ml.v/' | sed 's/\([[:alpha:]]\)/\U\1/' | sed 's/.*/..\/common\/&/')
+COMMON_VO_DEPS=$(echo "$COMMON_MLI_FILES" | sed 's/\.mli/_ml.vo/' | sed 's/\([[:alpha:]]\)/\U\1/' | sed 's/.*/..\/common\/&/')
+COMMON_V_VO_DEPS=$(echo "$COMMON_V_FILES" | sed 's/\.v/.vo/'  | sed 's/.*/..\/common\/&/')
 
 printf "
 (rule
@@ -48,7 +49,7 @@ for ML_FILE in $ML_FILES; do
 
 (rule
  (target $V_FILE)
- (deps $CLEANED_FILE $COMMON_V_DEPS $COMMON_ML_DEPS)
+ (deps $CLEANED_FILE $COMMON_V_DEPS $COMMON_ML_DEPS $COMMON_CMJ_DEPS)
  (action (run cfmlc -I ../common -o ./$V_FILE $CLEANED_FILE)))
 "
 done

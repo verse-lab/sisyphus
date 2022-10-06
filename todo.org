@@ -14,7 +14,8 @@ CLOSED: [2022-10-06 Thu 06:53]
 :LOGBOOK:
 CLOCK: [2022-10-06 Thu 06:34]--[2022-10-06 Thu 06:53] =>  0:19
 :END:
-** TODO Update Dune file to work more nicely across projects
+** DONE Update Dune file to work more nicely across projects
+CLOSED: [2022-10-06 Thu 13:26]
 :PROPERTIES:
 :Effort:   1:00
 :END:
