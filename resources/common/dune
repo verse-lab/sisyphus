@@ -14,6 +14,8 @@
 
    Verify_arr Arr_ml
 
+   Verify_vec Vec_ml
+
    Utils Tactics))
 
 (rule

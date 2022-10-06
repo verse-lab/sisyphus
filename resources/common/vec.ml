@@ -1,1 +1,1 @@
-type 'a vec = { mutable size: int; mutable vec: 'a array }
+type 'a t = { mutable size: int; mutable vec: 'a array }
