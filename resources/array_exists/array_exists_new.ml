@@ -1,4 +1,5 @@
 open Combinators
+open Opt
 
 let array_exists a ~f =
   let len = Array.length a in
@@ -6,6 +7,4 @@ let array_exists a ~f =
     if f a.(i)
     then Some true
     else None) in
-  match res with
-  | None -> false
-  | Some _ -> true
+  option_is_some res
