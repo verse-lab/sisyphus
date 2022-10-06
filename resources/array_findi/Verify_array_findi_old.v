@@ -1,8 +1,13 @@
 Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
-From ProofsArrayFindi Require Import Verify_array_findi_utils.
-From ProofsArrayFindi Require Import array_findi_old_ml.
+
+From Common Require Import Verify_combinators.
+
+From Common Require Import Tactics.
+From Common Require Import Utils.
+
+From ProofsArrayFindi Require Import Array_findi_old_ml.
 
 Lemma array_findi_spec :
   forall (A : Type) `{EA : Enc A}
@@ -13,13 +18,13 @@ Lemma array_findi_spec :
   SPEC (findi a f)
   PRE (a ~> Array l)
   POST (fun (b : option (int * A)) =>
-          \[b = ProofsArrayFindi.Verify_array_findi_utils.findi 0 fp l] \* a ~> Array l).
+          \[b = Common.Utils.findi 0 fp l] \* a ~> Array l).
 Proof using (All).
   xcf.
   xapp.
   xletopaque tmp Htmp.
   xapp (@until_upto_spec _ _  0 (length l) tmp
-          (fun i b => \[b = ProofsArrayFindi.Verify_array_findi_utils.findi 0 fp (take i l)] \*
+          (fun i b => \[b = Common.Utils.findi 0 fp (take i l)] \*
                          a ~> Array l)
        ). {
     intros i Hi.

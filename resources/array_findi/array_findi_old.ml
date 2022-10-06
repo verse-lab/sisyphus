@@ -1,4 +1,4 @@
-open Common
+open Combinators
 
 let findi (t: 'a array) (f: int -> 'a -> bool) : (int * 'a) option =
   let (len: int) = Array.length t in

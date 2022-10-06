@@ -36,16 +36,3 @@
 ../common/Sseq_ml.v ../common/combinators.ml
 ../common/sseq.ml)
  (action (run cfmlc -I ../common -o ./Array_exists_old_ml.v array_exists_old.sisyphus.ml)))
-
-(rule
-     (target common.sisyphus.ml)
-     (deps common.ml)
-     (action (with-stdout-to common.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" common.ml))))
-
-(rule
- (target Common_ml.v)
- (deps common.sisyphus.ml ../common/Combinators_ml.v
-../common/Sseq_ml.v ../common/combinators.ml
-../common/sseq.ml)
- (action (run cfmlc -I ../common -o ./Common_ml.v common.sisyphus.ml)))

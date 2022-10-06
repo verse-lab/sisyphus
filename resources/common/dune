@@ -10,9 +10,7 @@
 
    Verify_list
 
-   Utils Tactics
- )
-)
+   Utils Tactics))
 
 (rule
  (target Arr_ml.v)
