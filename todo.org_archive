@@ -703,3 +703,42 @@ CLOSED: [2022-10-03 Mon 13:50]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Refactor code with appropriate logging (logs)
+CLOSED: [2022-10-05 Wed 10:20]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-06 Thu 02:45
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update code to take in multiple coq-libs
+CLOSED: [2022-10-05 Wed 11:52]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-06 Thu 02:45
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Conditionally send things to z3 if env SIS_Z3 is set
+CLOSED: [2022-10-05 Wed 15:29]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-06 Thu 02:45
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* TODO Work on array find map
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-06 Thu 06:57
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: TODO
+:END:

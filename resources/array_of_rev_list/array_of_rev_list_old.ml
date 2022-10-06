@@ -1,4 +1,5 @@
-open Common
+open Combinators
+open Lst
 
 let array_of_rev_list (l: 'a list) =
   match l with

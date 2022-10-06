@@ -1,9 +1,10 @@
-open Common
+open Combinators
+open Opt
 
-let exists t ~f =
-  let i = ref (length t - 1) in
-  let result = ref false in
-  while !i >= 0 && not !result do
-    if f (Array.get t !i) then result := true else decr i
-  done;
-  !result
+let array_exists a ~f =
+  let len = Array.length a in
+  let res = until_upto 0 len (fun i ->
+    if f a.(i)
+    then Some true
+    else None) in
+  option_is_some res

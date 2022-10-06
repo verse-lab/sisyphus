@@ -6,16 +6,6 @@ let tl (ls: 'a list) = match ls with
   | [] -> failwith "called hd on empty list"
   | _ :: (t: 'a list) -> t
 
-let rec list_iteri_aux f i ls =
-  match ls with
-  | [] -> ()
-  | h :: t ->
-    f i h;
-    list_iteri_aux f (i + 1) t
-
-let list_iteri f ls =
-  list_iteri_aux f 0 ls
-
 let rec list_make n vl =
   if n <= 0
   then []

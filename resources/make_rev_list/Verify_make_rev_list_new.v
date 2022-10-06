@@ -3,7 +3,9 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibList.
 
-From ProofsMakeRevList Require Import Verify_make_rev_list_utils.
+From Common Require Import Utils Tactics. 
+From Common Require Import Verify_list. 
+
 From ProofsMakeRevList Require Import Make_rev_list_new_ml.
 
 Lemma make_rev_list_spec : forall A `{EA:Enc A} (ls:list A),
@@ -20,7 +22,7 @@ Proof using (All).
         SPEC (tmp acc v)
         PRE ?I t acc
         POST (fun acc0 : list A => ?I (t & v) acc0))).
-  xapp (ProofsMakeRevList.Verify_make_rev_list_utils.list_fold_spec tmp nil ls
+  xapp (Common.Verify_list.list_fold_spec tmp nil ls
           (fun (t: list A) (acc: list A) => \[acc = rev t])). {
     intros acc v t r Hls; apply Htmp.
     xpullpure Hacc.
