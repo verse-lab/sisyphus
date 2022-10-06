@@ -1,4 +1,4 @@
-open Common
+open Arr
 
 let partition (p: 'a -> bool) (xs: 'a array) =
   let (n: int) = Array.length xs in

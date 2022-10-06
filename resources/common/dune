@@ -12,6 +12,8 @@
 
    Verify_list Lst_ml
 
+   Verify_arr Arr_ml
+
    Utils Tactics))
 
 (rule

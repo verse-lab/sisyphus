@@ -1,8 +1,12 @@
 Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
-From ProofsArrayPartition Require Import Verify_array_partition_utils.
-From ProofsArrayPartition Require Import array_partition_old_ml.
+
+From Common Require Import Verify_arr.
+
+From Common Require Import Tactics Utils.
+
+From ProofsArrayPartition Require Import Array_partition_old_ml.
 
 Lemma array_partition_spec :
   forall (A : Type) `{EA : Enc A} (p: func) (a: array A)

@@ -261,3 +261,108 @@ Proof.
   rewrite take_cons_pos; try math.
   rewrite app_last_l; repeat f_equal; try math.
 Qed.
+
+Fixpoint filter_not (A: Type) (fp: A -> Prop) (ls: list A) : list A :=
+  match ls with
+  | nil => nil
+  | h :: t =>
+      If fp h
+      then filter_not fp t
+      else h :: filter_not fp t
+  end.
+
+Lemma filter_not_nil_eq_list_filter (A: Type) (fp: A -> bool) (ls: list A):
+   filter_not fp ls = List.filter (fun (vl: A) => ! (fp vl)) ls.
+Proof.
+  induction ls; auto.
+  simpl.
+  case_eq (fp a); intros Hfp; simpl; [rewrite If_l| rewrite If_r];
+    rewrite ?IHls; auto.
+Qed.  
+  
+Lemma filter_not_cons:
+  forall (A : Type) (x : A) (l : list A) (P : A -> Prop),
+       filter_not P (x :: l) =
+         (If P x then filter_not P l else x :: filter_not P l).
+Proof.
+  intros; simpl; auto.
+Qed.
+
+Lemma filter_not_nil_eq_filter (A: Type) (fp: A -> Prop) (ls: list A):
+   filter_not fp ls = filter (fun (vl: A) => ~ (fp vl)) ls.
+Proof.
+  induction ls; auto;
+  rewrite filter_cons, filter_not_cons.
+  case_eq (classicT (fp a));=> Hfp _.
+  - rewrite If_r; auto.
+  - rewrite If_l; auto.
+    rewrite IHls; auto.
+Qed.  
+  
+Lemma filter_not_nil:
+  forall [A : Type] (P : A -> Prop), filter_not P nil = nil.
+Proof.
+  simpl; auto.
+Qed.
+
+Lemma filter_not_rev:
+  forall [A : Type] (l : list A) (P : A -> Prop),
+  filter_not P (rev l) = rev (filter_not P l).
+Proof.
+  intros; rewrite !filter_not_nil_eq_filter.
+  rewrite filter_rev; auto.
+Qed.  
+
+Lemma LibList_length_filter_not:
+  forall [A : Type] (l : list A) (P : A -> Prop),
+  LibList.length (filter_not P l) <= LibList.length l.
+Proof.
+  intros; rewrite filter_not_nil_eq_filter.
+  apply LibList.length_filter.
+Qed.
+
+Lemma length_filter_not:
+  forall [A : Type] (l : list A) (P : A -> Prop),
+  length (filter_not P l) <= length l.
+Proof.
+  intros; rewrite filter_not_nil_eq_filter.
+  apply length_filter.
+Qed.
+
+Lemma mem_filter_not_eq:
+  forall [A : Type] (x : A) (P : A -> Prop) (l : list A),
+  mem x (filter_not P l) = (mem x l /\ ~ P x).
+Proof.
+  intros; rewrite filter_not_nil_eq_filter.
+  apply mem_filter_eq.
+Qed.
+
+Lemma filter_not_app:
+  forall [A : Type] (l1 l2 : list A) (P : A -> Prop),
+  filter_not P (l1 ++ l2) = filter_not P l1 ++ filter_not P l2.
+Proof.
+  intros; rewrite !filter_not_nil_eq_filter.
+  apply filter_app.
+Qed.
+
+Lemma filter_not_length_partition:
+  forall [A : Type] (P : A -> Prop) (l : list A),
+  length (filter_not (fun x : A => P x) l) +
+  length (filter_not (fun x : A => ~ P x) l) <= length l.
+Proof.
+  intros; rewrite !filter_not_nil_eq_filter.
+  apply filter_length_partition.
+Qed.
+  
+Lemma filter_not_last:
+  forall [A : Type] (x : A) (l : list A) (P : A -> Prop),
+  filter_not P (l & x) = filter_not P l ++
+                           (If P x then nil else x :: nil).
+Proof.
+  intros; rewrite !filter_not_nil_eq_filter.
+  rewrite filter_last.
+  repeat f_equal.
+  case_eq (classicT (P x));=> Hfp _.
+  - rewrite If_r; auto.
+  - rewrite If_l; auto.
+Qed.

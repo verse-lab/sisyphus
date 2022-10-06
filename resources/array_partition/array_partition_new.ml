@@ -1,7 +1,6 @@
-open Common
+open Arr
 
 let partition p xs =
-  let n = Array.length xs in
   let left, right = ref [], ref [] in
   array_iter (fun vl ->
     if p vl

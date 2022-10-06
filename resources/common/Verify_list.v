@@ -35,6 +35,22 @@ Proof using.
 Qed.
 Arguments list_fold_spec {A} {HA} {B} {HB} f init l I Hf : rename.
 
+Lemma list_iter_spec : forall [A : Type] {EA : Enc A}
+                              (f : func) (l : list A)
+                              (I : list A -> hprop),
+    (forall (x : A) (t r : list A), l = t ++ x :: r -> SPEC (f x)
+                                                         PRE I t
+                                                         POSTUNIT I (t & x)) ->
+SPEC (List_ml.iter f l)
+PRE I nil
+POSTUNIT I l.
+Proof using.
+  intros A EA f l I HI.
+  apply List_proof.iter_spec; auto.
+Qed.
+Arguments list_iter_spec {A} {EA} f l I HI : rename.
+
+
 Lemma list_ml_iteri_spec : forall A `{EA: Enc A},
   forall (f:func)  (l: list A) (I: list A -> hprop)  ,
     (forall i x t r, (l = t ++ x :: r) -> i = length t ->
