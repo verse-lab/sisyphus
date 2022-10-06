@@ -8,9 +8,16 @@
    Verify_sseq Sseq_ml
    Verify_combinators Combinators_ml
 
+   Verify_opt Opt_ml
+
    Verify_list
 
    Utils Tactics))
+
+(rule
+ (target Opt_ml.v)
+ (deps opt.ml)
+ (action (run cfmlc -o ./Opt_ml.v opt.ml)))
 
 (rule
  (target Arr_ml.v)
