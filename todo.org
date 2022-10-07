@@ -23,13 +23,24 @@ CLOSED: [2022-10-06 Thu 13:26]
 CLOCK: [2022-10-06 Thu 07:41]
 CLOCK: [2022-10-06 Thu 07:03]--[2022-10-06 Thu 07:30] =>  0:27
 :END:
-** TODO Work on adding more examples
-:PROPERTIES:
-:Effort:   1:00
-:END:
 ** TODO Work on array find map
 :PROPERTIES:
 :Effort:   4:00
+:END:
+*** DONE Prove array find map
+CLOSED: [2022-10-07 Fri 04:10]
+:PROPERTIES:
+:Effort:   0:30
+:END:
+:LOGBOOK:
+CLOCK: [2022-10-07 Fri 03:58]--[2022-10-07 Fri 04:10] =>  0:12
+:END:
+*** TODO Prove array find map new
+*** TODO Get array find map compiling on current code
+*** TODO Hacker mode
+** TODO Work on adding more examples
+:PROPERTIES:
+:Effort:   1:00
 :END:
 ** TODO Update codebase to work with Coq.8.16.0
 ** TODO You're the BEST around

@@ -57,4 +57,3 @@ let nat_fold_down from down f init =
     else aux (i - 1) (f i acc)
   in
   aux from init
-

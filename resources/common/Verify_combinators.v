@@ -36,7 +36,7 @@ Proof.
     + xif; [intros _| intros []; auto].
       xvals*; split; auto; math.
 Qed.
-
+Arguments while_upto_spec start stop f I HI: rename, clear implicits.
 
 Lemma until_upto_spec:
   forall (A: Type) `{EA: Enc A} (start stop: int) (f: func)
@@ -69,6 +69,7 @@ Proof.
       { math. }
       { intros b; xsimpl*. }
 Qed.
+Arguments until_upto_spec {A} {EA} start stop f I Hf : rename.
 
 
 Lemma for_downto_spec : forall (from: int) (down_to: int) (f: func),
