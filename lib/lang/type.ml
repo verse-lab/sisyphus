@@ -5,6 +5,7 @@ type t =
   | Unit
   | Var of string
   | Int
+  | Bool
   | Func
   | Loc
   | List of t
@@ -35,6 +36,7 @@ let rec print =
   | Unit -> string "unit"
   | Var v -> string v
   | Int -> string "int"
+  | Bool -> string "bool"
   | Func -> string "func"
   | Loc -> string "loc"
   | Ref t -> align @@  group (print t ^^ blank 1 ^^ string "ref")

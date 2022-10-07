@@ -20,7 +20,7 @@ CLOSED: [2022-10-06 Thu 13:26]
 :Effort:   1:00
 :END:
 :LOGBOOK:
-CLOCK: [2022-10-06 Thu 07:41]
+CLOCK: [2022-10-06 Thu 07:41]--[2022-10-07 Fri 06:04] => 22:23
 CLOCK: [2022-10-06 Thu 07:03]--[2022-10-06 Thu 07:30] =>  0:27
 :END:
 ** TODO Work on array find map
@@ -39,7 +39,13 @@ CLOCK: [2022-10-07 Fri 03:58]--[2022-10-07 Fri 04:10] =>  0:12
 CLOSED: [2022-10-07 Fri 05:48]
 *** DONE Setup benchmark test for array find mapi
 CLOSED: [2022-10-07 Fri 05:50]
+*** DONE Add support for if then else
+CLOSED: [2022-10-07 Fri 09:43]
+*** TODO Fix unit tests
 *** TODO Setup unit tests for array find mapi
+:LOGBOOK:
+CLOCK: [2022-10-07 Fri 06:04]
+:END:
 *** TODO Get array find map compiling on current code
 *** TODO Hacker mode
 ** TODO Work on adding more examples
