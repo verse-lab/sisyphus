@@ -23,7 +23,8 @@ let lident (ident: Longident.t) =
 let rec convert_typ (ty: Parsetree.core_type) : Type.t =
   match ty.ptyp_desc with
   | Parsetree.Ptyp_var v -> Var ("'" ^ v)
-  | Parsetree.Ptyp_arrow (_, _, _) -> Func
+  | Parsetree.Ptyp_arrow (_, t1, t2) ->
+    Func (Some (convert_fun_ty [convert_typ t1] t2))
   | Parsetree.Ptyp_tuple tys -> Product (List.map convert_typ tys)
   | Parsetree.Ptyp_constr ({txt=Lident "list"}, [ty]) ->
     List (convert_typ ty)
@@ -55,6 +56,11 @@ let rec convert_typ (ty: Parsetree.core_type) : Type.t =
   | _ ->
     failwith @@ Format.sprintf "unsupported type %a"
                   Pprintast.core_type ty
+and convert_fun_ty acc (ty: Parsetree.core_type) =
+  match ty.ptyp_desc with
+  | Parsetree.Ptyp_arrow (_, t1, t2) ->
+    convert_fun_ty (convert_typ t1 :: acc) t2
+  | _ -> List.rev acc, convert_typ ty
 
 let rec convert_pat (pat: Parsetree.pattern) : Expr.typed_param =
   match pat with

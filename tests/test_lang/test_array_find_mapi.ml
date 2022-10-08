@@ -12,7 +12,7 @@ let () = T.add_test "find_mapi old parsed without error" (fun () ->
   Alcotest.(check Testing_utils.program) "program parsed correctly" {
     prelude = [];
     name = "find_mapi";
-    args = [("a", Array (Var "'a")); ("f", Func)];
+    args = [("a", Array (Var "'a")); ("f", Func (Some ([Int; Var "'a"], ADT ("option", [Var "'b"], None))))];
     body =
       `LetExp (((`Var ("len", Int)), None,
                 `App ("Array.length", [`Var "a"]),
@@ -37,7 +37,7 @@ let () = T.add_test "find_mapi new parsed without error" (fun () ->
   Alcotest.(check Testing_utils.program) "program parsed correctly" {
     prelude = [];
     name = "find_mapi";
-    args = [("a", Array (Var "'a")); ("f", Func)];
+    args = [("a", Array (Var "'a")); ("f", Func (Some ([Int; Var "'a"], ADT ("option", [Var "'b"], None))))];
     body = `LetExp (
       (`Var ("len", Int), None,
        `App ("Array.length", [`Var "a"]),

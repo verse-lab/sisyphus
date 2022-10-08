@@ -65,7 +65,7 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
     Product (Array.to_iter args |> Iter.map (extract_typ ?rel) |> Iter.to_list)
   | Constr.Var name, _ -> Var (Names.Id.to_string name)
   | Constr.Const _, _ when Utils.is_const_eq "CFML.Semantics.loc" c -> Loc
-  | Constr.Const _, _ when Utils.is_const_eq "CFML.WPBuiltin.func" c -> Func
+  | Constr.Const _, _ when Utils.is_const_eq "CFML.WPBuiltin.func" c -> Func None
   | Constr.Const _, _ when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hprop" c ->
     Var "HPROP"
   | Constr.Rel i, Some f -> f i
@@ -278,7 +278,7 @@ let extract_env hyp =
     | Constr.Const _ when Utils.is_const_eq "CFML.Semantics.loc" vl ->
       Some (name, `Val Lang.Type.Loc)
     | Constr.Const _ when Utils.is_const_eq "CFML.WPBuiltin.func" vl ->
-      Some (name, `Val Lang.Type.Func)
+      Some (name, `Val (Lang.Type.Func None))
     | Constr.App (fn, _)
       when Utils.is_const_eq "CFML.WPLifted.Wpgen_body" fn
         || Utils.is_const_eq "CFML.WPLifted.Wpgen_negpat" fn ->

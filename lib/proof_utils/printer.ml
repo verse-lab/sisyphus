@@ -6,9 +6,10 @@ let rec pp_ty fmt (ty: Lang.Type.t) =
   | Lang.Type.Var var ->
     let str = if String.prefix ~pre:"'" var then (String.drop 1 (String.uppercase_ascii var)) else var in
     Format.fprintf fmt "%s" str
+  | Lang.Type.Bool -> Format.fprintf fmt "bool"
   | Lang.Type.Val -> Format.fprintf fmt "val" 
   | Lang.Type.Int -> Format.fprintf fmt "int" 
-  | Lang.Type.Func -> Format.fprintf fmt "func"
+  | Lang.Type.Func _ -> Format.fprintf fmt "func"
   | Lang.Type.Loc -> Format.fprintf fmt "loc"
   | Lang.Type.List ty -> Format.fprintf fmt "list (%a)" pp_ty ty
   | Lang.Type.Array ty -> Format.fprintf fmt "array (%a)" pp_ty ty
@@ -89,6 +90,11 @@ let rec pp_stmt fmt (stmt: Lang.Expr.t Lang.Program.stmt) =
       name
       pp_lambda exp
       pp_stmt rest
+  | `IfThenElse (cond, l, r) -> 
+    Format.fprintf fmt "(if %a then %a else %a)"
+      pp_expr cond
+      pp_stmt l
+      pp_stmt r
   | `Value expr -> pp_expr fmt expr
   | `Match (on_exp, cases) ->
     Format.fprintf fmt "match %a with %a end"
@@ -102,7 +108,7 @@ let rec pp_stmt fmt (stmt: Lang.Expr.t Lang.Program.stmt) =
               pp_stmt rest
          )) cases
   | `EmptyArray
-  | `Write _ -> failwith "attempted to print a mutable expression as a gallina term." 
+  | `Write _ | `IfThen _ | `AssignRef _ -> failwith "attempted to print a mutable expression as a gallina term." 
 and pp_lambda fmt (`Lambda (args, body): [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) =
   Format.fprintf fmt "(fun %a => %a)"
     (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt " ") pp_typed_param) args

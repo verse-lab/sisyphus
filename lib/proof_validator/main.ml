@@ -1126,7 +1126,7 @@ let data =
                `App (("TLC.LibListZ.make", [`Var ("len"); `Var ("init")]))))))
       ];
     env =
-      [("l", Lang.Type.List (Lang.Type.Var "A")); ("s", Lang.Type.Func);
+      [("l", Lang.Type.List (Lang.Type.Var "A")); ("s", Lang.Type.Func None);
        ("v", Lang.Type.Loc); ("tmp", Lang.Type.Val);
        ("len", Lang.Type.Var "Coq.Numbers.BinNums.Z");
        ("ls", Lang.Type.List (Lang.Type.Var "A")); ("init", Lang.Type.Var "A");

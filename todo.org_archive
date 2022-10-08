@@ -742,3 +742,17 @@ CLOSED: [2022-10-05 Wed 15:29]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: TODO
 :END:
+
+* DONE Read through SLING To work out why it outputs such poor invariants
+CLOSED: [2022-10-06 Thu 06:53]
+:PROPERTIES:
+:Effort:   0:10
+:ARCHIVE_TIME: 2022-10-07 Fri 10:27
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+:LOGBOOK:
+CLOCK: [2022-10-06 Thu 06:34]--[2022-10-06 Thu 06:53] =>  0:19
+:END:

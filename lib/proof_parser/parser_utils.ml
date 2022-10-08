@@ -67,7 +67,7 @@ let rec unwrap_ty sexp : Lang.Type.t =
   match unwrap_tagged sexp with
   | "CRef", _ ->
     begin match unwrap_cref sexp with
-      | "func" -> Func
+      | "func" -> Func None
       | "int" -> Int
       | "loc" -> Loc
       | "unit" -> Unit

@@ -30,11 +30,12 @@ let pp fmt (t: t) =
 let rec is_pure_ty : Lang.Type.t -> bool = function
   | Lang.Type.Int
   | Lang.Type.Unit
+  | Lang.Type.Bool
   | Lang.Type.Var _ -> true
   | Lang.Type.List ty -> is_pure_ty ty
   | Lang.Type.Product elts ->
     List.for_all is_pure_ty elts
-  | Lang.Type.Func
+  | Lang.Type.Func _
   | Lang.Type.Loc
   | Lang.Type.Array _
   | Lang.Type.Ref _

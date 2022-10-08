@@ -6,14 +6,6 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** DONE Read through SLING To work out why it outputs such poor invariants
-CLOSED: [2022-10-06 Thu 06:53]
-:PROPERTIES:
-:Effort:   0:10
-:END:
-:LOGBOOK:
-CLOCK: [2022-10-06 Thu 06:34]--[2022-10-06 Thu 06:53] =>  0:19
-:END:
 ** DONE Update Dune file to work more nicely across projects
 CLOSED: [2022-10-06 Thu 13:26]
 :PROPERTIES:
@@ -41,11 +33,15 @@ CLOSED: [2022-10-07 Fri 05:48]
 CLOSED: [2022-10-07 Fri 05:50]
 *** DONE Add support for if then else
 CLOSED: [2022-10-07 Fri 09:43]
-*** TODO Fix unit tests
-*** TODO Setup unit tests for array find mapi
+*** DONE Fix unit tests
+CLOSED: [2022-10-07 Fri 10:27]
+*** DONE Setup unit tests for array find mapi
+CLOSED: [2022-10-07 Fri 10:27]
 :LOGBOOK:
-CLOCK: [2022-10-07 Fri 06:04]
+CLOCK: [2022-10-07 Fri 06:04]--[2022-10-07 Fri 10:22] =>  4:18
 :END:
+*** TODO Setup code to generate function arguments
+*** TODO Update code to use types
 *** TODO Get array find map compiling on current code
 *** TODO Hacker mode
 ** TODO Work on adding more examples

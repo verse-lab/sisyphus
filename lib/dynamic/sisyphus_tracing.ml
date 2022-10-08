@@ -42,6 +42,7 @@ end
 
 type value = [
   | `Int of int
+  | `Bool of bool
   | `Value of Symbol.t
   | `List of value list
   | `Tuple of value list

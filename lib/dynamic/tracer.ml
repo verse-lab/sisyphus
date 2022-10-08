@@ -16,14 +16,17 @@ let rec type_ (ty: Lang.Type.t) : Parsetree.core_type =
   match ty with
   | Lang.Type.Unit -> AH.Typ.constr (str @@ Longident.Lident "unit") []
   | Lang.Type.Var var -> AH.Typ.var (String.drop 1 var)
+  | Lang.Type.Bool -> AH.Typ.constr (str @@ Longident.Lident "bool") []
   | Lang.Type.Int -> AH.Typ.constr (str @@ Longident.Lident "int") []
   | Lang.Type.List ty -> AH.Typ.constr (str @@ Longident.Lident "list") [type_ ty]
   | Lang.Type.Array ty -> AH.Typ.constr (str @@ Longident.Lident "array") [type_ ty]
   | Lang.Type.Ref ty -> AH.Typ.constr (str @@ Longident.Lident "ref") [type_ ty]
   | Lang.Type.Product args -> AH.Typ.tuple (List.map type_ args)
   | Lang.Type.ADT (name, args, _) -> AH.Typ.constr (str @@ Longident.Lident name) (List.map type_ args)
+  | Lang.Type.Func (Some (args, res)) ->
+    List.fold_right (fun h t -> AH.Typ.arrow Nolabel (type_ h) t) args (type_ res)
+  | Lang.Type.Func None -> failwith "higher order functions not supported"
   | Lang.Type.Loc -> failwith "locations not supported"
-  | Lang.Type.Func -> failwith "higher order functions not supported"
   | Lang.Type.Val -> failwith "opaque vals not supported"
 
 (* [encode_list exprs] given a list of AST expressions [exprs] returns
@@ -80,7 +83,9 @@ let build_enc_fun v =
       Some (fun_ @@ fun v -> AH.Exp.variant "Value" (Some v))
     | Lang.Type.Int ->
       Some (fun_ @@ fun v -> AH.Exp.variant "Int" (Some v))
-    | Lang.Type.Func -> None
+    | Lang.Type.Bool ->
+      Some (fun_ @@ fun v -> AH.Exp.variant "Bool" (Some v))
+    | Lang.Type.Func _ -> None
     | Lang.Type.Val -> None
     | Lang.Type.Loc -> None
     | Lang.Type.List ty ->
@@ -269,8 +274,30 @@ let annotate ?(deep=false) ({ prelude; name; args; body; _ }: Lang.Expr.t Lang.P
           List.fold_right (fun param exp -> AH.Exp.fun_ Nolabel None (encode_param param) exp) params @@
           encode_stmt ~observe:(if deep then true else false) env lambody in
         AH.Vb.mk pat lambody in
-      let rest = (let env = env @ [var, Func] in encode_stmt ~observe env body) in
+      let rest = (let env = env @ [var, Func None] in encode_stmt ~observe env body) in
       AH.Exp.let_ Nonrecursive [vb] rest
+    | `IfThen (cond, then_, rest) ->
+      wrap (fun () ->
+        let then_ = encode_stmt ~observe env then_ in
+        let rest = encode_stmt ~observe env rest in
+        AH.Exp.sequence
+          (AH.Exp.ifthenelse
+             (encode_expr cond)
+             then_
+             None
+          )
+          rest
+      )
+    | `IfThenElse (cond, then_, else_) ->
+      wrap (fun () ->
+        let then_ = encode_stmt ~observe env then_ in
+        let else_ = encode_stmt ~observe env else_ in
+        (AH.Exp.ifthenelse
+             (encode_expr cond)
+             then_
+             (Some else_)
+          )
+      )
     | `Match (exp, cases) ->
       wrap (fun () -> AH.Exp.match_ (encode_expr exp) (List.map (fun (name, args, body) ->
         let pat =
@@ -286,6 +313,15 @@ let annotate ?(deep=false) ({ prelude; name; args; body; _ }: Lang.Expr.t Lang.P
         let rest = (let env = env @ args in encode_stmt ~observe env body) in
         AH.Exp.case pat rest
       ) cases))
+    | `AssignRef (arr, vl, body) ->
+      wrap (fun () ->
+        let set_exp = (AH.Exp.apply (AH.Exp.ident Longident.(str @@ (Lident ":="))) [
+             Nolabel, AH.Exp.ident Longident.(str @@ Lident arr);
+             Nolabel, encode_expr vl
+           ]) in
+        let rest = (encode_stmt ~observe env body) in
+        AH.Exp.sequence set_exp rest
+      )
     | `Write (arr, offs, vl, body) ->
       wrap (fun () ->
         let set_exp = (AH.Exp.apply (AH.Exp.ident Longident.(str @@ Ldot (Lident "Array", "set"))) [
@@ -295,7 +331,8 @@ let annotate ?(deep=false) ({ prelude; name; args; body; _ }: Lang.Expr.t Lang.P
            ]) in
         let rest = (encode_stmt ~observe env body) in
         AH.Exp.sequence set_exp rest
-      ) in
+      )
+  in
   let body = encode_stmt ~observe:true args body in
   let def =
     AH.Str.value
@@ -321,8 +358,9 @@ module Generator = struct
 
   type arg_schema =
     | Unit
-    | Symbol
+    | Symbol of string
     | Int
+    | Bool
     | List of arg_schema
     | Array of arg_schema
     | Ref of arg_schema
@@ -337,7 +375,7 @@ module Generator = struct
   let rec of_type (t: Lang.Type.t) =
     match t with
     | Lang.Type.Unit -> Unit
-    | Lang.Type.Var _ -> Symbol
+    | Lang.Type.Var v -> Symbol v
     | Lang.Type.Int -> Int
     | Lang.Type.List t -> List (of_type t)
     | Lang.Type.Array t -> Array (of_type t)
@@ -364,7 +402,7 @@ module Generator = struct
     match s with
     | Unit ->
       fun state -> AH.Exp.construct (str (Longident.Lident "()")) None
-    | Symbol ->
+    | Symbol _ ->
       (* Sisyphus_tracing.Symbol.fresh () *)
       fun state -> AH.Exp.(
         apply
@@ -374,6 +412,9 @@ module Generator = struct
     | Int -> 
       let* i = Random.int 10 in
       pure @@ AH.Exp.constant (Pconst_integer (string_of_int i, None))
+    | Bool -> 
+      let* b = Random.State.bool in
+      pure @@  AH.Exp.construct (str Longident.(Lident (if b then "true" else "false"))) None
     | List ty ->
       let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in

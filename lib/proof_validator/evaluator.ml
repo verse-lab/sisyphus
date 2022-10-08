@@ -7,6 +7,7 @@ module StringMap = Map.Make(String)
 type ctx = {
   ctx: Z3.context;
   solver: Z3.Solver.solver;
+  bool_sort: Z3.Sort.sort;
   int_sort: Z3.Sort.sort;
   unit_sort: Z3.Sort.sort;
   poly_var_map: (string, Z3.Sort.sort) Hashtbl.t;
@@ -55,6 +56,7 @@ let rec eval_type (ctx: ctx) (ty: Lang.Type.t) : Z3.Sort.sort =
     match ty with
     | Unit -> ctx.unit_sort
     | Var "Coq.Numbers.BinNums.Z" -> ctx.int_sort
+    | Bool -> ctx.bool_sort
     | Int -> ctx.int_sort
     | Var v -> begin match Hashtbl.find_opt ctx.poly_var_map v with
       | Some s -> s
@@ -89,7 +91,7 @@ let rec eval_type (ctx: ctx) (ty: Lang.Type.t) : Z3.Sort.sort =
     | Loc
     | ADT (_, _, _) 
     | Val 
-    | Func ->
+    | Func _ ->
       Log.warn (fun f -> f "treating type %s as opaque Z3 sort@." (Lang.Type.show ty));
       Z3.Sort.mk_uninterpreted_s ctx.ctx ((Lang.Type.show ty))
   )
