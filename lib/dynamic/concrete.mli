@@ -1,5 +1,6 @@
 type value = [
   | `Int of int
+  | `Bool of bool
   | `Value of string
   | `List of value list
   | `Tuple of value list

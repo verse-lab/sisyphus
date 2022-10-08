@@ -2,6 +2,7 @@ module IntMap = Map.Make(Int)
 
 type value = [
   | `Int of int
+  | `Bool of bool
   | `Value of string
   | `List of value list
   | `Tuple of value list
@@ -17,6 +18,7 @@ let rec sanitise_value : Sisyphus_tracing.value -> value = function
   | `Tuple vls ->  `Tuple (List.map sanitise_value vls)
   | `List vls -> `List (List.map sanitise_value vls)
   | `Int n -> `Int n
+  | `Bool b -> `Bool b
   | `Value s -> `Value (Sisyphus_tracing.Symbol.show s)
   | `Constructor (name, vls) -> `Constructor (name, List.map sanitise_value vls)
 
