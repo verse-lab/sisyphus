@@ -363,9 +363,11 @@ module Generator = struct
     | Bool
     | List of arg_schema
     | Array of arg_schema
+    | Option of arg_schema
     | Ref of arg_schema
     | Product of arg_schema list
     | Converted of long_ident * arg_schema
+    | Function of arg_schema list * arg_schema
   [@@deriving show, eq]
 
   type schema = arg_schema list
@@ -384,6 +386,9 @@ module Generator = struct
     | Lang.Type.ADT (_, [arg], Some (conv, _)) ->
       let lid = String.split_on_char '.' conv |> Longident.unflatten |> Option.get_exn_or "invalid converter" in
       Converted (lid, of_type arg)
+    | Lang.Type.ADT ("option", [arg], None) -> Option (of_type arg)
+    | Lang.Type.Func (Some (args, res)) ->
+      Function (List.map of_type args, of_type res)
     | t -> failwith (Format.sprintf "unsupported argument type %a" Lang.Type.pp t)
 
   let extract_schema (prog: _ Lang.Program.t) : schema =
@@ -442,6 +447,10 @@ module Generator = struct
           (ident @@ str @@ conv)
           [Nolabel, encode_list contents]
       )
+    | Function (args, res) ->
+      assert false
+    | Option v ->
+      assert false
 
   let sample ?st (schema: schema) : instantiation =
     Random.run ?st (Random.list_seq (List.map sample_expr schema))

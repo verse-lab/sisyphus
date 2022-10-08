@@ -12,9 +12,12 @@ let () = T.add_test "array_find_mapi can be traced without error" (fun () ->
     IO.with_in "../../resources/find_mapi/find_mapi_new.ml" IO.read_all
     |> Lang.Sanitizer.parse_str in
 
-  let _matcher = Dynamic.build_alignment ~deps:["../../resources/common/sseq.ml"]
-                   ~old_program:prog_old ~new_program:prog_new () in
- 
+  let _matcher = Dynamic.build_alignment ~deps:[
+    "../../resources/common/sseq.ml";
+    "../../resources/common/combinators.ml";
+    "../../resources/common/opt.ml"
+  ] ~old_program:prog_old ~new_program:prog_new () in
+
   Alcotest.(check unit) "program can be without exception" () ()
 )
 
