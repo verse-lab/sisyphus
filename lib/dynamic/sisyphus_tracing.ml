@@ -17,26 +17,33 @@ module Symbol : sig
   val pp: Format.formatter -> t -> unit
   val show: t -> string
 
+  val poly_var: t -> string
+
   val equal : t -> t -> bool
 
-  val fresh : unit -> t
+  val fresh : string -> t
 
-  val of_raw: int -> t
+  val of_raw: int * string -> t
 end = struct
-  type t = Symbol of int
+  type t = Symbol of int * string
 
 
-  let pp fmt (Symbol v) =  Format.fprintf fmt "symbol_%d" v
+  let pp fmt (Symbol (v, s)) =  Format.fprintf fmt "symbol_%s_%d" s v
 
   let show v = Format.asprintf "%a" pp v
 
-  let equal (Symbol l) (Symbol r) = l = r
+  let poly_var (Symbol (_, s)) = s
+
+  let equal (Symbol (l, ls)) (Symbol (r, rs)) = l = r && String.equal ls rs
 
   let fresh =
-    let id = ref 0 in
-    fun () -> incr id; Symbol !id
+    let id_map = Hashtbl.create 10 in
+    fun v ->
+      let id = Option.value ~default:0 (Hashtbl.find_opt id_map v) in
+      Hashtbl.add id_map v (id + 1);
+      Symbol (id, v)
 
-  let of_raw v = Symbol v
+  let of_raw (v, vs) = Symbol (v, vs)
 
 end
 

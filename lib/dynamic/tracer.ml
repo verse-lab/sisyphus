@@ -402,12 +402,14 @@ module Generator = struct
     match s with
     | Unit ->
       fun state -> AH.Exp.construct (str (Longident.Lident "()")) None
-    | Symbol _ ->
+    | Symbol s ->
       (* Sisyphus_tracing.Symbol.fresh () *)
       fun state -> AH.Exp.(
         apply
           (ident (str Longident.(Ldot (Ldot (Lident "Sisyphus_tracing", "Symbol"), "of_raw"))))
-          [Nolabel, fresh_int ()]
+          [Nolabel,
+           tuple [fresh_int (); AH.Exp.constant (Pconst_string (s, Location.none, None))]
+          ]
       )
     | Int -> 
       let* i = Random.int 10 in

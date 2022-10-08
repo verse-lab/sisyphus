@@ -1,6 +1,9 @@
-(tests (names test_make_rev_list)
- (deps ../../resources/make_rev_list/make_rev_list_old.ml
-       ../../resources/make_rev_list/make_rev_list_new.ml
+(tests (names test_make_rev_list test_array_find_mapi)
+ (deps
+   ../../resources/make_rev_list/make_rev_list_old.ml
+   ../../resources/make_rev_list/make_rev_list_new.ml
+   ../../resources/find_mapi/find_mapi_old.ml
+   ../../resources/find_mapi/find_mapi_new.ml
  )
   (preprocess (pps ppx_deriving.show))
  (libraries dynamic lang alcotest containers testing_utils))
