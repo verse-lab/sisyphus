@@ -78,6 +78,9 @@ let rec update_program_id_over_lambda (t: Proof_context.t)
     | `Match (_, cases) -> 
       t.current_program_id <- Lang.Id.incr t.current_program_id;
       List.iter (fun (_, _, body) -> loop body) cases
+    |`AssignRef (_, _, body) ->
+      t.current_program_id <- Lang.Id.incr t.current_program_id;
+      loop body
     | `Write (_, _, _, body) ->
       t.current_program_id <- Lang.Id.incr t.current_program_id;
       loop body
@@ -90,7 +93,15 @@ let rec update_program_id_over_lambda (t: Proof_context.t)
     | `EmptyArray ->
       t.current_program_id <- Lang.Id.incr t.current_program_id
     | `Value _ ->
-      t.current_program_id <- Lang.Id.incr t.current_program_id in
+      t.current_program_id <- Lang.Id.incr t.current_program_id
+    | `IfThenElse (_, then_, else_) ->
+      t.current_program_id <- Lang.Id.incr t.current_program_id;
+      loop then_;
+      loop else_
+    | `IfThen (_, then_, body) ->
+      t.current_program_id <- Lang.Id.incr t.current_program_id;
+      loop then_;
+      loop body in
   loop body
 
 
@@ -622,6 +633,10 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
     while (Proof_context.current_subproof t).goals |> List.length > 0 do 
       Proof_context.append t "{ admit. }";
     done
+  | t ->
+    Format.ksprintf ~f:failwith
+      "todo: implement support for %a constructs"
+      (Lang.Program.pp_stmt_line Lang.Expr.print) t
 and symexec_lambda t env name body rest =
   let fname = Proof_context.fresh ~base:name t in
   let h_fname = Proof_context.fresh ~base:("H" ^ name) t in
