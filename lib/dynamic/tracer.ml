@@ -1,10 +1,19 @@
 [@@@warning "-27-26-32-33-37"]
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Tracing module for Sisyphus" "dyn.trace"))
+
+
 module Symbol = Sisyphus_tracing.Symbol
 
 module AH = Ast_helper
 module AT = Asttypes
+
+let fold_right1 f args =
+  match args with
+  | [] -> None
+  | h :: t -> Some (List.fold_right f t h)
+
 
 (* [type_ ty] converts a reified internal type [ty] into an AST
    expression encoding the corresponding type.
@@ -56,6 +65,15 @@ let encode_int v =
    [str]. *)
 let encode_string v =
   AH.Exp.constant (Pconst_string (v, !AH.default_loc, None))
+
+(* [str v] returns a value [v] wrapped with a default location. *)
+let str str = Location.{ txt=str; loc= !AH.default_loc }
+
+let encode_constructor_0 name =
+  AH.Exp.(construct (str Longident.(Lident name)) None)
+
+let encode_constructor_n name args =
+  AH.Exp.(construct (str Longident.(Lident name)) (Some (tuple args)))
 
 (* [build_enc_fun ty] returns an AST encoding a function to convert
    a value of type ty to the value type used in traces *)
@@ -218,10 +236,9 @@ let rec encode_expr (expr: Lang.Expr.t) =
     )
   | `Int n -> encode_int n
   | `Constructor (name, []) ->
-    AH.Exp.construct Longident.(str @@ Lident name) None
+    encode_constructor_0 name
   | `Constructor (name, args) ->
-    AH.Exp.construct Longident.(str @@ Lident name)
-      (Some (AH.Exp.tuple (List.map encode_expr args)))
+    encode_constructor_n name (List.map encode_expr args)
   | `Tuple elts ->
     AH.Exp.tuple (List.map encode_expr elts)
   | `Lambda (args, body) ->
@@ -394,26 +411,23 @@ module Generator = struct
   let extract_schema (prog: _ Lang.Program.t) : schema =
     prog.args |> List.map (fun (_, ty) -> of_type ty)
 
-  let fresh_int =
-    let next_id = ref 0 in
-    fun () ->
-      let id = !next_id in
-      incr next_id;
-      encode_int id
+  let fresh_int idmap var =
+    let id = Option.value ~default:1 (Hashtbl.find_opt idmap var) in
+    Hashtbl.add idmap var (id + 1);
+    encode_int id
 
-  let rec sample_expr (s: arg_schema) =
-    let str str = Location.{ txt=str; loc= !AH.default_loc } in
+  let rec sample_expr (poly_vars: (string, int) Hashtbl.t) (s: arg_schema) =
     let open Random in
     match s with
     | Unit ->
-      fun state -> AH.Exp.construct (str (Longident.Lident "()")) None
+      fun state -> encode_constructor_0 "()"
     | Symbol s ->
       (* Sisyphus_tracing.Symbol.fresh () *)
       fun state -> AH.Exp.(
         apply
           (ident (str Longident.(Ldot (Ldot (Lident "Sisyphus_tracing", "Symbol"), "of_raw"))))
           [Nolabel,
-           tuple [fresh_int (); AH.Exp.constant (Pconst_string (s, Location.none, None))]
+           tuple [fresh_int poly_vars s; AH.Exp.constant (Pconst_string (s, Location.none, None))]
           ]
       )
     | Int -> 
@@ -421,27 +435,27 @@ module Generator = struct
       pure @@ AH.Exp.constant (Pconst_integer (string_of_int i, None))
     | Bool -> 
       let* b = Random.State.bool in
-      pure @@  AH.Exp.construct (str Longident.(Lident (if b then "true" else "false"))) None
+      pure @@  encode_constructor_0 (if b then "true" else "false")
     | List ty ->
       let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
-      let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in
+      let* contents = List.init sz (fun _ -> sample_expr poly_vars ty) |> list_seq in
       pure (encode_list contents)
     | Array ty -> 
       let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
-      let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in
+      let* contents = List.init sz (fun _ -> sample_expr poly_vars ty) |> list_seq in
       pure @@ AH.Exp.array contents
     | Ref ty ->
-      let* inner = sample_expr ty in
+      let* inner = sample_expr poly_vars ty in
       pure @@ AH.Exp.(
         apply
           (ident @@ str @@ Longident.(Lident "ref"))
           [Nolabel, inner])
     | Product elts ->
-      let* elts = List.map sample_expr elts |> list_seq in
+      let* elts = List.map (sample_expr poly_vars) elts |> list_seq in
       pure @@ AH.Exp.tuple elts
     | Converted (conv, ty) -> 
       let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
-      let* contents = List.init sz (fun _ -> sample_expr ty) |> list_seq in
+      let* contents = List.init sz (fun _ -> sample_expr poly_vars ty) |> list_seq in
       pure @@ AH.Exp.(
         apply
           (ident @@ str @@ conv)
@@ -450,10 +464,131 @@ module Generator = struct
     | Function (args, res) ->
       assert false
     | Option v ->
-      assert false
+      let* b = Random.State.bool in
+      if b
+      then
+        pure @@ AH.Exp.(construct (str Longident.(Lident "None")) None)
+      else
+        let* v = sample_expr poly_vars v in
+        pure @@ AH.Exp.(construct (str Longident.(Lident "Some")) (Some v))
+
+  (** [is_matchable_value vl] indicates whether an argument [vl] is a
+      worthwhile thing to match on (symbolic variables, bools), or
+      whether the element has too many elements to be worthwhile to
+      generate dedicated outputs for. *)
+  let is_matchable_value (vl: arg_schema) : bool =
+    match vl with
+    | Bool
+    | Symbol _ -> true
+    | Unit
+    | Int -> false
+    | _ -> Format.ksprintf ~f:failwith "unexpected argument type to higher order function %a"
+             pp_arg_schema vl
+
+  (** [extract_matchable_value vl] returns the known possible values
+     on which we might choose to discriminate the behaviour of a
+     function on. *)
+  let extract_matchable_values poly_vars (vl: arg_schema) =
+    match vl with
+    | Bool -> [AH.Exp.(construct (str Longident.(Lident "true")) None);AH.Exp.(construct (str Longident.(Lident "false")) None)]
+    | Symbol s ->
+      let max_no = Option.value ~default:1 (Hashtbl.find_opt poly_vars s) in
+      List.init max_no (fun i ->
+        AH.Exp.(
+          apply
+            (ident (str Longident.(Ldot (Ldot (Lident "Sisyphus_tracing", "Symbol"), "of_raw"))))
+            [Nolabel,
+             tuple [encode_int (i + 1); AH.Exp.constant (Pconst_string (s, Location.none, None))]
+            ]
+        )
+      )
+    | _ -> Format.ksprintf ~f:failwith "unexpected argument type to higher order function %a"
+             pp_arg_schema vl
+
+
+  let sample_pure_function poly_vars args res =
+    let open Random in
+    (* first, assign each argument a binding *)
+    let args =
+      let id = ref 0 in
+      List.map (fun arg ->
+        let var = incr id; "sis_arg_" ^ string_of_int !id in
+        arg, AH.Exp.ident (str Longident.(Lident var)), AH.Pat.var (str @@ var)
+      ) args in
+
+    (* then, select which arguments are interesting to match on *)
+    let matchable_args =
+      List.filter (fun (arg, _, _) -> is_matchable_value arg) args in
+
+    (* generate possible cases for the function *)
+    let case_values =
+      List.map_product_l
+        (fun (arg, _, _) -> extract_matchable_values poly_vars arg)
+        matchable_args in
+    (* for each combination of values, sample a random result *)
+    let* case_bodies =
+      List.map (fun vls ->
+        let* body = sample_expr poly_vars res in
+        pure (vls, body)
+      ) case_values
+      |> list_seq in
+    (* + one value for the default case *)
+    let* default_case_body = sample_expr poly_vars res in
+
+    let default_case = AH.Exp.case (AH.Pat.any ()) default_case_body in
+
+    let cases =
+      List.map (fun (vls, body) ->
+        let guard =
+          List.combine matchable_args vls
+          |> List.map (fun ((_, var, _), vl) ->
+            AH.Exp.(apply (ident (str Longident.(Lident "="))) [Nolabel, var; Nolabel, vl])
+          )
+          |> fold_right1 (fun exp rest ->
+            AH.Exp.(apply (ident (str Longident.(Lident "&&"))) [Nolabel, exp; Nolabel, rest])
+          ) in
+
+        AH.Exp.case (AH.Pat.any ()) ?guard body) case_bodies in
+
+    (* body matches on (), and then dispatches a predetermined value
+       for each known input, or the default output *)
+    let body =
+      AH.Exp.match_ (encode_constructor_0 "()")
+        (cases @ [default_case]) in
+
+    pure @@
+    List.fold_right (fun (_, _, var) body ->
+      AH.Exp.fun_ Nolabel None var body
+    ) args body 
+
 
   let sample ?st (schema: schema) : instantiation =
-    Random.run ?st (Random.list_seq (List.map sample_expr schema))
+    let open Random in
+    let poly_vars = Hashtbl.create 10 in
+    Random.run ?st begin
+      (* first, split out functions from normal variables *)
+      let schema = List.map (function
+        | Function (args, res) -> Error ((args,res))
+        | schema -> Ok schema
+      ) schema in
+      (* now, instantiate non-higher order variables, tracking any symbolic variables introduced *)
+      let* instantiation =
+        List.map (fun schema st -> match schema with
+          | Ok schema -> Ok (sample_expr poly_vars schema st)
+          | Error err -> Error err
+        ) schema
+        |> list_seq in
+      (* finally generate higher order functions to create the full instantiation *)
+      let* instantiation =
+        List.map (fun schema st ->
+          match schema with
+          | Ok schema -> schema
+          | Error (args, res) -> sample_pure_function poly_vars args res st
+        ) instantiation
+        |> list_seq in
+      (* we're dun son. *)
+      pure instantiation
+    end
 
 end
 
@@ -526,6 +661,7 @@ let bitrace env (deps1, prog1) (deps2, prog2) =
   let prog2 = CompilationContext.eval_definition_with_annotations env ~deps:deps2 ~prog:prog2 in
   fun ?st () -> 
     let input = Generator.sample ?st schema in
+    Log.debug (fun f -> f "synthesized random arguments %a@." (List.pp Pprintast.expression) input);
     let trace1 = generate_trace env prog1 input in
     let trace2 = generate_trace env prog2 input in
     (trace1, trace2)
