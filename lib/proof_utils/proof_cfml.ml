@@ -172,14 +172,25 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
 (** [extract_cfml_goal goal] when given an intermediate CFML [goal],
     extracts the pre and post condition.  *)
 let extract_cfml_goal goal =
-  let[@warning "-8"] himpl, [pre; post] = Constr.decompose_app goal in
-  assert begin
-    String.equal
-      "himpl"
+  let himpl, args = Constr.decompose_app goal in
+  if not begin
+    String.equal "himpl"
       (fst (Constr.destConst himpl)
        |> Names.Constant.label
        |> Names.Label.to_string)
-  end;
+  end then
+    Format.ksprintf ~f:failwith
+      "unexpected goal format, expected himpl, found %s"
+      (Proof_debug.constr_to_string_pretty himpl);
+
+  if List.length args <> 2 then
+    Format.ksprintf ~f:failwith
+      "unexpected arguments to himpl [%s]"
+      (List.map Proof_debug.constr_to_string_pretty args
+       |> String.concat "; ");
+
+  let pre = List.nth args 0 and post = List.nth args 1 in
+
   let destruct_heap pre =
     let rec loop acc pre =
       match Constr.kind pre with

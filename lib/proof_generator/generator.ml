@@ -593,6 +593,20 @@ let find_first_valid_candidate_with_z3 t inv_ty vc ~heap ~pure =
       Ptime.Span.pp Ptime.(diff end_time start_time) no_candidates);
   Option.map snd res
 
+(** [is_simple_expression expr] returns [true] if [expr] is a simple
+   expression that CFML will not require an xapp to evaluate - i.e
+   things like expressions with only arithmetic, equalities or
+   variables. *)
+let rec is_simple_expression : Lang.Expr.t -> bool = function
+  |`Int _ 
+  | `Var _ -> true
+  | `Tuple elts -> List.for_all is_simple_expression elts
+  | `App (("+" | "-"), [l;r]) ->
+    is_simple_expression l && is_simple_expression r
+  | `Lambda _ |`Constructor _
+  | `App _ -> false
+
+
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   Log.debug (fun f ->
     f ~header:"symexec" "current program id is %s: %s@."
@@ -626,6 +640,9 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   | `EmptyArray ->
     t.current_program_id <- Lang.Id.incr t.current_program_id;
     Proof_context.append t "xvalemptyarr."
+  | `IfThenElse (cond, l, r) ->
+    t.current_program_id <- Lang.Id.incr t.current_program_id;
+    symexec_if_then_else t env cond l r
   | `Write _ -> failwith "don't know how to handle write"
   | `Value _ ->
     Proof_context.append t "xvals.";
@@ -638,6 +655,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
       "todo: implement support for %a constructs"
       (Lang.Program.pp_stmt_line Lang.Expr.print) t
 and symexec_lambda t env name body rest =
+  Log.debug (fun f -> f "[%s] symexec_lambda %s" (t.Proof_context.current_program_id |>  Lang.Id.show) name);
   let fname = Proof_context.fresh ~base:name t in
   let h_fname = Proof_context.fresh ~base:("H" ^ name) t in
   Proof_context.append t "xletopaque %s %s." fname h_fname;
@@ -645,6 +663,9 @@ and symexec_lambda t env name body rest =
   (* update_program_id_over_lambda t body; *)
   symexec t env rest
 and symexec_alloc t env pat rest =
+  Log.debug (fun f -> f "[%s] symexec_alloc %a"
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)
+                        Lang.Expr.pp_typed_param pat);
   let prog_arr = match pat with
     | `Tuple _ -> failwith "found tuple pattern in result of array.make"
     | `Var (var, _) -> var in
@@ -655,16 +676,37 @@ and symexec_alloc t env pat rest =
   let env = Proof_env.add_proof_binding env ~proof_var:arr ~program_var:prog_arr in
   symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
+  Log.debug (fun f -> f "[%s] symexec_opaque_let %a = %a"
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)                        
+                        Lang.Expr.pp_typed_param pat
+                        Lang.Expr.pp body
+            );
   let prog_var = match pat with
     | `Tuple _ ->
       failwith (Format.sprintf "TODO: implement handling of let _ = %a expressions" Lang.Expr.pp body)
     | `Var (var, _) -> var in
-  let var = Proof_context.fresh ~base:(prog_var) t in
-  let h_var = Proof_context.fresh ~base:("H" ^ var) t in
-  Proof_context.append t "xletopaque %s %s."  var h_var;
-  let env = Proof_env.add_proof_binding env ~proof_var:var ~program_var:prog_var in
-  symexec t env rest
+  if is_simple_expression body
+  then begin
+    let var = Proof_context.fresh ~base:(prog_var) t in
+    let h_var = Proof_context.fresh ~base:("H" ^ var) t in
+    Proof_context.append t "xletopaque %s %s."  var h_var;
+    let env = Proof_env.add_proof_binding env ~proof_var:var ~program_var:prog_var in
+    symexec t env rest
+  end else begin
+    let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
+    (* work out the name of function being called and the spec for it *)
+    let (lemma_name, lemma_full_type) =
+      (* extract the proof script name for the function being called *)
+      let f_app = Proof_utils.CFML.extract_x_app_fun post in
+      (* use Coq's searching functionality to work out the spec for the function *)
+      find_spec t f_app in
+
+    assert false
+  end
 and symexec_match t env prog_expr cases =
+  Log.debug (fun f -> f "[%s] symexec_match %a"
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)
+                        Lang.Expr.pp prog_expr);
   (* emit a case analysis to correspond to the program match    *)
   (* for each subproof, first intro variables using the same names as in the program *)
   let sub_proof_vars = 
@@ -695,7 +737,28 @@ and symexec_match t env prog_expr cases =
       Proof_context.append t "{ admit. }";
     done;
   ) (List.combine cases sub_proof_vars)
+and symexec_if_then_else t env cond l r =
+  Log.debug (fun f -> f "[%s] symexec_if_then_else %a"
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)
+                        Lang.Expr.pp cond);
+  Log.debug (fun f -> f "proof script is %s" (Proof_context.extract_proof_script t));
+  (* use Kiran's xif as tactic to dispatch the proofs with IMPUNITY *)
+  (* come up with a fresh variable to track the value of the conditional in each branch:  *)
+  let cond_vl_var = Proof_context.fresh ~base:("H_cond") t in
+
+  Proof_context.append t " xif as %s." cond_vl_var;
+
+  Log.debug (fun f ->
+    f "subgoals atm is %d"
+      (List.length (Proof_context.current_subproof t).goals)
+  );
+
+  assert false
 and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
+  Log.debug (fun f -> f "[%s] symexec_higher_order_pure_fun %a %a"
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)
+                        Lang.Expr.pp_typed_param pat
+                        (List.pp Lang.Expr.pp) prog_args);
   (* work out the name of function being called and the spec for it *)
   let (f_name, raw_spec) =
     (* extract the proof script name for the function being called *)
@@ -783,6 +846,11 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   end;
   symexec t env rest
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
+  Log.debug (fun f -> f "[%s] symexec_higher_order_fun %a %a"
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)
+                        Lang.Expr.pp_typed_param pat
+                        (List.pp Lang.Expr.pp) prog_args);
+
   let module PDB = Proof_utils.Debug in
   let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
   (* work out the name of function being called and the spec for it *)
@@ -989,12 +1057,14 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   begin match pre with
   | `NonEmpty ls ->
     let no_pure = List.count (function `Pure _ -> true | _ -> false) ls in
-    let pat = 
-      Int.range 1 no_pure
-      |> Iter.map (fun i -> "H" ^ Int.to_string i)
-      |> Iter.intersperse " "
-      |> Iter.concat_str in
-    Proof_context.append t "xpullpure %s." pat;
+    if no_pure > 0 then begin
+      let pat = 
+        Int.range 1 no_pure
+        |> Iter.map (fun i -> "H" ^ Int.to_string i)
+        |> Iter.intersperse " "
+        |> Iter.concat_str in
+      Proof_context.append t "xpullpure %s." pat
+    end
   | _ -> ()
   end;
 
