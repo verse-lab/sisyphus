@@ -334,9 +334,9 @@ let reduce_term t term =
   let env = Proof_context.env t in
   let (evd, reduced) =
     let evd = Evd.from_env env in
-    Proof_reduction.reduce ~filter:(fun ~path ~label ->
-      Log.debug (fun f -> f "Considering %s:%s -> UNFOLD" path label);
-      `Unfold)
+    Proof_reduction.reduce ~filter(* :(fun ~path ~label ->
+       * Log.debug (fun f -> f "Considering %s:%s -> UNFOLD" path label);
+       * `Unfold) *)
       env evd (Evd.MiniEConstr.of_constr term) in
   let trm = (EConstr.to_constr evd reduced) in
   let f_app = Proof_utils.extract_trm_app trm in
