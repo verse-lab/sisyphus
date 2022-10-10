@@ -29,6 +29,11 @@ Proof using (All).
     }
   - xref value_found.
     xletopaque tmp Htmp.
+
+    evar (symbol_'a_1 : A).
+    Check (Common.Verify_combinators.while_upto_spec (0: int)
+             ((TLC.LibListZ.length (symbol_'a_1 :: symbol_'a_1 :: symbol_'a_1 :: symbol_'a_1 :: symbol_'a_1 :: symbol_'a_1 :: symbol_'a_1 :: symbol_'a_1 :: symbol_'a_1 :: symbol_'a_1 :: nil)): int) (tmp: val)).
+
     xapp (while_upto_spec 0 (length l) tmp (fun (i: credits) (res: bool) =>
                a ~> Array l \*
                value_found ~~> Utils.find_mapi 0 fp (take i l) \*

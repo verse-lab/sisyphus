@@ -48,9 +48,11 @@ let rec pp_expr fmt (expr: Lang.Expr.t) =
   | `App ("||", [l;r]) ->
     Format.fprintf fmt "(%a \\/ %a)"
       pp_expr l pp_expr r
+  | `App (f, []) ->
+    Format.fprintf fmt "(%s)" f
   | `App (f, args) ->
-    Format.fprintf fmt "(%s %a)"
-      f (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt " ") pp_expr)
+    Format.fprintf fmt "(%s (%a))"
+      f (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt ") (") pp_expr)
       args
   | `Lambda (params, body) ->
     Format.fprintf fmt "(fun %a => %a)"

@@ -116,12 +116,14 @@ let rec update_program_id_over_lambda (t: Proof_context.t)
     Note: assumes that no subsequent arguments past [init_params] are
     implicit. *)
 let build_complete_params t ~inv lemma_name init_params =
-  let mk_lemma_instantiated_type params = 
-    Format.ksprintf
-      "%s %s"
-      (Names.Constant.to_string lemma_name)
-      (arg_list_to_str (List.map (fun v -> v) params))
-      ~f:(Proof_context.typeof t) in
+  let mk_lemma_instantiated_type params =
+    let term =
+      Format.sprintf
+        "%s %s"
+        (Names.Constant.to_string lemma_name)
+        (arg_list_to_str (List.map (fun v -> v) params)) in
+    Log.debug (fun f -> f "checking the type of %s" term);
+    Proof_context.typeof t term in
   let inv_name = ref (Some (fst inv)) in
   let inv = ref inv in
 
@@ -163,6 +165,7 @@ let build_complete_params t ~inv lemma_name init_params =
     to represent polymorphic values. *)
 let instantiate_arguments t env args (ctx, heap_ctx) =
   let lookup_var v ty =
+    Log.debug (fun f -> f "Key list is %a" (List.pp String.pp) (StringMap.keys env.Proof_env.bindings |> List.of_iter));
     begin match StringMap.find_opt v env.Proof_env.bindings with
     | None -> Some (`Var v)
     | Some v ->
@@ -183,7 +186,9 @@ let instantiate_arguments t env args (ctx, heap_ctx) =
     end in
   let rec instantiate_expr (vl, ty) =
     match vl, ty with
-    | `Var v, ty -> (lookup_var v ty) |> Option.map (fun vl -> (vl, ty))
+    | `Var v, ty ->
+      Log.debug (fun f -> f "instantiate_expr called on (%s, %a) ==> looking up" v Lang.Type.pp ty);
+      (lookup_var v ty) |> Option.map (fun vl -> (vl, ty))
     | (`Constructor ("::", [h;t])), (Lang.Type.List ty as ty_ls) ->
       let result =
         let open Option in
@@ -197,6 +202,29 @@ let instantiate_arguments t env args (ctx, heap_ctx) =
       |> List.all_some
       |> Option.map (fun elts -> (`Tuple (List.map fst elts), ty))
       |> Option.or_ ~else_:(Some (vl, ty))
+    | `App (f, args) as expr, ty ->
+      Log.debug (fun p -> p "found app of %s => attempting to instantiate arguments" f);
+      let res =
+        let open Option in
+        let* args =
+          List.map (fun exp ->
+            let* ty = Proof_context.typeof_opt t (Format.to_string Proof_utils.Printer.pp_expr exp) in
+            let* ty = Proof_utils.CFML.extract_typ_opt ty in
+            Some (exp, ty)
+          ) args
+          |> List.all_some in
+        Log.debug (fun p ->
+          p "in app of %s => was able to type all arguments: %a" f
+            (List.pp (Pair.pp Lang.Expr.pp Lang.Type.pp)) args);
+        let* args =
+          List.map instantiate_expr args
+          |> List.all_some in
+        Log.debug (fun p ->
+          p "in app of %s => was able to instantiate all arguments: %a" f
+            (List.pp (Pair.pp Lang.Expr.pp Lang.Type.pp)) args);
+        let args = List.map fst args in
+        Some (`App (f, args), ty) in
+      Option.or_ ~else_:(Some (expr, ty)) res
     | expr, ty -> Some (expr, ty) in
   List.map instantiate_expr args
   |> List.all_some
@@ -277,6 +305,7 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
     reduction.  *)
 let reduce_term t term =
   let filter ~path ~label =
+    Log.debug (fun f -> f "Considering %s:%s" path label);
     match path with
     (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
      *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
@@ -304,7 +333,9 @@ let reduce_term t term =
   let env = Proof_context.env t in
   let (evd, reduced) =
     let evd = Evd.from_env env in
-    Proof_reduction.reduce ~filter:(fun ~path ~label -> `Unfold)
+    Proof_reduction.reduce ~filter:(fun ~path ~label ->
+      Log.debug (fun f -> f "Considering %s:%s -> UNFOLD" path label);
+      `Unfold)
       env evd (Evd.MiniEConstr.of_constr term) in
   let trm = (EConstr.to_constr evd reduced) in
   let f_app = Proof_utils.extract_trm_app trm in

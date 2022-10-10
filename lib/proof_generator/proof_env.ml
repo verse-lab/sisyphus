@@ -44,15 +44,20 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
 
 let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
 
+  let logical_mappings = StringMap.of_list logical_mappings in
+  let bindings =
+    List.to_iter args
+    |> Iter.filter_map (fun (v, ty) ->
+      if is_pure_ty ty
+      then Some (v,v)
+      else StringMap.find_opt v logical_mappings
+           |> Option.map (fun bv -> (bv, v))
+    )
+    |> StringMap.of_iter in
   {
     lambda=StringMap.empty;
-    bindings=
-      List.to_iter args
-      |> Iter.filter (Pair.snd_map is_pure_ty)
-      |> Iter.map fst
-      |> Iter.map Pair.dup
-      |> StringMap.of_iter;
-    logical_mappings=StringMap.of_list logical_mappings
+    bindings;
+    logical_mappings;
   }
 
 let has_definition env v = StringMap.mem v env.lambda

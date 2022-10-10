@@ -16,7 +16,10 @@ let fvar v =
   |> Location.mknoloc
   |> AH.Exp.ident 
 
-let extract_sym s = String.drop (String.length "symbol_") s
+let extract_sym s =
+  match String.drop (String.length "symbol_") s |> String.split_on_char '_' with
+  | [sym; id] -> (sym,id)
+  | _ -> Format.ksprintf ~f:failwith "unexpected format for symbol value %s" s
 
 let sym_of_raw = Longident.Ldot (Ldot (Lident "Sisyphus_tracing", "Symbol"), "of_raw")
 
@@ -33,9 +36,14 @@ let rec embed_value (expr: Dynamic.Concrete.value) : Parsetree.expression =
     |> List.fold_left (fun t h -> cons (embed_value h) t) nil
   | `Int n ->
     AH.Exp.constant (Parsetree.Pconst_integer (string_of_int n, None))    
+  | `Bool true ->
+    AH.Exp.construct ({Location.txt = Longident.(Lident "true"); loc = Location.none})  None    
+  | `Bool false ->
+    AH.Exp.construct ({Location.txt = Longident.(Lident "false"); loc = Location.none})  None    
   | `Value s ->
+    let (sym, id) = extract_sym s in
     AH.Exp.apply (AH.Exp.ident Location.(mknoloc sym_of_raw)) [
-      Nolabel, AH.Exp.constant (Pconst_integer (extract_sym s, None))
+      Nolabel, AH.Exp.tuple [AH.Exp.constant (Pconst_integer (id, None)); AH.Exp.constant (Pconst_string (sym, Location.none, None))]
     ]
   | `Constructor (f, []) -> 
     AH.Exp.construct Location.(mknoloc Longident.(Lident f)) None
@@ -86,7 +94,7 @@ let rec embed_stmt (stmt: Lang.Expr.t Lang.Program.stmt) : Parsetree.expression 
     let pat = AH.Pat.var (Location.mknoloc name) in
     let lam = embed_lambda lam in
     let rest = embed_stmt rest in
-    AH.Exp.let_ Nonrecursive [ AH.Vb.mk pat lam ] rest    
+    AH.Exp.let_ Nonrecursive [ AH.Vb.mk pat lam ] rest
   | `Write (arr, ind, vl, rest) ->
     AH.Exp.sequence
       (AH.Exp.apply
@@ -94,7 +102,25 @@ let rec embed_stmt (stmt: Lang.Expr.t Lang.Program.stmt) : Parsetree.expression 
          [Nolabel, var arr;
           Nolabel, var ind;
           Nolabel, embed_expression vl ])
+      (embed_stmt rest)    
+  | `IfThen (cond, left, rest) ->
+    let cond = embed_expression cond in
+    let left = embed_stmt left in
+    AH.Exp.sequence
+      (AH.Exp.ifthenelse cond left None) 
+      (embed_stmt rest)    
+  | `IfThenElse (cond, left, right) ->
+    let cond = embed_expression cond in
+    let left = embed_stmt left in
+    let right = embed_stmt right in
+    AH.Exp.ifthenelse cond left (Some right)
+  | `AssignRef (arr, vl, rest) ->
+    AH.Exp.sequence
+      (AH.Exp.apply
+         (AH.Exp.ident (Location.mknoloc Longident.(Lident ":=")))
+         [Nolabel, var arr; Nolabel, embed_expression vl ])
       (embed_stmt rest)
+
 
 and embed_lambda (`Lambda (args, body)) =
   List.rev args

@@ -7,3 +7,4 @@ let find_mapi (a: 'a array) (f: int -> 'a -> 'b option) =
       f i a.(i)
     ) in
   res
+[@@with_logical_mapping ["a", "l"]]

@@ -37,7 +37,10 @@ let normalize = function
   | "TLC.LibList.app" -> "@"
   | s -> lowercase s
 
-let extract_sym s = String.drop (String.length "symbol_") s
+let extract_sym s =
+  match String.drop (String.length "symbol_") s |> String.split_on_char '_' with
+  | [sym; id] -> (sym,id)
+  | _ -> Format.ksprintf ~f:failwith "unexpected format for symbol value %s" s
 
 let sym_of_raw = Longident.Ldot (Ldot (Lident "Sisyphus_tracing", "Symbol"), "of_raw")
 let rec encode_expr_as_pat (expr: Lang.Expr.t) : Parsetree.pattern =
@@ -61,9 +64,11 @@ let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
   | `Tuple vls ->
     AH.Exp.tuple (List.map encode_expr vls)
   | `Var v when String.prefix ~pre:"symbol_" v ->
+    let (sym, id) = extract_sym v in
     AH.Exp.apply
       (AH.Exp.ident (loc sym_of_raw))
-      [Nolabel, AH.Exp.constant (Pconst_integer (extract_sym v, None))]
+      [ Nolabel, AH.Exp.tuple [AH.Exp.constant (Pconst_integer (id, None));
+                                          AH.Exp.constant (Pconst_string (sym, Location.none, None))] ]
   | `Var v -> var v
   | `App (f, args) ->
     AH.Exp.apply (var (normalize f)) (List.map (fun e -> (AT.Nolabel, encode_expr e)) args)
