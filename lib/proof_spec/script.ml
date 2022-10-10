@@ -90,6 +90,7 @@ type step = [
   | `Xpullpure of string
   | `Xpurefun of string * string * [`Lambda of Expr.typed_param list * simple]
   | `Xapp of Lang.Expr.program_id * string * spec_arg list
+  | `XappOpaque of Lang.Expr.program_id * string
   | `Xref of Lang.Expr.program_id * string
   | `Xdestruct of string
   | `Rewrite of string
@@ -142,6 +143,8 @@ let print_step print_steps : step -> PP.document =
     (string @@ str ^ ".")
   | `Xseq str ->
     (string @@ str ^ ".")
+  | `XappOpaque (pid, str) ->
+    (string (ppid pid) ^^ string @@ str ^ ".")
   | `Xapp (pid, fn, args) ->
     group (string (ppid pid ^ "Xapp") ^/^ parens (
       string fn ^/^ group (break 1 ^^ separate_map space print_spec_arg args)
@@ -183,7 +186,7 @@ let pp_parsed_script script =
 let extract_step_id (step: step) =
   match step with
   | `Xunit (id, _)
-  | `Xapp (id, _, _)
+  | `Xapp (id, _, _) | `XappOpaque (id, _)
   | `Xref (id, _)
   | `Case (id, _, _, _)
   | `Xvalemptyarr (id, _)

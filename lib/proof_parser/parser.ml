@@ -37,13 +37,6 @@ let handle_decs asts  =
     | _ -> false
   in
 
-  List.map Print_utils.string_of_coq_obj asts
-  |> List.map (fun s -> String.sub s 0 (min 10 (String.length s)))
-  |> String.concat "\n"
-  |> print_endline;
-
-
-
   let decs, rest = List.partition is_dec asts in
   let decs = List.map Print_utils.string_of_coq_obj decs in
 
@@ -65,9 +58,13 @@ let get_tactic name args state : Proof_spec.Script.step =
     `Xcf vexpr_str
   | "xpullpure" -> `Xpullpure vexpr_str
   | "xapp" when List.compare_length_with args 1 = 0 ->
+    Log.debug (fun f -> f "found xapp of %a" Sexplib.Sexp.pp_hum (List.hd args));
     let+ id = with_current_pid state in
     let fname, spec_args = Parser_utils.unwrap_xapp (List.hd args) in
     `Xapp (id, fname, spec_args)
+  | "xapp" when List.is_empty args ->
+    let+ id = with_current_pid state in
+    `XappOpaque (id, vexpr_str)
   | "xsimpl" ->
     `Xsimpl vexpr_str
   | "xdestruct" -> `Xdestruct vexpr_str
@@ -219,10 +216,8 @@ let retrieve_ast (module Ctx: Coq.Proof.PROOF) proof_str =
   query start |> Iter.to_list
 
 let parse ctx proof_str : Proof_spec.Script.script =
-  print_endline @@ "Mayank proof" ^  "   I SUCK";
   let asts = retrieve_ast ctx proof_str in
   let prelude, import, rest = handle_decs asts in
-  print_endline prelude;
   let spec_str, rest = handle_spec rest in
   let steps = handle_script rest in
 
