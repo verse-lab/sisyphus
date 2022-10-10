@@ -53,6 +53,7 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
       match Names.MutInd.to_string name with
       | "Coq.Numbers.BinNums.Z" -> Int
       | "CFML.Semantics.val" -> Val
+      | "Coq.Init.Datatypes.bool" -> Bool
       | "Coq.Init.Datatypes.nat" -> Int
       | "Coq.Init.Datatypes.unit" -> Unit
       | _ -> Format.ksprintf ~f:failwith "found unknown type %s" (Names.MutInd.to_string name)
@@ -135,7 +136,10 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `Constructor ("[]", [])
   | Constr.Construct _, _ when Utils.is_constr_unit c ->
     `Constructor ("()", [])
-
+  | Constr.App (const, [|ty|]), _ when Utils.is_constr_option_none const ->
+    `Constructor ("None", [])
+  | Constr.App (const, [|ty; vl|]), _ when Utils.is_constr_option_some const ->
+    `Constructor ("Some", [extract_expr ?rel vl])
   | Constr.Construct _, _ when Utils.is_constr_z0 c ->
     `Int 0
   | Constr.App (const, _), _ when Utils.is_constr_eq "Coq.Numbers.BinNums.Z" const ->

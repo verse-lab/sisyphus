@@ -51,6 +51,14 @@ let is_constr_unit fn =
   is_constr_eq "Coq.Init.Datatypes.unit" fn
   && (Constr.destConstruct fn |> fst |> snd) = 1
 
+let is_constr_option_some fn =
+  is_constr_eq "Coq.Init.Datatypes.option" fn
+  && (Constr.destConstruct fn |> fst |> snd) = 1
+
+let is_constr_option_none fn =
+  is_constr_eq "Coq.Init.Datatypes.option" fn
+  && (Constr.destConstruct fn |> fst |> snd) = 2
+
 
 let is_constr_z0 fn =
   is_constr_eq "Coq.Numbers.BinNums.Z" fn
