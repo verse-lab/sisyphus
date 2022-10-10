@@ -656,7 +656,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
   | Constr.App (trm, args) ->
     Format.ksprintf ~f:failwith
       "reify_proof_term env received App of %s (%s) to %d args\n%s@."
-      (String.take 400_000 (Proof_utils.Debug.constr_to_string trm)) (Proof_utils.Debug.tag trm)
+      (String.take 4000 (Proof_utils.Debug.constr_to_string trm)) (Proof_utils.Debug.tag trm)
       (Array.length args)
       (Array.to_string (fun v -> "{" ^ String.take 40_000 (Proof_utils.Debug.constr_to_string v) ^ "}") args)
   | Constr.Lambda ({Context.binder_name;_}, ty, proof) ->
@@ -671,7 +671,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
   | _ ->
     Format.ksprintf ~f:failwith
       "reify_proof_term env received %s"
-      (String.take 4000_000 (Proof_utils.Debug.constr_to_string trm))
+      (String.take 4000 (Proof_utils.Debug.constr_to_string trm))
 
 and extract_fold_specification (coq_env: Environ.env) (env: env) (trm: Constr.t) : Proof_term.t =
   let (_, args) = Constr.destApp trm in

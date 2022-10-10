@@ -140,6 +140,10 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `Constructor ("None", [])
   | Constr.App (const, [|ty; vl|]), _ when Utils.is_constr_option_some const ->
     `Constructor ("Some", [extract_expr ?rel vl])
+  | Constr.App (const, [|_ty; l; r|]), _ when Utils.is_coq_eq const ->
+    let l = extract_expr ?rel l in
+    let r = extract_expr ?rel r in
+    `App ("=", [l;r])
   | Constr.Construct _, _ when Utils.is_constr_z0 c ->
     `Int 0
   | Constr.App (const, _), _ when Utils.is_constr_eq "Coq.Numbers.BinNums.Z" const ->

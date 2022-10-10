@@ -324,7 +324,9 @@ let reduce_term t term =
     | "Coq.Init.Datatypes"
     | "Coq.Classes.Morphisms"
     | "Coq.Init.Logic"
+    | "Coq.Bool.Bool"
       -> `KeepOpaque
+
 
     | _ when String.prefix ~pre:"Proofs" path
           ||  String.prefix ~pre:"CFML" path
