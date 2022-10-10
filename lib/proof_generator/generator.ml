@@ -328,7 +328,8 @@ let reduce_term t term =
 
     | _ when String.prefix ~pre:"Proofs" path
           ||  String.prefix ~pre:"CFML" path
-          || String.prefix ~pre:"TLC" path -> `Unfold
+          || String.prefix ~pre:"TLC" path
+          || String.prefix ~pre:"Common" path -> `Unfold
     | _ -> failwith ("UNKNOWN PATH " ^ path) in
   let env = Proof_context.env t in
   let (evd, reduced) =
@@ -634,6 +635,8 @@ let rec is_simple_expression : Lang.Expr.t -> bool = function
   | `Tuple elts -> List.for_all is_simple_expression elts
   | `App (("+" | "-"), [l;r]) ->
     is_simple_expression l && is_simple_expression r
+  | `App ("List.length", [arg]) ->
+    is_simple_expression arg
   | `Lambda _ |`Constructor _
   | `App _ -> false
 
@@ -737,13 +740,14 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
     let env = Proof_env.add_proof_binding env ~proof_var:var ~program_var:prog_var in
     symexec t env rest
   end else begin
-    let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
+    Log.debug (fun f -> f "current proof:\n%s" (Proof_context.extract_proof_script t));
+    (* let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in *)
     (* work out the name of function being called and the spec for it *)
-    let (_lemma_name, _lemma_full_type) =
-      (* extract the proof script name for the function being called *)
-      let f_app = Proof_utils.CFML.extract_x_app_fun post in
-      (* use Coq's searching functionality to work out the spec for the function *)
-      find_spec t f_app in
+    (* let (_lemma_name, _lemma_full_type) =
+     *   (\* extract the proof script name for the function being called *\)
+     *   let f_app = Proof_utils.CFML.extract_x_app_fun post in
+     *   (\* use Coq's searching functionality to work out the spec for the function *\)
+     *   find_spec t f_app in *)
     (* TODO: do something smart here (i.e use the type of lemma full type to work out whether to intro any variables ) *)
     Proof_context.append t "xapp.";
     symexec t env rest
