@@ -22,7 +22,7 @@ Lemma find_mapi_spec :
   POST (fun (b : option B) => \[ b = Common.Utils.find_mapi 0 fp l] \* a ~> Array l).
 Proof using (All).
   xcf.
-  xapp.
+  xapp Array_proof.length_spec.
   xif as Hcond.
   - xvals*. {
       apply length_zero_inv in Hcond; rewrite Hcond; simpl; auto.

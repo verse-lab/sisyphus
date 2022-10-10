@@ -620,6 +620,8 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
     begin match body with
     | `App ("Array.make", [_; _]) ->
       symexec_alloc t env pat rest
+    | `App ("ref", [_]) ->
+      symexec_ref_alloc t env pat rest
     | `App (_, prog_args)
       when List.exists (function
         |`Var v -> Proof_env.is_pure_lambda env v
@@ -675,6 +677,17 @@ and symexec_alloc t env pat rest =
   Proof_context.append t "xalloc %s %s %s." arr data h_data;
   let env = Proof_env.add_proof_binding env ~proof_var:arr ~program_var:prog_arr in
   symexec t env rest
+and symexec_ref_alloc t env pat rest =
+  Log.debug (fun f -> f "[%s] symexec_ref_alloc %a"
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)
+                        Lang.Expr.pp_typed_param pat);
+  let prog_arr = match pat with
+    | `Tuple _ -> failwith "found tuple pattern in result of ref"
+    | `Var (var, _) -> var in
+  let ref_name = Proof_context.fresh ~base:(prog_arr) t in
+  Proof_context.append t "xref %s." ref_name;
+  let env = Proof_env.add_proof_binding env ~proof_var:ref_name ~program_var:prog_arr in
+  symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
   Log.debug (fun f -> f "[%s] symexec_opaque_let %a = %a"
                         (t.Proof_context.current_program_id |>  Lang.Id.show)                        
@@ -695,13 +708,14 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
   end else begin
     let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
     (* work out the name of function being called and the spec for it *)
-    let (lemma_name, lemma_full_type) =
+    let (_lemma_name, _lemma_full_type) =
       (* extract the proof script name for the function being called *)
       let f_app = Proof_utils.CFML.extract_x_app_fun post in
       (* use Coq's searching functionality to work out the spec for the function *)
       find_spec t f_app in
-
-    assert false
+    (* TODO: do something smart here (i.e use the type of lemma full type to work out whether to intro any variables ) *)
+    Proof_context.append t "xapp.";
+    symexec t env rest
   end
 and symexec_match t env prog_expr cases =
   Log.debug (fun f -> f "[%s] symexec_match %a"
@@ -746,14 +760,25 @@ and symexec_if_then_else t env cond l r =
   (* come up with a fresh variable to track the value of the conditional in each branch:  *)
   let cond_vl_var = Proof_context.fresh ~base:("H_cond") t in
 
-  Proof_context.append t " xif as %s." cond_vl_var;
+  Proof_context.append t "xif as %s." cond_vl_var;
+  (* now handle if true case *)
+  Proof_context.append t "- ";
+  symexec t env l;
 
   Log.debug (fun f ->
-    f "subgoals atm is %d"
+    f "subgoals after if true is %d"
       (List.length (Proof_context.current_subproof t).goals)
   );
 
-  assert false
+  (* now handle if else case *)
+  Proof_context.append t "- ";
+  symexec t env r;
+
+  Log.debug (fun f ->
+    f "subgoals after if false is %d"
+      (List.length (Proof_context.current_subproof t).goals)
+  )
+
 and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   Log.debug (fun f -> f "[%s] symexec_higher_order_pure_fun %a %a"
                         (t.Proof_context.current_program_id |>  Lang.Id.show)
@@ -851,6 +876,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
                         Lang.Expr.pp_typed_param pat
                         (List.pp Lang.Expr.pp) prog_args);
 
+  Log.debug (fun f -> f "current proof script is %s" (Proof_context.extract_proof_script t));
   let module PDB = Proof_utils.Debug in
   let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
   (* work out the name of function being called and the spec for it *)
