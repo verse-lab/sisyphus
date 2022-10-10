@@ -3,6 +3,8 @@ open Containers
 let tests = ref []
 
 let run name =
+  Logs.set_level ~all:true (Some Logs.Debug);
+  Logs.set_reporter (Logs_fmt.reporter ());
   Alcotest.run name
     (List.map (fun f -> f ()) @@ List.rev !tests)
 
