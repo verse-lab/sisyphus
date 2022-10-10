@@ -58,7 +58,6 @@ let get_tactic name args state : Proof_spec.Script.step =
     `Xcf vexpr_str
   | "xpullpure" -> `Xpullpure vexpr_str
   | "xapp" when List.compare_length_with args 1 = 0 ->
-    Log.debug (fun f -> f "found xapp of %a" Sexplib.Sexp.pp_hum (List.hd args));
     let+ id = with_current_pid state in
     let fname, spec_args = Parser_utils.unwrap_xapp (List.hd args) in
     `Xapp (id, fname, spec_args)
