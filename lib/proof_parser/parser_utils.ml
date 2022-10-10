@@ -141,7 +141,7 @@ let rec unwrap_ty sexp : Lang.Type.t =
     | "ref", [ty] -> Ref ty
     | adt, args -> ADT (adt, args, None)
     end
-  | "CNotation", [_; List [Atom "InConstrEntry"; Atom "int"]; _] -> Int
+  | "CNotation", [_; List [Atom "InConstrEntry"; Atom ("int" | "credits")]; _] -> Int
   | "CNotation", _ ->
     failwith @@ Format.sprintf "todo: implement support for product sexps: %a" Sexplib.Sexp.pp_hum sexp
 [@@warning "-8"]
@@ -212,15 +212,17 @@ let rec unwrap_expr sexp : Lang.Expr.t =
       then `Constructor (fname, args)
       else `App (fname, args)
     end
-  | "CNotation", [_; List[Atom "InConstrEntry"; Atom ("_ ++ _" | "_ + _" | "_ - _" as op)]; List (List [l; r] :: _)] ->
+  | "CNotation", [_; List[Atom "InConstrEntry"; Atom ("_ ++ _" | "_ + _" | "_ - _" | "_ = _" as op)]; List (List [l; r] :: _)] ->
     let l = unwrap_value_with_loc l |> fst |> unwrap_expr in
     let r = unwrap_value_with_loc r |> fst |> unwrap_expr in
     begin match op with
     | "_ ++ _" -> `App ("++", [l;r])
     | "_ + _" -> `App ("+", [l;r])
     | "_ - _" -> `App ("-", [l;r])
+    | "_ = _" -> `App ("=", [l;r])
     | _ -> failwith "invalid assumptions"
     end
+
   (* lambdas.... CLambdaN not supported *)
   | tag, _ -> failwith @@ Format.sprintf "found unhandled expr (tag: %s): %a" tag Sexplib.Sexp.pp_hum sexp
 
@@ -243,6 +245,9 @@ let rec unwrap_assertion sexp : Proof_spec.Heap.Assertion.t =
     Proof_spec.Heap.Assertion.union left right
   | "CNotation", [_; List[Atom "InConstrEntry"; Atom notation]; List (List [left; right] :: _)] ->
     failwith @@ Format.sprintf "found unknown notation %s" notation
+  | "CNotation", [_; List [Atom "InConstrEntry"; Atom "\\[ _ ]"]; List (List [pure] :: _)]->
+    let expr = unwrap_value_with_loc pure |> fst |> unwrap_expr in
+    Proof_spec.Heap.Assertion.(add_expr expr emp)
   | tag, _ ->
     Format.ksprintf ~f:failwith
       "found unhandled assertion tag %s: %a" tag Sexplib.Sexp.pp_hum sexp
