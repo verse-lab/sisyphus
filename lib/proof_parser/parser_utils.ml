@@ -251,7 +251,7 @@ let unwrap_spec_arg sexp : spec_arg =
   let open Sexplib.Sexp in
   match unwrap_tagged sexp with
   | "CRef", _ -> `Expr (`Var (unwrap_cref sexp))
-  | ("CNotation" | "CPrim"), _ -> `Expr (unwrap_expr sexp)
+  | ("CNotation" | "CPrim" | "CApp"), _ -> `Expr (unwrap_expr sexp)
   | "CLambdaN", _ ->
     let args, body = unwrap_clambda sexp in
     let body = unwrap_assertion body in
