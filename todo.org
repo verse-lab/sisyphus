@@ -19,30 +19,8 @@ CLOCK: [2022-10-06 Thu 07:03]--[2022-10-06 Thu 07:30] =>  0:27
 :PROPERTIES:
 :Effort:   4:00
 :END:
-*** DONE Prove array find map
-CLOSED: [2022-10-07 Fri 04:10]
-:PROPERTIES:
-:Effort:   0:30
-:END:
-:LOGBOOK:
-CLOCK: [2022-10-07 Fri 03:58]--[2022-10-07 Fri 04:10] =>  0:12
-:END:
-*** DONE Prove array find map new
-CLOSED: [2022-10-07 Fri 05:48]
-*** DONE Setup benchmark test for array find mapi
-CLOSED: [2022-10-07 Fri 05:50]
-*** DONE Add support for if then else
-CLOSED: [2022-10-07 Fri 09:43]
-*** DONE Fix unit tests
-CLOSED: [2022-10-07 Fri 10:27]
-*** DONE Setup unit tests for array find mapi
-CLOSED: [2022-10-07 Fri 10:27]
-:LOGBOOK:
-CLOCK: [2022-10-07 Fri 06:04]--[2022-10-07 Fri 10:22] =>  4:18
-:END:
-*** TODO Setup code to generate function arguments
-*** TODO Update code to use types
-*** TODO Get array find map compiling on current code
+*** TODO Work out appropriate tactic for xif
+*** TODO Update symexec to handle if then else and if then constructs
 *** TODO Hacker mode
 ** TODO Work on adding more examples
 :PROPERTIES:

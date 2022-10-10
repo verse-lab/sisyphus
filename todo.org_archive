@@ -756,3 +756,100 @@ CLOSED: [2022-10-06 Thu 06:53]
 :LOGBOOK:
 CLOCK: [2022-10-06 Thu 06:34]--[2022-10-06 Thu 06:53] =>  0:19
 :END:
+
+* DONE Prove array find map
+CLOSED: [2022-10-07 Fri 04:10]
+:PROPERTIES:
+:Effort:   0:30
+:ARCHIVE_TIME: 2022-10-10 Mon 07:01
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+:LOGBOOK:
+CLOCK: [2022-10-07 Fri 03:58]--[2022-10-07 Fri 04:10] =>  0:12
+:END:
+
+* DONE Prove array find map new
+CLOSED: [2022-10-07 Fri 05:48]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-10 Mon 07:01
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Setup benchmark test for array find mapi
+CLOSED: [2022-10-07 Fri 05:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-10 Mon 07:01
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add support for if then else
+CLOSED: [2022-10-07 Fri 09:43]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-10 Mon 07:01
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Fix unit tests
+CLOSED: [2022-10-07 Fri 10:27]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-10 Mon 07:01
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Setup unit tests for array find mapi
+CLOSED: [2022-10-07 Fri 10:27]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-10 Mon 07:01
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+:LOGBOOK:
+CLOCK: [2022-10-07 Fri 06:04]--[2022-10-07 Fri 10:22] =>  4:18
+:END:
+
+* DONE Setup code to generate function arguments
+CLOSED: [2022-10-10 Mon 07:01]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-10 Mon 07:01
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Get array find map compiling on current code
+CLOSED: [2022-10-10 Mon 07:02]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-10 Mon 07:02
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update code to use types
+CLOSED: [2022-10-10 Mon 07:02]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-10 Mon 07:02
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
