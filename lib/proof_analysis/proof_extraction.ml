@@ -20,8 +20,11 @@ let str_const v = const (Parsetree.Pconst_string (v, Location.none, None))
 let int_const v = const (Parsetree.Pconst_integer (string_of_int v, None))
 let pstr_const v = pconst (Parsetree.Pconst_string (v, Location.none, None))
 let pint_const v = pconst (Parsetree.Pconst_integer (string_of_int v, None))
-let var v = AH.Exp.ident (loc (lid v))
-
+let var v =
+  let id = if String.contains v '.'
+    then Longident.unflatten (String.split_on_char '.' v)
+    else None in
+  AH.Exp.ident (loc (Option.value ~default:(lid v) id))
 
 let fun_ args body =
   List.fold_left
@@ -35,6 +38,7 @@ let lowercase s =
 
 let normalize = function
   | "TLC.LibList.app" -> "@"
+  | "TLC.LibListZ.length" -> "List.length"
   | s -> lowercase s
 
 let extract_sym s =
@@ -84,17 +88,19 @@ let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
 
 let rec contains_symexec (trm: Proof_term.t) : bool =
   match trm with
+  | Proof_term.CaseFalse -> false
   | Proof_term.HimplHandR (_, l1, l2)
   | Proof_term.HimplTrans (_, _, l1, l2) ->
     contains_symexec l1 || contains_symexec l2
   | Proof_term.Lambda (_, _, rest) ->
     contains_symexec rest
   | Proof_term.AuxVarApp _
-  | Proof_term.VarApp _ ->
+  | Proof_term.VarApp _ -> 
     failwith "attempt to call contains symexec on Variable Application term"
   | Proof_term.CharacteristicFormulae { args; pre; proof } -> contains_symexec proof
   | Proof_term.AccRect { proof={ proof; _ }; _ } -> contains_symexec proof
   | Proof_term.Refl -> false
+  | Proof_term.XIfVal _
   | Proof_term.XLetFun _
   | Proof_term.XLetVal _ 
   | Proof_term.XLetTrmCont _
@@ -102,6 +108,8 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.XApp _ 
   | Proof_term.XVal _ 
   | Proof_term.XDone _ -> true
+  | Proof_term.CaseBool {if_true; if_false; _} ->
+    contains_symexec if_true || contains_symexec if_false
 
 (** [extract_xmatch_cases n trm] extracts [n] xmatch cases from [trm].
 
@@ -268,6 +276,7 @@ let rec extract ?replacing (trm: Proof_term.t) =
       encode_expr value
     end
   | Proof_term.XDone _ ->
+    (* encode_expr (`Constructor ("()", [])) *)
     AH.Exp.apply (var "failwith") [AT.Nolabel, str_const "invalid assumptions"]
   | Proof_term.AuxVarApp (_, _, proof) ->
     extract proof
@@ -279,6 +288,18 @@ let rec extract ?replacing (trm: Proof_term.t) =
   | Proof_term.Refl 
   | Proof_term.HimplHandR (_, _, _) ->
     AH.Exp.unreachable ()
+  | Proof_term.XIfVal { pre; cond; if_true; if_false } ->
+    wrap_with_invariant_check pre ~then_:begin fun () ->
+      AH.Exp.ifthenelse (encode_expr cond)
+        (extract if_true)
+        (Some (extract if_false))
+    end
+  | Proof_term.CaseBool { cond; if_true; if_false } ->
+    AH.Exp.ifthenelse (encode_expr cond)
+      (extract if_true)
+      (Some (extract if_false))
+  | Proof_term.CaseFalse ->
+    AH.Exp.assert_ (encode_expr (`Constructor ("false", [])))
   | _ ->
     Format.ksprintf ~f:failwith "found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm))
 and extract_recursive_function

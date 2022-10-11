@@ -305,11 +305,10 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
     reduction.  *)
 let reduce_term t term =
   let filter ~path ~label =
-    Log.debug (fun f -> f "Considering %s:%s" path label);
-    match path with
+    match path, label with
     (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
      *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
-    | "Coq.ZArith.BinInt.Z"
+    | ("Coq.ZArith.BinInt.Z"
     | "Coq.ZArith.Znat.Nat2Z"
     | "Coq.ZArith.Znat"
     | "Coq.micromega.ZifyInst"
@@ -324,25 +323,36 @@ let reduce_term t term =
     | "Coq.Init.Datatypes"
     | "Coq.Classes.Morphisms"
     | "Coq.Init.Logic"
-    | "Coq.Bool.Bool"
+    | "Coq.Bool.Bool"), _
       -> `KeepOpaque
-
+    | "TLC.LibInt", "le_zarith" -> `KeepOpaque
+    | "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits", _ ->
+      (* no point expanding the SepSimplArgsCredits lemmas as they just rearrange heaplets *)
+      `KeepOpaque
+    (* keep the reflection lemmas opaque, as they expand into cases that can't be reduced  *)
+    | "TLC.LibReflect", _ -> `KeepOpaque
 
     | _ when String.prefix ~pre:"Proofs" path
           ||  String.prefix ~pre:"CFML" path
           || String.prefix ~pre:"TLC" path
-          || String.prefix ~pre:"Common" path -> `Unfold
+          || String.prefix ~pre:"Common" path ->
+      (* Log.debug (fun f -> f "Expanding %s:%s" path label); *)
+      `Unfold
     | _ -> failwith ("UNKNOWN PATH " ^ path) in
   let env = Proof_context.env t in
   let (evd, reduced) =
     let evd = Evd.from_env env in
     Proof_reduction.reduce ~filter(* :(fun ~path ~label ->
-       * Log.debug (fun f -> f "Considering %s:%s -> UNFOLD" path label);
-       * `Unfold) *)
+                                   * Log.debug (fun f -> f "Considering %s:%s -> UNFOLD" path label);
+                                   * `Unfold) *)
       env evd (Evd.MiniEConstr.of_constr term) in
   let trm = (EConstr.to_constr evd reduced) in
   let f_app = Proof_utils.extract_trm_app trm in
   Log.info (fun f -> f "initial reduction phase passed @.");
+  Configuration.dump_output "reduced-first-try"
+    (fun f -> f "%s" (Proof_utils.Debug.constr_to_string trm));
+  Configuration.dump_output "reduced-first-try-pretty"
+    (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty trm));
   match f_app with
   (* when we fail to reduce the term to an application of a constant wp function, then we have to force the evaluation *)
   | Some f_app when not (Proof_utils.CFML.is_const_wp_fn f_app) ->

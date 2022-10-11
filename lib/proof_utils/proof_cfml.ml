@@ -27,6 +27,8 @@ let is_xdone_lemma const = is_const_named "xdone_lemma" const
 let is_mkstruct_erase const = is_const_named "MkStruct_erase" const
 let is_himpl_hand_r const = is_const_named "himpl_hand_r" const
 let is_himpl_hexists_r const = is_const_named "himpl_hexists_r" const
+let is_himpl_hexists_l const = is_const_named "himpl_hexists_l" const
+let is_hstars_simpl_keep const = is_const_named "hstars_simpl_keep" const
 let is_himpl_frame_r const = is_const_named "himpl_frame_r" const
 let is_himpl_hempty_pure const = is_const_named "himpl_hempty_hpure" const
 let is_xsimpl_start const = is_const_named "xsimpl_start" const
@@ -125,33 +127,58 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
   | Constr.Cast (c, _, _), _ -> extract_expr ?rel c
   | Constr.Rel ind, Some f -> `Var (f ind)
   | Constr.Var v, _ -> `Var (Names.Id.to_string v)
+  | Constr.App (value, [| c |]), _ when Utils.is_const_eq "TLC.LibReflect.istrue" value
+                                     || Utils.is_const_eq "TLC.LibReflect.isTrue" value ->
+    extract_expr ?rel c
   | Constr.App (value, [| c |]), _ when Utils.is_const_eq "CFML.Semantics.trms_vals" value ->
     extract_expr ?rel c
   | Constr.App (value, [| c |]), _ when Utils.is_const_eq "TLC.LibInt.nat_to_Z" value ->
     extract_expr ?rel c
   | Constr.App (value, [| c |]), _ when Utils.is_constr_eq "CFML.Semantics.val" value ->
     extract_expr ?rel c
-  | Constr.App (const, [|ty; h; tl|]), _ when Utils.is_constr_cons const ->
-    `Constructor ("::", [extract_expr ?rel h; extract_expr ?rel tl])
-  | Constr.App (const, [|ty|]), _ when Utils.is_constr_nil const ->
-    `Constructor ("[]", [])
-  | Constr.Construct _, _ when Utils.is_constr_unit c ->
-    `Constructor ("()", [])
-  | Constr.App (const, [|ty|]), _ when Utils.is_constr_option_none const ->
-    `Constructor ("None", [])
-  | Constr.App (const, [|ty; vl|]), _ when Utils.is_constr_option_some const ->
-    `Constructor ("Some", [extract_expr ?rel vl])
-  | Constr.App (const, [|_ty; l; r|]), _ when Utils.is_coq_eq const ->
-    let l = extract_expr ?rel l in
-    let r = extract_expr ?rel r in
-    `App ("=", [l;r])
-  | Constr.Construct _, _ when Utils.is_constr_z0 c ->
-    `Int 0
+
+  (* boolean *)
+  | Constr.App (trm, [| l; r |]), _ when Utils.is_ind_eq "Coq.Init.Logic.and" trm ->
+    `App ("&&", [extract_expr ?rel l; extract_expr ?rel r])
+  | Constr.App (trm, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Datatypes.implb" trm ->
+    `App ("||", [`App ("not",  [extract_expr ?rel l]); extract_expr ?rel r])
+
   | Constr.Construct _ , _ when Utils.is_constr_bool_true c ->
     `Constructor ("true", [ ])
   | Constr.Construct _ , _ when Utils.is_constr_bool_false c ->
     `Constructor ("false", [ ])
 
+  (* lists *)
+  | Constr.App (const, [|ty; h; tl|]), _ when Utils.is_constr_cons const ->
+    `Constructor ("::", [extract_expr ?rel h; extract_expr ?rel tl])
+  | Constr.App (const, [|ty|]), _ when Utils.is_constr_nil const ->
+    `Constructor ("[]", [])
+  (* | Constr.App (const, [| ty; ls |]), _ when Utils.is_const_eq "TLC.LibListZ.length" const ->
+   *   `App ("List.length", []) *)
+
+  (* unit *)
+  | Constr.Construct _, _ when Utils.is_constr_unit c ->
+    `Constructor ("()", [])
+
+  (* option *)
+  | Constr.App (const, [|ty|]), _ when Utils.is_constr_option_none const ->
+    `Constructor ("None", [])
+  | Constr.App (const, [|ty; vl|]), _ when Utils.is_constr_option_some const ->
+    `Constructor ("Some", [extract_expr ?rel vl])
+
+  (* equality *)
+  | Constr.App (const, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.eqb" const ->
+    let l = extract_expr ?rel l in
+    let r = extract_expr ?rel r in
+    `App ("=", [l;r])
+  | Constr.App (const, [|_ty; l; r|]), _ when Utils.is_coq_eq const ->
+    let l = extract_expr ?rel l in
+    let r = extract_expr ?rel r in
+    `App ("=", [l;r])
+
+  (* ints *)
+  | Constr.Construct _, _ when Utils.is_constr_z0 c ->
+    `Int 0
   | Constr.App (const, _), _ when Utils.is_constr_eq "Coq.Numbers.BinNums.Z" const ->
     `Int (Utils.extract_const_int c)
   | Constr.App (const, args), _ when Utils.is_constr_eq "Coq.Init.Datatypes.prod" const ->
@@ -161,6 +188,10 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
                |> Iter.map (extract_expr ?rel)
                |> Iter.to_list in
     `Tuple (args)
+
+  (* arithmetic *)
+  | Constr.App (fname, [| _; _; l; r |]), _ when Utils.is_const_eq "TLC.LibOrder.le" fname ->
+    `App ("<=", [extract_expr ?rel l; extract_expr ?rel r])        
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Nat.sub" fname ->
     `App ("-", [extract_expr ?rel l; extract_expr ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.sub" fname ->
@@ -171,10 +202,12 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `App ("+", [extract_expr ?rel l; extract_expr ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.mul" fname ->
     `App ("*", [extract_expr ?rel l; extract_expr ?rel r])    
+
   | Constr.App (fname, args), _ when Constr.isConst fname ->
     let fname, _ = Constr.destConst fname in
     let args = Utils.drop_implicits fname (Array.to_list args) |> List.map (extract_expr ?rel) in
     `App (Names.Constant.to_string fname, args)
+
   | Constr.App (fname, args), _ when Constr.isVar fname ->
     let fname = Constr.destVar fname |> Names.Id.to_string in
     let args = List.map (extract_expr ?rel) (Array.to_list args) in

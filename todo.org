@@ -19,10 +19,15 @@ CLOCK: [2022-10-06 Thu 07:03]--[2022-10-06 Thu 07:30] =>  0:27
 :PROPERTIES:
 :Effort:   4:00
 :END:
-*** TODO Add support for xif lemma in proof analysis
+*** DONE Add support for xif lemma in proof analysis
+CLOSED: [2022-10-11 Tue 03:23]
 :LOGBOOK:
-CLOCK: [2022-10-11 Tue 02:29]
+CLOCK: [2022-10-11 Tue 03:23]--[2022-10-11 Tue 03:23] =>  0:00
+CLOCK: [2022-10-11 Tue 02:29]--[2022-10-11 Tue 03:23] =>  0:54
 :END:
+*** DONE Add support for simple cases on Bool
+CLOSED: [2022-10-11 Tue 04:21]
+*** TODO Add support for extracting xif lemmas
 *** TODO Hacker mode
 ** TODO Work on adding more examples
 :PROPERTIES:
