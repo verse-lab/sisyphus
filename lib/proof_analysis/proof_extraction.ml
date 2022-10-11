@@ -89,6 +89,7 @@ let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
 let rec contains_symexec (trm: Proof_term.t) : bool =
   match trm with
   | Proof_term.CaseFalse -> false
+  | Proof_term.XDone _ -> false
   | Proof_term.HimplHandR (_, l1, l2)
   | Proof_term.HimplTrans (_, _, l1, l2) ->
     contains_symexec l1 || contains_symexec l2
@@ -106,8 +107,7 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.XLetTrmCont _
   | Proof_term.XMatch _ 
   | Proof_term.XApp _ 
-  | Proof_term.XVal _ 
-  | Proof_term.XDone _ -> true
+  | Proof_term.XVal _  -> true
   | Proof_term.CaseBool {if_true; if_false; _} ->
     contains_symexec if_true || contains_symexec if_false
 
@@ -237,6 +237,19 @@ let rec extract ?replacing (trm: Proof_term.t) =
     else
       wrap_with_invariant_check pre ~then_:begin fun () ->
         extract_recursive_function ~application ~prop_type ~proof:proof_fun ~vl ~args
+      end 
+  | Proof_term.XApp { application=_; pre; fun_pre=_; proof_fun=CharacteristicFormulae {proof=proof_fun; _}; proof } ->
+    (* idea is that when we have a auxiliary helper, we don't emit the
+       application, but instead leave it to the proof by the helper. *)
+    if contains_symexec proof then
+      wrap_with_invariant_check pre ~then_:begin fun () ->
+        AH.Exp.sequence
+          (extract proof_fun)
+          (extract proof)
+      end
+    else
+      wrap_with_invariant_check pre ~then_:begin fun () ->
+        extract proof_fun
       end 
   | Proof_term.XApp { application=_; pre; fun_pre=_; proof_fun=AuxVarApp (_, _, proof_fun); proof } ->
     (* idea is that when we have a auxiliary helper, we don't emit the
