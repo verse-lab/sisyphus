@@ -24,6 +24,7 @@ let build_test
       (lambdas:
          (string *
           [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) list)
+      (hofs: (string * Parsetree.expression) list)
       (invariant: (string * string list))
       (body: Parsetree.expression) =
   let pconst_str str = Parsetree.Pconst_string (str, Location.none, None) in

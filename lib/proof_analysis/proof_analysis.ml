@@ -839,6 +839,6 @@ let analyse (coq_env: Environ.env)
       |> List.filter_map (fun name ->
         StringMap.find_opt name lambda_env
         |> Option.map (fun (_, v) -> (name, v))) in
-    Proof_test.build_test obs used_functions invariant_spec test_spec
+    Proof_test.build_test obs used_functions hof_env invariant_spec test_spec
   | _ -> failwith ("found unsupported term " ^ Proof_utils.Debug.tag trm)
   
