@@ -1,5 +1,7 @@
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Utilities for working with proofs" "pr.utils.debug"))
+
 module IntSet = Set.Make(Int)
 
 let is_const_named name const =
@@ -67,12 +69,25 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
     Array (extract_typ ?rel ty)
   | Constr.App (fname, args), _ when Utils.is_ind_eq "Coq.Init.Datatypes.prod" fname ->
     Product (Array.to_iter args |> Iter.map (extract_typ ?rel) |> Iter.to_list)
+  | Constr.App (fname, [| ty |]), _ when Utils.is_ind_eq "Coq.Init.Datatypes.option" fname ->
+    ADT ("option", [extract_typ ?rel ty], None)
   | Constr.Var name, _ -> Var (Names.Id.to_string name)
   | Constr.Const _, _ when Utils.is_const_eq "CFML.Semantics.loc" c -> Loc
   | Constr.Const _, _ when Utils.is_const_eq "CFML.WPBuiltin.func" c -> Func None
   | Constr.Const _, _ when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hprop" c ->
     Var "HPROP"
   | Constr.Rel i, Some f -> f i
+  | Constr.Prod (_, _, _), _ ->
+    let rec loop acc t =
+      let rel = match rel with None -> None | Some f -> Some (fun ind -> f (ind - List.length acc))in
+      match Constr.kind t with
+      | Constr.Prod (_, arg, rest) ->
+        let arg = extract_typ ?rel arg in
+        loop (arg :: acc) rest
+      | _ ->
+        let res = extract_typ ?rel t in
+        Lang.Type.Func (Some (List.rev acc, res)) in
+    loop [] c
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a type"
       (Proof_debug.constr_to_string c)
@@ -346,6 +361,11 @@ let extract_env hyp =
     | Constr.Var _              (* init: A *)
     | Constr.App (_, _) ->
       Option.map (fun vl -> (name, `Val (vl))) (extract_typ_opt vl)
+    | Constr.Prod (_, _, _) ->
+      begin match extract_typ_opt vl with
+      | None -> None
+      | Some ty -> Some (name, `Val ty)
+      end
     (* list A, and eq, and others *) 
     | Constr.Const _
     | _ ->
