@@ -818,6 +818,9 @@ let analyse (coq_env: Environ.env)
       (obs: (Dynamic.Concrete.context * Dynamic.Concrete.heap_context))
       invariant_spec
       (trm: Constr.t)  =
+  Log.debug (fun f ->
+    f "observations at analyze were: %s" ([%show: ((string * Dynamic.Concrete.value) list * (string * Dynamic.Concrete.heaplet) list)] obs)
+  );
   match Constr.kind trm with
   (* check that we first have a characteristic formula term at our
      proof root (these terms will always block as CFML actually uses

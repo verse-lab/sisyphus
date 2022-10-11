@@ -654,6 +654,7 @@ module CompilationContext = struct
       List.iter (compile env) deps;
       let mod_name = fresh_mod_name () in
       let ast = annotate ?deep prog in
+      Configuration.dump_output "annotated-program" (fun f -> f "%a" Pprintast.structure ast);
       env.evaluation_env <-
         Evaluator.dyn_load_definition_as_module
           env.evaluation_env ~mod_name ~ast;
