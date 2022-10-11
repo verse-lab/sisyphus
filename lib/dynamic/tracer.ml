@@ -137,12 +137,19 @@ let build_enc_fun v =
             AH.Exp.(match_ v [
               case
                 (AH.Pat.construct (str Longident.(Lident "None")) None)
-                (variant "None" None);
+                (variant "Constructor" (Some (tuple [
+                   constant (Pconst_string ("None", Location.none, None));
+                   encode_list [ ]
+                 ])));
               case (AH.Pat.(construct (str Longident.(Lident "Some")) (Some (var (str vl_var)))))
-                (variant "Some"
-                   (Some (
-                      apply ty_enc_fun
-                      [Nolabel, (ident (str Longident.(Lident vl_var)))]))
+                (variant "Constructor"
+                   (Some (tuple [
+                      constant (Pconst_string ("Some", Location.none, None));
+                      encode_list [
+                        apply ty_enc_fun
+                          [Nolabel, (ident (str Longident.(Lident vl_var)))]
+                      ]
+                    ]))
                 )
             ]))
     | Lang.Type.ADT (_adt, _tys, _) -> None
