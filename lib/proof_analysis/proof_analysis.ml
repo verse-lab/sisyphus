@@ -10,6 +10,7 @@ module Log = (val Logs.src_log (Logs.Src.create ~doc:"Analyses proof terms to ge
 
 type t = Parsetree.expression
 type lambda_env = (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t
+type hof_env = (string * Parsetree.expression) list
 type obs = Dynamic.Concrete.context * Dynamic.Concrete.heap_context
 type invariant_spec = string * string list
 type invariant = Lang.Expr.t * Lang.Expr.t list
@@ -813,6 +814,7 @@ let unique ls = StringSet.of_list ls |> StringSet.to_list
 
 let analyse (coq_env: Environ.env)
       (lambda_env: lambda_env)
+      (hof_env: hof_env)
       (obs: (Dynamic.Concrete.context * Dynamic.Concrete.heap_context))
       invariant_spec
       (trm: Constr.t)  =

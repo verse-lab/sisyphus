@@ -378,14 +378,14 @@ let reduce_term t term =
     specification from a partially reduced proof term of the lemma [f]
     applied to values of its arguments [args] at the current position
     in a concrete observation [obs] *)
-let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args ~concrete_args observations =
+let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) =
   Log.debug (fun f -> f "build_testing_function called on %s.\nProof context:\n%s"
                         (Names.Constant.to_string lemma_name)
                         (Proof_context.extract_proof_script t));
-  let concrete_args =
-    List.combine f_args concrete_args
+  let higher_order_functions =
+    List.combine env.Proof_env.args concrete_args
     |> List.filter_map (function
-      | ((`Var f, Lang.Type.Func _), arg) -> Some (f, arg)
+      | ((f, Lang.Type.Func _), arg) -> Some (f, arg)
       | _ -> None
     ) in
 
@@ -425,7 +425,7 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
         let testf =
           let coq_env = Proof_context.env t in
           let inv_spec = Pair.map String.lowercase_ascii (List.map fst) inv_ty in
-          Proof_analysis.analyse coq_env lambda_env obs inv_spec reduced in
+          Proof_analysis.analyse coq_env lambda_env higher_order_functions obs inv_spec reduced in
         Some testf
       end
     ) observations
