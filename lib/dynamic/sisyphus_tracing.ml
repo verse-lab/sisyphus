@@ -1,3 +1,4 @@
+[@@@warning "-32"]
 module Wrap: sig
   type t
   val wrap: 'a -> t
@@ -47,6 +48,25 @@ end = struct
 
 end
 
+type expr = [
+    `Var of string
+  | `Bool of bool
+  | `Int of int
+  | `Tuple of expr list
+  | `App of string * expr list
+  | `Constructor of string * expr list
+]
+
+type opaque = ..
+
+module type ENCODEABLE = sig
+  type 'a t
+  val encode: ('a -> opaque) -> 'a t -> opaque
+  val reify: opaque -> expr
+  val pp: (Format.formatter -> 'a -> unit) -> Format.formatter -> opaque -> unit
+end
+
+
 type value = [
   | `Int of int
   | `Bool of bool
@@ -54,7 +74,9 @@ type value = [
   | `List of value list
   | `Tuple of value list
   | `Constructor of string * value list
+  (* | `Opaque of (module ENCODEABLE) * opaque *)
 ]
+
 
 type heaplet = [
     `PointsTo of value

@@ -80,14 +80,17 @@ let encode_constructor_n name args =
 let build_enc_fun v = 
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
   let tmp_var_id_count = ref 0 in
+  let fresh () =
+    let var_name = "__sisyphus_enc_fun_var_" ^ string_of_int !tmp_var_id_count in
+    incr tmp_var_id_count;
+    var_name in
   (* [fun f] builds a function whose body is f [var] where var is a fresh variable.
 
      Note: assumes user code doesn't use reserved variable __sisyphus_var_n for any n
      TODO: Check that this assumption holds in sanitisation *)
   let fun_ =
     fun f ->
-      let var_name = "__sisyphus_enc_fun_var_" ^ string_of_int !tmp_var_id_count in
-      incr tmp_var_id_count;
+      let var_name = fresh () in
       let var =  AH.Pat.var (str var_name) in
       let exp = AH.Exp.ident (str Longident.(Lident var_name)) in
       AH.Exp.fun_ AT.Nolabel None var (f exp) in
@@ -127,6 +130,21 @@ let build_enc_fun v =
                     ])
         ]
       )))
+    | Lang.Type.ADT ("option", [ty], _) ->
+      let+ ty_enc_fun = build_enc_fun ty in
+      let vl_var = fresh () in
+      Some (fun_ @@ fun v ->
+            AH.Exp.(match_ v [
+              case
+                (AH.Pat.construct (str Longident.(Lident "None")) None)
+                (variant "None" None);
+              case (AH.Pat.(construct (str Longident.(Lident "Some")) (Some (var (str vl_var)))))
+                (variant "Some"
+                   (Some (
+                      apply ty_enc_fun
+                      [Nolabel, (ident (str Longident.(Lident vl_var)))]))
+                )
+            ]))
     | Lang.Type.ADT (_adt, _tys, _) -> None
     | Lang.Type.Product tys ->
       let+ enc_funs = 
