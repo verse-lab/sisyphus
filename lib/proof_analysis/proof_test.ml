@@ -39,7 +39,6 @@ let build_test
         (AH.Pat.var Location.(mknoloc var))
         exp
     ] body in
-
   let build_binding_function args =
     let wrap arg =
       AH.Exp.apply
@@ -61,6 +60,12 @@ let build_test
     | (name, exp) :: t ->
       let+ rest = with_pure_bindings t in
       kont (let_ name (Proof_term_embedding.embed_value exp) rest)
+    | [] -> with_hof_bindings hofs kont
+  and with_hof_bindings ls kont =
+    match ls with
+    | (name, exp) :: t ->
+      let+ rest = with_hof_bindings t in
+      kont (let_ name exp rest)
     | [] -> with_heap_bindings heap kont
   and with_heap_bindings ls kont =
     match ls with
