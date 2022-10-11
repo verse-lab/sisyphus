@@ -609,6 +609,16 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       value_ty=Option.get_exn_or "found invalid type" ty;
       value=vl
     }
+  | Constr.App (trm, [| ty; _enc_ty; cond; pre; post; _code_tr; _code_fl; proof_tr; proof_fl |]) when PCFML.is_xifval_lemma trm ->
+    Log.debug (fun f -> f "found xif lemma");
+    let pre = extract_sym_heap env pre in
+    let if_true = reify_proof_term coq_env env proof_tr in
+    let if_false = reify_proof_term coq_env env proof_fl in
+    XIfVal {
+      pre;
+      if_true;
+      if_false
+    }
   | Constr.App (var, args) when Constr.isVar var ->
     let var = Constr.destVar var |> Names.Id.to_string in
     let args = Array.to_iter args

@@ -19,12 +19,10 @@ CLOCK: [2022-10-06 Thu 07:03]--[2022-10-06 Thu 07:30] =>  0:27
 :PROPERTIES:
 :Effort:   4:00
 :END:
-*** DONE Work out appropriate tactic for xif
-CLOSED: [2022-10-10 Mon 08:44]
-*** DONE Update symexec to handle if then else and if then constructs
-CLOSED: [2022-10-10 Mon 08:44]
-*** DONE Add handling for ref allocations
-CLOSED: [2022-10-10 Mon 08:54]
+*** TODO Add support for xif lemma in proof analysis
+:LOGBOOK:
+CLOCK: [2022-10-11 Tue 02:29]
+:END:
 *** TODO Hacker mode
 ** TODO Work on adding more examples
 :PROPERTIES:

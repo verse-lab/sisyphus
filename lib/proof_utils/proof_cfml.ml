@@ -22,6 +22,7 @@ let is_xseq_cont_lemma const = is_const_named "xseq_cont_lemma" const
 let is_xmatch_lemma const = is_const_named "xmatch_lemma" const
 let is_xapp_lemma const = is_const_named "xapp_lemma" const
 let is_xval_lemma const = is_const_named "xval_lemma" const
+let is_xifval_lemma const = is_const_named "xifval_lemma" const
 let is_xdone_lemma const = is_const_named "xdone_lemma" const
 let is_mkstruct_erase const = is_const_named "MkStruct_erase" const
 let is_himpl_hand_r const = is_const_named "himpl_hand_r" const

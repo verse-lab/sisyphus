@@ -59,6 +59,7 @@ type t =
       proof: t
     }
   | XMatch of {value: (expr * expr) list; pre: sym_heap; proof: t}
+  | XIfVal of { pre: sym_heap; if_true: t; if_false: t }
   | XApp of {
       application: string * expr list;
       pre: sym_heap;
@@ -105,3 +106,4 @@ let tag = function
   | CharacteristicFormulae _ -> "CharacteristicFormulae"
   | AccRect _ -> "AccRect"
   | Refl -> "Refl"
+  | XIfVal _ -> "XIfVal"

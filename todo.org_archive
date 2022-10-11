@@ -853,3 +853,33 @@ CLOSED: [2022-10-10 Mon 07:02]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Work out appropriate tactic for xif
+CLOSED: [2022-10-10 Mon 08:44]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-11 Tue 02:29
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update symexec to handle if then else and if then constructs
+CLOSED: [2022-10-10 Mon 08:44]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-11 Tue 02:29
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add handling for ref allocations
+CLOSED: [2022-10-10 Mon 08:54]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-11 Tue 02:29
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD/Work on array find map
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
