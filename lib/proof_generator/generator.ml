@@ -493,7 +493,7 @@ let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name 
       Proof_spec.Heap.Heaplet.(function
           PointsTo (v, _, `App ("CFML.WPArray.Array", _)) ->
           Lang.Type.List (Lang.Type.Var "A")
-        | PointsTo (v, _, `App ("Ref", _)) ->
+        | PointsTo (v, _, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), _)) ->
           Lang.Type.Var "A"
         | v ->
           Format.ksprintf ~f:failwith
