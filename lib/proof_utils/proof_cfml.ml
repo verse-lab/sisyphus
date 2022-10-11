@@ -147,6 +147,11 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `App ("=", [l;r])
   | Constr.Construct _, _ when Utils.is_constr_z0 c ->
     `Int 0
+  | Constr.Construct _ , _ when Utils.is_constr_bool_true c ->
+    `Constructor ("true", [ ])
+  | Constr.Construct _ , _ when Utils.is_constr_bool_false c ->
+    `Constructor ("false", [ ])
+
   | Constr.App (const, _), _ when Utils.is_constr_eq "Coq.Numbers.BinNums.Z" const ->
     `Int (Utils.extract_const_int c)
   | Constr.App (const, args), _ when Utils.is_constr_eq "Coq.Init.Datatypes.prod" const ->
