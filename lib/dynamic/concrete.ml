@@ -32,13 +32,15 @@ type heap_context = (string * heaplet) list
 let sanitise_context ctx = List.map (fun (name, vl) -> (name, sanitise_value vl)) ctx
 let sanitise_heap_context ctx = List.map (fun (name, vl) -> (name, sanitise_heaplet vl)) ctx
 
-type t = (context * heap_context) list IntMap.t
+type t = Parsetree.expression list * (context * heap_context) list IntMap.t
 
-let build (trace: Sisyphus_tracing.trace) : t =
+let build (args: Parsetree.expression list) (trace: Sisyphus_tracing.trace) : t =
+  let mapping =
   List.fold_left (fun map v ->
     IntMap.update v.Sisyphus_tracing.position
       (fun ls -> Some ((sanitise_context v.env, sanitise_heap_context v.heap) :: Option.value ~default:[] ls)) map
-  ) IntMap.empty trace
+    ) IntMap.empty trace in
+  args, mapping
 
-let lookup v pos =
+let lookup (_, v) pos =
   IntMap.find_opt pos v |> Option.value ~default:[]

@@ -672,4 +672,4 @@ let execution_trace env (deps2, prog2) =
   fun ?st () -> 
     let input = Generator.sample ?st schema in
     let trace2 = generate_trace env prog2 input in
-    trace2
+    input, trace2
