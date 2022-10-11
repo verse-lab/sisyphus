@@ -44,3 +44,5 @@ let build (args: Parsetree.expression list) (trace: Sisyphus_tracing.trace) : t 
 
 let lookup (_, v) pos =
   IntMap.find_opt pos v |> Option.value ~default:[]
+
+let args (args, _) = args

@@ -31,3 +31,7 @@ val build: Parsetree.expression list -> Sisyphus_tracing.trace -> t
 val lookup : t -> int -> (context * heap_context) list
 (** [lookup t point] retrieves the list of observed concrete values at
    a particular program point during an execution. *)
+
+val args: t -> Parsetree.expression list
+(** [args t] retrieves the list of arguments used to construct this
+   given trace. *)

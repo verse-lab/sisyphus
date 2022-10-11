@@ -9,6 +9,8 @@ type t = {
   (** mapping of proof vars (i.e [idx]) to their corresponding program variables.  *)
   logical_mappings: string StringMap.t;
   (** mapping of logical mappings of concrete values (i.e [s]) to their corresponding logical variables [l].  *)  
+  args: (string * Lang.Type.t) list;
+  (** full list of formal parameters to the function being evaluated *)
 }
 
 let pp_lambda fmt (id, `Lambda (args, program)) =
@@ -58,6 +60,7 @@ let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
     lambda=StringMap.empty;
     bindings;
     logical_mappings;
+    args;
   }
 
 let has_definition env v = StringMap.mem v env.lambda

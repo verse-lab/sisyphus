@@ -378,10 +378,17 @@ let reduce_term t term =
     specification from a partially reduced proof term of the lemma [f]
     applied to values of its arguments [args] at the current position
     in a concrete observation [obs] *)
-let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
+let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args ~concrete_args observations =
   Log.debug (fun f -> f "build_testing_function called on %s.\nProof context:\n%s"
                         (Names.Constant.to_string lemma_name)
                         (Proof_context.extract_proof_script t));
+  let concrete_args =
+    List.combine f_args concrete_args
+    |> List.filter_map (function
+      | ((`Var f, Lang.Type.Func _), arg) -> Some (f, arg)
+      | _ -> None
+    ) in
+
   let test_f =
     List.find_map Option.(fun obs ->
       let obs = Proof_env.normalize_observation env obs in
@@ -949,13 +956,15 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* collect an observation for the current program point *)
   let observations =
     let cp = t.Proof_context.concrete () in
-    Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
+    let concrete_args = Dynamic.Concrete.args cp in
+    let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
+    concrete_args, observations in
 
   (* build an initial test specification from the partially reduced proof term applied to values at the current position *)
   let test_f = build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
 
   (* generate initial invariants *)
-  let pure, heap = generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
+  let pure, heap = generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
 
   let () =
     let no_pure = List.length pure in
@@ -978,7 +987,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     let test_f =
       let cp = t.Proof_context.concrete () in
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
-      build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
+      let concrete_args = Dynamic.Concrete.args cp in
+      build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) in
     prune_candidates_using_testf test_f (pure,heap) in
 
   (* and again (50 ms) *)
@@ -986,7 +996,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     let test_f =
       let cp = t.Proof_context.concrete () in
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
-      build_testing_function t env  ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
+      let concrete_args = Dynamic.Concrete.args cp in
+      build_testing_function t env  ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) in
     prune_candidates_using_testf test_f (pure,heap) in
 
 
