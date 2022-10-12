@@ -443,20 +443,30 @@ let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name 
             let (pure, _) = Proof_env.normalize_observation env obs in
             Some (List.map fst pure |> StringSet.of_list)
           ) observations |> Option.get_or ~default:StringSet.empty in
-        let poly_vars, env = Proof_utils.CFML.extract_env (Proof_context.current_goal t).hyp in
-        List.filter (Pair.fst_map (Fun.flip StringSet.mem available_vars)) env in
+        let poly_vars, proof_env = Proof_utils.CFML.extract_env (Proof_context.current_goal t).hyp in
+        List.filter (fun (name, ty) ->
+          let is_concrete_var = StringSet.mem name available_vars in
+          let is_hof_fun = match ty with Lang.Type.Func (Some _) -> true | _ -> false in
+          is_concrete_var || is_hof_fun
+        ) proof_env in
       (* collect any variables that will be available to the invariant *)
       let invariant_vars = snd inv_ty in
       (* variables available to the generation are variables in the proof and from the invariant *)
       let vars = proof_vars @ invariant_vars in
       (* collect functions used in the current proof context *)
       let funcs =
+        (* generate initial function set from functions in the hypothesis *)
         Proof_utils.CFML.extract_assumptions (Proof_context.current_goal t).hyp
         |> List.fold_left (fun fns (ty,l,r) ->
           Lang.Expr.(functions (functions fns l) r)
         ) StringSet.empty
+        (* add in + and - for basic arithmetic operations *)
         |> StringSet.add "+"
         |> StringSet.add "-"
+        (* add in any hof functions in our proof env  *)
+        |> Fun.flip StringSet.add_iter
+             (List.to_iter proof_vars
+              |> Iter.filter_map (function (name, Lang.Type.Func (Some _)) -> Some name | _ -> None))
         |> StringSet.to_list in
       vars,funcs in
     let from_id, to_id =

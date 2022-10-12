@@ -32,6 +32,8 @@ let collect_spec_arg cs =
     let collect_heaplet cs = function
       | Heaplet.PointsTo (_, _, e) ->  collect_expr cs e in
     List.fold_left collect_heaplet cs (Assertion.sigma asn)
+    |> Fun.flip (List.fold_left collect_expr) (Assertion.phi asn)
+
   | `Hole -> failwith "holes not supported"
 
 let collect_constants from_id to_id (steps: Proof_spec.Script.step list) =

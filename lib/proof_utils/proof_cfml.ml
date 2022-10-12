@@ -533,8 +533,9 @@ let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
       check_or_fail "variable" Constr.isVar var
       |> Constr.destVar |> Names.Id.to_string in
     let ty = extract_typ ty in
-    let body = extract_expr body in
-    PointsTo (var, Some ty, body)
+    let body' = extract_expr body in
+    Log.debug (fun f -> f "extracting %s ==> %a" (Proof_debug.constr_to_string body) Lang.Expr.pp body');
+    PointsTo (var, Some ty, body')
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a heaplet"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
