@@ -963,15 +963,6 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* extract the arguments applied to the function call *)
   let (_, f_args) = Proof_utils.CFML.extract_app_full post in
 
-  (* extract vars mutated by HOF *)
-  let mut_vars =
-    let _,  `Lambda (_, hof_body)  =
-      List.find_map (function
-        | `Var v -> StringMap.find_opt v env.lambda
-        | _ -> None) prog_args
-      |> Option.get_exn_or "invalid assumption: no body found for function" in
-    Program_utils.mut_vars hof_body in
-
   (* for now we only handle lemmas with a single higher order invariant *)
   ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
 
@@ -981,7 +972,6 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       (match pre with | `Empty -> [] | `NonEmpty ls -> ls) in
 
   let inv_ty = calculate_inv_ty t ~f:lemma_name ~args:f_args in
-
 
   (* collect an observation for the current program point *)
   let observations =
@@ -993,9 +983,22 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* build an initial test specification from the partially reduced proof term applied to values at the current position *)
   let test_f = build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
 
+  (* retrieve the body of the higher order function being called *)
+  let fun_body =
+    List.find_map (function
+      | `Var v -> StringMap.find_opt v env.lambda
+      | _ -> None) prog_args
+    |> Option.map snd
+    |> Option.get_exn_or "could not find function definition" in
+
+  (* extract vars mutated by HOF *)
+  let mut_vars =
+    Program_utils.mutated_vars fun_body in
 
   (* generate initial invariants *)
-  let pure, heap = generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
+  let pure, heap =
+    generate_candidate_invariants t env
+      ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
 
   let () =
     let no_pure = List.length pure in
