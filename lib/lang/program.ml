@@ -6,7 +6,10 @@ type 'a stmt = [
   | `LetLambda of string * [ `Lambda of Expr.typed_param list * 'a stmt ] * 'a stmt
   | `Match of 'a Expr.simple_shape * (string * (string * Type.t) list * 'a stmt) list
   | `Write of string * string * 'a Expr.simple_shape * 'a stmt
+  | `AssignRef of string * 'a Expr.simple_shape * 'a stmt
   | `Value of 'a Expr.simple_shape
+  | `IfThenElse of 'a Expr.simple_shape * 'a stmt * 'a stmt
+  | `IfThen of 'a Expr.simple_shape * 'a stmt * 'a stmt
   | `EmptyArray
 ] [@@deriving show, eq][@@end]
 let ppr_stmt = pp_stmt
@@ -44,11 +47,22 @@ let lookup_statement (id: Id.t) prog =
     | _ as v when pos = id -> Ok v
     | `EmptyArray | `Value _ -> Error (Id.incr pos)
     | `Write (_, _, _, rest) -> loop (Id.incr pos) rest
+    | `AssignRef (_, _, rest) -> loop (Id.incr pos) rest
     | `LetExp (_, _, _, rest) -> loop (Id.incr pos) rest
     | `LetLambda (_, `Lambda (_, lambody), rest) ->
       begin match loop pos lambody with
       | Ok v -> Ok v
       | Error pos -> loop pos rest
+      end
+    | `IfThenElse (_, l, r) ->
+      begin match loop (Id.incr pos) l with
+      | Ok v -> Ok v
+      | Error pos -> loop (Id.incr pos) r
+      end
+    | `IfThen (_, l, r) ->
+      begin match loop (Id.incr pos) l with
+      | Ok v -> Ok v
+      | Error pos -> loop (Id.incr pos) r
       end
     | `Match (_, cases) ->
       let rec fold pos (cases: (string * (string * Type.t) list * 'a stmt) list) =
@@ -77,6 +91,18 @@ let rec print_stmt print_expr : 'a stmt -> _ =
   | `Write (into, offset, vl, rest) ->
     group (string into ^^ string "." ^^ parens (string offset) ^/^ string "<-" ^/^ align (print_expr vl) ^^ string ";" ) ^/^
     group (align (print_stmt print_expr rest))
+  | `AssignRef (into, vl, rest) ->
+    group (string into ^/^ string ":=" ^/^ align (print_expr vl) ^^ string ";" ) ^/^
+    group (align (print_stmt print_expr rest))
+
+  | `IfThenElse (cond, l, r) ->
+    group (group (string "if" ^/^ print_expr cond)  ^/^
+           group (string "then" ^/^ print_stmt print_expr l) ^/^
+           group (string "else" ^/^ print_stmt print_expr r))
+  | `IfThen (cond, l, r) ->
+    group (group (group (string "if" ^/^ print_expr cond)  ^/^
+                  group (string "then" ^/^ print_stmt print_expr l)) ^^ string ";"  ^/^ 
+           print_stmt print_expr r)
   | `EmptyArray -> string "[| |]"
   | `Value v -> group (print_expr v)
 
@@ -112,6 +138,12 @@ let print_stmt_line print_expr : 'a stmt -> _ =
     group (string "match" ^/^ align (print_expr exp) ^/^ string "with")
   | `Write (into, offset, vl, _) ->
     group (string into ^^ string "." ^^ parens (string offset) ^/^ string "<-" ^/^ align (print_expr vl) ^^ string ";" )
+  | `AssignRef (into, vl, _) ->
+    group (string into ^/^ string ":=" ^/^  align (print_expr vl) ^^ string ";" )
+  | `IfThenElse (cond, _, _) ->
+    group (string "if" ^/^ print_expr cond ^/^ string "then" ^/^ string "..." ^/^ string "else"  ^/^ string "...")
+  | `IfThen (cond, _, _) ->
+    group (string "if" ^/^ print_expr cond ^/^ string "then" ^/^ string "...")
   | `EmptyArray -> string "[| |]"
   | `Value v -> group (print_expr v)
 

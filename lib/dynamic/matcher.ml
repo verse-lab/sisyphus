@@ -30,6 +30,7 @@ let value_size (vl: Runtime.value) =
     | `List vl -> List.length vl
     | `Tuple vl -> List.length vl
     | `Int _ -> 1
+    | `Bool _ -> 1
     | `Value _ -> 5
     | `Constructor (_, vl) -> List.length vl
 

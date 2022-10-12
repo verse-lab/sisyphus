@@ -10,8 +10,11 @@ let is_pure (prog: [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Pr
     | `LetLambda (_, `Lambda (_, body), rest) ->
       loop body && loop rest
     | `EmptyArray -> true
+    | `AssignRef _ | `IfThen _ -> false
     | `Write _ -> false
     | `Value _ -> true
-    | `LetExp (_, _, _, rest) -> loop rest in
+    | `LetExp (_, _, _, rest) -> loop rest
+    | `IfThenElse (_, l, r) -> loop l && loop r
+  in
   match prog with
   | `Lambda (_, body) -> loop body

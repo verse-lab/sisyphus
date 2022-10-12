@@ -11,7 +11,9 @@ let () = T.add_test "verify_make_rev_list_old can be parsed without error" (fun 
 
   print_endline proof;
   let ctx = Coq.Proof.make [
-    Coq.Coqlib.make ~path:(Fpath.of_string "../../resources/make_rev_list" |> Result.get_exn) "ProofsMakeRevList"
+    Coq.Coqlib.make ~path:(Fpath.of_string "../../resources/make_rev_list" |> Result.get_exn) "ProofsMakeRevList";
+    Coq.Coqlib.make ~path:(Fpath.of_string "../../resources/common" |> Result.get_exn) "Common";
+    
   ] in
   let _ = Proof_parser.Parser.parse ctx proof in
  

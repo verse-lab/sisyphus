@@ -93,6 +93,14 @@ let env {ctx; _} =
   | Some v -> v
   | None -> failwith "unable to obtain proof env - serapi returned None."
 
+let typeof_opt t expr =
+  let no_hyps = List.length (current_goal t).hyp in
+  append t "pose proof (%s)." expr;
+  if List.length (current_goal t).hyp <= no_hyps
+  then (cancel_last t; None)
+  else let (_, _, ty) = List.hd (current_goal t).hyp in let module Ctx = (val t.ctx) in (cancel_last t; Some ty)
+
+
 let typeof t expr =
   let no_hyps = List.length (current_goal t).hyp in
   append t "pose proof (%s)." expr;

@@ -4,7 +4,7 @@
  (preprocess (staged_pps ppx_blob ppx_deriving.std ppx_deriving.ord ppx_import))
  (preprocessor_deps (file sisyphus_tracing.ml))
  (libraries
-   lang
+   lang configuration
    sisyphus_tracing
    bos
    containers iter

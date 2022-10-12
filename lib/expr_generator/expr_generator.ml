@@ -1,5 +1,7 @@
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"An Expression Generator" "expr-gen"))
+
 module Types = Types
 
 type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
@@ -94,6 +96,7 @@ let flat_mapM f l kont =
 let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env proof_script =
   (* collect consts, functions and patterns from old proof script. *)
   let consts, old_funcs = Collector.collect_consts_and_funcs ~from_id ~to_id ~env proof_script in
+
   let pats = Collector.collect_pats ~from_id ~to_id ~env proof_script in
   (*  update consts with variables *)
   let consts =

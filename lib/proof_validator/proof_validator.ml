@@ -150,9 +150,10 @@ let build_validator (data: VerificationCondition.verification_condition) =
     List.map Fun.(Pair.dup_map @@ Z3.Sort.mk_uninterpreted ctx % Z3.Symbol.mk_string ctx) data.poly_vars
     |> Hashtbl.of_list in
   let int_sort = Z3.Arithmetic.Integer.mk_sort ctx in
+  let bool_sort = Z3.Boolean.mk_sort ctx in
   let unit_sort = Z3.Sort.mk_uninterpreted ctx (Z3.Symbol.mk_string ctx "unit") in
 
-  let ctx = Evaluator.{ctx; solver; int_sort; poly_var_map;
+  let ctx = Evaluator.{ctx; solver; bool_sort; int_sort; poly_var_map;
                        unit_sort;
                        type_map=Hashtbl.create 10;
                        fun_map=Hashtbl.create 10;

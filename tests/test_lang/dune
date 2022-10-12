@@ -1,6 +1,9 @@
-(tests (names test_make_rev_list)
+(tests (names test_make_rev_list test_array_find_mapi)
  (deps
    ../../resources/make_rev_list/make_rev_list_old.ml
    ../../resources/make_rev_list/make_rev_list_new.ml
+   ../../resources/find_mapi/find_mapi_old.ml
+   ../../resources/find_mapi/find_mapi_new.ml
  )
  (libraries lang alcotest containers testing_utils))
+

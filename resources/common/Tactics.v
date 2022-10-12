@@ -133,3 +133,12 @@ Tactic Notation "xletopaque"
 
 Tactic Notation "xvalemptyarr" :=
   xapp; xsimpl.
+
+Tactic Notation "xif" "as" simple_intropattern(Hcond)  :=
+  let cond_var := fresh Hcond in
+  let var := fresh Hcond in
+  let Hvar := fresh Hcond in
+  xlet as;=> var Hvar;
+  xif;=> cond_var;
+  rewrite Hvar,istrue_isTrue_eq in cond_var;
+  clear Hvar var.

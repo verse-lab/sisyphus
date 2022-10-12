@@ -1,5 +1,6 @@
 type value = [
   | `Int of int
+  | `Bool of bool
   | `Value of string
   | `List of value list
   | `Tuple of value list
@@ -23,10 +24,14 @@ type t
 (** Represents an abstract encoding of a collection of observations of
    concrete values of program variables during an execution. *)
 
-val build: Sisyphus_tracing.trace -> t
-(** [build trace] extracts a collection of observations of concrete
-   values from an execution trace. *)
+val build: Parsetree.expression list -> Sisyphus_tracing.trace -> t
+(** [build args trace] extracts a collection of observations of concrete
+   values from an execution trace and the args that were used to create it. *)
 
 val lookup : t -> int -> (context * heap_context) list
 (** [lookup t point] retrieves the list of observed concrete values at
    a particular program point during an execution. *)
+
+val args: t -> Parsetree.expression list
+(** [args t] retrieves the list of arguments used to construct this
+   given trace. *)

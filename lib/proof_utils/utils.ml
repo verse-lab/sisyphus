@@ -51,6 +51,22 @@ let is_constr_unit fn =
   is_constr_eq "Coq.Init.Datatypes.unit" fn
   && (Constr.destConstruct fn |> fst |> snd) = 1
 
+let is_constr_option_some fn =
+  is_constr_eq "Coq.Init.Datatypes.option" fn
+  && (Constr.destConstruct fn |> fst |> snd) = 1
+
+let is_constr_option_none fn =
+  is_constr_eq "Coq.Init.Datatypes.option" fn
+  && (Constr.destConstruct fn |> fst |> snd) = 2
+
+let is_constr_bool_true fn =
+  is_constr_eq "Coq.Init.Datatypes.bool" fn
+  && (Constr.destConstruct fn |> fst |> snd) = 1
+
+let is_constr_bool_false fn =
+  is_constr_eq "Coq.Init.Datatypes.bool" fn
+  && (Constr.destConstruct fn |> fst |> snd) = 2
+
 
 let is_constr_z0 fn =
   is_constr_eq "Coq.Numbers.BinNums.Z" fn
@@ -75,6 +91,26 @@ let is_constr_pos_x1 fn =
 let is_constr_pos_xh fn =
   is_constr_eq "Coq.Numbers.BinNums.positive" fn
   && (Constr.destConstruct fn |> fst |> snd) = 3
+
+(** [is_eq_refl trm] determines if the proof term [trm] is an instance
+   of an eq-refl proof.  *)
+let is_eq_refl trm =
+  Constr.isApp trm && begin
+    let fn, args = Constr.destApp trm in
+    Array.length args = 2 &&
+    is_constr_eq "Coq.Init.Logic.eq" fn
+    && (Constr.destConstruct fn |> fst |> snd) = 1
+end
+
+(** [is_case_bool trm] determines if the proof term [trm] is a case on boolean values.  *)
+let is_case_bool trm =
+  Constr.isCase trm && begin
+    let (info, _, case_args, _, _, vl, cases) = Constr.destCase trm in
+    Array.length case_args = 0 &&
+    Array.length cases = 2 &&
+    String.equal (Names.MutInd.to_string (fst info.ci_ind)) "Coq.Init.Datatypes.bool"
+end
+
 
 (** [extract_const_int c] converts a Coq representation of a constant integer to an OCaml integer  *)
 let extract_const_int (c: Constr.t) : int =

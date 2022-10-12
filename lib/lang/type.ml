@@ -5,7 +5,8 @@ type t =
   | Unit
   | Var of string
   | Int
-  | Func
+  | Bool
+  | Func of (t list * t) option (* optionally include the internal parameters *)
   | Loc
   | List of t
   | Array of t
@@ -35,7 +36,10 @@ let rec print =
   | Unit -> string "unit"
   | Var v -> string v
   | Int -> string "int"
-  | Func -> string "func"
+  | Bool -> string "bool"
+  | Func None -> string "func"
+  | Func (Some (args,res)) ->
+    group (string "func" ^^ group (parens (separate_map (blank 1 ^^ string "->" ^^ break 1) print args ^/^ string "->" ^/^ print res)))
   | Loc -> string "loc"
   | Ref t -> align @@  group (print t ^^ blank 1 ^^ string "ref")
   | Array t -> align @@  group (print t ^^ blank 1 ^^ string "array")

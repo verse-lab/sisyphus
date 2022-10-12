@@ -3,6 +3,13 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
+Lemma negb_eq_neg (b: bool):
+  negb b = ! b.
+Proof.
+  case b; simpl; auto.
+Qed.
+
+
 Fixpoint findi (A: Type) (i: int) (f: int -> A -> bool) (ls: list A) : option (int * A) :=
   match ls with
   | nil => None
@@ -68,6 +75,48 @@ Proof.
     case_eq (f a); intros; simpl. try inversion H0; auto.
     rewrite IHl1; auto.
 Qed.
+
+Fixpoint find_mapi (A: Type) (B: Type) (i: int)
+  (f: int -> A -> option B) (ls: list A) : option B :=
+  match ls with
+  | nil => None
+  | h :: t =>
+      match f i h with
+      | Some v => Some v
+      | None => find_mapi (i + 1) f t
+      end
+  end.
+
+Lemma find_mapi_singleton (A: Type) (B: Type) (f: int -> A -> option B) (i: int) (x: A):
+  find_mapi i f (x :: nil) = f i x.
+Proof.
+  simpl.
+  case (f i x); auto.
+Qed.
+
+Lemma find_mapi_app_r (A: Type) (B: Type) i (f: int -> A -> option B) l1 l2:
+  find_mapi i f l1 = None ->
+  (find_mapi i f (l1 ++ l2)) = find_mapi (i + length l1) f l2.
+Proof.
+  gen i l2; induction l1.
+  - intros i l2; simpl; rew_list; auto; intros _; repeat f_equal; math.
+  - intros i l2; rew_list; simpl.
+    case_eq (f i a); intros; simpl; try inversion H0.
+    rewrite IHl1; auto.
+    f_equal; try math.
+Qed.
+
+Lemma find_mapi_app_l (A: Type) (B: Type) i (f: int -> A -> option B) l1 l2:
+  is_some (find_mapi i f l1) ->
+  (find_mapi i f (l1 ++ l2)) = find_mapi i f l1.
+Proof.
+  gen i l2; induction l1.
+  - intros i l2; simpl; rew_list; intros Hf. inversion Hf.
+  - intros i l2; rew_list; simpl.
+    case_eq (f i a); intros; simpl. try inversion H0; auto.
+    rewrite IHl1; auto.
+Qed.
+
 
 Fixpoint find_map (A: Type) (B: Type) (f: A -> option B) (ls: list A) : option (B) :=
   match ls with
@@ -366,3 +415,4 @@ Proof.
   - rewrite If_r; auto.
   - rewrite If_l; auto.
 Qed.
+

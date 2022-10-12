@@ -8,9 +8,10 @@ type def_map = [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Progra
 type ty = Lang.Type.t
 let rec pp_ty fmt : Lang.Type.t -> unit = function
   | Lang.Type.Unit -> Format.pp_print_string fmt "Lang.Type.Unit"
+  | Lang.Type.Bool -> Format.pp_print_string fmt "Lang.Type.Bool"
   | Lang.Type.Var v -> Format.fprintf fmt "Lang.Type.Var \"%s\"" v
   | Lang.Type.Int -> Format.pp_print_string fmt "Lang.Type.Int"
-  | Lang.Type.Func -> Format.pp_print_string fmt "Lang.Type.Func"
+  | Lang.Type.Func _ -> Format.pp_print_string fmt "Lang.Type.Func"
   | Lang.Type.Loc -> Format.pp_print_string fmt "Lang.Type.Loc"
   | Lang.Type.List t -> Format.fprintf fmt "Lang.Type.List (%a)" pp_ty t
   | Lang.Type.Array t -> Format.fprintf fmt "Lang.Type.Array (%a)" pp_ty t

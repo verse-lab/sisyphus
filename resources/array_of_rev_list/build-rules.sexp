@@ -11,7 +11,8 @@
 ../common/Verify_combinators.vo
 ../common/Verify_list.vo
 ../common/Verify_opt.vo
-../common/Verify_sseq.vo)
+../common/Verify_sseq.vo
+../common/Verify_vec.vo)
  (action (run touch Dummy.v)))
 
 
@@ -32,7 +33,11 @@
 ../common/combinators.ml
 ../common/lst.ml
 ../common/opt.ml
-../common/sseq.ml)
+../common/sseq.ml ../common/arr.cmj
+../common/combinators.cmj
+../common/lst.cmj
+../common/opt.cmj
+../common/sseq.cmj)
  (action (run cfmlc -I ../common -o ./Array_of_rev_list_new_ml.v array_of_rev_list_new.sisyphus.ml)))
 
 (rule
@@ -51,7 +56,11 @@
 ../common/combinators.ml
 ../common/lst.ml
 ../common/opt.ml
-../common/sseq.ml)
+../common/sseq.ml ../common/arr.cmj
+../common/combinators.cmj
+../common/lst.cmj
+../common/opt.cmj
+../common/sseq.cmj)
  (action (run cfmlc -I ../common -o ./Array_of_rev_list_old_ml.v array_of_rev_list_old.sisyphus.ml)))
 
 (rule
@@ -70,5 +79,9 @@
 ../common/combinators.ml
 ../common/lst.ml
 ../common/opt.ml
-../common/sseq.ml)
+../common/sseq.ml ../common/arr.cmj
+../common/combinators.cmj
+../common/lst.cmj
+../common/opt.cmj
+../common/sseq.cmj)
  (action (run cfmlc -I ../common -o ./Common_ml.v common.sisyphus.ml)))

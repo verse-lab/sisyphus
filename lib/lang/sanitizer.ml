@@ -23,7 +23,8 @@ let lident (ident: Longident.t) =
 let rec convert_typ (ty: Parsetree.core_type) : Type.t =
   match ty.ptyp_desc with
   | Parsetree.Ptyp_var v -> Var ("'" ^ v)
-  | Parsetree.Ptyp_arrow (_, _, _) -> Func
+  | Parsetree.Ptyp_arrow (_, t1, t2) ->
+    Func (Some (convert_fun_ty [convert_typ t1] t2))
   | Parsetree.Ptyp_tuple tys -> Product (List.map convert_typ tys)
   | Parsetree.Ptyp_constr ({txt=Lident "list"}, [ty]) ->
     List (convert_typ ty)
@@ -33,6 +34,8 @@ let rec convert_typ (ty: Parsetree.core_type) : Type.t =
     Ref (convert_typ ty)
   | Parsetree.Ptyp_constr ({txt=Lident "int"}, []) ->
     Int
+  | Parsetree.Ptyp_constr ({txt=Lident "bool"}, []) ->
+    Bool
   | Parsetree.Ptyp_constr ({txt=Lident user}, ity) ->
     let conv =
       List.find_map (fun (attr: Parsetree.attribute) ->
@@ -53,9 +56,16 @@ let rec convert_typ (ty: Parsetree.core_type) : Type.t =
   | _ ->
     failwith @@ Format.sprintf "unsupported type %a"
                   Pprintast.core_type ty
+and convert_fun_ty acc (ty: Parsetree.core_type) =
+  match ty.ptyp_desc with
+  | Parsetree.Ptyp_arrow (_, t1, t2) ->
+    convert_fun_ty (convert_typ t1 :: acc) t2
+  | _ -> List.rev acc, convert_typ ty
 
 let rec convert_pat (pat: Parsetree.pattern) : Expr.typed_param =
   match pat with
+  | { ppat_desc=Ppat_constraint ({ppat_desc=Ppat_any}, ty);  } ->
+    `Var ("unused", convert_typ ty)
   | { ppat_desc=Ppat_constraint ({ppat_desc=Ppat_var {txt;_}}, ty);  } ->
     `Var (txt, convert_typ ty)
   | {ppat_desc=Ppat_tuple pats} ->
@@ -70,6 +80,27 @@ let rec convert_pat (pat: Parsetree.pattern) : Expr.typed_param =
 let add_pat_args set = function
   | `Var (t, _) -> StringSet.add t set
   | `Tuple args -> List.fold_left (fun set (v, _) -> StringSet.add v set) set args
+
+let pexp_tag: Parsetree.expression_desc -> string = function
+  | Parsetree.Pexp_ident _ -> "Pexp_ident" | Parsetree.Pexp_constant _ -> "Pexp_constant"
+  | Parsetree.Pexp_let (_, _, _) -> "Pexp_let" | Parsetree.Pexp_function _ -> "Pexp_function"
+  | Parsetree.Pexp_fun (_, _, _, _) -> "Pexp_fun" | Parsetree.Pexp_apply (_, _) -> "Pexp_apply"
+  | Parsetree.Pexp_match (_, _) -> "Pexp_match" | Parsetree.Pexp_try (_, _) -> "Pexp_try"
+  | Parsetree.Pexp_tuple _ -> "Pexp_tuple" | Parsetree.Pexp_construct (_, _) -> "Pexp_construct"
+  | Parsetree.Pexp_variant (_, _) -> "Pexp_variant" | Parsetree.Pexp_record (_, _) -> "Pexp_record"
+  | Parsetree.Pexp_field (_, _) -> "Pexp_field" | Parsetree.Pexp_setfield (_, _, _) -> "Pexp_setfield"
+  | Parsetree.Pexp_array _ -> "Pexp_array" | Parsetree.Pexp_ifthenelse (_, _, _) -> "Pexp_ifthenelse"
+  | Parsetree.Pexp_sequence (_, _) -> "Pexp_sequence" | Parsetree.Pexp_while (_, _) -> "Pexp_while"
+  | Parsetree.Pexp_for (_, _, _, _, _) -> "Pexp_for" | Parsetree.Pexp_constraint (_, _) -> "Pexp_constraint"
+  | Parsetree.Pexp_coerce (_, _, _) -> "Pexp_coerce" | Parsetree.Pexp_send (_, _) -> "Pexp_send"
+  | Parsetree.Pexp_new _ -> "Pexp_new" | Parsetree.Pexp_setinstvar (_, _) -> "Pexp_setinstvar"
+  | Parsetree.Pexp_override _ -> "Pexp_override" | Parsetree.Pexp_letmodule (_, _, _) -> "Pexp_letmodule"
+  | Parsetree.Pexp_letexception (_, _) -> "Pexp_letexception" | Parsetree.Pexp_assert _ -> "Pexp_assert"
+  | Parsetree.Pexp_lazy _ -> "Pexp_lazy" | Parsetree.Pexp_poly (_, _) -> "Pexp_poly"
+  | Parsetree.Pexp_object _ -> "Pexp_object" | Parsetree.Pexp_newtype (_, _) -> "Pexp_newtype"
+  | Parsetree.Pexp_pack _ -> "Pexp_pack" | Parsetree.Pexp_open (_, _) -> "Pexp_open"
+  | Parsetree.Pexp_letop _ -> "Pexp_letop" | Parsetree.Pexp_extension _ -> "Pexp_extension"
+  | Parsetree.Pexp_unreachable -> "Pexp_unreachable"
 
 let rec convert_expr (expr: Parsetree.expression) : Expr.t =
   match expr with
@@ -95,7 +126,7 @@ let rec convert_expr (expr: Parsetree.expression) : Expr.t =
         let body = convert_expr body in
         `Lambda (List.rev acc, body) in
     collect_params [] e
-  | e -> failwith (Format.sprintf "unsupported ast %a" Pprintast.expression e)
+  | e -> failwith (Format.sprintf "unsupported ast %a[%s]" Pprintast.expression e (pexp_tag e.pexp_desc))
 
 let fresh_var ?(hint="tmp") ctx =
   let rec loop i =
@@ -182,6 +213,22 @@ let rec convert_stmt (ctx: StringSet.t) (expr: Parsetree.expression) : _ Program
     let vl = convert_expr vl in
     let rest = convert_stmt ctx rest in
     `Write (arr, i, vl, rest)
+  | {pexp_desc=Pexp_sequence ({pexp_desc=Pexp_apply ({pexp_desc=Pexp_ident {txt=(Lident ":=")}},
+                                                     Parsetree.[_, {pexp_desc=Pexp_ident {txt=Lident rf}};
+                                                                _, vl])},rest)} ->
+    let vl = convert_expr vl in
+    let rest = convert_stmt ctx rest in
+    `AssignRef (rf, vl, rest)
+  | {pexp_desc=Pexp_ifthenelse (cond, l, Some r)} ->
+    let cond = convert_expr cond in
+    let l = convert_stmt ctx l in
+    let r = convert_stmt ctx r in
+    `IfThenElse (cond, l, r)
+  | {pexp_desc=Pexp_sequence ({pexp_desc=Pexp_ifthenelse (cond, l, None)}, rest)} ->
+    let cond = convert_expr cond in
+    let l = convert_stmt ctx l in
+    let rest = convert_stmt ctx rest in
+    `IfThen (cond, l, rest)
   | e -> `Value (convert_expr e)
 and convert_case ctx : Parsetree.case -> _ = function
   | {pc_lhs; pc_rhs} ->

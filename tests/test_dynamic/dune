@@ -1,6 +1,20 @@
-(tests (names test_make_rev_list)
- (deps ../../resources/make_rev_list/make_rev_list_old.ml
-       ../../resources/make_rev_list/make_rev_list_new.ml
+(tests (names test_make_rev_list test_array_find_mapi)
+ (deps
+   ../../resources/make_rev_list/make_rev_list_old.ml
+   ../../resources/make_rev_list/make_rev_list_new.ml
+
+   ../../resources/find_mapi/find_mapi_old.ml
+   ../../resources/find_mapi/find_mapi_new.ml
+
+   ../../resources/common/arr.ml
+   ../../resources/common/combinators.ml
+   ../../resources/common/lst.ml
+   ../../resources/common/opt.ml
+   ../../resources/common/sll.ml
+   ../../resources/common/sseq.ml
+   ../../resources/common/tree.ml
+   ../../resources/common/vec.ml
+
  )
   (preprocess (pps ppx_deriving.show))
  (libraries dynamic lang alcotest containers testing_utils))

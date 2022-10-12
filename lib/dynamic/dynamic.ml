@@ -28,5 +28,5 @@ let build_concrete_trace ?compilation_env ~deps program =
   let build_trace = Tracer.execution_trace compilation_env (deps, program) in
   let st = Random.get_state () in
   fun () ->
-    let trace = build_trace ~st () in
-    Concrete.build trace
+    let args, trace = build_trace ~st () in
+    Concrete.build args trace

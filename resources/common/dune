@@ -1,5 +1,6 @@
 (library
  (name common)
+ (public_name sisyphus.common)
  (wrapped false))
 
 (coq.theory
@@ -19,42 +20,42 @@
    Utils Tactics))
 
 (rule
- (target Opt_ml.v)
+ (targets Opt_ml.v opt.cmj)
  (deps opt.ml)
  (action (run cfmlc -o ./Opt_ml.v opt.ml)))
 
 (rule
- (target Arr_ml.v)
+ (targets Arr_ml.v arr.cmj)
  (deps arr.ml)
  (action (run cfmlc -o ./Arr_ml.v arr.ml)))
 
 (rule
- (target Combinators_ml.v)
+ (targets Combinators_ml.v combinators.cmj)
  (deps combinators.ml)
  (action (run cfmlc -o ./Combinators_ml.v combinators.ml)))
 
 (rule
- (target Lst_ml.v)
+ (targets Lst_ml.v lst.cmj)
  (deps lst.ml)
  (action (run cfmlc -o ./Lst_ml.v lst.ml)))
 
 (rule
- (targets Sseq_ml.v)
+ (targets Sseq_ml.v sseq.cmj)
  (deps sseq.ml)
  (action (run cfmlc -o ./Sseq_ml.v sseq.ml)))
 
 (rule
- (target Sll_ml.v)
+ (targets Sll_ml.v sll.cmj)
  (deps sll.ml)
  (action (run cfmlc -o ./Sll_ml.v sll.ml)))
 
 (rule
- (target Tree_ml.v)
+ (targets Tree_ml.v tree.cmj)
  (deps tree.ml)
  (action (run cfmlc -o ./Tree_ml.v tree.ml)))
 
 (rule
- (targets Vec_ml.v)
+ (targets Vec_ml.v vec.cmj)
  (deps vec.ml)
  (action (run cfmlc -o ./Vec_ml.v vec.ml)))
 

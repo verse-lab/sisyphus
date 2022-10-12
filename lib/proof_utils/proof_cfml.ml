@@ -1,5 +1,7 @@
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Utilities for working with proofs" "pr.utils.debug"))
+
 module IntSet = Set.Make(Int)
 
 let is_const_named name const =
@@ -22,10 +24,13 @@ let is_xseq_cont_lemma const = is_const_named "xseq_cont_lemma" const
 let is_xmatch_lemma const = is_const_named "xmatch_lemma" const
 let is_xapp_lemma const = is_const_named "xapp_lemma" const
 let is_xval_lemma const = is_const_named "xval_lemma" const
+let is_xifval_lemma const = is_const_named "xifval_lemma" const
 let is_xdone_lemma const = is_const_named "xdone_lemma" const
 let is_mkstruct_erase const = is_const_named "MkStruct_erase" const
 let is_himpl_hand_r const = is_const_named "himpl_hand_r" const
 let is_himpl_hexists_r const = is_const_named "himpl_hexists_r" const
+let is_himpl_hexists_l const = is_const_named "himpl_hexists_l" const
+let is_hstars_simpl_keep const = is_const_named "hstars_simpl_keep" const
 let is_himpl_frame_r const = is_const_named "himpl_frame_r" const
 let is_himpl_hempty_pure const = is_const_named "himpl_hempty_hpure" const
 let is_xsimpl_start const = is_const_named "xsimpl_start" const
@@ -53,6 +58,7 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
       match Names.MutInd.to_string name with
       | "Coq.Numbers.BinNums.Z" -> Int
       | "CFML.Semantics.val" -> Val
+      | "Coq.Init.Datatypes.bool" -> Bool
       | "Coq.Init.Datatypes.nat" -> Int
       | "Coq.Init.Datatypes.unit" -> Unit
       | _ -> Format.ksprintf ~f:failwith "found unknown type %s" (Names.MutInd.to_string name)
@@ -63,12 +69,25 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
     Array (extract_typ ?rel ty)
   | Constr.App (fname, args), _ when Utils.is_ind_eq "Coq.Init.Datatypes.prod" fname ->
     Product (Array.to_iter args |> Iter.map (extract_typ ?rel) |> Iter.to_list)
+  | Constr.App (fname, [| ty |]), _ when Utils.is_ind_eq "Coq.Init.Datatypes.option" fname ->
+    ADT ("option", [extract_typ ?rel ty], None)
   | Constr.Var name, _ -> Var (Names.Id.to_string name)
   | Constr.Const _, _ when Utils.is_const_eq "CFML.Semantics.loc" c -> Loc
-  | Constr.Const _, _ when Utils.is_const_eq "CFML.WPBuiltin.func" c -> Func
+  | Constr.Const _, _ when Utils.is_const_eq "CFML.WPBuiltin.func" c -> Func None
   | Constr.Const _, _ when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hprop" c ->
     Var "HPROP"
   | Constr.Rel i, Some f -> f i
+  | Constr.Prod (_, _, _), _ ->
+    let rec loop acc t =
+      let rel = match rel with None -> None | Some f -> Some (fun ind -> f (ind - List.length acc))in
+      match Constr.kind t with
+      | Constr.Prod (_, arg, rest) ->
+        let arg = extract_typ ?rel arg in
+        loop (arg :: acc) rest
+      | _ ->
+        let res = extract_typ ?rel t in
+        Lang.Type.Func (Some (List.rev acc, res)) in
+    loop [] c
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a type"
       (Proof_debug.constr_to_string c)
@@ -123,19 +142,56 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
   | Constr.Cast (c, _, _), _ -> extract_expr ?rel c
   | Constr.Rel ind, Some f -> `Var (f ind)
   | Constr.Var v, _ -> `Var (Names.Id.to_string v)
+  | Constr.App (value, [| c |]), _ when Utils.is_const_eq "TLC.LibReflect.istrue" value
+                                     || Utils.is_const_eq "TLC.LibReflect.isTrue" value ->
+    extract_expr ?rel c
   | Constr.App (value, [| c |]), _ when Utils.is_const_eq "CFML.Semantics.trms_vals" value ->
     extract_expr ?rel c
   | Constr.App (value, [| c |]), _ when Utils.is_const_eq "TLC.LibInt.nat_to_Z" value ->
     extract_expr ?rel c
   | Constr.App (value, [| c |]), _ when Utils.is_constr_eq "CFML.Semantics.val" value ->
     extract_expr ?rel c
+
+  (* boolean *)
+  | Constr.App (trm, [| l; r |]), _ when Utils.is_ind_eq "Coq.Init.Logic.and" trm ->
+    `App ("&&", [extract_expr ?rel l; extract_expr ?rel r])
+  | Constr.App (trm, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Datatypes.implb" trm ->
+    `App ("||", [`App ("not",  [extract_expr ?rel l]); extract_expr ?rel r])
+
+  | Constr.Construct _ , _ when Utils.is_constr_bool_true c ->
+    `Constructor ("true", [ ])
+  | Constr.Construct _ , _ when Utils.is_constr_bool_false c ->
+    `Constructor ("false", [ ])
+
+  (* lists *)
   | Constr.App (const, [|ty; h; tl|]), _ when Utils.is_constr_cons const ->
     `Constructor ("::", [extract_expr ?rel h; extract_expr ?rel tl])
   | Constr.App (const, [|ty|]), _ when Utils.is_constr_nil const ->
     `Constructor ("[]", [])
+  (* | Constr.App (const, [| ty; ls |]), _ when Utils.is_const_eq "TLC.LibListZ.length" const ->
+   *   `App ("List.length", []) *)
+
+  (* unit *)
   | Constr.Construct _, _ when Utils.is_constr_unit c ->
     `Constructor ("()", [])
 
+  (* option *)
+  | Constr.App (const, [|ty|]), _ when Utils.is_constr_option_none const ->
+    `Constructor ("None", [])
+  | Constr.App (const, [|ty; vl|]), _ when Utils.is_constr_option_some const ->
+    `Constructor ("Some", [extract_expr ?rel vl])
+
+  (* equality *)
+  | Constr.App (const, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.eqb" const ->
+    let l = extract_expr ?rel l in
+    let r = extract_expr ?rel r in
+    `App ("=", [l;r])
+  | Constr.App (const, [|_ty; l; r|]), _ when Utils.is_coq_eq const ->
+    let l = extract_expr ?rel l in
+    let r = extract_expr ?rel r in
+    `App ("=", [l;r])
+
+  (* ints *)
   | Constr.Construct _, _ when Utils.is_constr_z0 c ->
     `Int 0
   | Constr.App (const, _), _ when Utils.is_constr_eq "Coq.Numbers.BinNums.Z" const ->
@@ -147,6 +203,10 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
                |> Iter.map (extract_expr ?rel)
                |> Iter.to_list in
     `Tuple (args)
+
+  (* arithmetic *)
+  | Constr.App (fname, [| _; _; l; r |]), _ when Utils.is_const_eq "TLC.LibOrder.le" fname ->
+    `App ("<=", [extract_expr ?rel l; extract_expr ?rel r])        
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Nat.sub" fname ->
     `App ("-", [extract_expr ?rel l; extract_expr ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.sub" fname ->
@@ -157,10 +217,12 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `App ("+", [extract_expr ?rel l; extract_expr ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.mul" fname ->
     `App ("*", [extract_expr ?rel l; extract_expr ?rel r])    
+
   | Constr.App (fname, args), _ when Constr.isConst fname ->
     let fname, _ = Constr.destConst fname in
     let args = Utils.drop_implicits fname (Array.to_list args) |> List.map (extract_expr ?rel) in
     `App (Names.Constant.to_string fname, args)
+
   | Constr.App (fname, args), _ when Constr.isVar fname ->
     let fname = Constr.destVar fname |> Names.Id.to_string in
     let args = List.map (extract_expr ?rel) (Array.to_list args) in
@@ -172,14 +234,25 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
 (** [extract_cfml_goal goal] when given an intermediate CFML [goal],
     extracts the pre and post condition.  *)
 let extract_cfml_goal goal =
-  let[@warning "-8"] himpl, [pre; post] = Constr.decompose_app goal in
-  assert begin
-    String.equal
-      "himpl"
+  let himpl, args = Constr.decompose_app goal in
+  if not begin
+    String.equal "himpl"
       (fst (Constr.destConst himpl)
        |> Names.Constant.label
        |> Names.Label.to_string)
-  end;
+  end then
+    Format.ksprintf ~f:failwith
+      "unexpected goal format, expected himpl, found %s"
+      (Proof_debug.constr_to_string_pretty himpl);
+
+  if List.length args <> 2 then
+    Format.ksprintf ~f:failwith
+      "unexpected arguments to himpl [%s]"
+      (List.map Proof_debug.constr_to_string_pretty args
+       |> String.concat "; ");
+
+  let pre = List.nth args 0 and post = List.nth args 1 in
+
   let destruct_heap pre =
     let rec loop acc pre =
       match Constr.kind pre with
@@ -278,7 +351,7 @@ let extract_env hyp =
     | Constr.Const _ when Utils.is_const_eq "CFML.Semantics.loc" vl ->
       Some (name, `Val Lang.Type.Loc)
     | Constr.Const _ when Utils.is_const_eq "CFML.WPBuiltin.func" vl ->
-      Some (name, `Val Lang.Type.Func)
+      Some (name, `Val (Lang.Type.Func None))
     | Constr.App (fn, _)
       when Utils.is_const_eq "CFML.WPLifted.Wpgen_body" fn
         || Utils.is_const_eq "CFML.WPLifted.Wpgen_negpat" fn ->
@@ -288,6 +361,11 @@ let extract_env hyp =
     | Constr.Var _              (* init: A *)
     | Constr.App (_, _) ->
       Option.map (fun vl -> (name, `Val (vl))) (extract_typ_opt vl)
+    | Constr.Prod (_, _, _) ->
+      begin match extract_typ_opt vl with
+      | None -> None
+      | Some ty -> Some (name, `Val ty)
+      end
     (* list A, and eq, and others *) 
     | Constr.Const _
     | _ ->
@@ -455,8 +533,9 @@ let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
       check_or_fail "variable" Constr.isVar var
       |> Constr.destVar |> Names.Id.to_string in
     let ty = extract_typ ty in
-    let body = extract_expr body in
-    PointsTo (var, Some ty, body)
+    let body' = extract_expr body in
+    Log.debug (fun f -> f "extracting %s ==> %a" (Proof_debug.constr_to_string body) Lang.Expr.pp body');
+    PointsTo (var, Some ty, body')
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a heaplet"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)

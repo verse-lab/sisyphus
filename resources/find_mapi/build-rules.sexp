@@ -18,14 +18,14 @@
 
 
 (rule
-     (target make_rev_list_new.sisyphus.ml)
-     (deps make_rev_list_new.ml)
-     (action (with-stdout-to make_rev_list_new.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" make_rev_list_new.ml))))
+     (target find_mapi_new.sisyphus.ml)
+     (deps find_mapi_new.ml)
+     (action (with-stdout-to find_mapi_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" find_mapi_new.ml))))
 
 (rule
- (target Make_rev_list_new_ml.v)
- (deps make_rev_list_new.sisyphus.ml ../common/Arr_ml.v
+ (target Find_mapi_new_ml.v)
+ (deps find_mapi_new.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Lst_ml.v
 ../common/Opt_ml.v
@@ -38,17 +38,17 @@
 ../common/lst.cmj
 ../common/opt.cmj
 ../common/sseq.cmj)
- (action (run cfmlc -I ../common -o ./Make_rev_list_new_ml.v make_rev_list_new.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Find_mapi_new_ml.v find_mapi_new.sisyphus.ml)))
 
 (rule
-     (target make_rev_list_old.sisyphus.ml)
-     (deps make_rev_list_old.ml)
-     (action (with-stdout-to make_rev_list_old.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" make_rev_list_old.ml))))
+     (target find_mapi_old.sisyphus.ml)
+     (deps find_mapi_old.ml)
+     (action (with-stdout-to find_mapi_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" find_mapi_old.ml))))
 
 (rule
- (target Make_rev_list_old_ml.v)
- (deps make_rev_list_old.sisyphus.ml ../common/Arr_ml.v
+ (target Find_mapi_old_ml.v)
+ (deps find_mapi_old.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Lst_ml.v
 ../common/Opt_ml.v
@@ -61,4 +61,4 @@
 ../common/lst.cmj
 ../common/opt.cmj
 ../common/sseq.cmj)
- (action (run cfmlc -I ../common -o ./Make_rev_list_old_ml.v make_rev_list_old.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Find_mapi_old_ml.v find_mapi_old.sisyphus.ml)))

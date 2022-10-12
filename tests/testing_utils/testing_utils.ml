@@ -3,15 +3,23 @@ open Containers
 let tests = ref []
 
 let run name =
+  Logs.set_level ~all:true (Some Logs.Debug);
+  Logs.set_reporter (Logs_fmt.reporter ());
   Alcotest.run name
     (List.map (fun f -> f ()) @@ List.rev !tests)
+
+type expr = Lang.Expr.t
+let pp_expr = Lang.Expr.pp_raw
 
 type stmt = [
   | `LetExp of Lang.Expr.typed_param * string option * Lang.Expr.t * stmt
   | `LetLambda of string * [ `Lambda of Lang.Expr.typed_param list * stmt ] * stmt
-  | `Match of Lang.Expr.t * (string * (string * Lang.Type.t) list * stmt) list
-  | `Write of string * string * Lang.Expr.t * stmt
-  | `Value of Lang.Expr.t
+  | `Match of expr * (string * (string * Lang.Type.t) list * stmt) list
+  | `Write of string * string * expr * stmt
+  | `AssignRef of string * expr * stmt
+  | `IfThenElse of expr * stmt * stmt
+  | `IfThen of expr * stmt * stmt
+  | `Value of expr
   | `EmptyArray
 ] [@@deriving show]
 

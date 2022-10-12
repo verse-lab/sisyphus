@@ -2,45 +2,85 @@ open Containers
 open Proof_spec.Script
 module StringMap = Map.Make(String)
 
+(** [unwrap_list sexp] when given a s-expression of the form [(arg1
+   arg2 ...)] returns a list of [arg1 :: arg 2 :: ...]. *)
 let unwrap_list = function
     Sexplib.Sexp.List xs -> xs
-  | _ -> assert false
+  | sexp ->
+    Format.ksprintf ~f:failwith
+      "Expected list in this context, but received %a"
+      Sexplib.Sexp.pp_hum sexp
 
+(** [unwrap_list sexp] when given a s-expression of the form [(arg1
+   arg2 ...)] returns a list of [arg1 :: arg 2 :: ...]. *)
 let unwrap_atom = function
     Sexplib.Sexp.Atom str -> str
-  | _ -> assert false
+  | sexp ->
+    Format.ksprintf ~f:failwith
+      "Expected atom in this context, but received %a"
+      Sexplib.Sexp.pp_hum sexp
 
-(** [unwrap_tagged s] given an s-expression of the form [(<atom>
-   <arg>...)] returns the tuple [(<atom>, <args>)].  *)
+(** [unwrap_tagged s] given a s-expression of the form [(<atom>
+    <arg>...)] returns the tuple [(<atom>, <args>)].  *)
 let unwrap_tagged =
   let open Sexplib.Sexp in
   function [@warning "-8"]
   | List (Atom t :: args) -> t, args
 
+(** [unwrap_value_binding sexp] when given a s-expression of the form
+   [([k] [vl])], where [k] is an atom, returns a tuple of [(k,v)].  *)
 let unwrap_value_binding =
   let open Sexplib.Sexp in
   function [@warning "-8"]
   | List [Atom t; arg] -> t, arg
 
-(* [ [v ...] [loc ...]]   *)
+(** [unwrap_binding sexp] when given a [sexp] of the form [(([k] [vl])
+   ...)] where each [k] is an atom, returns a mapping from [k]s to
+   their corresponding values [vl]. *)
 let unwrap_binding sexp =
   sexp
   |> unwrap_list
   |> List.map unwrap_value_binding
   |> StringMap.of_list
 
+(** [unwrap_value_with_loc sexp] when given a [sexp] of the form:
+    {[
+      ((v [vl])
+       (loc [loc])
+       ...)
+    ]}
+    returns a tuple of [(vl, loc)]
+*)
 let unwrap_value_with_loc sexp =
   let binding = unwrap_binding sexp in
   let v = StringMap.find "v" binding in
   let loc = StringMap.find "loc" binding in
   v, loc
 
+(** [unwrap_genarg sexp] when given a [sexp] of the form:
+    {[
+      (GenArg _
+         (ExtraArg [tag])
+         ((v [vl])
+            (loc _)))
+    ]}
+    returns a tuple of [(tag,vl)].
+*)
 let unwrap_genarg sexp =
   match [@warning "-8"] unwrap_tagged sexp with
   | ("GenArg", [_raw; List [Atom _; Atom _tag]; binding]) ->
     let v, loc = unwrap_value_with_loc binding in
     _tag, v
 
+(** [unwrap_tacgeneric_arg sexp] when given a [sexp] of the form:
+    {[
+      (TacGeneric _
+         (GenArg _ (ExtraArg constr)
+            ((v [vl])
+               (loc _))))
+    ]}
+    returns [vl].
+*)
 let unwrap_tacgeneric_arg sexp =
   let open Sexplib.Sexp in
   match [@warning "-8"] unwrap_tagged sexp with
@@ -48,6 +88,16 @@ let unwrap_tacgeneric_arg sexp =
     let  [@warning "-8"] ("constr", exp) = unwrap_genarg arg in
     exp
 
+(** [unwrap_cref sexp] when given a [sexp] of the form:
+    {[
+      (CRef
+         ((v
+             (Ser_Qualid _
+                (Id [name])))
+            (loc _)))
+    ]}
+    returns [name]
+*)
 let unwrap_cref sexp =
   let open Sexplib.Sexp in
   match [@warning "-8"] unwrap_tagged sexp with
@@ -60,18 +110,18 @@ let or_exn name sexp f =
   try f () with
   | Match_failure (pos,st,ed) ->
     failwith @@ Format.sprintf "unexpected form for %s (at %s:%d:%d): %a"
-      name pos st ed Sexplib.Sexp.pp_hum sexp
+                  name pos st ed Sexplib.Sexp.pp_hum sexp
 
 let rec unwrap_ty sexp : Lang.Type.t =
   let open Sexplib.Sexp in
   match unwrap_tagged sexp with
   | "CRef", _ ->
     begin match unwrap_cref sexp with
-      | "func" -> Func
-      | "int" -> Int
-      | "loc" -> Loc
-      | "unit" -> Unit
-      | var -> Var var
+    | "func" -> Func None
+    | "int" -> Int
+    | "loc" -> Loc
+    | "unit" -> Unit
+    | var -> Var var
     end
   | "CApp", [fname; args] ->
     let fname =
@@ -80,18 +130,18 @@ let rec unwrap_ty sexp : Lang.Type.t =
     let args = 
       let args = unwrap_list args
                  |> List.map (function List [data; _] ->
-                     unwrap_value_with_loc data
-                     |> fst
-                     |> unwrap_ty
-                   ) in
+                   unwrap_value_with_loc data
+                   |> fst
+                   |> unwrap_ty
+                 ) in
       args in
     begin match fname, args with
-      | "list", [ty] -> List ty
-      | "array", [ty] -> Array ty
-      | "ref", [ty] -> Ref ty
-      | adt, args -> ADT (adt, args, None)
+    | "list", [ty] -> List ty
+    | "array", [ty] -> Array ty
+    | "ref", [ty] -> Ref ty
+    | adt, args -> ADT (adt, args, None)
     end
-  | "CNotation", [_; List [Atom "InConstrEntry"; Atom "int"]; _] -> Int
+  | "CNotation", [_; List [Atom "InConstrEntry"; Atom ("int" | "credits")]; _] -> Int
   | "CNotation", _ ->
     failwith @@ Format.sprintf "todo: implement support for product sexps: %a" Sexplib.Sexp.pp_hum sexp
 [@@warning "-8"]
@@ -117,7 +167,6 @@ let unwrap_lambda_arg sexp =
     (`Var name, ty)
 [@@warning "-8"]
 
-
 let unwrap_clambda sexp =
   match unwrap_tagged sexp with
   | "CLambdaN", [args; body] ->
@@ -127,7 +176,9 @@ let unwrap_clambda sexp =
     let body, _ = unwrap_value_with_loc body in
     args, body
   | _ ->
-    failwith @@ Format.sprintf "found invalid structure for clambda expression: %a" Sexplib.Sexp.pp_hum sexp
+    Format.ksprintf ~f:failwith
+      "found invalid structure for clambda expression: %a"
+      Sexplib.Sexp.pp_hum sexp
 
 let unwrap_int_literal sexp : int =
   let open Sexplib.Sexp in
@@ -149,27 +200,29 @@ let rec unwrap_expr sexp : Lang.Expr.t =
     let fname = fname |> unwrap_value_with_loc |> fst |> unwrap_cref in
     let args = unwrap_list args
                |> List.map (function
-                     List [data; _] ->
-                     unwrap_value_with_loc data
-                     |> fst
-                     |> unwrap_expr
-                   | sexp -> failwith @@ Format.sprintf "found unexpected lambda structure in CApp %a"
-                       Sexplib.Sexp.pp_hum sexp
-                 ) in
+                   List [data; _] ->
+                   unwrap_value_with_loc data
+                   |> fst
+                   |> unwrap_expr
+                 | sexp -> failwith @@ Format.sprintf "found unexpected lambda structure in CApp %a"
+                                         Sexplib.Sexp.pp_hum sexp
+               ) in
     let is_uppercase c = Char.equal c (Char.uppercase_ascii c) in
     begin if String.get fname 0 |> is_uppercase
       then `Constructor (fname, args)
       else `App (fname, args)
     end
-  | "CNotation", [_; List[Atom "InConstrEntry"; Atom ("_ ++ _" | "_ + _" | "_ - _" as op)]; List (List [l; r] :: _)] ->
+  | "CNotation", [_; List[Atom "InConstrEntry"; Atom ("_ ++ _" | "_ + _" | "_ - _" | "_ = _" as op)]; List (List [l; r] :: _)] ->
     let l = unwrap_value_with_loc l |> fst |> unwrap_expr in
     let r = unwrap_value_with_loc r |> fst |> unwrap_expr in
     begin match op with
-      | "_ ++ _" -> `App ("++", [l;r])
-      | "_ + _" -> `App ("+", [l;r])
-      | "_ - _" -> `App ("-", [l;r])
-      | _ -> failwith "invalid assumptions"
+    | "_ ++ _" -> `App ("++", [l;r])
+    | "_ + _" -> `App ("+", [l;r])
+    | "_ - _" -> `App ("-", [l;r])
+    | "_ = _" -> `App ("=", [l;r])
+    | _ -> failwith "invalid assumptions"
     end
+
   (* lambdas.... CLambdaN not supported *)
   | tag, _ -> failwith @@ Format.sprintf "found unhandled expr (tag: %s): %a" tag Sexplib.Sexp.pp_hum sexp
 
@@ -192,6 +245,9 @@ let rec unwrap_assertion sexp : Proof_spec.Heap.Assertion.t =
     Proof_spec.Heap.Assertion.union left right
   | "CNotation", [_; List[Atom "InConstrEntry"; Atom notation]; List (List [left; right] :: _)] ->
     failwith @@ Format.sprintf "found unknown notation %s" notation
+  | "CNotation", [_; List [Atom "InConstrEntry"; Atom "\\[ _ ]"]; List (List [pure] :: _)]->
+    let expr = unwrap_value_with_loc pure |> fst |> unwrap_expr in
+    Proof_spec.Heap.Assertion.(add_expr expr emp)
   | tag, _ ->
     Format.ksprintf ~f:failwith
       "found unhandled assertion tag %s: %a" tag Sexplib.Sexp.pp_hum sexp
@@ -200,12 +256,16 @@ let unwrap_spec_arg sexp : spec_arg =
   let open Sexplib.Sexp in
   match unwrap_tagged sexp with
   | "CRef", _ -> `Expr (`Var (unwrap_cref sexp))
-  | ("CNotation" | "CPrim"), _ -> `Expr (unwrap_expr sexp)
+  | ("CNotation" | "CPrim" | "CApp"), _ -> `Expr (unwrap_expr sexp)
   | "CLambdaN", _ ->
     let args, body = unwrap_clambda sexp in
     let body = unwrap_assertion body in
     `Spec (args, body)
-  | tag, _ -> failwith @@ "found unhandled expr tag " ^ tag
+  | tag, args ->
+    Format.ksprintf
+      ~f:failwith "unhandled primitive tactic %s, args: %a"
+      tag (List.pp Sexplib.Sexp.pp_hum) args
+
 
 let unwrap_tac_capp sexp =
   let open Sexplib.Sexp in
@@ -213,16 +273,15 @@ let unwrap_tac_capp sexp =
   | "CApp", [fname; args] ->
     let fname = unwrap_value_with_loc fname
                 |> fst
-                |> unwrap_cref
-    in
+                |> unwrap_cref in
     let args  =
       unwrap_list args
       |> List.map
-        (function [@warning "-8"] List [binding; _] ->
-           unwrap_value_with_loc binding
-           |> fst
-           |> unwrap_spec_arg
-        )
+           (function [@warning "-8"] List [binding; _] ->
+              unwrap_value_with_loc binding
+              |> fst
+              |> unwrap_spec_arg
+           )
     in
     fname, args
 
@@ -251,7 +310,8 @@ let unwrap_prim_tactic sexp =
   | "TacApply", args -> "apply", args
   | "TacIntroPattern", args -> "intros", args
   | "TacInductionDestruct", args -> "case", args
-  | name, args -> Format.ksprintf ~f:failwith "unhandled primitive tactic %s, args: %a" name (List.pp Sexplib.Sexp.pp_hum) args
+  | name, args ->
+    Format.ksprintf ~f:failwith "unhandled primitive tactic %s, args: %a" name (List.pp Sexplib.Sexp.pp_hum) args
 
 let unwrap_tacatom sexp =
   let open Sexplib.Sexp in
@@ -261,9 +321,10 @@ let unwrap_tacatom sexp =
 
 let unwrap_xapp sexp =
   let arg = unwrap_tacgeneric_arg sexp in 
+  (* an xapp is either a constant [CRef] or an application [CApp]. *)
   match [@warning "-8"] unwrap_tagged arg with
-  | "CRef", _ -> unwrap_cref arg, []
-  | "CApp", _  -> unwrap_tac_capp arg
+  | "CRef", _ -> unwrap_cref arg, [] (* if constant, just return the name, and 0 arguments *)
+  | "CApp", _  -> unwrap_tac_capp arg (* if an application, then unwrap the CApp *)
   | name, args ->
     Format.ksprintf ~f:failwith
       "unhandled xapp argument type %s args [%a]"

@@ -59,6 +59,7 @@ type t =
       proof: t
     }
   | XMatch of {value: (expr * expr) list; pre: sym_heap; proof: t}
+  | XIfVal of { pre: sym_heap; cond: expr; if_true: t; if_false: t }
   | XApp of {
       application: string * expr list;
       pre: sym_heap;
@@ -68,6 +69,7 @@ type t =
     }
   | XVal of { pre: sym_heap; value_ty: ty; value: expr }
   | XDone of sym_heap
+  | CaseBool of { cond: expr; if_true: t; if_false: t }
   | VarApp of spec_app
   | AuxVarApp of string * spec_arg list * t
   | CharacteristicFormulae of {
@@ -82,6 +84,7 @@ type t =
       args: spec_arg list;
     }
   | Refl
+  | CaseFalse
 and acc_rect_proof = {
   x: string; ty_x: ty;
   h_acc: string; ty_h_acc: string;
@@ -105,3 +108,6 @@ let tag = function
   | CharacteristicFormulae _ -> "CharacteristicFormulae"
   | AccRect _ -> "AccRect"
   | Refl -> "Refl"
+  | XIfVal _ -> "XIfVal"
+  | CaseBool _ -> "CaseBool"
+  | CaseFalse -> "CaseFalse"
