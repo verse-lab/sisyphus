@@ -51,7 +51,7 @@ let () = T.add_test "find_mapi new parsed without error" (fun () ->
                                           `LetExp (
                                             (`Var ("res", Lang.Type.ADT ("option", [Var "'b"], None))),
                                             None, `App ("f", [`Var "i"; `App ("Array.get", [`Var "a"; `Var "i"])]),
-                                            `LetExp ( `Var ("found", Lang.Type.Bool), None, `App ("option_is_some",[`Var "res"]),
+                                            `LetExp ( `Var ("found", Lang.Type.Bool), None, `App ("Opt.option_is_some",[`Var "res"]),
                                                       `IfThen (
                                                         (`Var ( "found"),
                                                          `Value ( `App ( (":=", [`Var ("value_found"); `Var ( "res")]))),
