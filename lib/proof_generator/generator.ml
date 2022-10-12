@@ -75,7 +75,7 @@ let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure
 let rec update_program_id_over_lambda (t: Proof_context.t)
           (`Lambda (_, body): [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ])  =
   let rec loop (body: Lang.Expr.t Lang.Program.stmt) = match body with
-    | `Match (_, cases) -> 
+    | `Match (_, cases) ->
       t.current_program_id <- Lang.Id.incr t.current_program_id;
       List.iter (fun (_, _, body) -> loop body) cases
     |`AssignRef (_, _, body) ->
@@ -182,7 +182,7 @@ let instantiate_arguments t env args (ctx, heap_ctx) =
               end
             | `PointsTo vl -> Proof_context.eval_tracing_value t ty vl
           )
-        )        
+        )
     end in
   let rec instantiate_expr (vl, ty) =
     match vl, ty with
@@ -243,17 +243,17 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
   | Some (Left (_ :: _ :: _)) ->
     Format.ksprintf ~f:failwith "TODO: found function application %a with multiple invariants"
       Pp.pp_with (Names.Constant.print lemma_name)
-  | Some (Left [_, _]) -> () 
+  | Some (Left [_, _]) -> ()
 
 let typeof t (s: string) : (Lang.Type.t list * Lang.Type.t) option =
   let (let+) x f = Option.bind x f in
-  let ty = 
+  let ty =
     match s with
     | "++" -> Some Lang.Type.([List (Var "A"); List (Var "A")], List (Var "A"))
     | "-" -> Some Lang.Type.([Int; Int], Int)
     | "+" -> Some Lang.Type.([Int; Int], Int)
     | s ->
-      try 
+      try
         let ty = (Proof_context.typeof t s) in
         let+ s_base = String.split_on_char '.' s |> List.last_opt in
         let+ name = Proof_context.names t s_base in
@@ -265,17 +265,17 @@ let typeof t (s: string) : (Lang.Type.t list * Lang.Type.t) option =
       with
       | _ -> None in
   (* Log.debug (fun f -> f "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.Option.t] ty)); *)
-  ty 
+  ty
 
 let renormalise_name t (s: string) : string option =
   let (let+) x f = Option.bind x f in
-  let s_norm = 
+  let s_norm =
     match s with
     | "++" -> Some "TLC.LibList.app"
     | "-" -> Some "-"
     | "+" -> Some "+"
     | s ->
-      try 
+      try
         let s_base = String.split_on_char '.' s |> List.last_opt |> Option.value ~default:s in
         let+ name = Proof_context.names t s_base in
         match name with
@@ -289,7 +289,7 @@ let renormalise_name t (s: string) : string option =
     if String.prefix ~pre:"TLC.LibListZ." s
     then "TLC.LibList." ^ String.drop (String.length "TLC.LibListZ.") s
     else s)
-    s_norm 
+    s_norm
 
 let calculate_inv_ty t ~f:lemma_name ~args:f_args =
   let instantiated_spec =
@@ -299,7 +299,7 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
   let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
   let tys = Proof_utils.CFML.unwrap_invariant_type ty in
   let tys = List.mapi (fun i v -> Format.sprintf "arg%d" i, v) tys in
-  name_to_string binder_name, tys 
+  name_to_string binder_name, tys
 
 (** [reduce_term t term] reduces a proof term [term] using ultimate
     reduction.  *)
@@ -309,21 +309,21 @@ let reduce_term t term =
     (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
      *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
     | ("Coq.ZArith.BinInt.Z"
-    | "Coq.ZArith.Znat.Nat2Z"
-    | "Coq.ZArith.Znat"
-    | "Coq.micromega.ZifyInst"
-    | "Coq.Init.Nat"
-    | "Coq.PArith.BinPos.Pos"
-    | "Coq.Init.Peano"
-    | "Coq.micromega.Tauto"
-    | "Coq.micromega.VarMap"
-    | "Coq.micromega.ZifyClasses"
-    | "Coq.micromega.ZMicromega"
-    | "Coq.Init.Wf"
-    | "Coq.Init.Datatypes"
-    | "Coq.Classes.Morphisms"
-    | "Coq.Init.Logic"
-    | "Coq.Bool.Bool"), _
+      | "Coq.ZArith.Znat.Nat2Z"
+      | "Coq.ZArith.Znat"
+      | "Coq.micromega.ZifyInst"
+      | "Coq.Init.Nat"
+      | "Coq.PArith.BinPos.Pos"
+      | "Coq.Init.Peano"
+      | "Coq.micromega.Tauto"
+      | "Coq.micromega.VarMap"
+      | "Coq.micromega.ZifyClasses"
+      | "Coq.micromega.ZMicromega"
+      | "Coq.Init.Wf"
+      | "Coq.Init.Datatypes"
+      | "Coq.Classes.Morphisms"
+      | "Coq.Init.Logic"
+      | "Coq.Bool.Bool"), _
       -> `KeepOpaque
     | "TLC.LibInt", "le_zarith" -> `KeepOpaque
     | "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits", _ ->
@@ -412,7 +412,7 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
             (arg_list_to_str (lemma_complete_params)));
 
         (* construct term to represent full application of lemma parameters *)
-        let trm = 
+        let trm =
           Format.ksprintf ~f:(Proof_context.term_of t) "%s %s"
             (Names.Constant.to_string lemma_name)
             (arg_list_to_str (lemma_complete_params)) in
@@ -430,9 +430,9 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
       end
     ) observations
     |> Option.get_exn_or "failed to construct an executable test specification" in
-  test_f t.Proof_context.compilation_context 
+  test_f t.Proof_context.compilation_context
 
-let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
+let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
   (* construct an expression generation context using the old proof *)
   let ctx =
     let vars, funcs =
@@ -460,7 +460,7 @@ let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name 
         |> List.fold_left (fun fns (ty,l,r) ->
           Lang.Expr.(functions (functions fns l) r)
         ) StringSet.empty
-        (* add in + and - for basic arithmetic operations *)
+        (* add in + and - for  basic arithmetic operations *)
         |> StringSet.add "+"
         |> StringSet.add "-"
         (* add in any hof functions in our proof env  *)
@@ -483,6 +483,7 @@ let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name 
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
 
+
   Log.info (fun f ->
     f ~header:"gen-cand-invariants" "generation context is %a@." Expr_generator.pp_ctx ctx);
 
@@ -498,13 +499,22 @@ let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name 
       | Lang.Type.Val -> Some (v,ty)
       | _ -> None
     ) in
+
   let gen_heap_spec =
     List.map
       Proof_spec.Heap.Heaplet.(function
-          PointsTo (v, _, `App ("CFML.WPArray.Array", _)) ->
-          Lang.Type.List (Lang.Type.Var "A")
-        | PointsTo (v, _, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), _)) ->
-          Lang.Type.Var "A"
+          PointsTo (v, ty, `App ("CFML.WPArray.Array", _)) when StringSet.mem v mut_vars  ->
+          Log.debug (fun f -> f "TYPE OF %s IS %a" v (Option.pp Lang.Type.pp) ty);
+          `Hole (Lang.Type.List (Lang.Type.Var "A"))
+        | PointsTo (v, ty, `App ("CFML.WPArray.Array", [ls])) ->
+          Log.debug (fun f -> f "TYPE OF %s IS %a with %a" v (Option.pp Lang.Type.pp) ty Lang.Expr.pp ls);
+          `Concrete ls
+        | PointsTo (v, ty, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), _)) when StringSet.mem v mut_vars ->
+          Log.debug (fun f -> f "TYPE OF %s IS %a" v (Option.pp Lang.Type.pp) ty);
+          `Hole (Lang.Type.Var "A")
+        | PointsTo (v, ty, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), [vl]))  ->
+          Log.debug (fun f -> f "TYPE OF %s IS %a with %a" v (Option.pp Lang.Type.pp) ty Lang.Expr.pp vl);
+          `Concrete vl
         | v ->
           Format.ksprintf ~f:failwith
             "found unsupported heaplet %a" pp v
@@ -522,14 +532,14 @@ let generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name 
           (fun acc vl -> `App ("&&", [vl; acc])) h t
         |> Option.some
     ) in
-  let heap = List.map_product_l (gen) gen_heap_spec in
+  let heap = List.map_product_l (function `Hole ty -> gen ty | `Concrete vl -> [vl]) gen_heap_spec  in
   pure, heap
 
 let prune_candidates_using_testf test_f (pure, heap) =
   let start_time = Ptime_clock.now () in
-  let pure = 
+  let pure =
     List.filter_map (fun pure ->
-      match test_f (pure, [ ]) with 
+      match test_f (pure, [ ]) with
       | false -> None
       | true ->
         match pure with
@@ -557,7 +567,7 @@ let prune_candidates_using_testf test_f (pure, heap) =
   if no_impure < 10 then
     Log.debug (fun f -> f "heap candidates: %s@." ([%show: Lang.Expr.t list list] heap));
 
-  pure, heap 
+  pure, heap
 
 let has_pure_specification t =
   let (_f_name, raw_spec) =
@@ -580,7 +590,7 @@ let has_pure_specification t =
 
 let expr_to_subst t inv_ty expr =
   let expr = Lang.Expr.subst_functions (renormalise_name t) expr in
-  let inv_args = (snd inv_ty) |> List.map fst in      
+  let inv_args = (snd inv_ty) |> List.map fst in
   fun args ->
     let binding = StringMap.of_list (List.combine inv_args args) in
     let lookup name = StringMap.find_opt name binding in
@@ -599,7 +609,7 @@ let find_first_valid_candidate_with_z3 t inv_ty vc ~heap ~pure =
   let (let+) x f = Option.bind x f in
   let no_pure = List.is_empty pure in
   let heap_gen = Gen.of_list heap in
-  let pure_gen, reset_pure = 
+  let pure_gen, reset_pure =
     let get_pure () =
       (* if no pure, then just repeatedly return true as the pure *)
       if no_pure
@@ -655,11 +665,11 @@ let find_first_valid_candidate_with_z3 t inv_ty vc ~heap ~pure =
   Option.map snd res
 
 (** [is_simple_expression expr] returns [true] if [expr] is a simple
-   expression that CFML will not require an xapp to evaluate - i.e
-   things like expressions with only arithmetic, equalities or
-   variables. *)
+    expression that CFML will not require an xapp to evaluate - i.e
+    things like expressions with only arithmetic, equalities or
+    variables. *)
 let rec is_simple_expression : Lang.Expr.t -> bool = function
-  |`Int _ 
+  |`Int _
   | `Var _ -> true
   | `Tuple elts -> List.for_all is_simple_expression elts
   | `App (("+" | "-"), [l;r]) ->
@@ -690,7 +700,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
         |`Var v -> Proof_env.is_pure_lambda env v
         | _ -> false
       ) prog_args && (has_pure_specification t) ->
-      symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest      
+      symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest
     | `App (_, args)
       when List.exists (function
         |`Var v -> Proof_env.has_definition env v (* StringMap.mem v env *)
@@ -713,7 +723,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
     t.current_program_id <- Lang.Id.incr t.current_program_id;
     Proof_context.append t "xvals.";
 
-    while (Proof_context.current_subproof t).goals |> List.length > 0 do 
+    while (Proof_context.current_subproof t).goals |> List.length > 0 do
       Proof_context.append t "{ admit. }";
     done
   | t ->
@@ -754,7 +764,7 @@ and symexec_ref_alloc t env pat rest =
   symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
   Log.debug (fun f -> f "[%s] symexec_opaque_let %a = %a"
-                        (t.Proof_context.current_program_id |>  Lang.Id.show)                        
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)
                         Lang.Expr.pp_typed_param pat
                         Lang.Expr.pp body
             );
@@ -788,7 +798,7 @@ and symexec_match t env prog_expr cases =
                         Lang.Expr.pp prog_expr);
   (* emit a case analysis to correspond to the program match    *)
   (* for each subproof, first intro variables using the same names as in the program *)
-  let sub_proof_vars = 
+  let sub_proof_vars =
     List.map (fun (_, args, _) ->
       List.map (fun (base, _) -> Proof_context.fresh ~base t) args
     ) cases in
@@ -812,7 +822,7 @@ and symexec_match t env prog_expr cases =
     (* now emit the rest *)
     symexec t env rest;
     (* dispatch remaining subgoals by the best method: *)
-    while (Proof_context.current_subproof t).goals |> List.length > 0 do 
+    while (Proof_context.current_subproof t).goals |> List.length > 0 do
       Proof_context.append t "{ admit. }";
     done;
   ) (List.combine cases sub_proof_vars)
@@ -953,10 +963,19 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* extract the arguments applied to the function call *)
   let (_, f_args) = Proof_utils.CFML.extract_app_full post in
 
-  (* for now we only handle lemmas with a single higher order invariant *) 
+  (* extract vars mutated by HOF *)
+  let mut_vars =
+    let _,  `Lambda (_, hof_body)  =
+      List.find_map (function
+        | `Var v -> StringMap.find_opt v env.lambda
+        | _ -> None) prog_args
+      |> Option.get_exn_or "invalid assumption: no body found for function" in
+    Program_utils.mut_vars hof_body in
+
+  (* for now we only handle lemmas with a single higher order invariant *)
   ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
 
-  let pre_heap = 
+  let pre_heap =
     List.filter_map
       (function `Impure heaplet -> Some (Proof_utils.CFML.extract_impure_heaplet heaplet) | _ -> None)
       (match pre with | `Empty -> [] | `NonEmpty ls -> ls) in
@@ -974,8 +993,9 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* build an initial test specification from the partially reduced proof term applied to values at the current position *)
   let test_f = build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
 
+
   (* generate initial invariants *)
-  let pure, heap = generate_candidate_invariants t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
+  let pure, heap = generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
 
   let () =
     let no_pure = List.length pure in
@@ -994,7 +1014,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     prune_candidates_using_testf test_f (pure,heap) in
 
   (* do it again *)
-  let (pure,heap) = 
+  let (pure,heap) =
     let test_f =
       let cp = t.Proof_context.concrete () in
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
@@ -1003,7 +1023,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     prune_candidates_using_testf test_f (pure,heap) in
 
   (* and again (50 ms) *)
-  let (pure,heap) = 
+  let (pure,heap) =
     let test_f =
       let cp = t.Proof_context.concrete () in
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
@@ -1026,7 +1046,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     then begin
       (* build a verification condition *)
       let vc =
-        let vc = 
+        let vc =
           Specification.build_verification_condition
             t (Proof_env.env_to_defmap env) lemma_name in
         Configuration.dump_output "verification-condition" (fun f ->
@@ -1073,7 +1093,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
              | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)), expr ->
                Format.sprintf "%s ~> %s %a"
                  v f Proof_utils.Printer.pp_expr expr
-             | Proof_spec.Heap.Heaplet.PointsTo (_, _, v), _ -> 
+             | Proof_spec.Heap.Heaplet.PointsTo (_, _, v), _ ->
                Format.ksprintf ~f:failwith
                  "found unsupported heaplet %a" Lang.Expr.pp v
            ) (List.combine pre_heap heap)
@@ -1117,7 +1137,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   end;
 
   (* dispatch remaining subgoals by the best method: *)
-  while (Proof_context.current_subproof t).goals |> List.length > 1 do 
+  while (Proof_context.current_subproof t).goals |> List.length > 1 do
     Proof_context.append t "{ admit. }";
   done;
 
@@ -1153,7 +1173,7 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   | `NonEmpty ls ->
     let no_pure = List.count (function `Pure _ -> true | _ -> false) ls in
     if no_pure > 0 then begin
-      let pat = 
+      let pat =
         Int.range 1 no_pure
         |> Iter.map (fun i -> "H" ^ Int.to_string i)
         |> Iter.intersperse " "
@@ -1166,4 +1186,3 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   symexec t (Proof_env.initial_env ~logical_mappings prog.args) prog.body;
   Proof_context.append t "Admitted.";
   Proof_context.extract_proof_script t
-
