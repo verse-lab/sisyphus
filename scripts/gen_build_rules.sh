@@ -40,8 +40,7 @@ for ML_FILE in $ML_FILES; do
     ML_BASENAME="${ML_FILE%.ml}"
     CLEANED_FILE="$ML_BASENAME.sisyphus.ml"
     V_BASENAME=$(echo "$ML_BASENAME" | sed 's/\([[:alpha:]]\)/\U\1/')
-    V_FILE="${V
-_BASENAME^}_ml.v"
+    V_FILE="${V_BASENAME}_ml.v"
     printf "
 (rule
      (target $CLEANED_FILE)
