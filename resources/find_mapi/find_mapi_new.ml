@@ -1,5 +1,4 @@
 open Combinators
-open Opt
 
 let find_mapi (a: 'a array) (f: int -> 'a -> 'b option) =
   let (len: int) = Array.length a in

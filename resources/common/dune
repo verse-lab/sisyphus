@@ -61,4 +61,8 @@
 
 (rule
  (target _output)
-  (action (run mkdir -p _output)))
+ (action (run mkdir -p _output)))
+
+(env
+ (dev
+  (flags (:standard -w -32 -w -33))))
