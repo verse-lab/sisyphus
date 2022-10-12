@@ -1,7 +1,7 @@
 # Thanks Yasu
 name: Build and all tests
 on:
-  push:
+  # push:
   pull_request:
 jobs:
   build-and-deploy:
@@ -26,7 +26,7 @@ jobs:
       - name: Run unit tests
         run: |
           opam exec -- dune runtest ./tests
-      - name: Run integration tests
-        run: |
-          opam exec -- dune runtest ./benchmarks
+      # - name: Run integration tests
+      #   run: |
+      #     opam exec -- dune runtest ./benchmarks
 
