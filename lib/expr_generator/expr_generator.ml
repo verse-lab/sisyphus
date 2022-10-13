@@ -155,18 +155,25 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.e
   | fuel when fuel > 0 ->
     let consts = Types.TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[]
                  |> filter_blacklisted blacklisted_vars in
+    let consts = match ty with
+      | Lang.Type.List _ -> `Constructor ("nil", []) :: consts
+      | Lang.Type.Unit -> `Constructor ("()", []) :: consts
+      | Lang.Type.Bool -> `Constructor ("true", []) :: `Constructor ("false", []) :: consts
+      | _ -> consts in
     let funcs = Types.TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
     let consts_funcs =
-      List.filter_map (function
-        | (fname, [arg]) -> Some (fname, arg)
-        | (_, _)  -> None
-      ) funcs
-      |> List.flat_map (fun (fname, arg) ->
-        Types.TypeMap.find_opt arg ctx.consts |> Option.value  ~default:[]
-        |> filter_blacklisted blacklisted_vars
-        |> List.map (fun arg -> `App (fname, [arg]))
-      ) in
-    let consts = consts @ (if fuel = 1 then consts_funcs else []) in
+      if fuel = 1 then
+        List.filter_map (function
+          | (fname, [arg]) -> Some (fname, arg)
+          | (_, _)  -> None
+        ) funcs
+        |> List.flat_map (fun (fname, arg) ->
+          Types.TypeMap.find_opt arg ctx.consts |> Option.value  ~default:[]
+          |> filter_blacklisted blacklisted_vars
+          |> List.map (fun arg -> `App (fname, [arg]))
+        )
+      else [] in
+    let consts = consts @ consts_funcs in
     let+ funcs =  flat_mapM (fun (fname, args) kont ->
       let arg_with_fuels = get_fuels ctx fuel fname args in
       let+ funcs =
@@ -205,8 +212,8 @@ let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx (env: env) pat kont  =
  * if initial = true then only use patterns as a template to generate candidate expressions *)
 let generate_expression ?(blacklisted_vars=[]) ?(initial=true) ?fuel ctx (env: env) ty =
   let blacklisted_vars = StringSet.of_list blacklisted_vars in
-  if initial then
-    let pats = List.rev @@ (Types.TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
+  let pats = List.rev @@ (Types.TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
+  if initial && List.length pats > 0 then
     let pats = flat_mapM (instantiate_pat ~blacklisted_vars ctx env ?fuel) pats Fun.id in
     pats
   else

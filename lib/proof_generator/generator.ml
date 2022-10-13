@@ -1223,9 +1223,11 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     Proof_context.append t "xmatch."
 
   | `Var (result, ty) ->
-    let name = Proof_context.fresh ~base:result t in
-    let h_name = Proof_context.fresh ~base:("H" ^ result) t in
-    Proof_context.append t "intros %s %s." name h_name;
+    if Constr.isProd (Proof_context.current_goal t).ty then begin
+      let name = Proof_context.fresh ~base:result t in
+      let h_name = Proof_context.fresh ~base:("H" ^ result) t in
+      Proof_context.append t "intros %s %s." name h_name
+    end;
     match snd invariant with
     | [] -> ()
     | _ ->
