@@ -981,3 +981,13 @@ CLOSED: [2022-10-13 Thu 04:33]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Print to stdout and file
+CLOSED: [2022-10-13 Thu 07:26]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 07:26
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
