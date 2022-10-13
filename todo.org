@@ -6,8 +6,9 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
+** DONE Update proof env to track poly variables
+CLOSED: [2022-10-13 Thu 03:12]
 ** TODO Update proof env to track gamma
-** TODO Update proof env to track poly variables
 ** TODO Update generate candidate invariants to use gamma to determine type of holes
 ** TODO Fix bug in working out the type of find_mapi
 ** TODO Add negb and is_some to context

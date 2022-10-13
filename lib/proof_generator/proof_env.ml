@@ -1,16 +1,27 @@
 [@@@warning "-23"]
 open Containers
 module StringMap = Map.Make(String)
+module StringSet = Set.Make(String)
 
 type t = {
   lambda: (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t;
-  (** mapping of proof vars encoding lambdas to their corresponding definitions and observation points. *)
+  (** [lambda] is a mapping of proof vars encoding lambdas to their
+     corresponding definitions and observation points. *)
   bindings: string StringMap.t;
-  (** mapping of proof vars (i.e [idx]) to their corresponding program variables.  *)
+  (** [bindings] are a mapping of proof vars (i.e [idx]) to their
+     corresponding program variables.  *)
   logical_mappings: string StringMap.t;
-  (** mapping of logical mappings of concrete values (i.e [s]) to their corresponding logical variables [l].  *)  
+  (** [logical_mappings] are a mapping of logical mappings of concrete
+     values (i.e [s]) to their corresponding logical variables [l].
+     *)  
   args: (string * Lang.Type.t) list;
-  (** full list of formal parameters to the function being evaluated *)
+  (** [args] are a full list of formal parameters to the function
+     being evaluated *)
+  gamma: Lang.Type.t StringMap.t;
+  (** [gamma] is the typing environment for the OCaml program (i.e
+     doesn't include proof terms) *)
+  poly_vars: string list;
+  (** [poly_vars] is a list of polymorphic variables.  *)
 }
 
 let pp_lambda fmt (id, `Lambda (args, program)) =
@@ -44,6 +55,8 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
   | Lang.Type.ADT (_, _, _)
   | Lang.Type.Val -> false
 
+
+
 let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
 
   let logical_mappings = StringMap.of_list logical_mappings in
@@ -56,11 +69,20 @@ let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
            |> Option.map (fun bv -> (bv, v))
     )
     |> StringMap.of_iter in
+  let gamma = StringMap.of_list args in
+  let poly_vars =
+    List.fold_left
+      (fun vars (_, ty) ->
+         Lang.Type.poly_vars vars ty)
+      StringSet.empty args
+    |> StringSet.to_list in
   {
     lambda=StringMap.empty;
     bindings;
     logical_mappings;
     args;
+    gamma;
+    poly_vars;
   }
 
 let has_definition env v = StringMap.mem v env.lambda
