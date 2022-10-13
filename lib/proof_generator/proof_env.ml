@@ -1,16 +1,27 @@
 [@@@warning "-23"]
 open Containers
 module StringMap = Map.Make(String)
+module StringSet = Set.Make(String)
 
 type t = {
   lambda: (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t;
-  (** mapping of proof vars encoding lambdas to their corresponding definitions and observation points. *)
+  (** [lambda] is a mapping of proof vars encoding lambdas to their
+     corresponding definitions and observation points. *)
   bindings: string StringMap.t;
-  (** mapping of proof vars (i.e [idx]) to their corresponding program variables.  *)
+  (** [bindings] are a mapping of proof vars (i.e [idx]) to their
+     corresponding program variables.  *)
   logical_mappings: string StringMap.t;
-  (** mapping of logical mappings of concrete values (i.e [s]) to their corresponding logical variables [l].  *)  
+  (** [logical_mappings] are a mapping of logical mappings of concrete
+     values (i.e [s]) to their corresponding logical variables [l].
+     *)  
   args: (string * Lang.Type.t) list;
-  (** full list of formal parameters to the function being evaluated *)
+  (** [args] are a full list of formal parameters to the function
+     being evaluated *)
+  gamma: Lang.Type.t StringMap.t;
+  (** [gamma] is the typing environment for the OCaml program (i.e
+     doesn't include proof terms) *)
+  poly_vars: string list;
+  (** [poly_vars] is a list of polymorphic variables.  *)
 }
 
 let pp_lambda fmt (id, `Lambda (args, program)) =
@@ -44,23 +55,39 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
   | Lang.Type.ADT (_, _, _)
   | Lang.Type.Val -> false
 
+
+
 let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
 
   let logical_mappings = StringMap.of_list logical_mappings in
+  (* bindings map proof vars to their corresponding program vars  *)
   let bindings =
     List.to_iter args
     |> Iter.filter_map (fun (v, ty) ->
+      (* if the variable is pure, then its proof var is the same as its program var *)
       if is_pure_ty ty
       then Some (v,v)
+      (* if its not pure, then check if we have a logical mapping as
+         [l ==> s] provided by the user. If so, map proof var [s] to program var [l]  *)
       else StringMap.find_opt v logical_mappings
            |> Option.map (fun bv -> (bv, v))
     )
     |> StringMap.of_iter in
+  let gamma = StringMap.of_list args in
+  let poly_vars =
+    List.fold_left
+      (fun vars (_, ty) ->
+         Lang.Type.poly_vars vars ty)
+      StringSet.empty args
+    |> StringSet.to_list
+    |> List.map (fun s -> String.uppercase_ascii (String.drop 1 s)) in
   {
     lambda=StringMap.empty;
     bindings;
     logical_mappings;
     args;
+    gamma;
+    poly_vars;
   }
 
 let has_definition env v = StringMap.mem v env.lambda
@@ -68,6 +95,9 @@ let has_definition env v = StringMap.mem v env.lambda
 let is_pure_lambda env v =
   StringMap.find_opt v env.lambda
   |> Option.exists (fun (_, body) -> Program_utils.is_pure body)
+
+let add_binding env ~var ~ty =
+  {env with gamma=StringMap.add var ty env.gamma}
 
 let add_proof_binding env ~proof_var ~program_var =
   {env with bindings=StringMap.add proof_var program_var env.bindings}
@@ -83,7 +113,16 @@ let env_to_defmap env =
   StringMap.map snd env.lambda
 
 let normalize_observation env ((pure, heap): (Dynamic.Concrete.context * Dynamic.Concrete.heap_context)) =
+  let rev_map = StringMap.to_list env.logical_mappings |> List.map Pair.swap |> StringMap.of_list in
   let pure = List.map (Pair.map_fst (fun v -> StringMap.find_opt v env.logical_mappings |> Option.get_or ~default:v)) pure in
-  (pure,heap)
+  let mapped =
+    List.filter_map (function
+      | (v, `Array vls) when StringMap.mem v rev_map ->
+        Some (StringMap.find v rev_map, `List vls)
+      | (v, `PointsTo vl) when StringMap.mem v rev_map ->
+        Some (StringMap.find v rev_map, vl)
+      | _ -> None
+    ) heap in
+  (pure @ mapped,heap)
 
     

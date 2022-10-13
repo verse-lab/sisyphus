@@ -48,6 +48,12 @@ let rec pp_expr fmt (expr: Lang.Expr.t) =
   | `App ("||", [l;r]) ->
     Format.fprintf fmt "(%a \\/ %a)"
       pp_expr l pp_expr r
+  | `App ("Opt.option_is_some", [l]) ->
+    Format.fprintf fmt "(is_some %a)" pp_expr l 
+  | `App ("Opt.option_is_none", [l]) ->
+    Format.fprintf fmt "(is_none %a)" pp_expr l 
+  | `App ("not", [l]) ->
+    Format.fprintf fmt "(negb %a)" pp_expr l 
   | `App (f, []) ->
     Format.fprintf fmt "(%s)" f
   | `App (f, args) ->

@@ -5,13 +5,6 @@ module Log = (val Logs.src_log (Logs.Src.create ~doc:"Generates candidate invari
 
 module ExprSet = Set.Make(Lang.Expr)
 
-let reduce pure =
-  let no_pure_original = List.length pure in
-  let pure = ExprSet.of_list pure |> ExprSet.to_list in
-  let no_pure_updated = List.length pure in
-  Log.debug (fun f -> f "reduced %d -> %d unique@." no_pure_original no_pure_updated);
-  pure
-
 let split_last =
   let rec loop last acc = function
     | [] -> List.rev acc, last
@@ -34,6 +27,13 @@ let combine_rem xz yz =
     | [], (_ :: _ as yz) -> List.rev acc, Some (Either.Right yz)
     | x :: xz, y :: yz -> loop ((x, y) :: acc) xz yz in
   loop [] xz yz
+
+let reduce pure =
+  let no_pure_original = List.length pure in
+  let pure = ExprSet.of_list pure |> ExprSet.to_list in
+  let no_pure_updated = List.length pure in
+  Log.debug (fun f -> f "reduced %d -> %d unique@." no_pure_original no_pure_updated);
+  pure
 
 let show_obs obs = [%show: (string * Dynamic.Concrete.value) list * (string * Dynamic.Concrete.heaplet) list] obs
 
@@ -71,6 +71,7 @@ type expr = Lang.Expr.t
 let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis.Embedding.embed_expression vl)
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
+
 
 let rec update_program_id_over_lambda (t: Proof_context.t)
           (`Lambda (_, body): [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ])  =
@@ -245,14 +246,26 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left [_, _]) -> ()
 
-let typeof t (s: string) : (Lang.Type.t list * Lang.Type.t) option =
-  let (let+) x f = Option.bind x f in
+let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
   let ty =
     match s with
-    | "++" -> Some Lang.Type.([List (Var "A"); List (Var "A")], List (Var "A"))
-    | "-" -> Some Lang.Type.([Int; Int], Int)
-    | "+" -> Some Lang.Type.([Int; Int], Int)
+    | "++" ->
+      List.map
+        (fun v ->
+           Lang.Type.([List (Var v); List (Var v)], List (Var v)))
+        env.Proof_env.poly_vars
+    | "Opt.option_is_none"
+    | "Opt.option_is_some" ->
+      List.map
+        (fun v ->
+           Lang.Type.([ADT ("option", [Var v], None)], Bool))
+        env.Proof_env.poly_vars
+    | "not" -> Lang.Type.[[Bool], Bool]
+    | "-" -> Lang.Type.[[Int; Int], Int]
+    | "+" -> Lang.Type.[[Int; Int], Int]
     | s ->
+      let (let+) x f = Option.bind x f in
+      Option.value ~default:[] @@
       try
         let ty = (Proof_context.typeof t s) in
         let+ s_base = String.split_on_char '.' s |> List.last_opt in
@@ -260,7 +273,16 @@ let typeof t (s: string) : (Lang.Type.t list * Lang.Type.t) option =
         match name with
         | Names.GlobRef.ConstRef s ->
           let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ s ty in
-          Some (split_last args)
+          let instantiations =
+            List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) env.Proof_env.poly_vars) poly
+            |> List.map (fun subst ->
+              let subst = StringMap.of_list subst in
+              let map v = StringMap.find_opt v subst
+                          |> Option.value ~default:v in
+              List.map (Lang.Type.map_poly_var map) args
+              |> split_last
+            ) in
+          Some (instantiations)
         | _ -> None
       with
       | _ -> None in
@@ -392,6 +414,7 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
   let test_f =
     List.find_map Option.(fun obs ->
       let obs = Proof_env.normalize_observation env obs in
+      Log.debug (fun f -> f "considering observation obs: %s" (show_obs obs));
       Proof_context.with_temporary_context t begin fun () ->
         Log.debug (fun f ->
           f "initial args=%s@."
@@ -433,6 +456,10 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
   test_f t.Proof_context.compilation_context
 
 let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
+  let uses_options = StringMap.values env.Proof_env.gamma
+                     |> Iter.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false) in
+  let invariant_has_bool = List.to_iter (snd inv_ty)
+                           |> Iter.exists (function (_, Lang.Type.Bool) -> true | _ -> false) in
   (* construct an expression generation context using the old proof *)
   let ctx =
     let vars, funcs =
@@ -442,12 +469,23 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           List.find_map (fun obs ->
             let (pure, _) = Proof_env.normalize_observation env obs in
             Some (List.map fst pure |> StringSet.of_list)
-          ) observations |> Option.get_or ~default:StringSet.empty in
+          ) observations
+          |> Option.get_or ~default:StringSet.empty in
         let poly_vars, proof_env = Proof_utils.CFML.extract_env (Proof_context.current_goal t).hyp in
-        List.filter (fun (name, ty) ->
-          let is_concrete_var = StringSet.mem name available_vars in
-          let is_hof_fun = match ty with Lang.Type.Func (Some _) -> true | _ -> false in
-          is_concrete_var || is_hof_fun
+        List.filter_map (fun (name, ty) ->
+          if StringSet.mem name available_vars
+          then Some (name, ty)
+          (* handle higher order pure functions:  *)
+          else match ty, StringMap.find_opt name env.logical_mappings with
+            | Lang.Type.Func (Some _), Some name ->
+              (* we need a binding for the function to a corresponding
+                 program variable to ensure that the function can be
+                 found: *)
+              Some (name, ty)
+            | Lang.Type.Func (Some _), None ->
+              Log.warn (fun f -> f "found usable pure function %s but lacking suitable binding" name);
+              None
+            | _ -> None
         ) proof_env in
       (* collect any variables that will be available to the invariant *)
       let invariant_vars = snd inv_ty in
@@ -463,6 +501,15 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         (* add in + and - for  basic arithmetic operations *)
         |> StringSet.add "+"
         |> StringSet.add "-"
+        |> (if invariant_has_bool
+            then StringSet.add "not"
+            else Fun.id)
+        |> (if uses_options
+            then StringSet.add "Opt.option_is_some"
+            else Fun.id)
+        |> (if uses_options
+            then StringSet.add "Opt.option_is_none"
+            else Fun.id)
         (* add in any hof functions in our proof env  *)
         |> Fun.flip StringSet.add_iter
              (List.to_iter proof_vars
@@ -473,16 +520,22 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       Dynamic.Matcher.find_aligned_range `Right t.Proof_context.alignment
         ((((t.Proof_context.current_program_id :> int) - 1)),
          (((t.Proof_context.current_program_id :> int)))) in
+
     Log.debug (fun f ->
       f ~header:"gen-cand-invariants" "%d, %d --> from_id: %d, to_id: %d@."
         (((t.Proof_context.current_program_id :> int) - 1))
         (((t.Proof_context.current_program_id :> int)))
         from_id to_id);
+
     Expr_generator.build_context ~ints:[1;2]
-      ~vars ~funcs ~env:(typeof t)
+      ~vars ~funcs ~env:(fun f ->
+        let res = typeof t env f in
+        Log.debug (fun pr -> pr "checking the type of %s ==> %s@." f
+                               ([%show: (Lang.Type.t list * Lang.Type.t) list] res));
+        res
+      )
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
-
 
   Log.info (fun f ->
     f ~header:"gen-cand-invariants" "generation context is %a@." Expr_generator.pp_ctx ctx);
@@ -500,27 +553,48 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       | _ -> None
     ) in
 
+  let ocaml_name proof_var =
+    Option.value ~default:proof_var
+      (StringMap.find_opt proof_var env.Proof_env.bindings) in
+
   let gen_heap_spec =
     List.map
       Proof_spec.Heap.Heaplet.(function
-          PointsTo (v, ty, `App ("CFML.WPArray.Array", _)) when StringSet.mem v mut_vars  ->
-          Log.debug (fun f -> f "TYPE OF %s IS %a" v (Option.pp Lang.Type.pp) ty);
-          `Hole (Lang.Type.List (Lang.Type.Var "A"))
-        | PointsTo (v, ty, `App ("CFML.WPArray.Array", [ls])) ->
-          Log.debug (fun f -> f "TYPE OF %s IS %a with %a" v (Option.pp Lang.Type.pp) ty Lang.Expr.pp ls);
-          `Concrete ls
-        | PointsTo (v, ty, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), _)) when StringSet.mem v mut_vars ->
-          Log.debug (fun f -> f "TYPE OF %s IS %a" v (Option.pp Lang.Type.pp) ty);
-          `Hole (Lang.Type.Var "A")
-        | PointsTo (v, ty, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), [vl]))  ->
-          Log.debug (fun f -> f "TYPE OF %s IS %a with %a" v (Option.pp Lang.Type.pp) ty Lang.Expr.pp vl);
-          `Concrete vl
+        | PointsTo (arr, _, `App ("CFML.WPArray.Array", [ls]))  ->
+          let arr = ocaml_name arr in
+          let elt_ty =
+            match StringMap.find_opt arr env.gamma with
+            | Some (Array elt) -> Lang.Type.to_coq_form elt
+            | _ ->
+              Format.ksprintf ~f:failwith "failed to retrieve type of heaplet %s" arr in
+          (* only attempt to synthesize the expression if it is actually mutated   *)
+          if StringSet.mem arr mut_vars
+          then `Hole (Lang.Type.List elt_ty)
+          else `Concrete ls
+        | PointsTo (v, _, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), [vl])) ->
+          Log.debug (fun f -> f "gen heap spec type of %s is %a" v (Option.pp Lang.Type.pp) (StringMap.find_opt v env.gamma));
+          let v = ocaml_name v in
+          let elt_ty =
+            match StringMap.find_opt v env.gamma with
+            | Some (Ref elt) -> Lang.Type.to_coq_form elt
+            | _ ->
+              Format.ksprintf ~f:failwith "failed to retrieve type of heaplet %s" v in
+          (* only attempt to synthesize the expression if it is actually mutated   *)
+          if StringSet.mem v mut_vars
+          then `Hole elt_ty
+          else `Concrete vl
         | v ->
           Format.ksprintf ~f:failwith
             "found unsupported heaplet %a" pp v
       ) pre_heap in
 
-  let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx (typeof t) in
+  Log.info (fun f -> f "Generation target is:\n - pure: %a\n - heap: %s"
+                       (List.pp (Pair.pp String.pp Lang.Type.pp)) gen_pure_spec
+                       ([%show: [`Concrete of Lang.Expr.t | `Hole of Lang.Type.t ] list] gen_heap_spec)
+           );
+
+  let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx
+                                            (typeof t env) in
   let pure =
     List.map_product_l List.(fun (v, ty) ->
       List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~blacklist:[v] ~fuel:3 ~initial:false ty)
@@ -532,6 +606,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           (fun acc vl -> `App ("&&", [vl; acc])) h t
         |> Option.some
     ) in
+
   let heap = List.map_product_l (function `Hole ty -> gen ty | `Concrete vl -> [vl]) gen_heap_spec  in
   pure, heap
 
@@ -679,6 +754,13 @@ let rec is_simple_expression : Lang.Expr.t -> bool = function
   | `Lambda _ |`Constructor _
   | `App _ -> false
 
+let update_env_with_bindings env = function
+  | `Var (var, ty) -> Proof_env.add_binding env ~var ~ty
+  | `Tuple vars ->
+    List.fold_left
+      (fun env (var, ty) ->
+         Proof_env.add_binding env ~var ~ty)
+      env vars
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   Log.debug (fun f ->
@@ -742,25 +824,31 @@ and symexec_alloc t env pat rest =
   Log.debug (fun f -> f "[%s] symexec_alloc %a"
                         (t.Proof_context.current_program_id |>  Lang.Id.show)
                         Lang.Expr.pp_typed_param pat);
-  let prog_arr = match pat with
+  let prog_arr, arr_ty = match pat with
     | `Tuple _ -> failwith "found tuple pattern in result of array.make"
-    | `Var (var, _) -> var in
+    | `Var (var, ty) -> var, ty in
   let arr = Proof_context.fresh ~base:(prog_arr) t in
   let data = Proof_context.fresh ~base:"data"  t in
   let h_data = Proof_context.fresh ~base:("H" ^ data) t in
   Proof_context.append t "xalloc %s %s %s." arr data h_data;
-  let env = Proof_env.add_proof_binding env ~proof_var:arr ~program_var:prog_arr in
+  let env =
+    env
+    |> Proof_env.add_proof_binding ~proof_var:arr ~program_var:prog_arr
+    |> Proof_env.add_binding ~var:prog_arr ~ty:arr_ty in
   symexec t env rest
 and symexec_ref_alloc t env pat rest =
   Log.debug (fun f -> f "[%s] symexec_ref_alloc %a"
                         (t.Proof_context.current_program_id |>  Lang.Id.show)
                         Lang.Expr.pp_typed_param pat);
-  let prog_arr = match pat with
+  let prog_ref, ref_ty = match pat with
     | `Tuple _ -> failwith "found tuple pattern in result of ref"
-    | `Var (var, _) -> var in
-  let ref_name = Proof_context.fresh ~base:(prog_arr) t in
+    | `Var (var, ty) -> var, ty in
+  let ref_name = Proof_context.fresh ~base:(prog_ref) t in
   Proof_context.append t "xref %s." ref_name;
-  let env = Proof_env.add_proof_binding env ~proof_var:ref_name ~program_var:prog_arr in
+  let env =
+    env
+    |> Proof_env.add_proof_binding ~proof_var:ref_name ~program_var:prog_ref
+    |> Proof_env.add_binding ~var:prog_ref ~ty:ref_ty in
   symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
   Log.debug (fun f -> f "[%s] symexec_opaque_let %a = %a"
@@ -780,7 +868,6 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
     let env = Proof_env.add_proof_binding env ~proof_var:var ~program_var:prog_var in
     symexec t env rest
   end else begin
-    Log.debug (fun f -> f "current proof:\n%s" (Proof_context.extract_proof_script t));
     (* let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in *)
     (* work out the name of function being called and the spec for it *)
     (* let (_lemma_name, _lemma_full_type) =
@@ -819,6 +906,12 @@ and symexec_match t env prog_expr cases =
       List.fold_left (fun env ((program_var, _), proof_var) ->
         Proof_env.add_proof_binding env ~proof_var ~program_var
       ) env (List.combine args proof_args) in
+
+    (*  update the proof env with bindings from the match *)
+    let env = List.fold_left (fun env (var,ty) ->
+      Proof_env.add_binding env ~var ~ty
+    ) env args in
+    
     (* now emit the rest *)
     symexec t env rest;
     (* dispatch remaining subgoals by the best method: *)
@@ -895,7 +988,8 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   (* emit xapp call *)
   let observation_id, fn_body =
     List.find_map (function
-        `Var v -> Proof_env.find_pure_lambda_def env v (* StringMap.find_opt v env |> Option.flat_map (Option.if_ Program_utils.is_pure) *)
+        `Var v -> Proof_env.find_pure_lambda_def env v
+      (* StringMap.find_opt v env |> Option.flat_map (Option.if_ Program_utils.is_pure) *)
       | _ -> None) prog_args
     |> Option.get_exn_or "invalid assumptions" in
 
@@ -921,29 +1015,35 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   Proof_context.append t "clear %s." (String.concat " " clear_vars);
 
   (* destructuring of arguments *)
-  begin
-    match pat with
-    | `Var _ -> ()
-    | `Tuple vars ->
-      (* if we have a tuple, then we need to do some extra work *)
-      let vars = List.map (fun (name, _) ->
-        Proof_context.fresh ~base:name t
-      ) vars in
-      let h_var = Proof_context.fresh ~base:("H" ^ String.concat "" vars) t in
-      (* first, emit a xdestruct to split the tuple output - [hvar] remembers the equality *)
-      Proof_context.append t "xdestruct %s %s." (String.concat " " vars) h_var;
-      (* next, use a user-provided rewrite hint to simplify the equality  *)
-      begin match rewrite_hint with
-      | Some rewrite_hint ->
-        Proof_context.append t "rewrite %s in %s." rewrite_hint h_var;
-      | None ->
-        failwith "tuple destructuring with functions requires a rewrite hint."
-      end;
-      (* finally, split the simplified equality on tuples into an equality on terms  *)
-      let split_vars = List.map (fun var -> Proof_context.fresh ~base:("H" ^ var) t) vars in
-      Proof_context.append t "injection %s; intros %s."
-        h_var (String.concat " " @@ List.rev split_vars);
-  end;
+  let env =
+    begin
+      match pat with
+      | `Var (res_name, res_ty) -> env
+      | `Tuple vars ->
+        (* if we have a tuple, then we need to do some extra work *)
+        let env, vars = List.fold_map (fun env (program_var, _) ->
+          let proof_var = Proof_context.fresh ~base:program_var t in
+          let env = Proof_env.add_proof_binding env ~proof_var ~program_var in
+          env, proof_var
+        ) env vars in
+        let h_var = Proof_context.fresh ~base:("H" ^ String.concat "" vars) t in
+        (* first, emit a xdestruct to split the tuple output - [hvar] remembers the equality *)
+        Proof_context.append t "xdestruct %s %s." (String.concat " " vars) h_var;
+        (* next, use a user-provided rewrite hint to simplify the equality  *)
+        begin match rewrite_hint with
+        | Some rewrite_hint ->
+          Proof_context.append t "rewrite %s in %s." rewrite_hint h_var;
+        | None ->
+          failwith "tuple destructuring with functions requires a rewrite hint."
+        end;
+        (* finally, split the simplified equality on tuples into an equality on terms  *)
+        let split_vars = List.map (fun var -> Proof_context.fresh ~base:("H" ^ var) t) vars in
+        Proof_context.append t "injection %s; intros %s."
+          h_var (String.concat " " @@ List.rev split_vars);
+        env
+    end in
+  (* update program gamma with bindings from result *)
+  let env = update_env_with_bindings env pat in
   symexec t env rest
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   Log.debug (fun f -> f "[%s] symexec_higher_order_fun %a %a"
@@ -981,24 +1081,33 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     concrete_args, observations in
 
   (* build an initial test specification from the partially reduced proof term applied to values at the current position *)
-  let test_f = build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
+  let test_f =
+    build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
 
   (* retrieve the body of the higher order function being called *)
   let fun_body =
     List.find_map (function
-      | `Var v -> StringMap.find_opt v env.lambda
+      | `Var v -> StringMap.find_opt v env.Proof_env.lambda
       | _ -> None) prog_args
     |> Option.map snd
     |> Option.get_exn_or "could not find function definition" in
 
   (* extract vars mutated by HOF *)
-  let mut_vars =
-    Program_utils.mutated_vars fun_body in
+  let mut_vars = Program_utils.mutated_vars fun_body in
+
+  Log.debug (fun f -> f "mutable variables are %a" (StringSet.pp String.pp) mut_vars);
 
   (* generate initial invariants *)
   let pure, heap =
     generate_candidate_invariants t env
       ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
+
+  Configuration.dump_output "generated-pure-invariants" (fun f ->
+    f "%a" (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") Lang.Expr.pp) pure
+  );
+  Configuration.dump_output "generated-heap-invariants" (fun f ->
+    f "%a" (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") (List.pp Lang.Expr.pp)) heap
+  );
 
   let () =
     let no_pure = List.length pure in
@@ -1148,15 +1257,18 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     f "pattern was %s@."
       ([%show: Lang.Expr.typed_param] pat));
   begin match pat with
-  | `Tuple _ -> failwith "tuple results from not supported"
+  | `Tuple _ ->
+    failwith "tuple results from impure functions not supported"
 
   | `Var (_, Lang.Type.Unit) ->
     Proof_context.append t "xmatch."
 
-  | `Var (result, _) ->
-    let name = Proof_context.fresh ~base:result t in
-    let h_name = Proof_context.fresh ~base:("H" ^ result) t in
-    Proof_context.append t "intros %s %s." name h_name;
+  | `Var (result, ty) ->
+    if Constr.isProd (Proof_context.current_goal t).ty then begin
+      let name = Proof_context.fresh ~base:result t in
+      let h_name = Proof_context.fresh ~base:("H" ^ result) t in
+      Proof_context.append t "intros %s %s." name h_name
+    end;
     match snd invariant with
     | [] -> ()
     | _ ->
@@ -1164,6 +1276,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   end;
   Log.debug (fun f -> f "proof is %s@." (Proof_context.extract_proof_script t));
 
+  (* update program gamma with bindings from result *)
+  let env = update_env_with_bindings env pat in
   symexec t env rest
 
 

@@ -17,13 +17,13 @@ Lemma find_mapi_spec :
           POST (fun (b: option B) => \[b = fp i a])) ->
   SPEC (find_mapi a f)
   PRE (a ~> Array l)
-  POST (fun (b : option B) => \[ b = Common.Utils.find_mapi 0 fp l] \* a ~> Array l).
+  POST (fun (b : option B) => \[ b = list_find_mapi fp l] \* a ~> Array l).
 Proof using (All).
   xcf.
   xapp.
   xletopaque tmp Htmp.
   xapp (until_upto_spec 0 (length l) tmp (fun (i: credits) (res: option B) =>
-               a ~> Array l \* \[res = Utils.find_mapi 0 fp (take i l)]
+               a ~> Array l \* \[res = list_find_mapi fp (take i l)]
           )
        ). {
     intros i Hlen; apply Htmp; clear Htmp.
@@ -35,6 +35,7 @@ Proof using (All).
     xapp (H i l[i]); xsimpl*.
     rewrite (take_pos_last IA); [ | apply int_index_prove; math ].
     math_rewrite ((i + 1 - 1) = i).
+    rewrite find_mapi_unfold.
     rewrite find_mapi_app_r; auto.
     rewrite length_take_nonneg; try math.
     math_rewrite (0 + i = i).
@@ -44,7 +45,7 @@ Proof using (All).
   xvals*. {
     destruct res as [ res_vl|]; simpl in Himpl.
     - rewrite <- (@list_eq_take_app_drop _ i l); try math.
-      rewrite find_mapi_app_l; auto.
+      rewrite find_mapi_unfold, find_mapi_app_l in *; auto.
       rewrite <- Heq; simpl; auto.
     - assert (Heqi: i = length l) by (apply Z.eqb_eq; auto).
       rewrite Heqi in Heq.

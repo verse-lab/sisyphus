@@ -14,7 +14,7 @@ val make_raw_ctx :
   ctx
 
 
-type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
+type env = string -> ((Lang.Type.t list) * Lang.Type.t) list
 (** [env] represents a mapping of function names to their argument
    types and return types.  *)
 

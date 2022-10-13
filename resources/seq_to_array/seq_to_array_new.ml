@@ -13,6 +13,6 @@ let to_array (s: ('a t[@collection Sseq.of_list, Sseq.to_list])) =
        (* 5 *)
        let (idx: int) = len - 2 in
        (* 8 *)
-       let (unused: int) = List.fold_left (fun (i: int) (x: 'a) -> (* 6 *) a.(i) <- x; (* 7 *) i - 1) idx rest in
+       let (_: int) = List.fold_left (fun (i: int) (x: 'a) -> (* 6 *) a.(i) <- x; (* 7 *) i - 1) idx rest in
        (* 9 *)
        a

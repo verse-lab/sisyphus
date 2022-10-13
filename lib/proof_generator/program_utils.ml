@@ -50,12 +50,12 @@ let mutated_vars (prog: [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t La
     | `Write (arr, _, _, rest) ->
       let vars = StringSet.add arr vars in
       loop rest vars
-    | `Value (`App ("Array.get", ([`Var arr; _; _]))) -> StringSet.add arr vars
+    | `Value (`App ("Array.set", ([`Var arr; _; _]))) -> StringSet.add arr vars
 
     | `AssignRef (v, _, rest) ->
       let vars = StringSet.add v vars in
       loop rest vars
-    | `Value (`App (":=", ([`Var v]))) -> StringSet.add v vars
+    | `Value (`App (":=", ([`Var v; _]))) -> StringSet.add v vars
 
     | `Value _ -> vars
   in

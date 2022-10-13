@@ -107,7 +107,13 @@ let with_name_file base_path name =
       else loop (i + 1) in
     loop 1
 
-
+(* [combine r1 r2] combines two reporters and sends output to both of
+   them. Taken from the logs documentation. *)
+let combine r1 r2 =
+  let report = fun src level ~over k msgf ->
+    let v = r1.Logs.report src level ~over:(fun () -> ()) k msgf in
+    r2.Logs.report src level ~over (fun () -> v) msgf in
+  { Logs.report }
 
 let initialize ?default_timeout ?challenging_timeout ?max_calls ?filter_logs ?should_validate_with_z3 ?log_level ?log_dir ?dump_dir () =
   update_opt z3_default_timeout default_timeout;
@@ -124,6 +130,7 @@ let initialize ?default_timeout ?challenging_timeout ?max_calls ?filter_logs ?sh
       inner_dump_dir := Some path
   in
 
+  let reporter = Logs_fmt.reporter () in
   let reporter =
     match log_dir with
     | Some path ->
@@ -131,9 +138,10 @@ let initialize ?default_timeout ?challenging_timeout ?max_calls ?filter_logs ?sh
       let log_file = with_fresh_log path in
       let oc = open_out log_file in
       let fmt = Format.of_chan oc in
-      pretty_reporter fmt
+      Format.flush fmt ();
+      combine (pretty_reporter fmt) reporter
       (* Logs_fmt.reporter ~app:fmt ~dst:fmt ()  *)
-    | None -> Logs_fmt.reporter () in
+    | None -> reporter in
   let reporter = match filter_logs with
     | None -> reporter
     | Some log_regx ->

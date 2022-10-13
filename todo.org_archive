@@ -883,3 +883,181 @@ CLOSED: [2022-10-10 Mon 08:54]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Update Dune file to work more nicely across projects
+CLOSED: [2022-10-06 Thu 13:26]
+:PROPERTIES:
+:Effort:   1:00
+:ARCHIVE_TIME: 2022-10-13 Thu 02:44
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+:LOGBOOK:
+CLOCK: [2022-10-06 Thu 07:41]--[2022-10-07 Fri 06:04] => 22:23
+CLOCK: [2022-10-06 Thu 07:03]--[2022-10-06 Thu 07:30] =>  0:27
+:END:
+
+* DONE Work on array find map
+CLOSED: [2022-10-13 Thu 02:45]
+:PROPERTIES:
+:Effort:   4:00
+:ARCHIVE_TIME: 2022-10-13 Thu 02:45
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+** DONE Add support for xif lemma in proof analysis
+CLOSED: [2022-10-11 Tue 03:23]
+:LOGBOOK:
+CLOCK: [2022-10-11 Tue 03:23]--[2022-10-11 Tue 03:23] =>  0:00
+CLOCK: [2022-10-11 Tue 02:29]--[2022-10-11 Tue 03:23] =>  0:54
+:END:
+** DONE Add support for simple cases on Bool
+CLOSED: [2022-10-11 Tue 04:21]
+** DONE Add support for extracting xif lemmas
+CLOSED: [2022-10-13 Thu 02:45]
+** DONE Hacker mode
+CLOSED: [2022-10-13 Thu 02:45]
+
+* DONE Update proof env to track poly variables
+CLOSED: [2022-10-13 Thu 03:12]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update proof env to track gamma
+CLOSED: [2022-10-13 Thu 03:27]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+** DONE update symexec alloc
+CLOSED: [2022-10-13 Thu 03:18]
+** DONE update symexec ref alloc
+CLOSED: [2022-10-13 Thu 03:19]
+** DONE update symexec higher order pure fun
+CLOSED: [2022-10-13 Thu 03:23]
+** DONE update symexec higher order fun
+CLOSED: [2022-10-13 Thu 03:26]
+** DONE update symexec match
+CLOSED: [2022-10-13 Thu 03:27]
+
+* DONE Update generate candidate invariants to use gamma to determine type of holes
+CLOSED: [2022-10-13 Thu 03:51]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update proof env to track updated names of results of let bindings
+CLOSED: [2022-10-13 Thu 04:33]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update mut var checking to use proof vars
+CLOSED: [2022-10-13 Thu 04:33]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Print to stdout and file
+CLOSED: [2022-10-13 Thu 07:26]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 07:26
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Fix bug in working out the type of find_mapi
+CLOSED: [2022-10-13 Thu 05:11]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Instantiate lemmas with all polymorphic variables
+CLOSED: [2022-10-13 Thu 05:34]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE work out why it crashes
+CLOSED: [2022-10-13 Thu 06:20]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Pass in hof as variables
+CLOSED: [2022-10-13 Thu 06:54]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update code to check if intros is needed
+CLOSED: [2022-10-13 Thu 07:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add nil constant when lists
+CLOSED: [2022-10-13 Thu 07:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Make fuzzed functions dependent on ints
+CLOSED: [2022-10-13 Thu 09:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 09:50
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

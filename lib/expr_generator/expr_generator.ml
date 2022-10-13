@@ -4,7 +4,7 @@ module Log = (val Logs.src_log (Logs.Src.create ~doc:"An Expression Generator" "
 
 module Types = Types
 
-type env = string -> ((Lang.Type.t list) * Lang.Type.t) option
+type env = string -> ((Lang.Type.t list) * Lang.Type.t) list
 
 module StringMap = Map.Make(String)
 module StringSet = Set.Make (String)
@@ -101,21 +101,29 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
   (*  update consts with variables *)
   let consts =
     List.fold_left (fun acc (var, ty) ->
-        Types.update_binding acc ty (`Var var)
-      ) consts vars in
+      Types.update_binding acc ty (`Var var)
+    ) consts vars in
   let consts =
     List.fold_left (fun acc i ->
-        Types.update_binding acc Int (`Int i)
-      ) consts ints in
+      Types.update_binding acc Int (`Int i)
+    ) consts ints in
   let funcs =
     let normalize_name f = String.split_on_char '.' f |> List.last_opt |> Option.value ~default:f in
     List.fold_left (fun acc f ->
-        match env f with
-        | None -> acc
-        | Some (args, ret_ty) -> Types.update_binding acc ret_ty (normalize_name f, args)
-      ) old_funcs funcs in
-  let funcs = Types.TypeMap.map (fun fns -> StringMap.of_list fns |> StringMap.to_list) funcs in
-
+      List.fold_left (fun acc (args, ret_ty) ->
+        Types.update_binding acc ret_ty (normalize_name f, args)
+      ) acc (env f)
+    ) old_funcs funcs in
+  let funcs =
+    let module StringTypeSet =
+      Set.Make (struct
+        type t = string * Lang.Type.t list
+        [@@deriving ord]
+      end) in
+    Types.TypeMap.map (fun fns ->
+      StringTypeSet.of_list fns
+      |> StringTypeSet.to_list
+    ) funcs in
   {consts; pats; funcs}
 
 (* [get_fuels ctx fname fuel args]: determines fuel for arguments of function fname.
@@ -147,18 +155,26 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.e
   | fuel when fuel > 0 ->
     let consts = Types.TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[]
                  |> filter_blacklisted blacklisted_vars in
+    let consts = match ty with
+      | Lang.Type.List _ -> `Constructor ("[]", []) :: consts
+      | Lang.Type.Unit -> `Constructor ("()", []) :: consts
+      | Lang.Type.Bool -> `Constructor ("true", []) :: `Constructor ("false", []) :: consts
+      | Lang.Type.ADT ("option", _, _) -> `Constructor ("None", []) :: consts
+      | _ -> consts in
     let funcs = Types.TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
     let consts_funcs =
-      List.filter_map (function
-        | (fname, [arg]) -> Some (fname, arg)
-        | (_, _)  -> None
-      ) funcs
-      |> List.flat_map (fun (fname, arg) ->
-        Types.TypeMap.find_opt arg ctx.consts |> Option.value  ~default:[]
-        |> filter_blacklisted blacklisted_vars
-        |> List.map (fun arg -> `App (fname, [arg]))
-      ) in
-    let consts = consts @ (if fuel = 1 then consts_funcs else []) in
+      if fuel = 1 then
+        List.filter_map (function
+          | (fname, [arg]) -> Some (fname, arg)
+          | (_, _)  -> None
+        ) funcs
+        |> List.flat_map (fun (fname, arg) ->
+          Types.TypeMap.find_opt arg ctx.consts |> Option.value  ~default:[]
+          |> filter_blacklisted blacklisted_vars
+          |> List.map (fun arg -> `App (fname, [arg]))
+        )
+      else [] in
+    let consts = consts @ consts_funcs in
     let+ funcs =  flat_mapM (fun (fname, args) kont ->
       let arg_with_fuels = get_fuels ctx fuel fname args in
       let+ funcs =
@@ -172,7 +188,7 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.e
   | _ -> k []
 
 
-let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx env pat kont  =
+let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx (env: env) pat kont  =
   match pat with
   | `App (fname, args) ->
     let+ args = mapM_product_l (instantiate_pat ~blacklisted_vars ctx env  ~fuel:(fuel)) args in
@@ -195,10 +211,10 @@ let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx env pat kont  =
 
 (* generates a list of candidate expressions of a desired type;
  * if initial = true then only use patterns as a template to generate candidate expressions *)
-let generate_expression ?(blacklisted_vars=[]) ?(initial=true) ?fuel ctx env ty =
+let generate_expression ?(blacklisted_vars=[]) ?(initial=true) ?fuel ctx (env: env) ty =
   let blacklisted_vars = StringSet.of_list blacklisted_vars in
-  if initial then
-    let pats = List.rev @@ (Types.TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
+  let pats = List.rev @@ (Types.TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
+  if initial && List.length pats > 0 then
     let pats = flat_mapM (instantiate_pat ~blacklisted_vars ctx env ?fuel) pats Fun.id in
     pats
   else

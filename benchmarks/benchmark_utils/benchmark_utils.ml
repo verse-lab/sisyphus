@@ -243,7 +243,7 @@ let sisyphus_runs_on ~path ~coq_name ~common_path ~common_coq_name () =
 let tests = ref []
 
 let run name =
-  Alcotest.run name
+  Alcotest.run ~verbose:true name 
     (List.map (fun f -> f ()) @@ List.rev !tests)
 
 module Make (S: sig val name: string end) = struct

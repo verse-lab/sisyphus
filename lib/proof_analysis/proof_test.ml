@@ -52,7 +52,17 @@ let build_test
     AH.Exp.function_ ~attrs:[disable_warning 8; disable_warning 11] begin
       List.map Fun.(build_case % fst) pure @
       List.map Fun.(build_case % fst) heap @
-      List.map build_case args
+      List.map Fun.(build_case % fst) hofs @
+      List.map build_case args @
+      [AH.Exp.case AH.Pat.(var (Location.mknoloc "sisyphus_matching_var")) @@
+       AH.Exp.apply
+         AH.Exp.(ident @@ Location.mknoloc @@ Longident.Lident "failwith") [
+         Nolabel, AH.Exp.apply AH.Exp.(ident @@ Location.mknoloc @@ Longident.Lident "^") [
+           Nolabel, AH.Exp.constant (Pconst_string ("use of unknown variable ", Location.none, None));
+           Nolabel, AH.Exp.ident @@ Location.mknoloc @@ Longident.Lident "sisyphus_matching_var"
+         ]
+       ]
+      ]
     end in
   let (let+) x f = x f in
   let rec with_pure_bindings ls kont =
@@ -119,6 +129,8 @@ let build_test
       | Assert_failure (_, _, _) -> false
       | e ->
         Log.warn (fun f ->
-          f "evaluation of invariant failed dynamic tests \
-             with non-assert exception %s@." (Printexc.to_string e));
+          f "evaluation of invariant %s failed dynamic tests \
+             with non-assert exception %s@."
+            ([%show: Lang.Expr.t * Lang.Expr.t list] inv)
+            (Printexc.to_string e));
         false
