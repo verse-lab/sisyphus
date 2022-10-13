@@ -6,45 +6,9 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** DONE Update Dune file to work more nicely across projects
-CLOSED: [2022-10-06 Thu 13:26]
-:PROPERTIES:
-:Effort:   1:00
-:END:
-:LOGBOOK:
-CLOCK: [2022-10-06 Thu 07:41]--[2022-10-07 Fri 06:04] => 22:23
-CLOCK: [2022-10-06 Thu 07:03]--[2022-10-06 Thu 07:30] =>  0:27
-:END:
-** TODO Work on array find map
-:PROPERTIES:
-:Effort:   4:00
-:END:
-*** DONE Add support for xif lemma in proof analysis
-CLOSED: [2022-10-11 Tue 03:23]
-:LOGBOOK:
-CLOCK: [2022-10-11 Tue 03:23]--[2022-10-11 Tue 03:23] =>  0:00
-CLOCK: [2022-10-11 Tue 02:29]--[2022-10-11 Tue 03:23] =>  0:54
-:END:
-*** DONE Add support for simple cases on Bool
-CLOSED: [2022-10-11 Tue 04:21]
-*** TODO Add support for extracting xif lemmas
-*** TODO Hacker mode
-** TODO Work on adding more examples
-:PROPERTIES:
-:Effort:   1:00
-:END:
-** TODO Update codebase to work with Coq.8.16.0
+** TODO Update proof env to track gamma
+** TODO Update proof env to track poly variables
+** TODO Update generate candidate invariants to use gamma to determine type of holes
+** TODO Fix bug in working out the type of find_mapi
+** TODO Add negb and is_some to context
 ** TODO You're the BEST around
-* Tasks for the proof demigod
-** DONE Add array of rev list
-CLOSED: [2022-09-27 Tue 16:35]
-*** Make it build
-** DONE Add benchmark test for array_of_rev list
-CLOSED: [2022-09-27 Tue 17:02]
-** TODO How to handle HO loops?
-*** Add xfor and xwhile [1 hr]
-*** Look through examples and find minimal set of combinators that capture all recursion
-*** Rewrite array_of_rev_list using HO iterator
-*** Define & prove specification for for-loop iterator (nat_fold_left)
-*** Prove new program
-** TODO Add modular tests
