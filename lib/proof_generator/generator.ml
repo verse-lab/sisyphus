@@ -245,14 +245,15 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left [_, _]) -> ()
 
-let typeof t (s: string) : (Lang.Type.t list * Lang.Type.t) option =
-  let (let+) x f = Option.bind x f in
+let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
   let ty =
     match s with
-    | "++" -> Some Lang.Type.([List (Var "A"); List (Var "A")], List (Var "A"))
-    | "-" -> Some Lang.Type.([Int; Int], Int)
-    | "+" -> Some Lang.Type.([Int; Int], Int)
+    | "++" -> Lang.Type.[[List (Var "A"); List (Var "A")], List (Var "A")]
+    | "-" -> Lang.Type.[[Int; Int], Int]
+    | "+" -> Lang.Type.[[Int; Int], Int]
     | s ->
+      let (let+) x f = Option.bind x f in
+      Option.to_list @@
       try
         let ty = (Proof_context.typeof t s) in
         let+ s_base = String.split_on_char '.' s |> List.last_opt in
@@ -481,7 +482,12 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         from_id to_id);
 
     Expr_generator.build_context ~ints:[1;2]
-      ~vars ~funcs ~env:(typeof t)
+      ~vars ~funcs ~env:(fun f ->
+        let res = typeof t env f in
+        Log.debug (fun pr -> pr "checking the type of %s ==> %a@." f
+                               (List.pp (Pair.pp (List.pp Lang.Type.pp) Lang.Type.pp)) res);
+        res
+      )
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
 
@@ -541,7 +547,8 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
                        ([%show: [`Concrete of Lang.Expr.t | `Hole of Lang.Type.t ] list] gen_heap_spec)
            );
 
-  let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx (typeof t) in
+  let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx
+                                            (typeof t env) in
   let pure =
     List.map_product_l List.(fun (v, ty) ->
       List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~blacklist:[v] ~fuel:3 ~initial:false ty)

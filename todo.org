@@ -6,26 +6,7 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** DONE Update proof env to track poly variables
-CLOSED: [2022-10-13 Thu 03:12]
-** DONE Update proof env to track gamma
-CLOSED: [2022-10-13 Thu 03:27]
-*** DONE update symexec alloc
-CLOSED: [2022-10-13 Thu 03:18]
-*** DONE update symexec ref alloc
-CLOSED: [2022-10-13 Thu 03:19]
-*** DONE update symexec higher order pure fun
-CLOSED: [2022-10-13 Thu 03:23]
-*** DONE update symexec higher order fun
-CLOSED: [2022-10-13 Thu 03:26]
-*** DONE update symexec match
-CLOSED: [2022-10-13 Thu 03:27]
-** DONE Update generate candidate invariants to use gamma to determine type of holes
-CLOSED: [2022-10-13 Thu 03:51]
-** DONE Update proof env to track updated names of results of let bindings
-CLOSED: [2022-10-13 Thu 04:33]
-** DONE Update mut var checking to use proof vars
-CLOSED: [2022-10-13 Thu 04:33]
 ** TODO Fix bug in working out the type of find_mapi
+** TODO Instantiate lemmas with all polymorphic variables
 ** TODO Add negb and is_some to context
 ** TODO You're the BEST around

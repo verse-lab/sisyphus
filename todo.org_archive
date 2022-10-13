@@ -921,3 +921,63 @@ CLOSED: [2022-10-11 Tue 04:21]
 CLOSED: [2022-10-13 Thu 02:45]
 ** DONE Hacker mode
 CLOSED: [2022-10-13 Thu 02:45]
+
+* DONE Update proof env to track poly variables
+CLOSED: [2022-10-13 Thu 03:12]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update proof env to track gamma
+CLOSED: [2022-10-13 Thu 03:27]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+** DONE update symexec alloc
+CLOSED: [2022-10-13 Thu 03:18]
+** DONE update symexec ref alloc
+CLOSED: [2022-10-13 Thu 03:19]
+** DONE update symexec higher order pure fun
+CLOSED: [2022-10-13 Thu 03:23]
+** DONE update symexec higher order fun
+CLOSED: [2022-10-13 Thu 03:26]
+** DONE update symexec match
+CLOSED: [2022-10-13 Thu 03:27]
+
+* DONE Update generate candidate invariants to use gamma to determine type of holes
+CLOSED: [2022-10-13 Thu 03:51]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update proof env to track updated names of results of let bindings
+CLOSED: [2022-10-13 Thu 04:33]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update mut var checking to use proof vars
+CLOSED: [2022-10-13 Thu 04:33]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 04:35
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

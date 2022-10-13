@@ -12,7 +12,7 @@ type pat =
   ]
 [@@deriving eq, ord, show]
 
-type env = (string -> ((Lang.Type.t list) * Lang.Type.t) option)
+type env = string -> ((Lang.Type.t list) * Lang.Type.t) list
 
 let update_binding env ty vl =
   TypeMap.update ty

@@ -131,6 +131,7 @@ let initialize ?default_timeout ?challenging_timeout ?max_calls ?filter_logs ?sh
       let log_file = with_fresh_log path in
       let oc = open_out log_file in
       let fmt = Format.of_chan oc in
+      Format.flush fmt ();
       pretty_reporter fmt
       (* Logs_fmt.reporter ~app:fmt ~dst:fmt ()  *)
     | None -> Logs_fmt.reporter () in
