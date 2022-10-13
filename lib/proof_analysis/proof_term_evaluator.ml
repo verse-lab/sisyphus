@@ -78,15 +78,15 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap ((unwrap (eval ctx hd)) :: (unwrap (eval ctx tl)))
   | `Constructor (("[]" | "nil"), []) ->
     wrap ([])
-  | `App ("list_findi", [i; f; ls]) ->
+  | `App ("list_findi", [f; ls]) ->
     let rec findi i f ls =
       match ls with
       | [] -> None
       | h :: t ->
         if f i h then Some (i, h)
         else findi (i + 1) f t in
-    wrap (findi (unwrap (eval ctx i)) (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
-  | `App ("list_findi_map", [i; f; ls]) ->
+    wrap (findi 0 (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
+  | `App ("list_findi_map", [f; ls]) ->
     let rec findi_map i f ls =
       match ls with
       | [] -> None
@@ -94,8 +94,8 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
         match f h with
         | Some v -> Some (i, v)
         | None -> findi_map (i + 1) f t in
-    wrap (findi_map (unwrap (eval ctx i)) (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
-  | `App ("list_find_mapi", [i; f; ls]) ->
+    wrap (findi_map 0 (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
+  | `App ("list_find_mapi", [f; ls]) ->
     let rec find_mapi i f ls =
       match ls with
       | [] -> None
@@ -103,7 +103,7 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
         match f i h with
         | Some v -> Some v
         | None -> find_mapi (i + 1) f t in
-    wrap (find_mapi (unwrap (eval ctx i)) (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
+    wrap (find_mapi 0 (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
   | `App ("list_find_map", [f; ls]) ->
     let rec find_map f ls =
       match ls with

@@ -14,7 +14,7 @@ CLOSED: [2022-10-13 Thu 08:40]
 CLOSED: [2022-10-13 Thu 08:05]
 *** DONE If we keep a variable concrete, keep it available in the context
 CLOSED: [2022-10-13 Thu 08:40]
-** TODO Make fuzzed functions dependent on ints
+** DONE Add negb and is_some to context
+CLOSED: [2022-10-13 Thu 09:27]
 ** TODO For while and for loops, don't constrain i
-** TODO Add negb and is_some to context
 ** TODO You're the BEST around

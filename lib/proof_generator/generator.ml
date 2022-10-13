@@ -72,6 +72,7 @@ let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis.Embedding.embed_ex
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
+
 let rec update_program_id_over_lambda (t: Proof_context.t)
           (`Lambda (_, body): [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ])  =
   let rec loop (body: Lang.Expr.t Lang.Program.stmt) = match body with
@@ -253,6 +254,13 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
         (fun v ->
            Lang.Type.([List (Var v); List (Var v)], List (Var v)))
         env.Proof_env.poly_vars
+    | "Opt.option_is_none"
+    | "Opt.option_is_some" ->
+      List.map
+        (fun v ->
+           Lang.Type.([ADT ("option", [Var v], None)], Bool))
+        env.Proof_env.poly_vars
+    | "not" -> Lang.Type.[[Bool], Bool]
     | "-" -> Lang.Type.[[Int; Int], Int]
     | "+" -> Lang.Type.[[Int; Int], Int]
     | s ->
@@ -448,6 +456,10 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
   test_f t.Proof_context.compilation_context
 
 let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
+  let uses_options = StringMap.values env.Proof_env.gamma
+                     |> Iter.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false) in
+  let invariant_has_bool = List.to_iter (snd inv_ty)
+                           |> Iter.exists (function (_, Lang.Type.Bool) -> true | _ -> false) in
   (* construct an expression generation context using the old proof *)
   let ctx =
     let vars, funcs =
@@ -489,6 +501,15 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         (* add in + and - for  basic arithmetic operations *)
         |> StringSet.add "+"
         |> StringSet.add "-"
+        |> (if invariant_has_bool
+            then StringSet.add "not"
+            else Fun.id)
+        |> (if uses_options
+            then StringSet.add "Opt.option_is_some"
+            else Fun.id)
+        |> (if uses_options
+            then StringSet.add "Opt.option_is_none"
+            else Fun.id)
         (* add in any hof functions in our proof env  *)
         |> Fun.flip StringSet.add_iter
              (List.to_iter proof_vars
@@ -1080,6 +1101,13 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let pure, heap =
     generate_candidate_invariants t env
       ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
+
+  Configuration.dump_output "generated-pure-invariants" (fun f ->
+    f "%a" (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") Lang.Expr.pp) pure
+  );
+  Configuration.dump_output "generated-heap-invariants" (fun f ->
+    f "%a" (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") (List.pp Lang.Expr.pp)) heap
+  );
 
   let () =
     let no_pure = List.length pure in
