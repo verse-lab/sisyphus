@@ -406,6 +406,7 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
   let test_f =
     List.find_map Option.(fun obs ->
       let obs = Proof_env.normalize_observation env obs in
+      Log.debug (fun f -> f "considering observation obs: %s" (show_obs obs));
       Proof_context.with_temporary_context t begin fun () ->
         Log.debug (fun f ->
           f "initial args=%s@."
@@ -1048,7 +1049,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     concrete_args, observations in
 
   (* build an initial test specification from the partially reduced proof term applied to values at the current position *)
-  let test_f = build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
+  let test_f =
+    build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
 
   (* retrieve the body of the higher order function being called *)
   let fun_body =

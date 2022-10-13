@@ -16,10 +16,13 @@ CLOSED: [2022-10-13 Thu 06:20]
 CLOSED: [2022-10-13 Thu 06:54]
 ** DONE Update code to check if intros is needed
 CLOSED: [2022-10-13 Thu 07:10]
+** DONE Add nil constant when lists
+CLOSED: [2022-10-13 Thu 07:42]
 ** TODO Bind logical variables (l)
+*** DONE extend observation with logical variables
+CLOSED: [2022-10-13 Thu 08:05]
 *** TODO If we keep a variable concrete, keep it available in the context
 ** TODO Make fuzzed functions dependent on ints
 ** TODO For while and for loops, don't constrain i
-** TODO Add nil constant when lists
 ** TODO Add negb and is_some to context
 ** TODO You're the BEST around

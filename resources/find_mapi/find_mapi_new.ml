@@ -15,4 +15,3 @@ let find_mapi (a: 'a array) (f: int -> 'a -> 'b option) =
       res
     ) in
     !value_found
-[@@with_logical_mapping ["l", "a"]]

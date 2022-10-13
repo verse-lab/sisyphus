@@ -60,11 +60,15 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
 let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
 
   let logical_mappings = StringMap.of_list logical_mappings in
+  (* bindings map proof vars to their corresponding program vars  *)
   let bindings =
     List.to_iter args
     |> Iter.filter_map (fun (v, ty) ->
+      (* if the variable is pure, then its proof var is the same as its program var *)
       if is_pure_ty ty
       then Some (v,v)
+      (* if its not pure, then check if we have a logical mapping as
+         [l ==> s] provided by the user. If so, map proof var [s] to program var [l]  *)
       else StringMap.find_opt v logical_mappings
            |> Option.map (fun bv -> (bv, v))
     )
@@ -109,7 +113,16 @@ let env_to_defmap env =
   StringMap.map snd env.lambda
 
 let normalize_observation env ((pure, heap): (Dynamic.Concrete.context * Dynamic.Concrete.heap_context)) =
+  let rev_map = StringMap.to_list env.logical_mappings |> List.map Pair.swap |> StringMap.of_list in
   let pure = List.map (Pair.map_fst (fun v -> StringMap.find_opt v env.logical_mappings |> Option.get_or ~default:v)) pure in
-  (pure,heap)
+  let mapped =
+    List.filter_map (function
+      | (v, `Array vls) when StringMap.mem v rev_map ->
+        Some (StringMap.find v rev_map, `List vls)
+      | (v, `PointsTo vl) when StringMap.mem v rev_map ->
+        Some (StringMap.find v rev_map, vl)
+      | _ -> None
+    ) heap in
+  (pure @ mapped,heap)
 
     
