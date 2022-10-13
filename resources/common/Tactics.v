@@ -16,6 +16,33 @@ Ltac sep_solve := repeat progress (auto; sep_solve_int).
 #[export] Hint Rewrite nil_eq_rev_inv: sep_solve_db.
 
 Ltac done := auto; tryif only 1 : idtac then fail else idtac.
+
+Ltac xinhab :=
+      lazymatch goal with
+      | [ l : list ?A |- _ ] =>
+          let IA := fresh "IA" in
+          (assert (IA: Inhab A); [
+              try apply Inhab_of_val;
+              destruct l;
+              rew_list in *;
+              try math; auto || fail
+            | ]) || idtac "failed"
+      | _ => idtac "not found"
+    end.
+
+Ltac xif_pat Hcond :=
+  let cond := fresh "Hcond" in
+  lazymatch goal with
+  | [|- context [Wpgen_if (negb ?v) _]] =>
+      xif;=> cond;
+      [ assert (Hcond: v = false);
+        [ destruct v; auto; contradiction cond; simpl; auto | rewrite Hcond in * ] |
+        assert (Hcond: v = true);
+        [ destruct v; auto; contradiction cond; simpl; auto | rewrite Hcond in *] 
+      ]
+  | _ => idtac
+  end.
+
 Tactic Notation "by" tactic(t) := t; done.
 Tactic Notation "first" tactic(t) := only 1 : t.
 
@@ -138,7 +165,7 @@ Tactic Notation "xif" "as" simple_intropattern(Hcond)  :=
   let cond_var := fresh Hcond in
   let var := fresh Hcond in
   let Hvar := fresh Hcond in
-  xlet as;=> var Hvar;
+  (xlet as;=> var Hvar;
   xif;=> cond_var;
   rewrite Hvar,istrue_isTrue_eq in cond_var;
-  clear Hvar var.
+  clear Hvar var) || xif_pat Hcond.
