@@ -457,12 +457,23 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           List.find_map (fun obs ->
             let (pure, _) = Proof_env.normalize_observation env obs in
             Some (List.map fst pure |> StringSet.of_list)
-          ) observations |> Option.get_or ~default:StringSet.empty in
+          ) observations
+          |> Option.get_or ~default:StringSet.empty in
         let poly_vars, proof_env = Proof_utils.CFML.extract_env (Proof_context.current_goal t).hyp in
-        List.filter (fun (name, ty) ->
-          let is_concrete_var = StringSet.mem name available_vars in
-          let is_hof_fun = match ty with Lang.Type.Func (Some _) -> true | _ -> false in
-          is_concrete_var || is_hof_fun
+        List.filter_map (fun (name, ty) ->
+          if StringSet.mem name available_vars
+          then Some (name, ty)
+          (* handle higher order pure functions:  *)
+          else match ty, StringMap.find_opt name env.logical_mappings with
+            | Lang.Type.Func (Some _), Some name ->
+              (* we need a binding for the function to a corresponding
+                 program variable to ensure that the function can be
+                 found: *)
+              Some (name, ty)
+            | Lang.Type.Func (Some _), None ->
+              Log.warn (fun f -> f "found usable pure function %s but lacking suitable binding" name);
+              None
+            | _ -> None
         ) proof_env in
       (* collect any variables that will be available to the invariant *)
       let invariant_vars = snd inv_ty in

@@ -991,3 +991,63 @@ CLOSED: [2022-10-13 Thu 07:26]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Fix bug in working out the type of find_mapi
+CLOSED: [2022-10-13 Thu 05:11]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Instantiate lemmas with all polymorphic variables
+CLOSED: [2022-10-13 Thu 05:34]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE work out why it crashes
+CLOSED: [2022-10-13 Thu 06:20]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Pass in hof as variables
+CLOSED: [2022-10-13 Thu 06:54]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update code to check if intros is needed
+CLOSED: [2022-10-13 Thu 07:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add nil constant when lists
+CLOSED: [2022-10-13 Thu 07:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-13 Thu 08:25
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
