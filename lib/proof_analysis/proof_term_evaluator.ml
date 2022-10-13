@@ -78,6 +78,51 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap ((unwrap (eval ctx hd)) :: (unwrap (eval ctx tl)))
   | `Constructor (("[]" | "nil"), []) ->
     wrap ([])
+  | `App ("list_findi", [i; f; ls]) ->
+    let rec findi i f ls =
+      match ls with
+      | [] -> None
+      | h :: t ->
+        if f i h then Some (i, h)
+        else findi (i + 1) f t in
+    wrap (findi (unwrap (eval ctx i)) (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
+  | `App ("list_findi_map", [i; f; ls]) ->
+    let rec findi_map i f ls =
+      match ls with
+      | [] -> None
+      | h :: t ->
+        match f h with
+        | Some v -> Some (i, v)
+        | None -> findi_map (i + 1) f t in
+    wrap (findi_map (unwrap (eval ctx i)) (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
+  | `App ("list_find_mapi", [i; f; ls]) ->
+    let rec find_mapi i f ls =
+      match ls with
+      | [] -> None
+      | h :: t ->
+        match f i h with
+        | Some v -> Some v
+        | None -> find_mapi (i + 1) f t in
+    wrap (find_mapi (unwrap (eval ctx i)) (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
+  | `App ("list_find_map", [f; ls]) ->
+    let rec find_map f ls =
+      match ls with
+      | [] -> None
+      | h :: t ->
+        match f h with
+        | Some v -> Some v
+        | None -> find_map f t in
+    wrap (find_map (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
+  | `App ("filter_not", [fp; ls]) ->
+    let rec filter_not fp ls =
+      match ls with
+      | [] -> []
+      | h :: t ->
+        if fp h
+        then filter_not fp t
+        else h :: filter_not fp t in
+    wrap (filter_not (unwrap (eval ctx fp)) (unwrap (eval ctx ls)))
+
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr
