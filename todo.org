@@ -8,7 +8,18 @@ lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
 ** DONE Update proof env to track poly variables
 CLOSED: [2022-10-13 Thu 03:12]
-** TODO Update proof env to track gamma
+** DONE Update proof env to track gamma
+CLOSED: [2022-10-13 Thu 03:27]
+*** DONE update symexec alloc
+CLOSED: [2022-10-13 Thu 03:18]
+*** DONE update symexec ref alloc
+CLOSED: [2022-10-13 Thu 03:19]
+*** DONE update symexec higher order pure fun
+CLOSED: [2022-10-13 Thu 03:23]
+*** DONE update symexec higher order fun
+CLOSED: [2022-10-13 Thu 03:26]
+*** DONE update symexec match
+CLOSED: [2022-10-13 Thu 03:27]
 ** TODO Update generate candidate invariants to use gamma to determine type of holes
 ** TODO Fix bug in working out the type of find_mapi
 ** TODO Add negb and is_some to context

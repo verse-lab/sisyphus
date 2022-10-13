@@ -91,6 +91,9 @@ let is_pure_lambda env v =
   StringMap.find_opt v env.lambda
   |> Option.exists (fun (_, body) -> Program_utils.is_pure body)
 
+let add_binding env ~var ~ty =
+  {env with gamma=StringMap.add var ty env.gamma}
+
 let add_proof_binding env ~proof_var ~program_var =
   {env with bindings=StringMap.add proof_var program_var env.bindings}
 

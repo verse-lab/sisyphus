@@ -679,6 +679,13 @@ let rec is_simple_expression : Lang.Expr.t -> bool = function
   | `Lambda _ |`Constructor _
   | `App _ -> false
 
+let update_env_with_bindings env = function
+  | `Var (var, ty) -> Proof_env.add_binding env ~var ~ty
+  | `Tuple vars ->
+    List.fold_left
+      (fun env (var, ty) ->
+         Proof_env.add_binding env ~var ~ty)
+      env vars
 
 let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   Log.debug (fun f ->
@@ -742,25 +749,31 @@ and symexec_alloc t env pat rest =
   Log.debug (fun f -> f "[%s] symexec_alloc %a"
                         (t.Proof_context.current_program_id |>  Lang.Id.show)
                         Lang.Expr.pp_typed_param pat);
-  let prog_arr = match pat with
+  let prog_arr, arr_ty = match pat with
     | `Tuple _ -> failwith "found tuple pattern in result of array.make"
-    | `Var (var, _) -> var in
+    | `Var (var, ty) -> var, ty in
   let arr = Proof_context.fresh ~base:(prog_arr) t in
   let data = Proof_context.fresh ~base:"data"  t in
   let h_data = Proof_context.fresh ~base:("H" ^ data) t in
   Proof_context.append t "xalloc %s %s %s." arr data h_data;
-  let env = Proof_env.add_proof_binding env ~proof_var:arr ~program_var:prog_arr in
+  let env =
+    env
+    |> Proof_env.add_proof_binding ~proof_var:arr ~program_var:prog_arr
+    |> Proof_env.add_binding ~var:prog_arr ~ty:arr_ty in
   symexec t env rest
 and symexec_ref_alloc t env pat rest =
   Log.debug (fun f -> f "[%s] symexec_ref_alloc %a"
                         (t.Proof_context.current_program_id |>  Lang.Id.show)
                         Lang.Expr.pp_typed_param pat);
-  let prog_arr = match pat with
+  let prog_ref, ref_ty = match pat with
     | `Tuple _ -> failwith "found tuple pattern in result of ref"
-    | `Var (var, _) -> var in
-  let ref_name = Proof_context.fresh ~base:(prog_arr) t in
+    | `Var (var, ty) -> var, ty in
+  let ref_name = Proof_context.fresh ~base:(prog_ref) t in
   Proof_context.append t "xref %s." ref_name;
-  let env = Proof_env.add_proof_binding env ~proof_var:ref_name ~program_var:prog_arr in
+  let env =
+    env
+    |> Proof_env.add_proof_binding ~proof_var:ref_name ~program_var:prog_ref
+    |> Proof_env.add_binding ~var:prog_ref ~ty:ref_ty in
   symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
   Log.debug (fun f -> f "[%s] symexec_opaque_let %a = %a"
@@ -819,6 +832,12 @@ and symexec_match t env prog_expr cases =
       List.fold_left (fun env ((program_var, _), proof_var) ->
         Proof_env.add_proof_binding env ~proof_var ~program_var
       ) env (List.combine args proof_args) in
+
+    (*  update the proof env with bindings from the match *)
+    let env = List.fold_left (fun env (var,ty) ->
+      Proof_env.add_binding env ~var ~ty
+    ) env args in
+    
     (* now emit the rest *)
     symexec t env rest;
     (* dispatch remaining subgoals by the best method: *)
@@ -895,7 +914,8 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   (* emit xapp call *)
   let observation_id, fn_body =
     List.find_map (function
-        `Var v -> Proof_env.find_pure_lambda_def env v (* StringMap.find_opt v env |> Option.flat_map (Option.if_ Program_utils.is_pure) *)
+        `Var v -> Proof_env.find_pure_lambda_def env v
+      (* StringMap.find_opt v env |> Option.flat_map (Option.if_ Program_utils.is_pure) *)
       | _ -> None) prog_args
     |> Option.get_exn_or "invalid assumptions" in
 
@@ -923,7 +943,7 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   (* destructuring of arguments *)
   begin
     match pat with
-    | `Var _ -> ()
+    | `Var (res_name, res_ty) -> ()
     | `Tuple vars ->
       (* if we have a tuple, then we need to do some extra work *)
       let vars = List.map (fun (name, _) ->
@@ -944,6 +964,8 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
       Proof_context.append t "injection %s; intros %s."
         h_var (String.concat " " @@ List.rev split_vars);
   end;
+  (* update program gamma with bindings from result *)
+  let env = update_env_with_bindings env pat in
   symexec t env rest
 and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   Log.debug (fun f -> f "[%s] symexec_higher_order_fun %a %a"
@@ -986,7 +1008,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* retrieve the body of the higher order function being called *)
   let fun_body =
     List.find_map (function
-      | `Var v -> StringMap.find_opt v env.lambda
+      | `Var v -> StringMap.find_opt v env.Proof_env.lambda
       | _ -> None) prog_args
     |> Option.map snd
     |> Option.get_exn_or "could not find function definition" in
@@ -1148,12 +1170,13 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     f "pattern was %s@."
       ([%show: Lang.Expr.typed_param] pat));
   begin match pat with
-  | `Tuple _ -> failwith "tuple results from not supported"
+  | `Tuple _ ->
+    failwith "tuple results from impure functions not supported"
 
   | `Var (_, Lang.Type.Unit) ->
     Proof_context.append t "xmatch."
 
-  | `Var (result, _) ->
+  | `Var (result, ty) ->
     let name = Proof_context.fresh ~base:result t in
     let h_name = Proof_context.fresh ~base:("H" ^ result) t in
     Proof_context.append t "intros %s %s." name h_name;
@@ -1164,6 +1187,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   end;
   Log.debug (fun f -> f "proof is %s@." (Proof_context.extract_proof_script t));
 
+  (* update program gamma with bindings from result *)
+  let env = update_env_with_bindings env pat in
   symexec t env rest
 
 
