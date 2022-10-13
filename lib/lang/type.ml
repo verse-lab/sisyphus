@@ -118,4 +118,40 @@ let rec poly_vars vars = function
       (fun vars ty ->
          poly_vars vars ty) vars tys
 
+let rec map_poly_var f = function 
+  | Var name -> Var (f name)
+  | Unit | Int | Bool | Loc | Val as ty -> ty
+  | List ty -> List (map_poly_var f ty)
+  | Array ty -> Array (map_poly_var f ty)
+  | Ref ty -> Ref (map_poly_var f ty)
+  | Func (Some (args, res)) ->
+    let res = map_poly_var f res in
+    let args = List.map (map_poly_var f) args in
+    Func (Some (args, res))
+  | Func None -> Func None
+  | ADT (name, tys, conv) ->
+    let tys = List.map (map_poly_var f) tys in
+    ADT (name, tys, conv)
+  | Product tys ->
+    let tys = List.map (map_poly_var f) tys in
+    Product tys
 
+(** [to_coq_form ty] converts a type [ty] into a form that will be
+   accepted by Coq (i.e updates any polymorphic variables) to have the
+   correct representation.  *)
+let to_coq_form ty =
+  map_poly_var (fun s ->
+    if String.prefix ~pre:"'" s
+    then String.uppercase_ascii (String.drop 1 s)
+    else s
+  ) ty
+
+(** [to_ocaml_form ty] converts a type [ty] into a form that will be
+   accepted by OCaml (i.e updates any polymorphic variables) to have the
+   correct representation.  *)
+let to_ocaml_form ty =
+  map_poly_var (fun s ->
+    if String.prefix ~pre:"'" s
+    then s
+    else "'" ^ (String.lowercase_ascii s)
+  ) ty
