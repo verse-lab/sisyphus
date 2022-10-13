@@ -129,6 +129,8 @@ let build_test
       | Assert_failure (_, _, _) -> false
       | e ->
         Log.warn (fun f ->
-          f "evaluation of invariant failed dynamic tests \
-             with non-assert exception %s@." (Printexc.to_string e));
+          f "evaluation of invariant %s failed dynamic tests \
+             with non-assert exception %s@."
+            ([%show: Lang.Expr.t * Lang.Expr.t list] inv)
+            (Printexc.to_string e));
         false
