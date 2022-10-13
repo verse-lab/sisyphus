@@ -549,6 +549,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       (* we only generate equalities for trivial *)
       | Lang.Type.Var _
       | Lang.Type.Int
+      | Lang.Type.Bool
       | Lang.Type.Val -> Some (v,ty)
       | _ -> None
     ) in
@@ -911,7 +912,7 @@ and symexec_match t env prog_expr cases =
     let env = List.fold_left (fun env (var,ty) ->
       Proof_env.add_binding env ~var ~ty
     ) env args in
-    
+
     (* now emit the rest *)
     symexec t env rest;
     (* dispatch remaining subgoals by the best method: *)
