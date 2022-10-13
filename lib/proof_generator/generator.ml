@@ -248,12 +248,16 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
 let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
   let ty =
     match s with
-    | "++" -> Lang.Type.[[List (Var "A"); List (Var "A")], List (Var "A")]
+    | "++" ->
+      List.map
+        (fun v ->
+           Lang.Type.([List (Var v); List (Var v)], List (Var v)))
+        env.Proof_env.poly_vars
     | "-" -> Lang.Type.[[Int; Int], Int]
     | "+" -> Lang.Type.[[Int; Int], Int]
     | s ->
       let (let+) x f = Option.bind x f in
-      Option.to_list @@
+      Option.value ~default:[] @@
       try
         let ty = (Proof_context.typeof t s) in
         let+ s_base = String.split_on_char '.' s |> List.last_opt in
@@ -261,7 +265,16 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
         match name with
         | Names.GlobRef.ConstRef s ->
           let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ s ty in
-          Some (split_last args)
+          let instantiations =
+            List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) env.Proof_env.poly_vars) poly
+            |> List.map (fun subst ->
+              let subst = StringMap.of_list subst in
+              let map v = StringMap.find_opt v subst
+                          |> Option.value ~default:v in
+              List.map (Lang.Type.map_poly_var map) args
+              |> split_last
+            ) in
+          Some (instantiations)
         | _ -> None
       with
       | _ -> None in

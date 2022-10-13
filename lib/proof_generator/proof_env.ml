@@ -75,7 +75,8 @@ let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
       (fun vars (_, ty) ->
          Lang.Type.poly_vars vars ty)
       StringSet.empty args
-    |> StringSet.to_list in
+    |> StringSet.to_list
+    |> List.map (fun s -> String.uppercase_ascii (String.drop 1 s)) in
   {
     lambda=StringMap.empty;
     bindings;

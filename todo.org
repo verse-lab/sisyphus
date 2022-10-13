@@ -6,7 +6,10 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** TODO Fix bug in working out the type of find_mapi
-** TODO Instantiate lemmas with all polymorphic variables
+** DONE Fix bug in working out the type of find_mapi
+CLOSED: [2022-10-13 Thu 05:11]
+** DONE Instantiate lemmas with all polymorphic variables
+CLOSED: [2022-10-13 Thu 05:34]
+** TODO Add nil constant when lists
 ** TODO Add negb and is_some to context
 ** TODO You're the BEST around
