@@ -10,17 +10,17 @@ Proof.
 Qed.
 
 
-Fixpoint findi (A: Type) (i: int) (f: int -> A -> bool) (ls: list A) : option (int * A) :=
+Fixpoint list_findi (A: Type) (i: int) (f: int -> A -> bool) (ls: list A) : option (int * A) :=
   match ls with
   | nil => None
   | h :: t =>
       if f i h then Some (i, h)
-      else findi (i + 1) f t
+      else list_findi (i + 1) f t
   end.
 
 Lemma findi_app_r (A: Type) (B: Type) i (f: int -> A -> bool) l1 l2:
-  findi i f l1 = None ->
-  (findi i f (l1 ++ l2)) = findi (i + length l1) f l2.
+  list_findi i f l1 = None ->
+  (list_findi i f (l1 ++ l2)) = list_findi (i + length l1) f l2.
 Proof.
   gen i l2; induction l1.
   - intros i l2; simpl; rew_list; auto; intros _; repeat f_equal; math.
@@ -31,8 +31,8 @@ Proof.
 Qed.
 
 Lemma findi_app_l (A: Type) i (f: int -> A -> bool) l1 l2:
-  is_some (findi i f l1) ->
-  (findi i f (l1 ++ l2)) = findi i f l1.
+  is_some (list_findi i f l1) ->
+  (list_findi i f (l1 ++ l2)) = list_findi i f l1.
 Proof.
   gen i l2; induction l1.
   - intros i l2; simpl; rew_list; intros Hf. inversion Hf.
@@ -41,21 +41,19 @@ Proof.
     rewrite IHl1; auto.
 Qed.
 
-
-
-Fixpoint findi_map (A: Type) (B: Type) (i: int) (f: A -> option B) (ls: list A) : option (int * B) :=
+Fixpoint list_findi_map (A: Type) (B: Type) (i: int) (f: A -> option B) (ls: list A) : option (int * B) :=
   match ls with
   | nil => None
   | h :: t =>
       match f h with
       | Some v => Some (i, v)
-      | None => findi_map (i + 1) f t
+      | None => list_findi_map (i + 1) f t
       end
   end.
 
 Lemma findi_map_app_r (A: Type) (B: Type) i (f: A -> option B) l1 l2:
-  findi_map i f l1 = None ->
-  (findi_map i f (l1 ++ l2)) = findi_map (i + length l1) f l2.
+  list_findi_map i f l1 = None ->
+  (list_findi_map i f (l1 ++ l2)) = list_findi_map (i + length l1) f l2.
 Proof.
   gen i l2; induction l1.
   - intros i l2; simpl; rew_list; auto; intros _; repeat f_equal; math.
@@ -66,8 +64,8 @@ Proof.
 Qed.
 
 Lemma findi_map_app_l (A: Type) (B: Type) i (f: A -> option B) l1 l2:
-  is_some (findi_map i f l1) ->
-  (findi_map i f (l1 ++ l2)) = findi_map i f l1.
+  is_some (list_findi_map i f l1) ->
+  (list_findi_map i f (l1 ++ l2)) = list_findi_map i f l1.
 Proof.
   gen i l2; induction l1.
   - intros i l2; simpl; rew_list; intros Hf. inversion Hf.
@@ -76,27 +74,27 @@ Proof.
     rewrite IHl1; auto.
 Qed.
 
-Fixpoint find_mapi (A: Type) (B: Type) (i: int)
+Fixpoint list_find_mapi (A: Type) (B: Type) (i: int)
   (f: int -> A -> option B) (ls: list A) : option B :=
   match ls with
   | nil => None
   | h :: t =>
       match f i h with
       | Some v => Some v
-      | None => find_mapi (i + 1) f t
+      | None => list_find_mapi (i + 1) f t
       end
   end.
 
 Lemma find_mapi_singleton (A: Type) (B: Type) (f: int -> A -> option B) (i: int) (x: A):
-  find_mapi i f (x :: nil) = f i x.
+  list_find_mapi i f (x :: nil) = f i x.
 Proof.
   simpl.
   case (f i x); auto.
 Qed.
 
 Lemma find_mapi_app_r (A: Type) (B: Type) i (f: int -> A -> option B) l1 l2:
-  find_mapi i f l1 = None ->
-  (find_mapi i f (l1 ++ l2)) = find_mapi (i + length l1) f l2.
+  list_find_mapi i f l1 = None ->
+  (list_find_mapi i f (l1 ++ l2)) = list_find_mapi (i + length l1) f l2.
 Proof.
   gen i l2; induction l1.
   - intros i l2; simpl; rew_list; auto; intros _; repeat f_equal; math.
@@ -107,8 +105,8 @@ Proof.
 Qed.
 
 Lemma find_mapi_app_l (A: Type) (B: Type) i (f: int -> A -> option B) l1 l2:
-  is_some (find_mapi i f l1) ->
-  (find_mapi i f (l1 ++ l2)) = find_mapi i f l1.
+  is_some (list_find_mapi i f l1) ->
+  (list_find_mapi i f (l1 ++ l2)) = list_find_mapi i f l1.
 Proof.
   gen i l2; induction l1.
   - intros i l2; simpl; rew_list; intros Hf. inversion Hf.
@@ -118,19 +116,19 @@ Proof.
 Qed.
 
 
-Fixpoint find_map (A: Type) (B: Type) (f: A -> option B) (ls: list A) : option (B) :=
+Fixpoint list_find_map (A: Type) (B: Type) (f: A -> option B) (ls: list A) : option (B) :=
   match ls with
   | nil => None
   | h :: t =>
       match f h with
       | Some v => Some (v)
-      | None => find_map f t
+      | None => list_find_map f t
       end
   end.
 
 Lemma find_map_app_r (A: Type) (B: Type) (f: A -> option B) l1 l2:
-  find_map f l1 = None ->
-  (find_map f (l1 ++ l2)) = find_map f l2.
+  list_find_map f l1 = None ->
+  (list_find_map f (l1 ++ l2)) = list_find_map f l2.
 Proof.
   gen l2; induction l1.
   - intros l2; simpl; rew_list; auto; intros _; repeat f_equal; math.
@@ -140,8 +138,8 @@ Proof.
 Qed.
 
 Lemma find_map_app_l (A: Type) (B: Type) (f: A -> option B) l1 l2:
-  is_some (find_map f l1) ->
-  (find_map f (l1 ++ l2)) = find_map f l1.
+  is_some (list_find_map f l1) ->
+  (list_find_map f (l1 ++ l2)) = list_find_map f l1.
 Proof.
   gen l2; induction l1.
   - intros l2; simpl; rew_list; intros Hf. inversion Hf.

@@ -17,13 +17,13 @@ Lemma find_mapi_spec :
           POST (fun (b: option B) => \[b = fp i a])) ->
   SPEC (find_mapi a f)
   PRE (a ~> Array l)
-  POST (fun (b : option B) => \[ b = Common.Utils.find_mapi 0 fp l] \* a ~> Array l).
+  POST (fun (b : option B) => \[ b = list_find_mapi 0 fp l] \* a ~> Array l).
 Proof using (All).
   xcf.
   xapp.
   xletopaque tmp Htmp.
   xapp (until_upto_spec 0 (length l) tmp (fun (i: credits) (res: option B) =>
-               a ~> Array l \* \[res = Utils.find_mapi 0 fp (take i l)]
+               a ~> Array l \* \[res = list_find_mapi 0 fp (take i l)]
           )
        ). {
     intros i Hlen; apply Htmp; clear Htmp.

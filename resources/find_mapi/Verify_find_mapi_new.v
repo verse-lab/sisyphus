@@ -19,7 +19,7 @@ Lemma find_mapi_spec :
           POST (fun (b: option B) => \[b = fp i a])) ->
   SPEC (find_mapi a f)
   PRE (a ~> Array l)
-  POST (fun (b : option B) => \[ b = Common.Utils.find_mapi 0 fp l] \* a ~> Array l).
+  POST (fun (b : option B) => \[ b = list_find_mapi 0 fp l] \* a ~> Array l).
 Proof using (All).
   xcf.
   xapp Array_proof.length_spec.
@@ -31,8 +31,8 @@ Proof using (All).
     xletopaque tmp Htmp.
     xapp (while_upto_spec 0 (length l) tmp (fun (i: credits) (res: bool) =>
                a ~> Array l \*
-               value_found ~~> Utils.find_mapi 0 fp (take i l) \*
-               \[res = negb (is_some (Utils.find_mapi 0 fp (take i l)))]
+               value_found ~~> list_find_mapi 0 fp (take i l) \*
+               \[res = negb (is_some (list_find_mapi 0 fp (take i l)))]
           )
        ). {
     intros i Hlen; apply Htmp; clear Htmp.
@@ -50,14 +50,14 @@ Proof using (All).
       rewrite (take_pos_last IA); [ | apply int_index_prove; math ].
       math_rewrite ((i + 1 - 1) = i).
       rewrite find_mapi_app_r;
-        [ | destruct (Utils.find_mapi 0 fp (take i l)); simpl in Hfm; try inversion Hfm; auto ].
+        [ | destruct (list_find_mapi 0 fp (take i l)); simpl in Hfm; try inversion Hfm; auto ].
       rewrite length_take_nonneg; try math.
     math_rewrite (0 + i = i).
     simpl; case (fp i l[i]); auto.
       rewrite (take_pos_last IA); [ | apply int_index_prove; math ].
       math_rewrite ((i + 1 - 1) = i).
       rewrite find_mapi_app_r;
-        [ | destruct (Utils.find_mapi 0 fp (take i l)); simpl in Hfm; try inversion Hfm; auto ].
+        [ | destruct (list_find_mapi 0 fp (take i l)); simpl in Hfm; try inversion Hfm; auto ].
       rewrite length_take_nonneg; try math.
       math_rewrite (0 + i = i).
     simpl; gen Pres; case (fp i l[i]); simpl; auto.
@@ -67,7 +67,7 @@ Proof using (All).
       rewrite (take_pos_last IA (i + 1)); [ | apply int_index_prove; math ].
       math_rewrite ((i + 1 - 1) = i).
       rewrite find_mapi_app_r;
-        [ | destruct (Utils.find_mapi 0 fp (take i l)); simpl in Hfm; try inversion Hfm; auto ].
+        [ | destruct (list_find_mapi 0 fp (take i l)); simpl in Hfm; try inversion Hfm; auto ].
       rewrite length_take_nonneg; try math.
     math_rewrite (0 + i = i).
     simpl. destruct (fp i l[i]); simpl in Hf_eq; auto; [(contradiction Hf_eq; auto)|].
@@ -78,7 +78,7 @@ Proof using (All).
     rewrite (take_pos_last IA); [ | apply int_index_prove; math ].
     math_rewrite ((i + 1 - 1) = i).
     rewrite find_mapi_app_r;
-        [ | destruct (Utils.find_mapi 0 fp (take i l)); simpl in Hfm; try inversion Hfm; auto ].
+        [ | destruct (list_find_mapi 0 fp (take i l)); simpl in Hfm; try inversion Hfm; auto ].
       rewrite length_take_nonneg; try math.
       math_rewrite (0 + i = i).
       rewrite find_mapi_singleton.
