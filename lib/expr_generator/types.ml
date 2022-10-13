@@ -16,5 +16,8 @@ type env = string -> ((Lang.Type.t list) * Lang.Type.t) list
 
 let update_binding env ty vl =
   TypeMap.update ty
-    Fun.(Option.some % Option.map_or ~default:[vl] (List.cons vl))
+    (function
+      | None -> Some [vl]
+      | Some ls -> Some (vl :: ls)
+    )
     env

@@ -497,8 +497,8 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
     Expr_generator.build_context ~ints:[1;2]
       ~vars ~funcs ~env:(fun f ->
         let res = typeof t env f in
-        Log.debug (fun pr -> pr "checking the type of %s ==> %a@." f
-                               (List.pp (Pair.pp (List.pp Lang.Type.pp) Lang.Type.pp)) res);
+        Log.debug (fun pr -> pr "checking the type of %s ==> %s@." f
+                               ([%show: (Lang.Type.t list * Lang.Type.t) list] res));
         res
       )
       ~from_id ~to_id

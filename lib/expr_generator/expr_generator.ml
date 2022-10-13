@@ -114,8 +114,16 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
         Types.update_binding acc ret_ty (normalize_name f, args)
       ) acc (env f)
     ) old_funcs funcs in
-  let funcs = Types.TypeMap.map (fun fns -> StringMap.of_list fns |> StringMap.to_list) funcs in
-
+  let funcs =
+    let module StringTypeSet =
+      Set.Make (struct
+        type t = string * Lang.Type.t list
+        [@@deriving ord]
+      end) in
+    Types.TypeMap.map (fun fns ->
+      StringTypeSet.of_list fns
+      |> StringTypeSet.to_list
+    ) funcs in
   {consts; pats; funcs}
 
 (* [get_fuels ctx fname fuel args]: determines fuel for arguments of function fname.
