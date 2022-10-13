@@ -501,10 +501,15 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       | _ -> None
     ) in
 
+  let ocaml_name proof_var =
+    Option.value ~default:proof_var
+      (StringMap.find_opt proof_var env.Proof_env.bindings) in
+
   let gen_heap_spec =
     List.map
       Proof_spec.Heap.Heaplet.(function
         | PointsTo (arr, _, `App ("CFML.WPArray.Array", [ls]))  ->
+          let arr = ocaml_name arr in
           let elt_ty =
             match StringMap.find_opt arr env.gamma with
             | Some (Array elt) -> Lang.Type.to_coq_form elt
@@ -516,6 +521,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           else `Concrete ls
         | PointsTo (v, _, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), [vl])) ->
           Log.debug (fun f -> f "gen heap spec type of %s is %a" v (Option.pp Lang.Type.pp) (StringMap.find_opt v env.gamma));
+          let v = ocaml_name v in
           let elt_ty =
             match StringMap.find_opt v env.gamma with
             | Some (Ref elt) -> Lang.Type.to_coq_form elt
@@ -530,6 +536,11 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
             "found unsupported heaplet %a" pp v
       ) pre_heap in
 
+  Log.info (fun f -> f "Generation target is:\n - pure: %a\n - heap: %s"
+                       (List.pp (Pair.pp String.pp Lang.Type.pp)) gen_pure_spec
+                       ([%show: [`Concrete of Lang.Expr.t | `Hole of Lang.Type.t ] list] gen_heap_spec)
+           );
+
   let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx (typeof t) in
   let pure =
     List.map_product_l List.(fun (v, ty) ->
@@ -542,6 +553,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           (fun acc vl -> `App ("&&", [vl; acc])) h t
         |> Option.some
     ) in
+
   let heap = List.map_product_l (function `Hole ty -> gen ty | `Concrete vl -> [vl]) gen_heap_spec  in
   pure, heap
 
@@ -803,7 +815,6 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
     let env = Proof_env.add_proof_binding env ~proof_var:var ~program_var:prog_var in
     symexec t env rest
   end else begin
-    Log.debug (fun f -> f "current proof:\n%s" (Proof_context.extract_proof_script t));
     (* let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in *)
     (* work out the name of function being called and the spec for it *)
     (* let (_lemma_name, _lemma_full_type) =
@@ -951,29 +962,33 @@ and symexec_higher_order_pure_fun t env pat rewrite_hint prog_args rest =
   Proof_context.append t "clear %s." (String.concat " " clear_vars);
 
   (* destructuring of arguments *)
-  begin
-    match pat with
-    | `Var (res_name, res_ty) -> ()
-    | `Tuple vars ->
-      (* if we have a tuple, then we need to do some extra work *)
-      let vars = List.map (fun (name, _) ->
-        Proof_context.fresh ~base:name t
-      ) vars in
-      let h_var = Proof_context.fresh ~base:("H" ^ String.concat "" vars) t in
-      (* first, emit a xdestruct to split the tuple output - [hvar] remembers the equality *)
-      Proof_context.append t "xdestruct %s %s." (String.concat " " vars) h_var;
-      (* next, use a user-provided rewrite hint to simplify the equality  *)
-      begin match rewrite_hint with
-      | Some rewrite_hint ->
-        Proof_context.append t "rewrite %s in %s." rewrite_hint h_var;
-      | None ->
-        failwith "tuple destructuring with functions requires a rewrite hint."
-      end;
-      (* finally, split the simplified equality on tuples into an equality on terms  *)
-      let split_vars = List.map (fun var -> Proof_context.fresh ~base:("H" ^ var) t) vars in
-      Proof_context.append t "injection %s; intros %s."
-        h_var (String.concat " " @@ List.rev split_vars);
-  end;
+  let env =
+    begin
+      match pat with
+      | `Var (res_name, res_ty) -> env
+      | `Tuple vars ->
+        (* if we have a tuple, then we need to do some extra work *)
+        let env, vars = List.fold_map (fun env (program_var, _) ->
+          let proof_var = Proof_context.fresh ~base:program_var t in
+          let env = Proof_env.add_proof_binding env ~proof_var ~program_var in
+          env, proof_var
+        ) env vars in
+        let h_var = Proof_context.fresh ~base:("H" ^ String.concat "" vars) t in
+        (* first, emit a xdestruct to split the tuple output - [hvar] remembers the equality *)
+        Proof_context.append t "xdestruct %s %s." (String.concat " " vars) h_var;
+        (* next, use a user-provided rewrite hint to simplify the equality  *)
+        begin match rewrite_hint with
+        | Some rewrite_hint ->
+          Proof_context.append t "rewrite %s in %s." rewrite_hint h_var;
+        | None ->
+          failwith "tuple destructuring with functions requires a rewrite hint."
+        end;
+        (* finally, split the simplified equality on tuples into an equality on terms  *)
+        let split_vars = List.map (fun var -> Proof_context.fresh ~base:("H" ^ var) t) vars in
+        Proof_context.append t "injection %s; intros %s."
+          h_var (String.concat " " @@ List.rev split_vars);
+        env
+    end in
   (* update program gamma with bindings from result *)
   let env = update_env_with_bindings env pat in
   symexec t env rest
@@ -1024,8 +1039,9 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     |> Option.get_exn_or "could not find function definition" in
 
   (* extract vars mutated by HOF *)
-  let mut_vars =
-    Program_utils.mutated_vars fun_body in
+  let mut_vars = Program_utils.mutated_vars fun_body in
+
+  Log.debug (fun f -> f "mutable variables are %a" (StringSet.pp String.pp) mut_vars);
 
   (* generate initial invariants *)
   let pure, heap =
