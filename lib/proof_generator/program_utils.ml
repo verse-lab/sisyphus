@@ -55,7 +55,7 @@ let mutated_vars (prog: [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t La
     | `AssignRef (v, _, rest) ->
       let vars = StringSet.add v vars in
       loop rest vars
-    | `Value (`App (":=", ([`Var v]))) -> StringSet.add v vars
+    | `Value (`App (":=", ([`Var v; _]))) -> StringSet.add v vars
 
     | `Value _ -> vars
   in

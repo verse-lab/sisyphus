@@ -20,7 +20,9 @@ CLOSED: [2022-10-13 Thu 03:23]
 CLOSED: [2022-10-13 Thu 03:26]
 *** DONE update symexec match
 CLOSED: [2022-10-13 Thu 03:27]
-** TODO Update generate candidate invariants to use gamma to determine type of holes
+** DONE Update generate candidate invariants to use gamma to determine type of holes
+CLOSED: [2022-10-13 Thu 03:51]
+** TODO Update proof env to track updated names of results of let bindings
 ** TODO Fix bug in working out the type of find_mapi
 ** TODO Add negb and is_some to context
 ** TODO You're the BEST around

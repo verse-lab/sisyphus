@@ -5,13 +5,6 @@ module Log = (val Logs.src_log (Logs.Src.create ~doc:"Generates candidate invari
 
 module ExprSet = Set.Make(Lang.Expr)
 
-let reduce pure =
-  let no_pure_original = List.length pure in
-  let pure = ExprSet.of_list pure |> ExprSet.to_list in
-  let no_pure_updated = List.length pure in
-  Log.debug (fun f -> f "reduced %d -> %d unique@." no_pure_original no_pure_updated);
-  pure
-
 let split_last =
   let rec loop last acc = function
     | [] -> List.rev acc, last
@@ -34,6 +27,13 @@ let combine_rem xz yz =
     | [], (_ :: _ as yz) -> List.rev acc, Some (Either.Right yz)
     | x :: xz, y :: yz -> loop ((x, y) :: acc) xz yz in
   loop [] xz yz
+
+let reduce pure =
+  let no_pure_original = List.length pure in
+  let pure = ExprSet.of_list pure |> ExprSet.to_list in
+  let no_pure_updated = List.length pure in
+  Log.debug (fun f -> f "reduced %d -> %d unique@." no_pure_original no_pure_updated);
+  pure
 
 let show_obs obs = [%show: (string * Dynamic.Concrete.value) list * (string * Dynamic.Concrete.heaplet) list] obs
 
@@ -473,16 +473,17 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       Dynamic.Matcher.find_aligned_range `Right t.Proof_context.alignment
         ((((t.Proof_context.current_program_id :> int) - 1)),
          (((t.Proof_context.current_program_id :> int)))) in
+
     Log.debug (fun f ->
       f ~header:"gen-cand-invariants" "%d, %d --> from_id: %d, to_id: %d@."
         (((t.Proof_context.current_program_id :> int) - 1))
         (((t.Proof_context.current_program_id :> int)))
         from_id to_id);
+
     Expr_generator.build_context ~ints:[1;2]
       ~vars ~funcs ~env:(typeof t)
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
-
 
   Log.info (fun f ->
     f ~header:"gen-cand-invariants" "generation context is %a@." Expr_generator.pp_ctx ctx);
@@ -503,18 +504,27 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
   let gen_heap_spec =
     List.map
       Proof_spec.Heap.Heaplet.(function
-          PointsTo (v, ty, `App ("CFML.WPArray.Array", _)) when StringSet.mem v mut_vars  ->
-          Log.debug (fun f -> f "TYPE OF %s IS %a" v (Option.pp Lang.Type.pp) ty);
-          `Hole (Lang.Type.List (Lang.Type.Var "A"))
-        | PointsTo (v, ty, `App ("CFML.WPArray.Array", [ls])) ->
-          Log.debug (fun f -> f "TYPE OF %s IS %a with %a" v (Option.pp Lang.Type.pp) ty Lang.Expr.pp ls);
-          `Concrete ls
-        | PointsTo (v, ty, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), _)) when StringSet.mem v mut_vars ->
-          Log.debug (fun f -> f "TYPE OF %s IS %a" v (Option.pp Lang.Type.pp) ty);
-          `Hole (Lang.Type.Var "A")
-        | PointsTo (v, ty, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), [vl]))  ->
-          Log.debug (fun f -> f "TYPE OF %s IS %a with %a" v (Option.pp Lang.Type.pp) ty Lang.Expr.pp vl);
-          `Concrete vl
+        | PointsTo (arr, _, `App ("CFML.WPArray.Array", [ls]))  ->
+          let elt_ty =
+            match StringMap.find_opt arr env.gamma with
+            | Some (Array elt) -> Lang.Type.to_coq_form elt
+            | _ ->
+              Format.ksprintf ~f:failwith "failed to retrieve type of heaplet %s" arr in
+          (* only attempt to synthesize the expression if it is actually mutated   *)
+          if StringSet.mem arr mut_vars
+          then `Hole (Lang.Type.List elt_ty)
+          else `Concrete ls
+        | PointsTo (v, _, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), [vl])) ->
+          Log.debug (fun f -> f "gen heap spec type of %s is %a" v (Option.pp Lang.Type.pp) (StringMap.find_opt v env.gamma));
+          let elt_ty =
+            match StringMap.find_opt v env.gamma with
+            | Some (Ref elt) -> Lang.Type.to_coq_form elt
+            | _ ->
+              Format.ksprintf ~f:failwith "failed to retrieve type of heaplet %s" v in
+          (* only attempt to synthesize the expression if it is actually mutated   *)
+          if StringSet.mem v mut_vars
+          then `Hole elt_ty
+          else `Concrete vl
         | v ->
           Format.ksprintf ~f:failwith
             "found unsupported heaplet %a" pp v
