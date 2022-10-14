@@ -23,6 +23,8 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (Array.to_list (unwrap (eval ctx l)))
   | `App ("=", [l;r]) ->
     wrap (Equal.poly (unwrap (eval ctx l)) (unwrap (eval ctx r)))
+  | `App ("not", [l]) ->
+    wrap (not (unwrap (eval ctx l)))
   | `App ("&&", [l;r]) ->
     wrap ((unwrap (eval ctx l)) && (unwrap (eval ctx r)))
   | `App ("||", [l;r]) ->
