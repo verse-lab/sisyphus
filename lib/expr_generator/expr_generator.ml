@@ -177,7 +177,6 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.e
     let consts = match ty with
       | Lang.Type.List _ -> `Constructor ("[]", []) :: consts
       | Lang.Type.Unit -> `Constructor ("()", []) :: consts
-      | Lang.Type.Bool -> `Constructor ("true", []) :: `Constructor ("false", []) :: consts
       | Lang.Type.ADT ("option", _, _) -> `Constructor ("None", []) :: consts
       | _ -> consts in
     let funcs = Types.TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
