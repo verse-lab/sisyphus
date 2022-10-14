@@ -1,0 +1,23 @@
+(library
+ (name array_is_sorted)
+ (libraries common))
+
+(coq.theory
+ (name ProofsArrayIsSorted)
+ (modules
+   Array_is_sorted_old_ml Verify_array_is_sorted_old
+   Array_is_sorted_new_ml Verify_array_is_sorted_new
+   Dummy
+ )
+ (libraries sisyphus.plugin)
+ (flags -R resources/common Common))
+
+
+(include build-rules.sexp)
+(rule (with-stdout-to build-rules.sexp.gen (run ../../scripts/gen_build_rules.sh)))
+(rule (alias gen-build-rules) (action (diff build-rules.sexp build-rules.sexp.gen)))
+
+
+(env
+  (dev
+    (flags (:standard -w -32 -w -26))))
