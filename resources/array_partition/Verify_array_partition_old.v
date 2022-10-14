@@ -27,32 +27,24 @@ Proof using (All).
   intros A EA p a pp l.
   xcf.
   xapp.
-  xif;=> Hcond.
+  xif as Hcond.
   - {
       xapp;=> a_t.
       xapp;=> a_f.
       xvals*. {
-        rewrite Px0__,istrue_isTrue_eq in Hcond;
           apply length_zero_inv in Hcond; rewrite Hcond; auto.
       }
       {
-        rewrite Px0__,istrue_isTrue_eq in Hcond;
           apply length_zero_inv in Hcond; rewrite Hcond; auto.
       }
     }
   - {
-      assert (IA: Inhab A). {
-          rewrite Px0__, istrue_isTrue_eq in Hcond.
-          destruct l; rew_list in Hcond; try math.
-          apply Inhab_of_val; auto.
-      }
+      xinhab.
       xapp. {
-        rewrite Px0__, istrue_isTrue_eq in Hcond.
         apply int_index_prove; math.
       }
       xalloc a_t a_t_data Ha_t_data.
       xapp. {
-        rewrite Px0__, istrue_isTrue_eq in Hcond.
         apply int_index_prove; math.
       }
       xalloc a_f a_f_data Ha_f_data.
