@@ -1,6 +1,6 @@
 let rec for_upto from upto f =
   if from = upto
-  then f from
+  then ()
   else if from < upto then begin
     f from;
     for_upto (from + 1) upto f
@@ -8,7 +8,7 @@ let rec for_upto from upto f =
 
 let rec for_downto from down_to f =
   if from = down_to
-  then f from
+  then f down_to
   else if from > down_to then begin
     f from;
     for_downto (from - 1) down_to f
@@ -44,7 +44,7 @@ let rec while_downto (start: int) (stop: int) (f: int -> bool) : bool =
   then false
   else while_downto (start - 1) stop f
 
-let nat_fold_up from upto f init =
+let nat_fold_up (from: int) (upto: int) (f: int -> 'a -> 'a) (init: 'a) =
   let rec aux i acc =
     if i = upto then acc
     else aux (i + 1) (f i acc)

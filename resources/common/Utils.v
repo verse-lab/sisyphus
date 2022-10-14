@@ -452,3 +452,19 @@ Proof.
     rewrite read_make; try apply int_index_prove; try math.
     auto.
 Qed.  
+
+Lemma take_make_eq (A: Type) i j (vl: A) :
+  0 <= i <= j ->
+  take i (make j vl) = make i vl.
+Proof.
+  intros Hij.
+  apply (eq_of_extens (Inhab_of_val vl)).
+  - rewrite length_take; rewrite !length_make; try math.
+  - intros ind Hind; generalize Hind; rewrite index_eq_index_length, int_index_eq; intros Hind'.
+    rewrite length_take_nonneg in *; rewrite ?length_make in *; try math.
+    rewrite read_take;
+      rewrite ?length_make; try math; try apply int_index_prove; try math.
+    rewrite read_make; try apply int_index_prove; try math.
+    rewrite read_make; try apply int_index_prove; try math.
+    auto.
+Qed.  
