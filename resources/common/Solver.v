@@ -2,7 +2,7 @@ Set Implicit Arguments.
 
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
-Require Import Utils.
+Require Import Utils Tactics.
 
 Create HintDb filter_lemmas.
 Create HintDb iff_lemmas.
@@ -49,7 +49,7 @@ Ltac sis_solve_start :=
   repeat lazymatch goal with
   | [ |- forall (Heq: _ = _), _] => intros Heq
   | [ |- forall (x: _), _] => intros x
-  | [ H : Wpgen_body _ |- @Triple ?f ?r ?r2 ?P ?Q ] => apply H; clear H; xgo*
+  | [ H : Wpgen_body _ |- @Triple ?f ?r ?r2 ?P ?Q ] => apply H; clear H; xinhab; xgo*
   end.  
 
 Ltac sis_handle_if :=
