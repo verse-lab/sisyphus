@@ -1,12 +1,12 @@
 open Containers
 
 (** [eval ctx expr] evaluates a reified computation into a wrapped
-    existential type, using an evaluation context provided by [ctx]. *) 
+    existential type, using an evaluation context provided by [ctx]. *)
 let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
   let open Sisyphus_tracing.Wrap in
   function
   | `Tuple [a;b] ->
-    wrap (unwrap (eval ctx a), unwrap (eval ctx b)) 
+    wrap (unwrap (eval ctx a), unwrap (eval ctx b))
   | `Tuple [a;b;c] ->
     wrap (unwrap (eval ctx a),
           unwrap (eval ctx b),
@@ -124,8 +124,9 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
         then filter_not fp t
         else h :: filter_not fp t in
     wrap (filter_not (unwrap (eval ctx fp)) (unwrap (eval ctx ls)))
+  | `App ("is_some", [arg]) ->
+    wrap (Option.is_some (unwrap (eval ctx arg)))
 
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr
-
