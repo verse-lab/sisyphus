@@ -4,7 +4,7 @@ From TLC Require Import LibListZ.
 
 From Common Require Import Verify_arr.
 
-From Common Require Import Tactics Utils.
+From Common Require Import Tactics Utils Solver.
 
 From ProofsArrayPartition Require Import Array_partition_old_ml.
 
@@ -24,29 +24,20 @@ Lemma array_partition_spec :
             a_f ~> Array (filter_not pp l)
   ).
 Proof using (All).
-  intros A EA p a pp l.
   xcf.
   xapp.
   xif as Hcond.
   - {
       xapp;=> a_t.
       xapp;=> a_f.
-      xvals*. {
-          apply length_zero_inv in Hcond; rewrite Hcond; auto.
-      }
-      {
-          apply length_zero_inv in Hcond; rewrite Hcond; auto.
-      }
+      xvals*. { sis_list_solver. }
+      { sis_list_solver. }
     }
   - {
       xinhab.
-      xapp. {
-        apply int_index_prove; math.
-      }
+      xapp. { auto. }
       xalloc a_t a_t_data Ha_t_data.
-      xapp. {
-        apply int_index_prove; math.
-      }
+      xapp. { auto. }
       xalloc a_f a_f_data Ha_f_data.
       xapp;=> c_t.
       xapp;=> c_f.
@@ -62,6 +53,16 @@ Proof using (All).
                )
               )
            ). {
+        (* sis_solve_start; autorewrite with rew_list filter_lemmas;  *)
+        (*   sis_handle_if; rew_list; auto;  *)
+        (*   sis_handle_int_index_prove; *)
+        (*   sis_expand_rewrites; *)
+        (*   rew_list. *)
+        (* sis_normalize_length; sis_dispatch_filter_goal. *)
+        (* sis_normalize_length; sis_dispatch_filter_goal. *)
+        (* sis_normalize_length; rew_list; sis_handle_list_update; f_equal. *)
+        (* sis_normalize_succs. *)
+
         intros v t r Htvr; apply Htmp; clear Htmp.
         xapp (H).
         xif;=> Htmpcond.

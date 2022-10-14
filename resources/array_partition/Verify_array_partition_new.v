@@ -8,7 +8,6 @@ From Common Require Import Tactics Utils Solver.
 
 From ProofsArrayPartition Require Import Array_partition_new_ml.
 
-
 Lemma array_partition_spec :
   forall (A : Type) `{EA : Enc A} (p: func) (a: array A)
          (pp : A -> bool) (l: list A),

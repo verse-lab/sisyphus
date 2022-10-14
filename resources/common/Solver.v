@@ -4,24 +4,10 @@ From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 Require Import Utils.
 
-Ltac sis_solve_start :=
-  repeat lazymatch goal with
-  | [ |- forall (Heq: _ = _), _] => intros Heq
-  | [ |- forall (x: _), _] => intros x
-  | [ H : Wpgen_body _ |- @Triple ?f ?r ?r2 ?P ?Q ] => apply H; clear H; xgo*
-  end.  
-
-Ltac sis_handle_if :=
-  lazymatch goal with
-    | [ H : ?cond |- context [If ?cond then _ else _]] => rewrite If_l; auto
-    | [ H : ?cond |- context [If (~ ?cond) then _ else _]] => rewrite If_r; auto
-    | [ H : ~ ?cond |- context [If ?cond then _ else _]] => rewrite If_r; auto
-    | _ => idtac
-    end.  
-
 Create HintDb filter_lemmas.
 Create HintDb iff_lemmas.
 
+#[export] Hint Resolve length_zero_inv: filter_lemmas.
 #[export] Hint Resolve mem_filter : filter_lemmas.
 #[export] Hint Resolve length_filter : filter_lemmas.
 #[export] Hint Resolve mem_filter_inv : filter_lemmas.
@@ -58,3 +44,64 @@ Create HintDb iff_lemmas.
 #[export] Hint Rewrite If_r : iff_lemmas.
 #[export] Hint Rewrite If_l : iff_lemmas.
 
+
+Ltac sis_solve_start :=
+  repeat lazymatch goal with
+  | [ |- forall (Heq: _ = _), _] => intros Heq
+  | [ |- forall (x: _), _] => intros x
+  | [ H : Wpgen_body _ |- @Triple ?f ?r ?r2 ?P ?Q ] => apply H; clear H; xgo*
+  end.  
+
+Ltac sis_handle_if :=
+  lazymatch goal with
+    | [ H : ?cond |- context [If ?cond then _ else _]] => rewrite If_l; auto
+    | [ H : ?cond |- context [If (~ ?cond) then _ else _]] => rewrite If_r; auto
+    | [ H : ~ ?cond |- context [If ?cond then _ else _]] => rewrite If_r; auto
+    | _ => idtac
+    end.  
+
+Ltac sis_list_solver :=
+  lazymatch goal with
+  | [ H : length _ = 0  |- _ ] =>
+      apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
+  end.  
+
+Ltac sis_expand_rewrites :=
+  repeat lazymatch goal with
+    | [ H: ?x = _ |- context [?x]] => rewrite !H in *
+    end.
+
+Ltac sis_handle_int_index_prove :=
+  lazymatch goal with
+  | [ |- index _ _ ] => apply int_index_prove; try rewrite <- !length_eq; try math
+  | _ => idtac
+  end.
+
+Ltac sis_normalize_length :=
+  lazymatch goal with
+  | [ |- context [length (drop _ _)] ] =>
+      rewrite length_drop_nonneg; sis_normalize_length; rew_list; try math
+  | [ |- context [length (make _ _)] ] =>
+      rewrite length_make; sis_normalize_length; rew_list; try math
+  | _ => idtac
+  end.
+
+Ltac sis_dispatch_filter_goal :=
+  match goal with
+  | [ |- context [ length (filter ?f ?ls) ]] =>
+      pose proof (length_filter ls f); math
+  end.
+
+Ltac sis_handle_list_update :=
+  lazymatch goal with
+  | [ |- context [ (?l ++ _)[length ?l := _] ]] =>
+      rewrite (@update_app_r _ _ 0 _ (length l)); try math
+  end.
+
+Ltac sis_normalize_succs :=
+  repeat lazymatch goal with
+    | [ |- context [ (1 + ?x) ]] =>
+        math_rewrite (1 + x = x + 1)
+    | [ |- context [ ?x + (?y + 1) ]] =>
+        math_rewrite (x + (y + 1) = (x + y) + 1)
+    end.
