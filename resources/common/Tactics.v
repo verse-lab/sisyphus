@@ -22,13 +22,13 @@ Ltac xinhab :=
       | [ l : list ?A |- _ ] =>
           let IA := fresh "IA" in
           (assert (IA: Inhab A); [
-              try apply Inhab_of_val;
+              (try apply Inhab_of_val;
               destruct l;
               rew_list in *;
-              try math; auto || fail
-            | ]) || idtac "failed"
+              try math; auto; fail)
+            | ]) || (idtac "xinhab failed"; fail)
       | _ => idtac "not found"
-    end.
+    end || idtac.
 
 Ltac xif_pat Hcond :=
   let cond := fresh "Hcond" in

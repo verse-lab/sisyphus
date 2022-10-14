@@ -10,6 +10,40 @@ Proof.
 Qed.
 
 
+Fixpoint list_foldi_internal (A: Type) (B: Type)
+  (i: int) (ls: list A) (init: B) (fp: int -> A -> B -> B) :=
+  match ls with
+  | nil => init
+  | h :: t =>
+      list_foldi_internal (i + 1) t (fp i h init) fp
+  end.
+
+Definition list_foldi (A: Type) (B: Type) (ls: list A) (init: B)
+  (fp: int -> A -> B -> B) :=
+  list_foldi_internal 0 ls init fp.
+
+Global Hint Unfold list_foldi.
+
+Lemma foldi_rcons (A: Type) (B: Type)
+  (fp: int -> A -> B -> B) (acc: B) (rls: list A) (vl: A) (ls: list A):
+  ls = rls & vl ->
+  list_foldi ls acc fp = fp (length rls) vl (list_foldi rls acc fp).
+Proof.
+  unfold list_foldi.
+  cut (forall t acc i vl,
+          list_foldi_internal i (t & vl) acc fp =
+            fp (i + length t) vl (list_foldi_internal i t acc fp)
+      ). {
+    intros H Hrls; rewrite Hrls.
+    apply H.
+  }
+  clear.
+  intros t; induction t as [ |  x xs IHxs ]; intros acc i vl.
+  - rew_list; intros; subst; simpl; auto; f_equal; math.
+  - rew_list; simpl. rewrite IHxs; f_equal; math.
+Qed.  
+
+
 Fixpoint list_findi_internal (A: Type) (i: int) (f: int -> A -> bool) (ls: list A) : option (int * A) :=
   match ls with
   | nil => None
@@ -261,6 +295,7 @@ Proof.
   rewrite drop_app_length.
   auto.
 Qed.
+
 
 Lemma case_rev_split : forall A (xs: list A) v l r,
     rev xs = l ++ v :: r ->

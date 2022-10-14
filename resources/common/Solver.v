@@ -44,13 +44,13 @@ Create HintDb iff_lemmas.
 #[export] Hint Rewrite If_r : iff_lemmas.
 #[export] Hint Rewrite If_l : iff_lemmas.
 
-
 Ltac sis_solve_start :=
   repeat lazymatch goal with
-  | [ |- forall (Heq: _ = _), _] => intros Heq
-  | [ |- forall (x: _), _] => intros x
+  | [ |- forall (Heq: _ = _), _] => let x := fresh Heq in intro x
+  | [ |- forall (x: _), _] => let x := fresh x in intro x
+  | [ |- _ -> _ ] => let v := fresh "Hv" in intros v
   | [ H : Wpgen_body _ |- @Triple ?f ?r ?r2 ?P ?Q ] => apply H; clear H; xinhab; xgo*
-  end.  
+  end.
 
 Ltac sis_handle_if :=
   lazymatch goal with
@@ -64,6 +64,10 @@ Ltac sis_list_solver :=
   lazymatch goal with
   | [ H : length _ = 0  |- _ ] =>
       apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
+  | [ |- context[ take 0 _ ] ] =>
+      rewrite take_zero in *; rew_list; simpl
+  | [ |- context[ take (length ?l) ?l ] ] =>
+      rewrite take_full_length; rew_list; simpl
   end.  
 
 Ltac sis_expand_rewrites :=
@@ -79,6 +83,8 @@ Ltac sis_handle_int_index_prove :=
 
 Ltac sis_normalize_length :=
   lazymatch goal with
+  | [ |- context [length (take _ _)] ] =>
+      rewrite length_take_nonneg; sis_normalize_length; rew_list; try math
   | [ |- context [length (drop _ _)] ] =>
       rewrite length_drop_nonneg; sis_normalize_length; rew_list; try math
   | [ |- context [length (make _ _)] ] =>

@@ -5,6 +5,7 @@ From TLC Require Import LibListZ.
 
 From Common Require Import Arr_ml.
 
+
 Lemma array_iter_spec :
   forall A `{EA: Enc A} (f: func) (a: array A) (l: list A),
   forall (I: list A -> hprop),
@@ -193,3 +194,60 @@ Proof using.
       rewrite <- (@length_make _ (length l) l[0]) at 1; try math.
       rewrite drop_at_length, app_nil_r; auto.
 Qed.
+Arguments array_take_spec {A} {EA} i a l Hi.
+
+Lemma array_iteri_spec :
+  forall A `{EA: Enc A} (f: func) (a: array A) (l: list A),
+  forall (I: list A -> hprop),
+    (forall i v (t r: list A),
+        i = length t ->
+        (l = t++v::r) ->
+        SPEC (f i v)
+          PRE (I t)
+          POST (fun (_: unit) => I (t&v))) ->
+  SPEC (array_iteri f a)
+    PRE (a ~> Array l \* I nil)
+    POST (fun (_: unit) => a ~> Array l \* I l).
+Proof using.
+  xcf.
+  xapp.
+  xlet as;=> tmp Htmp.
+  assert (forall i t r,
+             i = length t ->
+             l = t ++ r ->
+             SPEC (tmp i)
+               PRE (a ~> Array l \* I t)
+               POST (fun _ : unit => a ~> Array l \* I l)
+         ). {
+    intros i; induction_wf IH: (upto (length l)) i.
+    intros t r Hi Htr; apply Htmp; clear Htmp.
+    xif;=> Hlen.
+    - assert (length l > 0). { destruct l; rew_list in *; math. }
+      assert (Inhab A). {
+        destruct l; rew_list in *; try math; apply Inhab_of_val; auto.
+      }
+      xapp. { apply int_index_prove; rewrite <- ?length_eq; math. }
+      destruct r as [| rh rt]; rew_list in *; simpl.
+      + subst; math.
+      + xapp (H i l[i] t rt); auto. {
+          subst; rewrite read_app, If_r; try math.
+          math_rewrite (length t - length t = 0).
+          rewrite read_zero; auto.
+        } {
+          xapp (IH (i + 1)).
+          apply upto_intro; math.
+          rew_list; math.
+          subst; rewrite read_app, If_r; try math.
+          math_rewrite (length t - length t = 0).
+          rewrite read_zero; auto.
+          rew_list; f_equal.
+          xsimpl*.
+        }
+    - xvals*.
+      subst; rew_list in *.
+      assert (length r = 0) by math.
+      apply length_zero_inv in H0; rewrite H0; rew_list; xsimpl*.
+  }
+  xapp; rew_list; auto; xsimpl*.
+Qed.
+Arguments array_iteri_spec {A} {EA} f a l I HI.

@@ -204,7 +204,7 @@ Arguments for_downto_spec from down_to f I Hf HI : rename, clear implicits.
 Lemma nat_fold_up_spec :
   forall {A: Type} {EA: Enc A} (from: int) (upto: int) (f: func) (init: A)
          (I: int -> A -> hprop),
-    (forall (i: int) (a: A), from <= i <= upto ->
+    (forall (i: int) (a: A), from <= i < upto ->
      SPEC (f i a)
      PRE (I i a)
      POST (fun (res: A) => I (i + 1) res)) ->
@@ -240,7 +240,7 @@ Arguments nat_fold_up_spec {A} {EA} from upto f init I Hf HI : rename.
 Lemma nat_fold_down_spec :
   forall {A: Type} {EA: Enc A} (from: int) (downto: int) (f: func) (init: A)
          (I: int -> A -> hprop),
-    (forall (i: int) (a: A), downto <= i <= from ->
+    (forall (i: int) (a: A), downto < i <= from ->
      SPEC (f i a)
      PRE (I i a)
      POST (fun (res: A) => I (i - 1) res)) ->
