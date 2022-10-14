@@ -80,6 +80,10 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap ((unwrap (eval ctx hd)) :: (unwrap (eval ctx tl)))
   | `Constructor (("[]" | "nil"), []) ->
     wrap ([])
+  | `Constructor ("Some", [arg]) ->
+    wrap (Some (unwrap (eval ctx arg)))
+  | `Constructor ("None", []) ->
+    wrap (None)
   | `App ("list_findi", [f; ls]) ->
     let rec findi i f ls =
       match ls with
