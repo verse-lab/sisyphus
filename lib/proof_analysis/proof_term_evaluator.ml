@@ -1,12 +1,12 @@
 open Containers
 
 (** [eval ctx expr] evaluates a reified computation into a wrapped
-    existential type, using an evaluation context provided by [ctx]. *) 
+    existential type, using an evaluation context provided by [ctx]. *)
 let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
   let open Sisyphus_tracing.Wrap in
   function
   | `Tuple [a;b] ->
-    wrap (unwrap (eval ctx a), unwrap (eval ctx b)) 
+    wrap (unwrap (eval ctx a), unwrap (eval ctx b))
   | `Tuple [a;b;c] ->
     wrap (unwrap (eval ctx a),
           unwrap (eval ctx b),
@@ -23,6 +23,8 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (Array.to_list (unwrap (eval ctx l)))
   | `App ("=", [l;r]) ->
     wrap (Equal.poly (unwrap (eval ctx l)) (unwrap (eval ctx r)))
+  | `App ("not", [l]) ->
+    wrap (not (unwrap (eval ctx l)))
   | `App ("&&", [l;r]) ->
     wrap ((unwrap (eval ctx l)) && (unwrap (eval ctx r)))
   | `App ("||", [l;r]) ->
@@ -78,6 +80,10 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap ((unwrap (eval ctx hd)) :: (unwrap (eval ctx tl)))
   | `Constructor (("[]" | "nil"), []) ->
     wrap ([])
+  | `Constructor ("Some", [arg]) ->
+    wrap (Some (unwrap (eval ctx arg)))
+  | `Constructor ("None", []) ->
+    wrap (None)
   | `App ("list_findi", [f; ls]) ->
     let rec findi i f ls =
       match ls with
@@ -122,8 +128,9 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
         then filter_not fp t
         else h :: filter_not fp t in
     wrap (filter_not (unwrap (eval ctx fp)) (unwrap (eval ctx ls)))
+  | `App ("is_some", [arg]) ->
+    wrap (Option.is_some (unwrap (eval ctx arg)))
 
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr
-

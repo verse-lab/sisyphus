@@ -457,9 +457,17 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
 
 let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
   let uses_options = StringMap.values env.Proof_env.gamma
-                     |> Iter.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false) in
+                     |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false)) in
   let invariant_has_bool = List.to_iter (snd inv_ty)
                            |> Iter.exists (function (_, Lang.Type.Bool) -> true | _ -> false) in
+  let is_loop_combinator =
+    let mod_name = lemma_name |> Names.Constant.modpath |> Names.ModPath.to_string in
+    match mod_name with
+    | "Common.Verify_combinators" -> true
+    | _ -> false in
+
+  (* we'll keep of any logical functions we map to real OCaml functions:  *)
+  let hof_rev_map = ref StringMap.empty in
   (* construct an expression generation context using the old proof *)
   let ctx =
     let vars, funcs =
@@ -477,11 +485,12 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           then Some (name, ty)
           (* handle higher order pure functions:  *)
           else match ty, StringMap.find_opt name env.logical_mappings with
-            | Lang.Type.Func (Some _), Some name ->
+            | Lang.Type.Func (Some _), Some prog_name ->
               (* we need a binding for the function to a corresponding
                  program variable to ensure that the function can be
                  found: *)
-              Some (name, ty)
+              hof_rev_map := StringMap.add prog_name name !hof_rev_map;
+              Some (prog_name, ty)
             | Lang.Type.Func (Some _), None ->
               Log.warn (fun f -> f "found usable pure function %s but lacking suitable binding" name);
               None
@@ -505,10 +514,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
             then StringSet.add "not"
             else Fun.id)
         |> (if uses_options
-            then StringSet.add "Opt.option_is_some"
-            else Fun.id)
-        |> (if uses_options
-            then StringSet.add "Opt.option_is_none"
+            then StringSet.add "is_some"
             else Fun.id)
         (* add in any hof functions in our proof env  *)
         |> Fun.flip StringSet.add_iter
@@ -546,9 +552,11 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       match ty with
       (* if the heap is empty, then everything is useful *)
       | _ when List.is_empty pre_heap -> Some (v, ty)
+      | Lang.Type.Int when is_loop_combinator -> None
       (* we only generate equalities for trivial *)
       | Lang.Type.Var _
       | Lang.Type.Int
+      | Lang.Type.Bool
       | Lang.Type.Val -> Some (v,ty)
       | _ -> None
     ) in
@@ -608,7 +616,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
     ) in
 
   let heap = List.map_product_l (function `Hole ty -> gen ty | `Concrete vl -> [vl]) gen_heap_spec  in
-  pure, heap
+  pure, heap, !hof_rev_map
 
 let prune_candidates_using_testf test_f (pure, heap) =
   let start_time = Ptime_clock.now () in
@@ -911,7 +919,7 @@ and symexec_match t env prog_expr cases =
     let env = List.fold_left (fun env (var,ty) ->
       Proof_env.add_binding env ~var ~ty
     ) env args in
-    
+
     (* now emit the rest *)
     symexec t env rest;
     (* dispatch remaining subgoals by the best method: *)
@@ -1098,7 +1106,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   Log.debug (fun f -> f "mutable variables are %a" (StringSet.pp String.pp) mut_vars);
 
   (* generate initial invariants *)
-  let pure, heap =
+  let pure, heap, hf_rev_map =
     generate_candidate_invariants t env
       ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
 
@@ -1178,6 +1186,19 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     end in
 
   let invariant = Option.get_exn_or "Failed to find suitable candidate" valid_candidate in
+
+  (* now before sending things back to the coq context, we have to
+     re-normalise any higher order functions back to their pure models
+     - in particular, when doing the synthesis, the expression
+     generator and proof term evaluator talk about the *real* function
+     [f], while our coq terms should talk about the *logical* function
+     model [fp]. See [resources/find_mapi/] for an example of how the
+     logical model looks. *)
+  let invariant =
+    let subst v = StringMap.find_opt v hf_rev_map in
+    let subst_expr e = Lang.Expr.subst_var subst e in
+    (subst_expr (fst invariant), List.map subst_expr (snd invariant)) in
+
   Log.info (fun f -> f "FOUND INVARIANT: %s@." (
     [%show: Lang.Expr.t * Lang.Expr.t Containers.List.t] invariant
   ));
@@ -1267,7 +1288,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     if Constr.isProd (Proof_context.current_goal t).ty then begin
       let name = Proof_context.fresh ~base:result t in
       let h_name = Proof_context.fresh ~base:("H" ^ result) t in
-      Proof_context.append t "intros %s %s." name h_name
+      Proof_context.append t "intros %s %s." name h_name;
+      while Constr.isProd (Proof_context.current_goal t).ty do
+        Proof_context.append t "intros."
+      done
     end;
     match snd invariant with
     | [] -> ()

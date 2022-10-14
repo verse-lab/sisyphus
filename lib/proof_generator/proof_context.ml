@@ -94,6 +94,7 @@ let env {ctx; _} =
   | None -> failwith "unable to obtain proof env - serapi returned None."
 
 let typeof_opt t expr =
+  assert (not (String.equal expr "="));
   let no_hyps = List.length (current_goal t).hyp in
   append t "pose proof (%s)." expr;
   if List.length (current_goal t).hyp <= no_hyps
@@ -102,6 +103,7 @@ let typeof_opt t expr =
 
 
 let typeof t expr =
+  assert (not (String.equal expr "="));
   let no_hyps = List.length (current_goal t).hyp in
   append t "pose proof (%s)." expr;
   if List.length (current_goal t).hyp <= no_hyps then
@@ -128,7 +130,7 @@ let definition_of {ctx; _} txt =
   Ctx.query Serapi.Serapi_protocol.(TypeOf txt)
   |> Option.flat_map Serapi.Serapi_protocol.(function
     |[CoqMInd (name, def)] -> Some def
-    | _ -> None    
+    | _ -> None
   )
 
 let names {ctx; _} txt =
@@ -136,9 +138,9 @@ let names {ctx; _} txt =
   Ctx.query Serapi.Serapi_protocol.(Names txt)
   |> Option.flat_map Serapi.Serapi_protocol.(function
     | CoqGlobRef name :: _ -> Some name
-    | _ -> None    
+    | _ -> None
   )
-  
+
 let constant t txt =
   names t txt |> Option.map begin function
   | Names.GlobRef.ConstRef c -> c
@@ -186,7 +188,7 @@ let fresh ?(base="tmp") t =
   let name_in_use name =
     StringSet.mem name names in
   let rec loop incr =
-    let name = Format.sprintf "%s%d" base incr in 
+    let name = Format.sprintf "%s%d" base incr in
     if name_in_use name
     then loop (incr + 1)
     else name in
@@ -248,7 +250,7 @@ and eval_tracing_list t ty elts =
       let* tl = eval_tracing_list t ty tl in
       Some (`Constructor ("::", [h; tl])) in
   loop elts
-          
+
 let init ~compilation_context ~old_proof ~new_proof_base ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();

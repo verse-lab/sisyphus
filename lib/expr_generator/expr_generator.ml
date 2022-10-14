@@ -19,15 +19,18 @@ let pp_type_map f fmt vl =
   Types.TypeMap.pp
     ~pp_start:Format.(fun fmt () -> pp_open_hovbox fmt 1; pp_print_string fmt "{")
     ~pp_stop:Format.(fun fmt () -> pp_print_string fmt "}"; pp_open_hovbox fmt 1)
-    Lang.Type.pp f fmt vl
+    Lang.Type.pp_raw f fmt vl
 
 type expr = Lang.Expr.t
-let pp_expr fmt vl = Lang.Expr.pp fmt vl
+let pp_expr fmt vl = Lang.Expr.pp_raw fmt vl
+
+type ty = Lang.Type.t
+let pp_ty fmt vl = Lang.Type.pp_raw fmt vl
 
 type ctx = {
   consts: expr list type_map;
   pats: Types.pat list type_map;
-  funcs: (string * Lang.Type.t list) list type_map;
+  funcs: (string * ty list) list type_map;
 } [@@deriving show]
 
 let ctx_pats ctx = ctx.pats
@@ -142,15 +145,31 @@ let get_fuels ctx fuel fname arg_tys =
     ) arg_tys
   in
 
+  let is_func = function
+    | Func _ -> true
+    | _ -> false
+  in
+
+  (* if any argument doesnt need more fuel, then distribute more fuel to first non-function argument *)
+  let priority_arg =
+    List.find_mapi (fun i arg ->
+        if has_empty_arg && not (is_func arg)
+        then Some i
+        else None
+      ) arg_tys
+    |> Option.get_or ~default:(-1)
+  in
+
   let get_fuel i arg =
     match arg with
-    | _ when i = 0 && has_empty_arg -> arg, fuel
+    | _ when i = priority_arg -> arg, fuel
     | _ -> arg, fuel - 1
   in
 
   List.mapi get_fuel arg_tys
 
 let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.env)  (ty: Lang.Type.t) k =
+  (* Format.printf "Fuel = %s, Ty = %a@." (string_of_int fuel) Lang.Type.pp ty; *)
   match fuel with
   | fuel when fuel > 0 ->
     let consts = Types.TypeMap.find_opt ty ctx.consts |> Option.value  ~default:[]
@@ -158,7 +177,6 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.e
     let consts = match ty with
       | Lang.Type.List _ -> `Constructor ("[]", []) :: consts
       | Lang.Type.Unit -> `Constructor ("()", []) :: consts
-      | Lang.Type.Bool -> `Constructor ("true", []) :: `Constructor ("false", []) :: consts
       | Lang.Type.ADT ("option", _, _) -> `Constructor ("None", []) :: consts
       | _ -> consts in
     let funcs = Types.TypeMap.find_opt ty ctx.funcs |> Option.value ~default:[] in
@@ -174,6 +192,7 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.e
           |> List.map (fun arg -> `App (fname, [arg]))
         )
       else [] in
+
     let consts = consts @ consts_funcs in
     let+ funcs =  flat_mapM (fun (fname, args) kont ->
       let arg_with_fuels = get_fuels ctx fuel fname args in
@@ -183,8 +202,20 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.e
         ) arg_with_fuels in
       let+ funcs = mapM (fun args kont -> kont (`App (fname, args))) funcs in
       kont funcs
-    ) funcs in
-    k (funcs @ consts)
+      ) funcs in
+
+    (* add negation of bools for free *)
+    let res =
+      let res = funcs @ consts in
+      let is_bool = function Lang.Type.Bool -> true | _ -> false in
+      let negs =
+      if is_bool ty then
+        List.map (fun e -> `App ("not", [e])) res
+      else [] in
+      res @ negs 
+    in
+
+    k res
   | _ -> k []
 
 
@@ -218,4 +249,4 @@ let generate_expression ?(blacklisted_vars=[]) ?(initial=true) ?fuel ctx (env: e
     let pats = flat_mapM (instantiate_pat ~blacklisted_vars ctx env ?fuel) pats Fun.id in
     pats
   else
-    generate_expression ?fuel  ~blacklisted_vars ctx env ty Fun.id 
+    generate_expression ?fuel ~blacklisted_vars ctx env ty Fun.id

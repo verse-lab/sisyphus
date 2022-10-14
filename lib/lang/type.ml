@@ -14,7 +14,7 @@ type t =
      variables have no prefix and are upper case. *)
   | Int
   (** [Int] represents the int [1: int] type. *)
-  | Bool 
+  | Bool
   (** [Bool] represents the bool [true: bool] type.  *)
   | Func of (t list * t) option (* optionally include the internal parameters *)
   (** [Func f] represents a function type - if we know the actual type
@@ -100,6 +100,18 @@ let rec subst map = function
   | ADT (name, args, cons) -> ADT (name, List.map (subst map) args, cons)
   | ty -> ty
 
+let rec exists p ty =
+  match ty with
+  | Loc | Val
+  | Unit | Var _ |Int |Bool  -> p ty
+  | List ity
+  | Array ity
+  | Ref ity -> p ty || p ity
+  | Product tys -> p ty || List.exists (exists p) tys
+  | Func None -> p ty
+  | Func (Some (args, res)) -> p ty || List.exists (exists p) args || exists p res
+  | ADT (_, tys, _) -> p ty || List.exists (exists p) tys
+
 let rec poly_vars vars = function
   | Var v -> StringSet.add v vars
   | Unit | Int | Bool | Loc | Val -> vars
@@ -110,15 +122,15 @@ let rec poly_vars vars = function
       (fun vars ty ->
          poly_vars vars ty)
       vars args
-  | Func None -> vars 
+  | Func None -> vars
 
-  | ADT (_, tys, _) 
+  | ADT (_, tys, _)
   | Product tys ->
     List.fold_left
       (fun vars ty ->
          poly_vars vars ty) vars tys
 
-let rec map_poly_var f = function 
+let rec map_poly_var f = function
   | Var name -> Var (f name)
   | Unit | Int | Bool | Loc | Val as ty -> ty
   | List ty -> List (map_poly_var f ty)
@@ -154,4 +166,4 @@ let to_ocaml_form ty =
     if String.prefix ~pre:"'" s
     then s
     else "'" ^ (String.lowercase_ascii s)
-  ) ty
+    ) ty
