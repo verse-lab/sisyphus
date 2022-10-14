@@ -17,7 +17,7 @@
 
    Verify_vec Vec_ml
 
-   Utils Tactics))
+   Utils Tactics Solver))
 
 (rule
  (targets Opt_ml.v opt.cmj)
