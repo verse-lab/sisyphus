@@ -457,7 +457,7 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
 
 let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
   let uses_options = StringMap.values env.Proof_env.gamma
-                     |> Iter.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false) in
+                     |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false)) in
   let invariant_has_bool = List.to_iter (snd inv_ty)
                            |> Iter.exists (function (_, Lang.Type.Bool) -> true | _ -> false) in
   (* we'll keep of any logical functions we map to real OCaml functions:  *)
@@ -508,10 +508,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
             then StringSet.add "not"
             else Fun.id)
         |> (if uses_options
-            then StringSet.add "Opt.option_is_some"
-            else Fun.id)
-        |> (if uses_options
-            then StringSet.add "Opt.option_is_none"
+            then StringSet.add "is_some"
             else Fun.id)
         (* add in any hof functions in our proof env  *)
         |> Fun.flip StringSet.add_iter
