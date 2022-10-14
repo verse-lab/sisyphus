@@ -14,4 +14,5 @@ let find_mapi (a: 'a array) (f: int -> 'a -> 'b option) =
       let (res: bool) = not found in
       res
     ) in
-    !value_found
+    let (res: 'b option) = !value_found in
+    res

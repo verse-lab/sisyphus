@@ -1288,7 +1288,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     if Constr.isProd (Proof_context.current_goal t).ty then begin
       let name = Proof_context.fresh ~base:result t in
       let h_name = Proof_context.fresh ~base:("H" ^ result) t in
-      Proof_context.append t "intros %s %s." name h_name
+      Proof_context.append t "intros %s %s." name h_name;
+      while Constr.isProd (Proof_context.current_goal t).ty do
+        Proof_context.append t "intros."
+      done
     end;
     match snd invariant with
     | [] -> ()
