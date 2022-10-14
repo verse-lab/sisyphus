@@ -460,6 +460,12 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
                      |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false)) in
   let invariant_has_bool = List.to_iter (snd inv_ty)
                            |> Iter.exists (function (_, Lang.Type.Bool) -> true | _ -> false) in
+  let is_loop_combinator =
+    let mod_name = lemma_name |> Names.Constant.modpath |> Names.ModPath.to_string in
+    match mod_name with
+    | "Common.Verify_combinators" -> true
+    | _ -> false in
+
   (* we'll keep of any logical functions we map to real OCaml functions:  *)
   let hof_rev_map = ref StringMap.empty in
   (* construct an expression generation context using the old proof *)
@@ -546,6 +552,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       match ty with
       (* if the heap is empty, then everything is useful *)
       | _ when List.is_empty pre_heap -> Some (v, ty)
+      | Lang.Type.Int when is_loop_combinator -> None
       (* we only generate equalities for trivial *)
       | Lang.Type.Var _
       | Lang.Type.Int
