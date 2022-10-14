@@ -407,13 +407,7 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
   let higher_order_functions =
     List.combine env.Proof_env.args concrete_args
     |> List.filter_map (function
-      | ((f, Lang.Type.Func _), arg) ->
-        begin match StringMap.find_opt f env.Proof_env.logical_mappings with
-        | Some f -> Some (f, arg)
-        | None ->
-          Log.warn (fun pr -> pr "found usable pure function %s but lacking suitable binding" f);
-          None
-        end
+      | ((f, Lang.Type.Func _), arg) -> Some (f, arg)
       | _ -> None
     ) in
 
@@ -482,9 +476,15 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           if StringSet.mem name available_vars
           then Some (name, ty)
           (* handle higher order pure functions:  *)
-          else match ty with
-            | Lang.Type.Func (Some _) ->
+          else match ty, StringMap.find_opt name env.logical_mappings with
+            | Lang.Type.Func (Some _), Some name ->
+              (* we need a binding for the function to a corresponding
+                 program variable to ensure that the function can be
+                 found: *)
               Some (name, ty)
+            | Lang.Type.Func (Some _), None ->
+              Log.warn (fun f -> f "found usable pure function %s but lacking suitable binding" name);
+              None
             | _ -> None
         ) proof_env in
       (* collect any variables that will be available to the invariant *)
