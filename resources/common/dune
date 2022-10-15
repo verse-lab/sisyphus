@@ -25,6 +25,10 @@
 
    Queue_ml
 
+   Set_ml
+
+   Hashtbl_ml
+
    Utils Tactics Solver))
 
 (rule

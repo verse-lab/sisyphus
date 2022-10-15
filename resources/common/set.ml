@@ -1,6 +1,6 @@
 type set = int list ref
 
-let set_mem s ls =
+let set_mem (s: int) (ls: set) =
   let rec loop ls =
     match ls with
     | [] -> false
@@ -10,7 +10,7 @@ let set_mem s ls =
       else loop t in
   loop !ls
 
-let set_add s ls =
+let set_add (s: int) (ls: set) =
   assert (not (set_mem s ls));
   ls := s :: !ls
 
