@@ -417,6 +417,33 @@ Proof.
       auto.
 Qed.      
 
+Lemma fold_left_eq : forall A B (fp: B -> A -> B) (init: B) (ls : list A),
+    List.fold_left fp ls init = fold_left (fun v acc => fp acc v) init ls.
+Proof.
+  intros. gen init. induction ls; intros; simpl; rew_list.
+  - rewrite fold_left_nil; auto.
+  - rewrite fold_left_cons; auto.
+Qed.
+
+Lemma make_app (A: Type) (v: A) (i j: int):
+  i >= 0 -> j >= 0 ->
+  make (i + j) v = make i v ++ make j v.
+Proof.
+  gen i.
+  induction_wf IH: (downto 0) j.
+  intros i Hi Hj.
+  case (Z.eqb_spec j 0).
+  - intros H0; rewrite H0, make_zero; rew_list; f_equal; math.
+  - intros Hgt; assert (Hjgt0: j > 0) by math.
+    math_rewrite (i + j = (i + (j - 1)) + 1).
+    rewrite make_succ_r; try math.
+    rewrite IH; try math; try (apply downto_intro; math).
+    rew_list.
+    assert (Hjlt0: j = (j - 1) + 1) by math.
+    rewrite Hjlt0 at 2.
+    rewrite make_succ_r; try math; auto.
+Qed.
+
 Fixpoint filter_not (A: Type) (fp: A -> Prop) (ls: list A) : list A :=
   match ls with
   | nil => nil

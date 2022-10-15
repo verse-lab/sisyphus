@@ -19,6 +19,8 @@
 
    Verify_sll Sll_ml
 
+   Verify_tree Tree_ml
+
    Stack_ml
 
    Queue_ml
