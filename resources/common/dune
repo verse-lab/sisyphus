@@ -17,6 +17,8 @@
 
    Verify_vec Vec_ml
 
+   Verify_sll Sll_ml
+
    Utils Tactics Solver))
 
 (rule
