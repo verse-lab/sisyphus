@@ -17,7 +17,6 @@ let stack_pop (s: 'a stack) : 'a =
   | [] ->
     assert false
 
-
 let stack_push (s: 'a stack) (hd: 'a) : unit =
   s.size <- s.size + 1;
   s.elements <- hd :: s.elements

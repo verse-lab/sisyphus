@@ -21,7 +21,7 @@
 
    Verify_tree Tree_ml
 
-   Stack_ml
+   Verify_stack Stack_ml
 
    Queue_ml
 
