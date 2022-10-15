@@ -77,7 +77,7 @@ Ltac sis_expand_rewrites :=
 
 Ltac sis_handle_int_index_prove :=
   lazymatch goal with
-  | [ |- index _ _ ] => apply int_index_prove; try rewrite <- !length_eq; try math
+  | [ |- index _ _ ] => apply int_index_prove; try rewrite <- !length_eq; rew_list; try math
   | _ => idtac
   end.
 
@@ -111,3 +111,35 @@ Ltac sis_normalize_succs :=
     | [ |- context [ ?x + (?y + 1) ]] =>
         math_rewrite (x + (y + 1) = (x + y) + 1)
     end.
+
+Ltac sis_normalize_opt_of_bool :=
+      repeat lazymatch goal with
+    | [ H:  None = opt_of_bool _ |- _ ] =>
+        apply opt_of_bool_none in H
+    | [ H:  Some tt = opt_of_bool _ |- _ ] =>
+        apply opt_of_bool_some in H
+    | [  |- Some tt = opt_of_bool _ ] =>
+        apply opt_of_bool_some_intro
+    | [ |- None = opt_of_bool _ ] =>
+        apply opt_of_bool_none_intro
+    | [ |- context [is_some (opt_of_bool _)]] =>
+        rewrite is_some_opt_of_bool_eq
+    end.
+
+Ltac sis_normalize_boolean_goals :=
+  repeat lazymatch goal with
+    | [ H : negb _ = false |- _ ] =>
+        apply (f_equal negb) in H; rewrite Bool.negb_involutive in H; simpl negb in H
+    | [ H : negb _ = true |- _ ] =>
+        apply (f_equal negb) in H; rewrite Bool.negb_involutive in H; simpl negb in H
+    | [ |- negb _ = false ] =>
+        rewrite (Bool.negb_involutive_reverse false); apply f_equal; simpl negb
+    | [ |- negb _ = true ] =>
+        rewrite (Bool.negb_involutive_reverse true); apply f_equal; simpl negb
+    end.  
+
+Ltac sis_handle_take_splitting_goals :=
+  lazymatch goal with
+    | [ H: context [take ?x _] |- context[take (?x - 1) _] ] =>
+        gen H; erewrite take_pos_last; sis_handle_int_index_prove; auto; intros H
+  end.

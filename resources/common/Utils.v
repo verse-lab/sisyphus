@@ -9,6 +9,25 @@ Proof.
   case b; simpl; auto.
 Qed.
 
+Definition opt_of_bool (x: bool) := if x then Some tt else None.
+
+Lemma opt_of_bool_none (b: bool) :
+  None = opt_of_bool b -> b = false.
+Proof. destruct b; simpl; auto; intros H; inversion H. Qed.  
+Lemma opt_of_bool_some (b: bool) :
+  Some tt = opt_of_bool b -> b = true.
+Proof. destruct b; simpl; auto; intros H; inversion H. Qed.  
+
+Lemma opt_of_bool_none_intro (b: bool) :
+  b = false -> None = opt_of_bool b.
+Proof. intros ->; simpl; auto. Qed.  
+Lemma opt_of_bool_some_intro (b: bool) :
+   b = true -> Some tt = opt_of_bool b.
+Proof. intros ->; simpl; auto. Qed.  
+
+Lemma is_some_opt_of_bool_eq (b: bool) :
+  is_some (opt_of_bool b) = b.
+Proof. case b; simpl; auto. Qed.
 
 Fixpoint list_foldi_internal (A: Type) (B: Type)
   (i: int) (ls: list A) (init: B) (fp: int -> A -> B -> B) :=
