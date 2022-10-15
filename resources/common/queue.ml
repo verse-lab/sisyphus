@@ -31,5 +31,11 @@ let queue_iter (f: 'a -> unit) (q: 'a queue) =
   let rev_left = List.rev q.left in
   q.left <- [];
   q.right <- q.right @ rev_left;
-  List.iter f q.right
+  let rec loop ls =
+    match ls with
+    | [] -> ()
+    | h :: t ->
+      f h;
+      loop t in
+  loop q.right
       

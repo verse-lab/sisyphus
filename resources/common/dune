@@ -23,7 +23,7 @@
 
    Verify_stack Stack_ml
 
-   Queue_ml
+   Verify_queue Queue_ml
 
    Verify_set Set_ml
 
