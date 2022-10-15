@@ -4,6 +4,17 @@ type 'a node =
 
 type 'a sll = 'a node ref
 
+let sll_cons (hd: 'a) (tl: 'a sll) : 'a sll = ref (Node (hd, tl))
+
+let sll_nil () : 'a sll =
+  let (res : 'a sll) = ref (Nil : 'a node) in
+  res
+
+let sll_push (hd: 'a) (ls: 'a sll) : unit =
+  let (tl: 'a node) = !ls in
+  let (new_tl: 'a sll) = ref tl in
+  ls := Node (hd, new_tl)
+
 let sll_iter (f: 'a -> unit) (lst: 'a sll) =
   let rec aux node =
     match !node with
@@ -25,7 +36,6 @@ let sll_iter_drain (f: 'a -> unit) (lst: 'a sll) =
       aux () in
   aux ()
 
-
 let sll_fold (f: 'a -> 'b -> 'b) (init: 'b) (lst: 'a sll) =
   let rec aux node acc =
     match !node with
@@ -34,3 +44,18 @@ let sll_fold (f: 'a -> 'b -> 'b) (init: 'b) (lst: 'a sll) =
       let acc = f hd acc in
       aux tl acc in
   aux lst init
+
+let sll_reverse (ls : 'a sll) : unit =
+  let rec loop (el: 'a sll) : 'a sll =
+    let node = !el in
+    match node with
+    | Nil -> el
+    | Node (hd, tl) ->
+      let last = loop tl in
+      let new_last = ref Nil in
+      last := Node (hd, new_last);
+      el := !tl;
+      new_last in
+  let _ = loop ls in
+  ()
+      
