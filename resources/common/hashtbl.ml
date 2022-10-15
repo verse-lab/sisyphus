@@ -4,9 +4,9 @@ type 'a hashtbl = {
   mutable elements: (int * 'a) list
 }
 
-let create () : 'a hashtbl  = {size=0; elements=[]}
+let hashtbl_create () : 'a hashtbl  = {size=0; elements=[]}
 
-let remove (tbl: 'a hashtbl) (key: int) =
+let hashtbl_remove (tbl: 'a hashtbl) (key: int) =
   let rec loop ls =
     match ls with
     | [] -> []
@@ -17,22 +17,21 @@ let remove (tbl: 'a hashtbl) (key: int) =
   let elts = loop tbl.elements in
   tbl.elements <- elts
  
-let add (tbl: 'a hashtbl) (k: int) (v: 'a) =
-  remove tbl k;
+let hashtbl_add (tbl: 'a hashtbl) (k: int) (v: 'a) =
   tbl.elements <- (k,v) :: tbl.elements;
   tbl.size <- tbl.size + 1
 
-let fold (tbl: 'a hashtbl) (f: 'c -> (int * 'a) -> 'c) (init: 'c) =
-  let rec loop acc ls =
+let hashtbl_fold (tbl: 'a hashtbl) (f: 'c -> (int * 'a) -> 'c) (init: 'c) =
+  let rec loop (acc: 'c) (ls: (int * 'a) list) =
     match ls with
-    | [] -> []
-    | h :: t ->
+    | [] -> acc
+    | (h: int * 'a) :: (t: (int * 'a) list) ->
       let acc = f acc h in
       loop acc t in
   let res = loop init tbl.elements in
   res
 
-let iter (tbl: 'a hashtbl) (f: (int * 'a) -> unit) =
+let hashtbl_iter (tbl: 'a hashtbl) (f: (int * 'a) -> unit) =
   let rec loop ls =
     match ls with
     | [] -> ()

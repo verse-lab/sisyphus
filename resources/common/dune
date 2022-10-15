@@ -27,7 +27,7 @@
 
    Verify_set Set_ml
 
-   Hashtbl_ml
+   Verify_hashtbl Hashtbl_ml
 
    Utils Tactics Solver))
 
