@@ -62,6 +62,8 @@ Ltac sis_handle_if :=
 
 Ltac sis_list_solver :=
   lazymatch goal with
+  | [ H : 0 = length _ |- _ ] =>
+      symmetry in H; apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
   | [ H : length _ = 0  |- _ ] =>
       apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
   | [ |- context[ take 0 _ ] ] =>
@@ -142,4 +144,21 @@ Ltac sis_handle_take_splitting_goals :=
   lazymatch goal with
     | [ H: context [take ?x _] |- context[take (?x - 1) _] ] =>
         gen H; erewrite take_pos_last; sis_handle_int_index_prove; auto; intros H
+  | [ |- context [(take ?i _ ++ _)[?i := _]]] =>
+      rewrite (@update_app_r _ _ 0 (take i _) i i); try math
+  end.
+
+Ltac sis_handle_take_drop_full_length :=
+  lazymatch goal with
+  | [ Heq: length ?x = length ?y |-
+        context [ take (length ?x) (map2 ?fp (combine ?x ?y))]] =>
+      let H := fresh "H" in
+      assert (H: length x = length (map2 fp (combine x y))) 
+        by (unfold map2; rewrite length_map, !length_eq, length_combine; gen Heq; rewrite !length_eq; math);
+      rewrite H, ?take_full_length, ?drop_at_length
+  | [  |- context [ drop (length ?x) (make (length ?x) ?vl)]] =>
+      let H := fresh "H" in
+      assert (H: length x = length (make (length x) vl))
+        by (rewrite length_make; math);
+      rewrite H at 1; rewrite drop_at_length
   end.

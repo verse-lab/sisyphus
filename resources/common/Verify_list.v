@@ -111,3 +111,24 @@ Proof.
   - xvals. rew_list; auto.
 Qed.    
 
+Lemma list_combine_spec :
+  forall (A: Type) `{EA: Enc A} (B: Type) `{EB: Enc B} (l1: list A) (l2: list B),
+    length l1 = length l2 ->
+    SPEC_PURE (List_ml.combine l1 l2)
+      POST (fun (res: list (A * B)) => \[ res = combine l1 l2]).
+Proof.
+  intros A EA B EB.
+  intros l1; induction_wf IH: list_sub l1; intros l2 Hlen.
+  xcf.
+  case_eq l1; [intros Hl1_nil| intros l1_h l1_t Hl1_cons];
+    (case_eq l2; [intros Hl2_nil| intros l2_h l2_t Hl2_cons]);
+  subst; rew_list in *; try math.
+  xmatch.
+  - xvals*.
+  - xlet as;=> [l1_ls l2_ls] Heq; inversion Heq; subst.
+    xmatch.
+    xapp.
+    + apply list_sub_cons.
+    + math.
+    + xvals*.
+Qed.

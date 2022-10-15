@@ -19,14 +19,14 @@
 
 
 (rule
-     (target array_is_sorted_new.sisyphus.ml)
-     (deps array_is_sorted_new.ml)
-     (action (with-stdout-to array_is_sorted_new.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" array_is_sorted_new.ml))))
+     (target array_map2_new.sisyphus.ml)
+     (deps array_map2_new.ml)
+     (action (with-stdout-to array_map2_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" array_map2_new.ml))))
 
 (rule
- (target Array_is_sorted_new_ml.v)
- (deps array_is_sorted_new.sisyphus.ml ../common/Arr_ml.v
+ (target Array_map2_new_ml.v)
+ (deps array_map2_new.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Lst_ml.v
 ../common/Opt_ml.v
@@ -39,17 +39,17 @@
 ../common/lst.cmj
 ../common/opt.cmj
 ../common/sseq.cmj)
- (action (run cfmlc -I ../common -o ./Array_is_sorted_new_ml.v array_is_sorted_new.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Array_map2_new_ml.v array_map2_new.sisyphus.ml)))
 
 (rule
-     (target array_is_sorted_old.sisyphus.ml)
-     (deps array_is_sorted_old.ml)
-     (action (with-stdout-to array_is_sorted_old.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" array_is_sorted_old.ml))))
+     (target array_map2_old.sisyphus.ml)
+     (deps array_map2_old.ml)
+     (action (with-stdout-to array_map2_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" array_map2_old.ml))))
 
 (rule
- (target Array_is_sorted_old_ml.v)
- (deps array_is_sorted_old.sisyphus.ml ../common/Arr_ml.v
+ (target Array_map2_old_ml.v)
+ (deps array_map2_old.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Lst_ml.v
 ../common/Opt_ml.v
@@ -62,4 +62,4 @@
 ../common/lst.cmj
 ../common/opt.cmj
 ../common/sseq.cmj)
- (action (run cfmlc -I ../common -o ./Array_is_sorted_old_ml.v array_is_sorted_old.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Array_map2_old_ml.v array_map2_old.sisyphus.ml)))

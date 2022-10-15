@@ -385,6 +385,38 @@ Proof.
   rewrite app_last_l; repeat f_equal; try math.
 Qed.
 
+Lemma list_split_ith (A: Type) (IA: Inhab A) (l: list A) (i: int):
+  0 <= i < length l ->
+  l = take i l & l[i] ++ drop (i + 1) l.
+Proof.
+  intros Hlen.
+  rewrite <- (@list_eq_take_app_drop _ (i + 1) l) at 1; try math.
+  rewrite (take_pos_last IA); do 4 f_equal; try math.
+  apply int_index_prove; math.
+Qed.
+
+Lemma drop_update_zero {A: Type} `{EA: Enc A}
+            (i: int) (ls: list A) (vl: A)  :  
+  0 <= i < length ls ->
+  (drop i ls)[0:=vl] = vl :: drop (1 + i) ls.
+Proof.
+  gen i.
+  induction ls as [ | x xs IHxs]; intros i Hlen.
+  - rew_list in *; math.
+  - case (Z.eqb_spec i 0); intros Heq0.
+    + rewrite Heq0, drop_zero, update_zero.
+      rewrite drop_cons_pos; try math.
+      math_rewrite (1 + 0 - 1 = 0); rewrite drop_zero.
+      auto.
+    + rewrite drop_cons_pos; try math.
+      rewrite IHxs; try (rew_list in *; math).
+      f_equal.
+      math_rewrite (1 + (i - 1) = i).
+      math_rewrite (1 + i = i + 1).
+      rewrite drop_cons; try math.
+      auto.
+Qed.      
+
 Fixpoint filter_not (A: Type) (fp: A -> Prop) (ls: list A) : list A :=
   match ls with
   | nil => nil
@@ -522,3 +554,47 @@ Proof.
     rewrite read_make; try apply int_index_prove; try math.
     auto.
 Qed.  
+
+Definition map2 (A: Type) (B: Type) (C: Type) (fp: A -> B -> C) (ls: list (A * B)) :=
+  map (fun '(x,y) => fp x y) ls.
+
+Lemma read_combine
+  (A: Type) `{IA: Inhab A}
+  (B: Type) `{IB: Inhab B}
+  (xs: list A) (ys: list B) (i: int):
+  length xs = length ys ->
+  0 <= i < length xs ->
+  (combine xs ys)[i] = (xs[i], ys[i]).
+Proof.
+  gen xs ys.
+  induction_wf IH: (downto 0) i; intros xs ys Hlen Hi.
+  case (Z.eqb_spec i 0) as [Hzero| Hnzero].
+  - rewrite Hzero.
+    case_eq xs; [intros Hnilx |intros x' xs' Heqx];
+      (case_eq ys; [intros Hnily |intros y' xys' Heqy]);
+    try (subst; rew_list in *; simpl; math).
+    rewrite combine_cons, !read_zero; auto.
+  - case_eq xs; [intros Hnilx |intros x' xs' Heqx];
+      (case_eq ys; [intros Hnily |intros y' ys' Heqy]);
+    try (subst; rew_list in *; simpl; math).
+    rewrite combine_cons.
+    math_rewrite (i = i - 1 + 1).
+    rewrite !read_succ; try (subst; rew_list in *; math);
+      try (rewrite length_eq, length_combine, <- length_eq;
+           subst; rew_list in *; math).
+    apply IH; try apply downto_intro; subst; rew_list in *;  try math.
+Qed.
+
+Lemma read_map2_combine
+  (A: Type) `{IA: Inhab A}
+  (B: Type) `{IB: Inhab B}
+  (C: Type) `{IC: Inhab C}
+  (fp: A -> B -> C) (xs: list A) (ys: list B) (i: int):
+  length xs = length ys ->
+  0 <= i < length xs ->
+  (map2 fp (combine xs ys))[i] = fp xs[i] ys[i].
+Proof.
+  intros Heq Hlen; unfold map2.
+  rewrite read_map; try (apply int_index_prove; rewrite ?length_combine; math).
+  rewrite read_combine; auto.
+Qed.
