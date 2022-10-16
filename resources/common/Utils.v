@@ -315,6 +315,28 @@ Proof.
   auto.
 Qed.
 
+Lemma drop_cons_unfold : forall A `{IA: Inhab A} (l: list A) i,
+    0 <= i < length l ->
+    drop i l = l[i] :: drop (i + 1) l.
+Proof.
+  intros A IA l; induction l.
+  - intros i; rewrite length_nil; math.
+  - intros i [Hgt Hlt].
+    case (Zle_lt_or_eq _ _ Hgt).
+    * intros Hgt1; rewrite length_cons in Hlt.
+      math_rewrite (i = (i - 1) + 1).
+      rewrite ! drop_cons; try math.
+      rewrite IHl; try (split; math).
+      rewrite read_cons_pos; try math.
+      math_rewrite (i - 1 + 1 - 1 = i - 1).
+      auto.
+    * intros H; rewrite <- H.
+      rewrite drop_cons; try math.
+      rewrite !drop_zero.
+      rewrite read_zero.
+      auto.
+Qed.
+
 
 Lemma case_rev_split : forall A (xs: list A) v l r,
     rev xs = l ++ v :: r ->
@@ -443,6 +465,127 @@ Proof.
     rewrite Hjlt0 at 2.
     rewrite make_succ_r; try math; auto.
 Qed.
+
+Lemma filter_eq: forall A (f: A -> bool) l,
+    filter f l = List.filter f l.
+Proof.
+  intros A f l; induction l.
+  - simpl; rewrite filter_nil; auto.
+  - simpl; rewrite filter_cons.
+    rewrite If_istrue; case_eq (f a); simpl; intros Hfa;
+    rewrite IHl; auto.
+Qed.
+
+Lemma length_filter_take_leq_base : forall A (f: A -> bool) (l: list A) iv,
+    0 <= iv ->
+    length (filter f (take iv l)) <= iv.
+Proof.
+  intros.
+  case_eq (Z.le_ge_cases iv (length l)); intros Hcmp _; try math.
+  - assert (iv = length (take iv l)) as Hlt by (rewrite length_take; try math).
+    rewrite Hlt at 2; apply length_filter.
+  - apply (Z.le_trans _ (length l) _); try math.
+    rewrite take_ge; try math.
+    apply length_filter.
+Qed.
+
+Lemma length_filter_take_leq : forall A (f: A -> bool) (l: list A) iv, 
+    length (filter f (take iv l)) <= length (filter f l).
+Proof.
+  intros A f l; induction l.
+  - intros iv; rewrite take_nil; rewrite filter_nil; math.
+  - intros iv; case_eq (Z.le_gt_cases 0 iv).
+    * intros Hlv _; case_eq (Zle_lt_or_eq _ _ Hlv).
+      ** intros Hpos _.
+         rewrite take_cons_pos; try math.
+         rewrite !filter_cons.
+         rewrite !If_istrue.
+         pose proof (IHl (iv - 1)) as IHli.
+         case (f a); simpl; try rewrite ! length_cons; try math.
+      ** intros H0 _; rewrite <- H0. rewrite take_zero; rewrite filter_nil;
+           rewrite length_nil; try math.
+    * intros Hneg _; rewrite take_neg; try math; rewrite filter_nil;
+        rewrite length_nil; try math.
+Qed.      
+
+Lemma length_filter_succ: forall A `{IA: Inhab A} (f: A -> bool) (l: list A) (iv: int),
+    0 <= iv  ->
+    iv < length l ->
+    length (filter (fun x : A => f x) (take (iv + 1) l)) =
+      length (filter (fun x : A => f x) (take iv l)) + (if f l[iv] then 1 else 0).
+Proof.
+  intros A IA f l iv H0iv Hiv.
+  rewrite (@take_pos_last A IA l (iv + 1)); try (apply int_index_prove; try math).
+  rewrite filter_last.
+  math_rewrite (iv + 1 - 1 = iv).
+  rewrite If_istrue.
+  case_eq (f l[iv]); intros Hliv; try rewrite length_last; rew_list; try math.
+Qed.
+
+Lemma take_filter_succ: forall A `{IA: Inhab A} (f: A -> bool) (l: list A) iv jv,
+    f l[iv] -> jv < iv -> iv < length l ->
+    jv = length (filter (fun x : A => f x) (take iv l)) ->
+    take (jv + 1) (filter (fun x : A => f x) l) =
+      take jv (filter (fun x : A => f x) l) & l[iv].
+Proof.
+  intros A IA f l iv jv Hfliv Hjviv Hiv Hjv.
+  rewrite (@take_pos_last A IA _ (jv + 1)).
+  - {
+      case (@take_is_prefix A (iv + 1) l); intros l_suf Hlsuf.
+      math_rewrite (jv + 1 - 1 = jv).
+      rewrite Hlsuf at 2.
+      rewrite (@take_pos_last A IA l (iv + 1)); try (apply int_index_prove; try math).
+      rewrite filter_app; rewrite filter_last.
+      math_rewrite (iv + 1 - 1 = iv). rewrite If_l; auto.
+      rewrite read_app.
+      rewrite If_l; try (rewrite length_last; rewrite Hjv; math).
+      rewrite read_last_case.
+      rewrite If_l; try (rewrite Hjv; math).
+      auto.
+    }
+  - {
+      apply int_index_prove; try math.
+      rewrite <- length_eq. math_rewrite (jv + 1 - 1 = jv).
+      rewrite Hjv.
+      assert (0 <= iv) as Hivgt by math.
+      case (@take_is_prefix A (iv + 1) l); intros l_suf Hlsuf.
+      rewrite Hlsuf at 2.
+      rewrite filter_app; rewrite length_app.
+      rewrite (@take_pos_last A IA l (iv + 1)); try (apply int_index_prove; try math).
+      math_rewrite (iv + 1 - 1 = iv).
+      rewrite filter_last; rewrite If_l; auto; rewrite length_last.
+      math.
+    }
+Qed.
+
+Lemma drop_write_zero: forall A `{IA: Inhab A} (xs: list A) v i,
+    0 <= i < length xs ->
+    (drop i xs)[0:=v] =
+      v :: drop (i + 1) xs.
+Proof.
+  intros A IA xs v i Hi.
+  rewrite (@drop_cons_unfold A IA); try math.
+  rewrite update_zero; auto.
+Qed.
+
+Lemma filter_take_propagate: forall A `{IA: Inhab A} (l: list A) (f: A -> bool) iv jv,
+    f l[iv] -> 0 <= iv < length l ->
+    jv = length (filter (fun x : A => f x) (take iv l)) ->
+    (filter (fun x : A => f x) l)[jv] = l[iv].
+Proof.
+  introv Hfliv [Hlen_gt Hlen] Hjv.
+  pose proof (length_filter_take_leq_base f l Hlen_gt) as Hjvlen.
+  rewrite <- Hjv in Hjvlen.
+  rewrite <- (@list_eq_take_app_drop _ iv l) at 1; try math.
+  rewrite filter_app.
+  rewrite read_app.
+  rewrite If_r; try math.
+  rewrite <- Hjv.
+  math_rewrite (jv - jv = 0).
+  rewrite (@drop_cons_unfold A IA); try (split; math).
+  rewrite filter_cons; rewrite If_l; auto; rewrite read_zero.
+  auto.
+Qed.  
 
 Fixpoint filter_not (A: Type) (fp: A -> Prop) (ls: list A) : list A :=
   match ls with
