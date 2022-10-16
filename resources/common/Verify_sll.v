@@ -140,6 +140,19 @@ Proof.
   xsimpl*.
 Qed.
   
+Lemma sll_nil_spec :
+  forall A `{EA: Enc A}, 
+         SPEC (sll_nil tt)
+         PRE \[]
+         POST (fun (res: sll A) => res ~> @SLL A EA (@nil A)).
+Proof.
+  intros A EA.
+  eapply sll_nil_cf__; (try exact EA).
+  xapp; intros new_hd.
+  xval.
+  rewrite SLL_nil; xsimpl*.
+Qed.
+
 Lemma sll_push_spec :
   forall A `{EA: Enc A} (hd: A) (l: sll A) (ls: list A), 
          SPEC (sll_push hd l)
