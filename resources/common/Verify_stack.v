@@ -86,7 +86,7 @@ Section Stack.
   Qed.
 
   Lemma stack_iter_spec (f: func) (s: stack A)
-    (ls: list A) (I: list A -> hprop) :
+     (I: list A -> hprop) (ls: list A) :
     (forall (v: A) (t r: list A),
         ls = t & v ++ r ->
         SPEC (f v)
@@ -119,9 +119,10 @@ Section Stack.
     xapp; rew_list; auto.
     rewrite Stack_unfold; xsimpl*.
   Qed.
+  Arguments stack_iter_spec f s I ls Hf : clear implicits.
 
   Lemma stack_drain_spec (f: func) (s: stack A)
-    (ls: list A) (I: list A -> hprop) :
+    (I: list A -> hprop) (ls: list A):
     (forall (v: A) (t r: list A),
         ls = t & v ++ r ->
         SPEC (f v)
@@ -157,5 +158,7 @@ Section Stack.
       xapp (IH (len + 1)); try apply upto_intro; subst; rew_list; try math; auto.
       xsimpl*.
   Qed.
+  Arguments stack_drain_spec f s I ls Hf : clear implicits.
+
 
 End Stack.
