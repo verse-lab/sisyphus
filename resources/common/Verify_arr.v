@@ -1,4 +1,5 @@
 Set Implicit Arguments.
+Generalizable Variables A EA .
 
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
@@ -196,8 +197,8 @@ Qed.
 Arguments array_take_spec {A} {EA} i a l Hi.
 
 Lemma array_iteri_spec :
-  forall A `{EA: Enc A} (f: func) (a: array A) (l: list A),
-  forall (I: list A -> hprop),
+  forall A `{EA: Enc A} (f: func) (a: array A),
+  forall (I: list A -> hprop) (l: list A),
     (forall i v (t r: list A),
         i = length t ->
         (l = t++v::r) ->
@@ -249,7 +250,7 @@ Proof using.
   }
   xapp; rew_list; auto; xsimpl*.
 Qed.
-Arguments array_iteri_spec {A} {EA} f a l I HI.
+Arguments array_iteri_spec {A} {EA} f a I l HI.
 
 Lemma array_to_list_spec :
   forall A `{EA: Enc A} (a: array A) (l: list A),
@@ -294,6 +295,6 @@ Proof using.
   } {
     xsimpl*.
   }
-Qed.  
+Qed.
 Arguments array_to_list_spec {A} {EA} a l.
 

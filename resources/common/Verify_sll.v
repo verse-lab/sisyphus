@@ -182,9 +182,7 @@ Qed.
 Lemma sll_iter_spec :
   forall A `{EA: Enc A}
          (f: func) (l: sll A) 
-         (ls: list A)
-         (I: list A -> hprop),
-
+         (I: list A -> hprop) (ls: list A),
          (forall t v r,
              ls = t & v ++ r ->
              SPEC (f v)
@@ -195,7 +193,7 @@ Lemma sll_iter_spec :
          PRE (I nil \* l ~> SLL ls)
          POSTUNIT (I ls \* l ~> SLL ls).
 Proof.
-  intros A EA f l ls I Hf.
+  intros A EA f l I ls Hf.
   xcf.
   xlet as;=> aux Haux.
   assert (forall (t r : list A)  (node: sll A),
@@ -228,6 +226,7 @@ Proof.
   xapp (H); rew_list; auto.
   xvals*.
 Qed.
+Arguments sll_iter_spec {A} {EA} f ls Hf : rename.
 
 Lemma sll_iter_drain_spec :
   forall A `{EA: Enc A}
@@ -297,7 +296,7 @@ Qed.
 
 Lemma sll_fold_spec :
   forall A `{EA: Enc A} B `{EB: Enc B} (f: func) (init: B) (l: sll A)
-         (ls: list A) (I: list A -> B -> hprop),
+         (I: list A -> B -> hprop)  (ls: list A),
          (forall acc t v r,
              ls = t & v ++ r ->
              SPEC (f v acc)
@@ -308,7 +307,7 @@ Lemma sll_fold_spec :
          PRE (I nil init \* l ~> SLL ls)
          POST (fun (acc: B) => I ls acc \* l ~> SLL ls).
 Proof.
-  intros A EA B EB f init l ls I Hf.
+  intros A EA B EB f init l I ls Hf.
   xcf.
   xlet as;=> aux Haux.
   assert (forall (acc: B) (t r : list A) (node: sll A),
@@ -340,6 +339,7 @@ Proof.
   intros res.
   xsimpl*.
 Qed.
+Arguments sll_fold_spec {A} {EA} {B} {EB} f init l I ls Hf.
 
 
 Lemma sll_reverse_spec :
@@ -404,3 +404,16 @@ Proof.
   xchange SLL_part_fold_last.
   xsimpl*.
 Qed.
+
+Lemma SLL_haffine {A: Type} `{EA: Enc A} (s: sll A) (ls: list A):
+  haffine (s ~> SLL ls).
+Proof.
+  gen s; induction ls as [| hd tl]; intro s.
+  rewrite SLL_nil; auto.
+  apply haffine_Ref.
+  rewrite SLL_cons; auto.
+  apply haffine_hexists; unfold haffine_post;=> tl'.
+  apply haffine_hstar; auto.
+  apply haffine_Ref.
+Qed.
+

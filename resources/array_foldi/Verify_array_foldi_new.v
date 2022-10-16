@@ -24,7 +24,7 @@ Proof using (All).
   xcf.
   xref acc.
   xletopaque tmp Htmp.
-  xapp (array_iteri_spec tmp a l
+  xapp (array_iteri_spec tmp a
           (fun (ls: list A) => acc ~~> list_foldi ls init fp)
        ). {
     sis_solve_start.

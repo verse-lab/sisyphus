@@ -30,14 +30,14 @@
 
 
 (rule
-     (target sll_of_array_new.sisyphus.ml)
-     (deps sll_of_array_new.ml)
-     (action (with-stdout-to sll_of_array_new.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" sll_of_array_new.ml))))
+     (target sll_partition_new.sisyphus.ml)
+     (deps sll_partition_new.ml)
+     (action (with-stdout-to sll_partition_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" sll_partition_new.ml))))
 
 (rule
- (target Sll_of_array_new_ml.v)
- (deps sll_of_array_new.sisyphus.ml ../common/Arr_ml.v
+ (target Sll_partition_new_ml.v)
+ (deps sll_partition_new.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Hashtbl_ml.v
 ../common/Lst_ml.v
@@ -65,17 +65,17 @@
 ../common/sll.cmj
 ../common/sseq.cmj
 ../common/tree.cmj)
- (action (run cfmlc -I ../common -o ./Sll_of_array_new_ml.v sll_of_array_new.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Sll_partition_new_ml.v sll_partition_new.sisyphus.ml)))
 
 (rule
-     (target sll_of_array_old.sisyphus.ml)
-     (deps sll_of_array_old.ml)
-     (action (with-stdout-to sll_of_array_old.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" sll_of_array_old.ml))))
+     (target sll_partition_old.sisyphus.ml)
+     (deps sll_partition_old.ml)
+     (action (with-stdout-to sll_partition_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" sll_partition_old.ml))))
 
 (rule
- (target Sll_of_array_old_ml.v)
- (deps sll_of_array_old.sisyphus.ml ../common/Arr_ml.v
+ (target Sll_partition_old_ml.v)
+ (deps sll_partition_old.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Hashtbl_ml.v
 ../common/Lst_ml.v
@@ -103,4 +103,4 @@
 ../common/sll.cmj
 ../common/sseq.cmj
 ../common/tree.cmj)
- (action (run cfmlc -I ../common -o ./Sll_of_array_old_ml.v sll_of_array_old.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Sll_partition_old_ml.v sll_partition_old.sisyphus.ml)))

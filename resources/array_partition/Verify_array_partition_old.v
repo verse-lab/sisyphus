@@ -1,4 +1,5 @@
 Set Implicit Arguments.
+Generalizable Variables EA.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
@@ -151,10 +152,10 @@ Proof using (All).
         } 
     }
     xapp.
-    xapp (array_take_spec). { apply length_nonneg. }
+    xapp (@array_take_spec A EA). { apply length_nonneg. }
     intros a_left.
     xapp.
-    xapp (array_take_spec). { apply length_nonneg. }
+    xapp (@array_take_spec A EA). { apply length_nonneg. }
     intros a_right.
     xvals*. {
       rewrite take_prefix_length; auto.

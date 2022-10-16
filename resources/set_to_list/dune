@@ -5,8 +5,8 @@
 (coq.theory
  (name ProofsSetToList)
  (modules
-   set_to_list_old_ml Verify_set_to_list_old
-   set_to_list_new_ml Verify_set_to_list_new
+   Set_to_list_old_ml Verify_set_to_list_old
+   Set_to_list_new_ml Verify_set_to_list_new
    Dummy
  )
  (libraries sisyphus.plugin)
