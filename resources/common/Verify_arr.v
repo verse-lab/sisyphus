@@ -251,7 +251,6 @@ Proof using.
 Qed.
 Arguments array_iteri_spec {A} {EA} f a l I HI.
 
-
 Lemma array_to_list_spec :
   forall A `{EA: Enc A} (a: array A) (l: list A),
   SPEC (Array_ml.to_list a)

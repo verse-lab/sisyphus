@@ -2,35 +2,31 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
-From Common Require Import Verify_sseq.
+From Common Require Import Verify_sll.
+From Common Require Import Verify_arr.
 
-From Common Require Import Tactics.
-From Common Require Import Utils.
+From Common Require Import Tactics Utils Solver.
 
-(* From Proofs Require Import Seq_to_array_old_ml. *)
+From ProofsSllOfArray Require Import Sll_of_array_old_ml.
 
-(* Lemma to_array_spec : *)
-(*   forall (A : Type) `{EA : Enc A} (l : list A) (s : func) (v : loc), *)
-(*   SPEC (to_array s) *)
-(*   PRE \[LSeq l s] *)
-(*   POST (fun a : loc => a ~> Array l). *)
-(* Proof using (All). *)
-(*   xcf. *)
-(*   xpullpure HLseq. *)
-(*   apply LSeq_if in HLseq as Hs. *)
-(*   xapp Hs. *)
-(*   intros nxt Hnxt. *)
-(*   case nxt as [ | x nxt2] eqn: H. *)
-(*   - xmatch_case_0. *)
-(*     xvalemptyarr. { admit. } *)
-(*   - xmatch. *)
-(*     xapp (length_spec s l); auto. *)
-(*     (* unification point 1 *) *)
-(*     xalloc arr data Hdata. *)
-(*     xletopaque f Hf. *)
-(*     xapp (iteri_spec f s l *)
-(*                      (fun (ls: list A) => arr ~> Array (ls ++ drop (length ls) (make (length l) x))) *)
-(*          ). { admit. } { admit. } { admit. } *)
-(*     (* unification point 2 *) *)
-(*     xmatch. xvals. { admit. } *)
-(* Admitted. *)
+Lemma sll_of_array_spec :
+  forall (A : Type) `{EA : Enc A} (a : array A) (ls: list A),
+  SPEC (sll_of_array a)
+  PRE (a ~> Array ls)
+  POST (fun (s : sll A) => s ~> SLL ls \* a ~> Array ls).
+Proof using (All).
+  xcf.
+  xapp (sll_nil_spec).
+  intros s.
+  xletopaque tmp Htmp.
+  xapp (array_iter_spec tmp a ls
+          (fun (ls: list A) =>
+             s ~> SLL (rev ls)
+       )). {
+    sis_solve_start.
+    xapp (sll_push_spec); xsimpl*.
+    rew_list; auto.
+  }
+  xapp (sll_reverse_spec).
+  xval. { xsimpl*; rew_list; auto. }
+Qed.
