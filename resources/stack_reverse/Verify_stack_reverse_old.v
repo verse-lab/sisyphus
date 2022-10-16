@@ -2,35 +2,38 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
-From Common Require Import Verify_sseq.
+From Common Require Import Verify_stack Verify_list.
 
-From Common Require Import Tactics.
-From Common Require Import Utils.
+From Common Require Import Tactics Utils Solver.
 
-(* From Proofs Require Import Seq_to_array_old_ml. *)
+From ProofsStackReverse Require Import Stack_reverse_old_ml.
 
-(* Lemma to_array_spec : *)
-(*   forall (A : Type) `{EA : Enc A} (l : list A) (s : func) (v : loc), *)
-(*   SPEC (to_array s) *)
-(*   PRE \[LSeq l s] *)
-(*   POST (fun a : loc => a ~> Array l). *)
-(* Proof using (All). *)
-(*   xcf. *)
-(*   xpullpure HLseq. *)
-(*   apply LSeq_if in HLseq as Hs. *)
-(*   xapp Hs. *)
-(*   intros nxt Hnxt. *)
-(*   case nxt as [ | x nxt2] eqn: H. *)
-(*   - xmatch_case_0. *)
-(*     xvalemptyarr. { admit. } *)
-(*   - xmatch. *)
-(*     xapp (length_spec s l); auto. *)
-(*     (* unification point 1 *) *)
-(*     xalloc arr data Hdata. *)
-(*     xletopaque f Hf. *)
-(*     xapp (iteri_spec f s l *)
-(*                      (fun (ls: list A) => arr ~> Array (ls ++ drop (length ls) (make (length l) x))) *)
-(*          ). { admit. } { admit. } { admit. } *)
-(*     (* unification point 2 *) *)
-(*     xmatch. xvals. { admit. } *)
-(* Admitted. *)
+Lemma stack_reverse_spec 
+  {A: Type} `{EA: Enc A} (s: stack A) (ls: list A) :
+    SPEC (stack_reverse s)
+    PRE(s ~> Stack ls)
+    POSTUNIT(s ~> Stack (rev ls)).
+Proof.
+  xcf.
+  xref buf.
+  xletopaque tmp Htmp.
+  xapp (@stack_drain_spec A EA tmp s
+          (fun (ls: list A) =>
+             buf ~~> rev ls
+       )). {
+    sis_solve_start; rew_list; auto.
+  }
+  xapp.
+  xlet as;=> revls Hrevls.
+  xletopaque tmp2 Htmp2.
+  xapp (list_iter_spec tmp2 revls
+          (fun (ls: list A) =>
+             s ~> Stack (rev ls)
+       )). {
+    sis_solve_start; xapp (@stack_push_spec A EA); xgo*; rew_list; auto.
+  }
+  xmatch.
+  xval*. {
+    xsimpl*; subst; rewrite rev_rev; auto.
+  }
+Qed.
