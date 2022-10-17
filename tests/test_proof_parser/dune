@@ -4,6 +4,7 @@
          test_array_exists
          test_array_findi
          test_array_foldi
+         test_array_is_sorted
          test_find_mapi
  )
  (deps ../../resources/make_rev_list/Verify_make_rev_list_old.v
@@ -21,6 +22,9 @@
 
        ../../resources/array_foldi/Verify_array_foldi_old.v
        ../../resources/array_foldi/Array_foldi_old_ml.vo
+
+       ../../resources/array_is_sorted/Verify_array_is_sorted_old.v
+       ../../resources/array_is_sorted/Array_is_sorted_old_ml.vo
 
 
        ../../resources/find_mapi/Verify_find_mapi_old.v
