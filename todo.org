@@ -23,7 +23,8 @@ CLOSED: [2022-10-17 Mon 08:50]
 CLOSED: [2022-10-17 Mon 08:53]
 ** DONE Add parsing unit tests for seq_to_array
 CLOSED: [2022-10-17 Mon 08:54]
-** TODO Add parsing unit tests for set_to_list
+** DONE Add parsing unit tests for set_to_list
+CLOSED: [2022-10-17 Mon 08:57]
 ** TODO Add parsing unit tests for sll_of_array
 ** TODO Add parsing unit tests for sll_partition
 ** TODO Add parsing unit tests for stack_filter

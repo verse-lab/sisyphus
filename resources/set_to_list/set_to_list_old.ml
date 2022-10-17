@@ -2,10 +2,10 @@ open Set
 
 let set_to_list (s: set) =
   let (l: int list ref) = ref [] in
-  set_iter (fun (e: int) ->
+  let (_: unit) = set_iter (fun (e: int) ->
     l := e :: !l;
     ()
-  ) s;
-  let res = List.rev !l in
+  ) s in
+  let (res: int list) = List.rev !l in
   res
 

@@ -71,3 +71,9 @@
    ../../resources/seq_to_array/seq_to_array_old.ml
    ../../resources/seq_to_array/seq_to_array_new.ml))
 
+(cram
+ (applies_to set_to_list)
+ (deps
+   ../../resources/set_to_list/set_to_list_old.ml
+   ../../resources/set_to_list/set_to_list_new.ml))
+
