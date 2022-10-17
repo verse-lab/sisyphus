@@ -9,7 +9,6 @@ let () = T.add_test "verify_array_exists_old can be parsed without error" (fun (
       IO.with_in "../../resources/array_exists/Verify_array_exists_old.v"
         IO.read_all in
 
-    print_endline proof;
     let ctx = Coq.Proof.make [
         Coq.Coqlib.make ~path:(Fpath.of_string "../../resources/array_exists" |> Result.get_exn) "ProofsArrayExists";
         Coq.Coqlib.make ~path:(Fpath.of_string "../../resources/common" |> Result.get_exn) "Common";
