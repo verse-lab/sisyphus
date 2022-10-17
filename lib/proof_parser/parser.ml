@@ -17,10 +17,9 @@ let with_current_pid state f =
   state.pid <- state.pid + 1;
   f id
 
-let with_current_ast state f =
-  let ast = List.hd state.asts in
-  state.asts <- List.tl state.asts;
-  f ast
+let move_to_next_ast state =
+  state.asts <- List.tl state.asts
+
 
 let clear_state state =
   state.pid <- 0;
@@ -100,7 +99,6 @@ let get_tactic name args state : Proof_spec.Script.step =
       "Failed to parse proof script. Unsupported tactic %s; args [%a]"
       name (List.pp Sexplib.Sexp.pp) args
 
-
 (* partitions based on bullet; assumes single-level case / destruct
    only; assume that a bullet immediately follows case *)
 let partition_cases asts =
@@ -128,14 +126,17 @@ let rec handle_case name args state =
 
   `Case (state.pid, destr_id, eqn, parts_steps_names)
 
+and handle_xif name args state =
+  assert false
+
 and get_prim_tactic name args state =
   let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
   match name with
   | "apply" ->
-    let+ _ = with_current_ast state in
+    move_to_next_ast state;
     `Apply vexpr_str
   | "intros" ->
-    let+ _ = with_current_ast state in
+    move_to_next_ast state;
     `Intros vexpr_str
   | "case" ->
     let step = handle_case name args state in
@@ -149,9 +150,16 @@ and unwrap_tactic sexp state =
   match [@warning "-8"] Parser_utils.unwrap_tagged sexp with
   | "TacAlias", _ ->
     let name, args = Parser_utils.unwrap_tacalias sexp in
-    let step = get_tactic name args state in
-    let+ _ = with_current_ast state in
-    Some step
+    begin match name with
+    | "xif_as" ->
+      (* let step = handle_xif *)
+
+      assert false
+    | _ ->
+      let step = get_tactic name args state in
+      move_to_next_ast state;
+      Some step
+    end
   | "TacAtom", _ ->
     let name, args = Parser_utils.unwrap_tacatom sexp in
     let step = get_prim_tactic name args state in
@@ -186,13 +194,13 @@ and parse_proof state =
            parse_proof_aux steps lvl
         )
       | Vernacexpr.VernacSubproof _  ->
-        let+ _ = with_current_ast state in
+        move_to_next_ast state;
         parse_proof_aux steps (lvl + 1)
       | Vernacexpr.VernacEndSubproof ->
-        let+ _ = with_current_ast state in
+        move_to_next_ast state;
         parse_proof_aux steps (lvl - 1)
       | _ ->
-        let+ _ = with_current_ast state in
+        move_to_next_ast state;
         parse_proof_aux steps lvl
   in
 

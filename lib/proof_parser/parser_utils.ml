@@ -292,7 +292,7 @@ let unwrap_tac_capp sexp =
     fname, args
 
 let unwrap_tactic_name sexp =
-  let tactics = ["xcf"; "xpullpure"; "xapp"; "xdestruct"; "rewrite"; "destruct"; "xmatch_case"; "xmatch"; "xvalemptyarr"; "xalloc"; "xletopaque"; "xvals"; "apply"; "intros"; "sep_split_tuple"; "admitted"; "xseq"; "xunit"; "xref"; "xsimpl"] in
+  let tactics = ["xcf"; "xpullpure"; "xapp"; "xdestruct"; "rewrite"; "destruct"; "xmatch_case"; "xmatch"; "xvalemptyarr"; "xalloc"; "xletopaque"; "xvals"; "apply"; "intros"; "sep_split_tuple"; "admitted"; "xseq"; "xunit"; "xref"; "xsimpl"; "xif_as"] in
 
   let open Sexplib.Sexp in
   match [@warning "-8"] unwrap_tagged sexp with
