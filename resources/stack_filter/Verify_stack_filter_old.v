@@ -23,10 +23,7 @@ Proof.
   xcf.
   xref acc.
   xletopaque tmp Htmp.
-  xapp (@stack_iter_spec A EA tmp s
-          (fun (ls: list A) =>
-             acc ~~> filter fp (rev ls)
-       )). {
+  xapp (stack_iter_spec tmp s (fun (ls: list A) => acc ~~> filter fp (rev ls))). {
     intros v t r Hvtr; apply Htmp; clear Htmp.
     xapp.
     xif;=> cond; xgo*;
@@ -34,15 +31,13 @@ Proof.
                                      try (rewrite If_r; auto; math).
   }
   xmatch.
-  xapp (@stack_clear_spec A EA).
+  xapp.
+  xmatch.
   xapp.
   xletopaque tmp2 Htmp2.
-  xapp (list_iter_spec tmp2 (filter (fun x : A => fp x) (rev ls))
-          (fun (ls: list A) =>
-             s ~> Stack (rev ls)
-       )). {
-    sis_solve_start.
-    xapp (@stack_push_spec A EA); xsimpl*; rew_list; auto.
+  xapp (list_iter_spec tmp2 (filter fp (rev ls))
+          (fun (ls: list A) => s ~> Stack (rev ls))). {
+    sis_solve_start; rew_list; auto.
   }
   xmatch.
   xvals*. {

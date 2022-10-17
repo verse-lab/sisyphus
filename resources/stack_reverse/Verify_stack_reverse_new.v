@@ -15,27 +15,24 @@ Lemma stack_reverse_spec
     POSTUNIT(s ~> Stack (rev ls)).
 Proof.
   xcf.
-  xapp (@queue_init_spec A EA). intros buf.
+  xapp. intros buf.
   xletopaque tmp Htmp.
-  xapp (@stack_drain_spec A EA tmp s
+  xapp (stack_drain_spec tmp s
           (fun (ls: list A) =>
              buf ~> Queue ls
        )). {
-    sis_solve_start;
-    xapp (@queue_enqueue_spec A EA); xgo*;
-    rew_list; auto.
+    sis_solve_start.
   }
   xmatch.
   xletopaque tmp2 Htmp2.
-  xapp (@queue_iter_spec A EA tmp2 buf ls
+  xapp (queue_iter_spec tmp2 buf
           (fun (ls: list A) =>
              s ~> Stack (rev ls)
        )). {
-    sis_solve_start; xapp (@stack_push_spec A EA); xgo*; rew_list; auto.
+    sis_solve_start; rew_list; auto.
   }
   xmatch.
-  xval*. {
-    xsimpl*.
+  xvals*. {
     unfold Queue; rewrite repr_eq.
     apply haffine_hexists; unfold haffine_post;intros.
     apply haffine_hexists; unfold haffine_post;intros.

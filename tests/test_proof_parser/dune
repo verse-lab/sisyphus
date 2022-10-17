@@ -14,7 +14,7 @@
          ; test_set_to_list
          test_sll_of_array
          test_sll_partition
-
+         test_stack_filter
  )
  (deps
 
@@ -59,6 +59,11 @@
 
    ../../resources/sll_partition/Verify_sll_partition_old.v
    ../../resources/sll_partition/Sll_partition_old_ml.vo
+
+
+   ../../resources/stack_filter/Verify_stack_filter_old.v
+   ../../resources/stack_filter/Stack_filter_old_ml.vo
+
 
 
    ../../resources/common/Utils.vo
