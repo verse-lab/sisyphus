@@ -3,8 +3,9 @@ open Sll
 
 let sll_of_array (arr: 'a array) =
   let (ls: 'a sll) = sll_nil () in
-  array_iter (fun (v: 'a) ->
-    Sll.sll_push v ls
-  ) arr;
-  sll_reverse ls;
+  let (_: unit) = array_iter (fun (v: 'a) ->
+    let (_: unit) = Sll.sll_push v ls in
+    ()
+  ) arr in
+  let (_: unit) = sll_reverse ls in
   ls

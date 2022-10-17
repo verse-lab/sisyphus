@@ -17,10 +17,9 @@ let with_current_pid state f =
   state.pid <- state.pid + 1;
   f id
 
-let with_current_ast state f =
-  let ast = List.hd state.asts in
-  state.asts <- List.tl state.asts;
-  f ast
+let move_to_next_ast state =
+  state.asts <- List.tl state.asts
+
 
 let clear_state state =
   state.pid <- 0;
@@ -49,7 +48,10 @@ let handle_decs asts  =
   prelude_str, import, rest
 
 let handle_spec asts =
-  Print_utils.string_of_coq_obj @@ List.hd asts, List.tl asts
+  match asts with
+  | spec :: rest -> Print_utils.string_of_coq_obj spec, rest
+  | _ ->
+    Format.ksprintf ~f:failwith "Failed to parse proof script. Script terminated prematurely; maybe some library failed to load?"
 
 let get_tactic name args state : Proof_spec.Script.step =
   let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
@@ -97,7 +99,6 @@ let get_tactic name args state : Proof_spec.Script.step =
       "Failed to parse proof script. Unsupported tactic %s; args [%a]"
       name (List.pp Sexplib.Sexp.pp) args
 
-
 (* partitions based on bullet; assumes single-level case / destruct
    only; assume that a bullet immediately follows case *)
 let partition_cases asts =
@@ -125,14 +126,40 @@ let rec handle_case name args state =
 
   `Case (state.pid, destr_id, eqn, parts_steps_names)
 
+and handle_xif name args state =
+  let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
+  let (left_steps, right_steps) = match partition_cases (List.tl state.asts) with
+    | [left; right] -> (left, right)
+    | cases ->
+      Format.ksprintf ~f:failwith "Failed to parse proof script. Expected two cases to xif, but found %d:\n%a"
+        (List.length cases) (List.pp (List.pp Print_utils.pp_vernac)) cases in
+
+  let left_proof = parse_proof {pid=state.pid; asts=left_steps} in
+  let right_proof = parse_proof {pid=state.pid; asts=right_steps} in  
+
+  `Xif (state.pid, vexpr_str, left_proof, right_proof)
+
+and handle_tac_call tactic state =
+  let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
+  let fn, _ = Parser_utils.unwrap_value_with_loc tactic in
+  let fn = Parser_utils.unwrap_list fn in
+  let fn, _  = Parser_utils.unwrap_value_with_loc (List.nth fn 0) in
+  match fn with
+  | List [_; _; List [Atom "Id"; Atom ("xinhab" | "xinhab_inner")]] ->
+    `Xinhab vexpr_str
+  | _ ->
+    Format.ksprintf ~f:failwith "Failed to parse proof. Don't know how to handle %a."
+      Sexplib.Sexp.pp_hum fn
+
+
 and get_prim_tactic name args state =
   let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
   match name with
   | "apply" ->
-    let+ _ = with_current_ast state in
+    move_to_next_ast state;
     `Apply vexpr_str
   | "intros" ->
-    let+ _ = with_current_ast state in
+    move_to_next_ast state;
     `Intros vexpr_str
   | "case" ->
     let step = handle_case name args state in
@@ -146,9 +173,16 @@ and unwrap_tactic sexp state =
   match [@warning "-8"] Parser_utils.unwrap_tagged sexp with
   | "TacAlias", _ ->
     let name, args = Parser_utils.unwrap_tacalias sexp in
-    let step = get_tactic name args state in
-    let+ _ = with_current_ast state in
-    Some step
+    begin match name with
+    | "xif_as" ->
+      let step = handle_xif name args state in
+      clear_state state;
+      Some step
+    | _ ->
+      let step = get_tactic name args state in
+      move_to_next_ast state;
+      Some step
+    end
   | "TacAtom", _ ->
     let name, args = Parser_utils.unwrap_tacatom sexp in
     let step = get_prim_tactic name args state in
@@ -156,7 +190,13 @@ and unwrap_tactic sexp state =
   | "TacThen", tac_bindings ->
     let texp = List.hd tac_bindings |> Parser_utils.unwrap_value_with_loc |> fst in
     unwrap_tactic texp state
-  | "TacArg", _ ->
+  | "TacArg", [List [Atom "TacCall"; tactic]] ->
+    let step = handle_tac_call tactic state in
+    move_to_next_ast state;
+    Some step
+  | "TacArg", args ->
+    Format.ksprintf ~f:failwith "received unknown tacarg, don't know what to do with it....: %a"
+      Sexplib.Sexp.pp_hum Sexplib.Sexp.(List args)
     (* admit / admitted*)
     None
 
@@ -183,13 +223,13 @@ and parse_proof state =
            parse_proof_aux steps lvl
         )
       | Vernacexpr.VernacSubproof _  ->
-        let+ _ = with_current_ast state in
+        move_to_next_ast state;
         parse_proof_aux steps (lvl + 1)
       | Vernacexpr.VernacEndSubproof ->
-        let+ _ = with_current_ast state in
+        move_to_next_ast state;
         parse_proof_aux steps (lvl - 1)
       | _ ->
-        let+ _ = with_current_ast state in
+        move_to_next_ast state;
         parse_proof_aux steps lvl
   in
 

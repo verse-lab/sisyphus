@@ -1,19 +1,93 @@
-(tests (names test_make_rev_list test_array_of_rev_list test_find_mapi)
- (deps ../../resources/make_rev_list/Verify_make_rev_list_old.v
-       ../../resources/make_rev_list/Make_rev_list_old_ml.vo
+(tests (names
+
+         test_array_exists
+         test_array_findi
+         test_array_foldi
+         test_array_is_sorted
+         test_array_map2
+         test_array_of_rev_list
+         test_array_partition
+         test_find_mapi
+         ; test_hashtbl_invert
+         test_make_rev_list
+         test_seq_to_array
+         test_set_to_list
+         test_sll_of_array
+         test_sll_partition
+         test_stack_filter
+         test_stack_reverse
+         test_vec_filter
+ )
+ (deps
+
+   ../../resources/array_exists/Verify_array_exists_old.v
+   ../../resources/array_exists/Array_exists_old_ml.vo
+
+   ../../resources/array_findi/Verify_array_findi_old.v
+   ../../resources/array_findi/Array_findi_old_ml.vo
+
+   ../../resources/array_foldi/Verify_array_foldi_old.v
+   ../../resources/array_foldi/Array_foldi_old_ml.vo
+
+   ../../resources/array_is_sorted/Verify_array_is_sorted_old.v
+   ../../resources/array_is_sorted/Array_is_sorted_old_ml.vo
+
+   ../../resources/array_map2/Verify_array_map2_old.v
+   ../../resources/array_map2/Array_map2_old_ml.vo
+
+   ../../resources/array_of_rev_list/Verify_array_of_rev_list_old.v
+   ../../resources/array_of_rev_list/Array_of_rev_list_old_ml.vo
+
+   ../../resources/array_partition/Verify_array_partition_old.v
+   ../../resources/array_partition/Array_partition_old_ml.vo
+
+   ../../resources/find_mapi/Verify_find_mapi_old.v
+   ../../resources/find_mapi/Find_mapi_old_ml.vo
+
+   ; ../../resources/hashtbl_invert/Verify_hashtbl_invert_old.v
+   ; ../../resources/hashtbl_invert/Hashtbl_invert_old_ml.vo
+
+   ../../resources/make_rev_list/Verify_make_rev_list_old.v
+   ../../resources/make_rev_list/Make_rev_list_old_ml.vo
+
+   ../../resources/seq_to_array/Verify_seq_to_array_old.v
+   ../../resources/seq_to_array/Seq_to_array_old_ml.vo
+
+   ../../resources/set_to_list/Verify_set_to_list_old.v
+   ../../resources/set_to_list/Set_to_list_old_ml.vo
+
+   ../../resources/sll_of_array/Verify_sll_of_array_old.v
+   ../../resources/sll_of_array/Sll_of_array_old_ml.vo
+
+   ../../resources/sll_partition/Verify_sll_partition_old.v
+   ../../resources/sll_partition/Sll_partition_old_ml.vo
 
 
-       ../../resources/array_of_rev_list/Verify_array_of_rev_list_old.v
-       ../../resources/array_of_rev_list/Array_of_rev_list_old_ml.vo
+   ../../resources/stack_filter/Verify_stack_filter_old.v
+   ../../resources/stack_filter/Stack_filter_old_ml.vo
 
-       ../../resources/find_mapi/Verify_find_mapi_old.v
-       ../../resources/find_mapi/Find_mapi_old_ml.vo
+   ../../resources/stack_reverse/Verify_stack_reverse_old.v
+   ../../resources/stack_reverse/Stack_reverse_old_ml.vo
 
+   ../../resources/vec_filter/Verify_vec_filter_old.v
+   ../../resources/vec_filter/Vec_filter_old_ml.vo
 
-       ../../resources/common/Utils.vo
+   ../../resources/common/Utils.vo
+   ../../resources/common/Solver.vo
+   ../../resources/common/Tactics.vo
 
-       ../../resources/common/Sseq_ml.vo ../../resources/common/Verify_sseq.vo
-       ../../resources/common/Arr_ml.vo ../../resources/common/Verify_arr.vo
+   ../../resources/common/Verify_arr.vo ../../resources/common/Arr_ml.vo
+   ../../resources/common/Verify_combinators.vo ../../resources/common/Combinators_ml.vo
+   ../../resources/common/Verify_hashtbl.vo ../../resources/common/Hashtbl_ml.vo
+   ../../resources/common/Verify_list.vo ../../resources/common/Lst_ml.vo
+   ../../resources/common/Verify_opt.vo ../../resources/common/Opt_ml.vo
+   ../../resources/common/Verify_queue.vo ../../resources/common/Queue_ml.vo
+   ../../resources/common/Verify_set.vo ../../resources/common/Set_ml.vo
+   ../../resources/common/Verify_sll.vo ../../resources/common/Sll_ml.vo
+   ../../resources/common/Verify_sseq.vo ../../resources/common/Sseq_ml.vo
+   ../../resources/common/Verify_stack.vo ../../resources/common/Stack_ml.vo
+   ../../resources/common/Verify_tree.vo ../../resources/common/Tree_ml.vo
+   ../../resources/common/Verify_vec.vo ../../resources/common/Vec_ml.vo
  )
 
  (flags -rectypes)

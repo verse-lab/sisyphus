@@ -8,7 +8,6 @@ From Common Require Import Tactics Utils Solver.
 
 From ProofsVecFilter Require Import Vec_filter_old_ml.
 
-
 Lemma vec_filter_spec (A: Type) `{EA: Enc A}:
   forall (f: func) (v: vector A)
          (l: list A) (f_p: A -> bool),
@@ -22,15 +21,16 @@ Lemma vec_filter_spec (A: Type) `{EA: Enc A}:
 Proof.
   xcf.
   xref j.
-  xapp (@vec_size_spec A EA).
+  xapp.
   xletopaque tmp Htmp.
   xapp (for_upto_spec 0 (length l) tmp
           (fun (i: int) =>
              j ~~> length (filter f_p (take i l)) \*
                v ~> Vector ((filter f_p (take i l)) ++ drop (length (filter f_p (take i l))) l)
        )). {
-    sis_solve_start.
-    xapp (@vec_get_spec A EA). {
+    intros i Hi; apply Htmp; clear Htmp.
+    xinhab.
+    xapp. {
       sis_handle_int_index_prove.
       rewrite length_drop_nonneg; try (rew_list; math).
       split; try math; pose proof (length_filter_take_leq f_p l i);
@@ -54,8 +54,10 @@ Proof.
         sis_handle_int_index_prove.
         rewrite length_drop_nonneg; try (rew_list; math).
       }
+      xmatch.
       xapp.
       xapp.
+      xval.
       xvals*. {
         rewrite (take_pos_last IA (i + 1)); math_rewrite (i + 1 - 1 = i);
           try sis_handle_int_index_prove; rewrite filter_last, If_l; rew_list; auto; math.
@@ -67,7 +69,7 @@ Proof.
         rewrite drop_write_zero; auto; try math.
         do 2 f_equal; math.
       }
-    - xvals*. {
+    - xval. xvals*. {
         rewrite (take_pos_last IA (i + 1)); math_rewrite (i + 1 - 1 = i);
           try sis_handle_int_index_prove; rewrite filter_last, If_r; rew_list; auto; math.
       } {
@@ -78,7 +80,7 @@ Proof.
   } { math. }
   xmatch.
   xapp.
-  xapp (@vec_set_size_spec). { auto. }
+  xapp. { auto. }
   xmatch.
   xvals*. {
     rewrite take_full_length; auto.

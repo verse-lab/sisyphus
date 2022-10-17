@@ -24,9 +24,11 @@ Proof using (All).
              s ~> SLL (rev ls)
        )). {
     sis_solve_start.
-    xapp (sll_push_spec); xsimpl*.
+    xapp (sll_push_spec); xgo*.
     rew_list; auto.
   }
+  xmatch.
   xapp (sll_reverse_spec).
-  xval. { xsimpl*; rew_list; auto. }
+  xmatch.
+  xvals. { rew_list; auto. }
 Qed.

@@ -9,7 +9,6 @@ let () = T.add_test "verify_array_of_rev_list_old can be parsed without error" (
       IO.with_in "../../resources/array_of_rev_list/Verify_array_of_rev_list_old.v"
         IO.read_all in
 
-    print_endline proof;
     let ctx = Coq.Proof.make [
         Coq.Coqlib.make ~path:(Fpath.of_string "../../resources/array_of_rev_list" |> Result.get_exn) "ProofsArrayOfRevList";
         Coq.Coqlib.make ~path:(Fpath.of_string "../../resources/common" |> Result.get_exn) "Common";

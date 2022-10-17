@@ -21,28 +21,27 @@ Lemma stack_filter_spec
     POSTUNIT(s ~> Stack (filter fp ls)).
 Proof.
   xcf.
-  xapp (@stack_init_spec A EA).
+  xapp.
   intros keep.
   xletopaque tmp Htmp.
-  xapp (@stack_drain_spec A EA tmp s
+  xapp (stack_drain_spec tmp s
           (fun (ls: list A) =>
              keep ~> Stack (filter fp (rev ls))
        )). {
     intros v t r Hvtr; apply Htmp; clear Htmp.
     xapp.
     xif;=> cond; xgo*;
-    try xapp (@stack_push_spec A EA keep v); xgo*;
+    try xapp (stack_push_spec keep v); xgo*;
     rew_list; rewrite filter_cons; try (rewrite If_l; auto; math);
                                      try (rewrite If_r; auto; math).
   }
   xmatch.
   xletopaque tmp2 Htmp2.
-  xapp (@stack_drain_spec _ _ tmp2 keep
+  xapp (stack_drain_spec tmp2 keep
           (fun (ls: list A) =>
              s ~> Stack (rev ls)
        )). {
-    sis_solve_start.
-    xapp (@stack_push_spec A EA); xsimpl*; rew_list; auto.
+    sis_solve_start; rew_list; auto.
   }
   xmatch.
   xvals*. {

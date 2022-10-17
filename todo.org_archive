@@ -1061,3 +1061,187 @@ CLOSED: [2022-10-13 Thu 09:50]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Fix binding of fp for constants to generator?
+CLOSED: [2022-10-13 Thu 09:15]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 08:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Bind logical variables (l)
+CLOSED: [2022-10-13 Thu 08:40]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 08:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+** DONE extend observation with logical variables
+CLOSED: [2022-10-13 Thu 08:05]
+** DONE If we keep a variable concrete, keep it available in the context
+CLOSED: [2022-10-13 Thu 08:40]
+
+* DONE Add negb and is_some to context
+CLOSED: [2022-10-13 Thu 09:27]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 08:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE For while and for loops, don't constrain i
+CLOSED: [2022-10-17 Mon 08:06]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 08:06
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for array_exists
+CLOSED: [2022-10-17 Mon 08:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:16
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for array_findi
+CLOSED: [2022-10-17 Mon 08:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:16
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for array_foldi
+CLOSED: [2022-10-17 Mon 08:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:16
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for array_is_sorted
+CLOSED: [2022-10-17 Mon 08:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:16
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for array_map2
+CLOSED: [2022-10-17 Mon 08:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for array_of_rev_list
+CLOSED: [2022-10-17 Mon 08:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for hashtbl_invert
+CLOSED: [2022-10-17 Mon 08:53]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for seq_to_array
+CLOSED: [2022-10-17 Mon 08:54]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for set_to_list
+CLOSED: [2022-10-17 Mon 08:57]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for sll_of_array
+CLOSED: [2022-10-17 Mon 09:00]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for sll_partition
+CLOSED: [2022-10-17 Mon 09:07]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for stack_filter
+CLOSED: [2022-10-17 Mon 09:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for stack_reverse
+CLOSED: [2022-10-17 Mon 09:12]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for vec_filter
+CLOSED: [2022-10-17 Mon 09:14]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-17 Mon 09:17
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

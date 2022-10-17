@@ -95,8 +95,9 @@ type step = [
   | `Xdestruct of string
   | `Rewrite of string
   | `SepSplitTuple of string
-  | `Case of Lang.Expr.program_id * string * string * (string list * step list) list
   | `Xmatchcase of string
+  | `Xif of Lang.Expr.program_id * string * (step list) * (step list)
+  | `Case of Lang.Expr.program_id * string * string * (string list * step list) list
   | `Xvalemptyarr of Lang.Expr.program_id * string
   | `Xalloc of Lang.Expr.program_id * string
   | `Xletopaque of Lang.Expr.program_id * string
@@ -106,12 +107,15 @@ type step = [
   | `Intros of string
   | `Xseq of string
   | `Xsimpl of string
+  | `Xinhab of string
 ]
 
 let print_step print_steps : step -> PP.document =
   let open PP in
   let ppid pid = string_of_int pid ^ ": " in
   function
+  | `Xinhab str ->
+    (string @@ str ^ ".")
   | `Xsimpl str ->
     (string @@ str ^ ".")
   | `SepSplitTuple str ->
@@ -157,6 +161,11 @@ let print_step print_steps : step -> PP.document =
       flow_map (string " |" ^^ break 1) (fun (vars, _) -> separate_map space string vars) cases
     ) ^/^ string "eqn:" ^^ string h_l ^^ string ".") ^^
     nest 2 (break 1 ^^ separate_map (hardline) (fun (_, prf) -> group (string " - " ^^ align (print_steps prf))) cases)
+  | `Xif (pid, str, l, r)  ->
+    group ((string @@ ppid pid ^ str ^ ".") ^/^
+           nest 2 (break 1 ^^ separate_map (hardline) (fun prf -> group (string " - " ^^ align (print_steps prf))) [l;r])
+          )
+
 
 let rec print_steps : step list -> PP.document =
   let open PP in
@@ -192,8 +201,9 @@ let extract_step_id (step: step) =
   | `Xvalemptyarr (id, _)
   | `Xalloc (id, _)
   | `Xletopaque (id, _)
+  | `Xif (id, _, _, _)
   | `Xvals (id, _) -> Some id
-  | (`Xsimpl _ | `SepSplitTuple _ |`Xmatchcase _ | `Intros _ |`Xpurefun _
+  | (`Xinhab _ | `Xsimpl _ | `SepSplitTuple _ |`Xmatchcase _ | `Intros _ |`Xpurefun _
     |`Xdestruct _ | `Apply _ |`Xseq _ | `Rewrite _  | `Xcf _ |`Xpullpure _) -> None
 
 let rec fold_proof_script f acc ~start ~stop (steps: step list) =
@@ -215,4 +225,11 @@ let rec fold_proof_script f acc ~start ~stop (steps: step list) =
             fold_proof_script f acc ~start ~stop steps)
             acc sub_proofs in
         fold_proof_script f acc ~start ~stop steps        
+      | `Xif (_, _, l, r) ->
+        let acc =
+          List.fold_left (fun acc steps ->
+            fold_proof_script f acc ~start ~stop steps)
+            acc [l;r] in
+        fold_proof_script f acc ~start ~stop steps        
+
       | _ -> fold_proof_script f acc ~start ~stop steps

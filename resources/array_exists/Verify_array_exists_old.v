@@ -4,11 +4,9 @@ From TLC Require Import LibListZ.
 
 From Common Require Import Verify_combinators.
 
-From Common Require Import Tactics.
-From Common Require Import Utils.
+From Common Require Import Tactics Utils Solver.
 
 From ProofsArrayExists Require Import Array_exists_old_ml.
-
 
 Lemma array_exists_spec :
   forall (A : Type) `{EA : Enc A} (a : array A) (f : func) (l : list A) (fp: A -> bool),
@@ -24,31 +22,21 @@ Proof using (All).
   xapp.
   xref result.
   xletopaque tmp Htmp.
-  xapp (@while_upto_spec 0 (length l) tmp
-           (fun i b => \[negb b = List.existsb fp (take i l)] \*
+  xapp (while_upto_spec 0 (length l) tmp
+           (fun (i: int) (b: bool) => \[b = negb (List.existsb fp (take i l))] \*
                          result ~~> (List.existsb fp (take i l)) \*
                          a ~> Array l)
        ). {
-    intros i Hi.
-    apply Htmp.
-    assert (IA: Inhab A). {
-      destruct l; rew_list in Hi; try math.
-      apply Inhab_of_val; auto.
-    }
-    xpullpure Hexists.
-    xapp. { apply int_index_prove; math. }
-    xapp (H l[i]).
-    xapp.
-    xapp.
-    xvals. {
+    sis_solve_start. {
       rewrite (take_pos_last IA); [|apply int_index_prove; rewrite <- ?length_eq; math].
       math_rewrite ((i + 1 - 1) = i).
-      rewrite list_existsb_app, <- Hexists; simpl;  case (fp l[i]); simpl; auto.
-    }
-    {
+      apply (f_equal negb) in H0; rewrite Bool.negb_involutive in H0; simpl in H0.
+      rewrite list_existsb_app, <- H0; simpl;  case (fp l[i]); simpl; auto.
+    } {
       rewrite (take_pos_last IA); [|apply int_index_prove; rewrite <- ?length_eq; math].
       math_rewrite ((i + 1 - 1) = i).
-      rewrite list_existsb_app, <- Hexists; simpl;  case (fp l[i]); simpl; auto.
+      apply (f_equal negb) in H0; rewrite Bool.negb_involutive in H0; simpl in H0.
+      rewrite list_existsb_app, <- H0; simpl;  case (fp l[i]); simpl; auto.
     }
   }
   { math.  }
@@ -62,6 +50,7 @@ Proof using (All).
       assert (Heq: i_b = length l) by (apply Z.eqb_eq; auto).
       rewrite Heq, take_full_length; auto.
     - simpl in Hexists.
+      apply (f_equal negb) in Hexists; rewrite Bool.negb_involutive in Hexists; simpl in Hexists.
       rewrite <- Hexists.
       rewrite <- (@list_eq_take_app_drop _ i_b l) at 1.
       rewrite list_existsb_app; rewrite <- Hexists; simpl; auto.

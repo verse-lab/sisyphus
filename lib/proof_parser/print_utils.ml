@@ -149,5 +149,8 @@ let pp_coq_obj obj =
 let pp_coq_objs objs =
   List.iter pp_coq_obj objs
 
+let pp_vernac fmt vexp =
+  Format.fprintf fmt "%a" Pp.pp_with (Ppvernac.pr_vernac_expr vexp)
+
 let string_of_vexp vexp =
   Format.sprintf "%a" Pp.pp_with (Ppvernac.pr_vernac_expr vexp)

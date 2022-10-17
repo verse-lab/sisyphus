@@ -16,9 +16,8 @@ Lemma array_is_sorted_spec :
 Proof using (All).
   xcf.
   xapp.
-  xlet as;=>len Hlen.
-  xif;=> cond.
-  - xvals*. { rewrite Hlen, istrue_isTrue_eq in cond. sis_list_solver. }
+  xif as cond.
+  - xvals*. { sis_list_solver. }
   - xletopaque tmp Htmp.
     xapp (until_downto_spec (length l - 1) 0 tmp
             (fun (i: int) (b: option unit) =>
@@ -54,10 +53,10 @@ Proof using (All).
           math_rewrite (i - 1 + 1 = i).
           math.
       }
-    } { rewrite Hlen,istrue_isTrue_eq in cond; math. } {
+    } { math. } {
       apply opt_of_bool_none_intro; apply Bool.negb_true_iff; rewrite Bool.negb_involutive.
       rewrite is_sorted_last_elt; auto.
-      rewrite Hlen,istrue_isTrue_eq in cond; math.
+      math.
     }
     intros term i Hcond Heq.
     xapp (opt_is_some_spec).
