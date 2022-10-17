@@ -88,6 +88,8 @@ Proof using.
 Qed.
 
 Arguments length_spec {A} {HA} s ls : rename.
+#[export] Hint Extern 1 (RegisterSpec length_spec) => Provide length_spec.
+
 
 Lemma iteri_spec : forall A `{EA: Enc A},
   forall (f:func) (s: t_ A)  (l: list A) (I: list A -> hprop)  ,

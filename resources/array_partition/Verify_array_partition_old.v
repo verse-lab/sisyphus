@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Generalizable Variables EA.
+Generalizable Variable A EA.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
@@ -28,8 +28,8 @@ Proof using (All).
   xcf.
   xapp.
   xif as Hcond.
-  - xapp;=> a_t.
-    xapp;=> a_f.
+  - xapp. intros a_t.
+    xapp. intros a_f.
     xvals*. { sis_list_solver. }
     { sis_list_solver. }
   - xinhab.
@@ -60,7 +60,6 @@ Proof using (All).
       (* sis_normalize_length; sis_dispatch_filter_goal. *)
       (* sis_normalize_length; rew_list; sis_handle_list_update; f_equal. *)
       (* sis_normalize_succs. *)
-
       intros v t r Htvr; apply Htmp; clear Htmp.
       xapp (H).
       xif;=> Htmpcond.
@@ -152,10 +151,10 @@ Proof using (All).
         } 
     }
     xapp.
-    xapp (@array_take_spec A EA). { apply length_nonneg. }
+    xapp. { apply length_nonneg. }
     intros a_left.
     xapp.
-    xapp (@array_take_spec A EA). { apply length_nonneg. }
+    xapp. { apply length_nonneg. }
     intros a_right.
     xvals*. {
       rewrite take_prefix_length; auto.
