@@ -11,7 +11,7 @@
          ; test_hashtbl_invert
          test_make_rev_list
          test_seq_to_array
-         ; test_set_to_list
+         test_set_to_list
          test_sll_of_array
          test_sll_partition
          test_stack_filter
@@ -53,8 +53,8 @@
    ../../resources/seq_to_array/Verify_seq_to_array_old.v
    ../../resources/seq_to_array/Seq_to_array_old_ml.vo
 
-   ; ../../resources/set_to_list/Verify_set_to_list_old.v
-   ; ../../resources/set_to_list/Set_to_list_old_ml.vo
+   ../../resources/set_to_list/Verify_set_to_list_old.v
+   ../../resources/set_to_list/Set_to_list_old_ml.vo
 
    ../../resources/sll_of_array/Verify_sll_of_array_old.v
    ../../resources/sll_of_array/Sll_of_array_old_ml.vo
