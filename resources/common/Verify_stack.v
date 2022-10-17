@@ -164,3 +164,8 @@ Qed.
 Arguments stack_drain_spec {A} {EA} f s I ls Hf : rename.
 #[export] Hint Extern 1 (RegisterSpec stack_drain) => Provide stack_drain_spec.
 
+Lemma stack_affine {A: Type} `{EA: Enc A}
+  (s: stack A) (ls: list A): haffine (s ~> Stack ls).
+Proof.
+    unfold Stack; rewrite repr_eq. apply haffine_Record.
+Qed.

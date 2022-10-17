@@ -148,3 +148,12 @@ Qed.
 Arguments queue_iter_spec {A} {EA} f q I ls Hf.
 #[export] Hint Extern 1 (RegisterSpec queue_iter) => Provide queue_iter_spec.
 
+Lemma queue_affine {A: Type} `{EA: Enc A}
+  (s: queue A) (ls: list A): haffine (s ~> Queue ls).
+Proof.
+  unfold Queue; rewrite repr_eq.
+  apply haffine_hexists; unfold haffine_post;=> vl.
+  apply haffine_hexists; unfold haffine_post;=> vl'.
+  apply haffine_hstar. apply haffine_hpure.
+  apply haffine_Record.
+Qed.
