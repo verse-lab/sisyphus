@@ -88,3 +88,9 @@
  (deps
    ../../resources/sll_partition/sll_partition_old.ml
    ../../resources/sll_partition/sll_partition_new.ml))
+
+(cram
+ (applies_to stack_filter)
+ (deps
+   ../../resources/stack_filter/stack_filter_old.ml
+   ../../resources/stack_filter/stack_filter_new.ml))

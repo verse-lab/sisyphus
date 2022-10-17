@@ -29,7 +29,8 @@ CLOSED: [2022-10-17 Mon 08:57]
 CLOSED: [2022-10-17 Mon 09:00]
 ** DONE Add parsing unit tests for sll_partition
 CLOSED: [2022-10-17 Mon 09:07]
-** TODO Add parsing unit tests for stack_filter
+** DONE Add parsing unit tests for stack_filter
+CLOSED: [2022-10-17 Mon 09:10]
 ** TODO Add parsing unit tests for stack_reverse
 ** TODO Add parsing unit tests for vec_filter
 ** TODO You're the BEST around

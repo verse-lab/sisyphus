@@ -6,12 +6,12 @@ let stack_filter (f: 'a -> bool) (s: 'a stack) =
     stack_iter
       (fun (vl: 'a) ->
          if f vl then
-           acc := vl :: !acc;
+           (acc := vl :: !acc; ());
          ()
       ) s in
-  stack_clear s;
-  let elts = !acc in
-  let _ = List.iter (fun (vl: 'a) ->
+  let (_: unit) = stack_clear s in
+  let (elts: 'a list) = !acc in
+  let (_: unit) = List.iter (fun (vl: 'a) ->
     stack_push s vl
   ) elts in
   ()
