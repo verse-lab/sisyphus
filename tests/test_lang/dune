@@ -1,9 +1,24 @@
-(tests (names test_make_rev_list test_array_find_mapi)
- (deps
-   ../../resources/make_rev_list/make_rev_list_old.ml
-   ../../resources/make_rev_list/make_rev_list_new.ml
-   ../../resources/find_mapi/find_mapi_old.ml
-   ../../resources/find_mapi/find_mapi_new.ml
- )
- (libraries lang alcotest containers testing_utils))
+(executable (name run_parser)
+ (libraries lang containers))
 
+; (tests (names test_make_rev_list test_array_find_mapi)
+;  (deps
+;    ../../resources/make_rev_list/make_rev_list_old.ml
+;    ../../resources/make_rev_list/make_rev_list_new.ml
+;    ../../resources/find_mapi/find_mapi_old.ml
+;    ../../resources/find_mapi/find_mapi_new.ml)
+;  (libraries lang alcotest containers))
+(cram
+ (deps ./run_parser.exe))
+
+(cram
+ (applies_to make_rev_list)
+ (deps
+    ../../resources/make_rev_list/make_rev_list_old.ml
+    ../../resources/make_rev_list/make_rev_list_new.ml))
+
+(cram
+ (applies_to find_mapi)
+ (deps
+   ../../resources/find_mapi/find_mapi_old.ml
+   ../../resources/find_mapi/find_mapi_new.ml))

@@ -6,15 +6,19 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** DONE Fix binding of fp for constants to generator?
-CLOSED: [2022-10-13 Thu 09:15]
-** DONE Bind logical variables (l)
-CLOSED: [2022-10-13 Thu 08:40]
-*** DONE extend observation with logical variables
-CLOSED: [2022-10-13 Thu 08:05]
-*** DONE If we keep a variable concrete, keep it available in the context
-CLOSED: [2022-10-13 Thu 08:40]
-** DONE Add negb and is_some to context
-CLOSED: [2022-10-13 Thu 09:27]
-** TODO For while and for loops, don't constrain i
+** TODO Add parsing unit tests for array_exists
+** TODO Add parsing unit tests for array_findi
+** TODO Add parsing unit tests for array_foldi
+** TODO Add parsing unit tests for array_is_sorted
+** TODO Add parsing unit tests for array_map2
+** TODO Add parsing unit tests for array_of_rev_list
+** TODO Add parsing unit tests for array_partition
+** TODO Add parsing unit tests for hashtbl_invert
+** TODO Add parsing unit tests for seq_to_array
+** TODO Add parsing unit tests for set_to_list
+** TODO Add parsing unit tests for sll_of_array
+** TODO Add parsing unit tests for sll_partition
+** TODO Add parsing unit tests for stack_filter
+** TODO Add parsing unit tests for stack_reverse
+** TODO Add parsing unit tests for vec_filter
 ** TODO You're the BEST around
