@@ -1,0 +1,23 @@
+(library
+ (name stack_reverse)
+ (libraries common))
+
+(coq.theory
+ (name ProofsStackReverse)
+ (modules
+   Stack_reverse_old_ml Verify_stack_reverse_old
+   Stack_reverse_new_ml Verify_stack_reverse_new
+   Dummy
+ )
+ (libraries sisyphus.plugin)
+ (flags -R resources/common Common))
+
+
+(include build-rules.sexp)
+(rule (with-stdout-to build-rules.sexp.gen (run ../../scripts/gen_build_rules.sh)))
+(rule (alias gen-build-rules) (action (diff build-rules.sexp build-rules.sexp.gen)))
+
+
+(env
+  (dev
+    (flags (:standard -w -32 -w -26))))

@@ -27,9 +27,8 @@ Proof using (All).
     xapp (for_downto_spec (len - 2) 0 tmp
             (fun (i: int) =>
                r ~> Ref (drop (len - (i + 1)) l) \*
-                 arr ~> Array (take (i + 1) data ++ rev (take (len - (i + 1)) l)))). {
-      rewrite Hlen; rew_list. math.
-    }
+                 arr ~> Array (take (i + 1) data ++ rev (take (len - (i + 1)) l)))).
+    { rewrite Hlen; rew_list; math. }
     {
       intros i Hi_vld; apply Htmp; clear Htmp.
       rewrite Hlen in Hi_vld; rew_list in Hi_vld.
@@ -79,18 +78,18 @@ Proof using (All).
             math.
     }
     {
-      math_rewrite (len - (len - 2 + 1) = 0 + 1); rewrite H; rewrite drop_cons, drop_zero; auto; try math.
-    }
-    {
       pose (IA:= Inhab_of_val x).
       math_rewrite  ((len - 2 + 1) = len - 1).
       math_rewrite ((len - (len - 1)) = 0 + 1).
+      rewrite H, drop_cons, drop_zero; try math; auto.
+    } {
+      rewrite Hdata, take_make_eq; try (rewrite Hlen; rew_list; math).
+      math_rewrite  (len - (len - 2 + 1) = 0 + 1).
       rewrite H, take_cons, take_zero; try math; rew_list.
-      assert (Heq: x = data[len - 1]) by (rewrite Hdata, read_make; auto).
-      rewrite Heq, <- take_pos_last; auto.
-      assert (Heqlen: len = length data) by (rewrite Hdata, length_make; math).
-      rewrite Heqlen, take_full_length; auto.
-      apply int_index_prove; try rewrite <- length_eq, Hdata, length_make; rewrite Hlen; rew_list; try math.
+      math_rewrite (len = (len - 1) + 1).
+      math_rewrite  ((len - 1 + 1) - 2 + 1 = len - 1).
+      apply make_succ_r.
+      rewrite Hlen; rew_list; math.
     }
     xunit.
     xsimpl.

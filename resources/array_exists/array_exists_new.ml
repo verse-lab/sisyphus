@@ -1,10 +1,10 @@
 open Combinators
-open Opt
 
-let array_exists a ~f =
-  let len = Array.length a in
-  let res = until_upto 0 len (fun i ->
+let array_exists (a: 'a array) (f: 'a -> bool) =
+  let (len: int) = Array.length a in
+  let (res: bool option) = until_upto 0 len (fun i ->
     if f a.(i)
     then Some true
     else None) in
-  option_is_some res
+  let (res: bool) = Opt.option_is_some res in
+  res

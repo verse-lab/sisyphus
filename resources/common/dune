@@ -17,7 +17,19 @@
 
    Verify_vec Vec_ml
 
-   Utils Tactics))
+   Verify_sll Sll_ml
+
+   Verify_tree Tree_ml
+
+   Verify_stack Stack_ml
+
+   Verify_queue Queue_ml
+
+   Verify_set Set_ml
+
+   Verify_hashtbl Hashtbl_ml
+
+   Utils Tactics Solver))
 
 (rule
  (targets Opt_ml.v opt.cmj)
@@ -28,6 +40,27 @@
  (targets Arr_ml.v arr.cmj)
  (deps arr.ml)
  (action (run cfmlc -o ./Arr_ml.v arr.ml)))
+
+(rule
+ (targets Stack_ml.v stack.cmj)
+ (deps stack.ml)
+ (action (run cfmlc -o ./Stack_ml.v stack.ml)))
+
+(rule
+ (targets Queue_ml.v queue.cmj)
+ (deps queue.ml)
+ (action (run cfmlc -o ./Queue_ml.v queue.ml)))
+
+(rule
+ (targets Set_ml.v set.cmj)
+ (deps set.ml)
+ (action (run cfmlc -o ./Set_ml.v set.ml)))
+
+(rule
+ (targets Hashtbl_ml.v hashtbl.cmj)
+ (deps hashtbl.ml)
+ (action (run cfmlc -o ./Hashtbl_ml.v hashtbl.ml)))
+
 
 (rule
  (targets Combinators_ml.v combinators.cmj)

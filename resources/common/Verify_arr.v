@@ -1,9 +1,10 @@
 Set Implicit Arguments.
+Generalizable Variables A EA .
 
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
-From Common Require Import Arr_ml.
+From Common Require Import Utils Arr_ml.
 
 Lemma array_iter_spec :
   forall A `{EA: Enc A} (f: func) (a: array A) (l: list A),
@@ -193,3 +194,107 @@ Proof using.
       rewrite <- (@length_make _ (length l) l[0]) at 1; try math.
       rewrite drop_at_length, app_nil_r; auto.
 Qed.
+Arguments array_take_spec {A} {EA} i a l Hi.
+
+Lemma array_iteri_spec :
+  forall A `{EA: Enc A} (f: func) (a: array A),
+  forall (I: list A -> hprop) (l: list A),
+    (forall i v (t r: list A),
+        i = length t ->
+        (l = t++v::r) ->
+        SPEC (f i v)
+          PRE (I t)
+          POST (fun (_: unit) => I (t&v))) ->
+  SPEC (array_iteri f a)
+    PRE (a ~> Array l \* I nil)
+    POST (fun (_: unit) => a ~> Array l \* I l).
+Proof using.
+  xcf.
+  xapp.
+  xlet as;=> tmp Htmp.
+  assert (forall i t r,
+             i = length t ->
+             l = t ++ r ->
+             SPEC (tmp i)
+               PRE (a ~> Array l \* I t)
+               POST (fun _ : unit => a ~> Array l \* I l)
+         ). {
+    intros i; induction_wf IH: (upto (length l)) i.
+    intros t r Hi Htr; apply Htmp; clear Htmp.
+    xif;=> Hlen.
+    - assert (length l > 0). { destruct l; rew_list in *; math. }
+      assert (Inhab A). {
+        destruct l; rew_list in *; try math; apply Inhab_of_val; auto.
+      }
+      xapp. { apply int_index_prove; rewrite <- ?length_eq; math. }
+      destruct r as [| rh rt]; rew_list in *; simpl.
+      + subst; math.
+      + xapp (H i l[i] t rt); auto. {
+          subst; rewrite read_app, If_r; try math.
+          math_rewrite (length t - length t = 0).
+          rewrite read_zero; auto.
+        } {
+          xapp (IH (i + 1)).
+          apply upto_intro; math.
+          rew_list; math.
+          subst; rewrite read_app, If_r; try math.
+          math_rewrite (length t - length t = 0).
+          rewrite read_zero; auto.
+          rew_list; f_equal.
+          xsimpl*.
+        }
+    - xvals*.
+      subst; rew_list in *.
+      assert (length r = 0) by math.
+      apply length_zero_inv in H0; rewrite H0; rew_list; xsimpl*.
+  }
+  xapp; rew_list; auto; xsimpl*.
+Qed.
+Arguments array_iteri_spec {A} {EA} f a I l HI.
+
+Lemma array_to_list_spec :
+  forall A `{EA: Enc A} (a: array A) (l: list A),
+  SPEC (Array_ml.to_list a)
+    PRE (a ~> Array l)
+    POST (fun (ls: list A) => \[ls = l] \* a ~> Array l).
+Proof using.
+  xcf.
+  xlet as;=> tmp Htmp.
+  assert (forall (i: int) (acc: list A),
+             -1 <= i < length l ->
+             (acc = drop (i + 1) l) ->
+             SPEC (tmp i acc)
+             PRE (a ~> Array l)
+             POST (fun (res: list A) => \[res = l] \* a ~> Array l)
+         ). {
+    intros i; induction_wf IH: (downto (-1)) i. 
+    intros acc Hi Hacc; apply Htmp; clear Htmp.
+    xif;=> cond.
+    - xvals. { rewrite drop_neg in Hacc; subst; try math; auto.  }
+    - assert (IA: Inhab A). {
+        apply Inhab_of_val; destruct l as [| l ls]; rew_list in *; try math; auto.
+      }
+      xapp. { apply int_index_prove; math. }
+      xapp (IH (i - 1)).
+      + apply downto_intro; math.
+      + math.
+      + rewrite Hacc.
+        math_rewrite (i - 1 + 1 = i).
+        rewrite (@list_split_ith _ IA l i) at 3; try math.
+        rewrite drop_app_l; rew_list; try (rewrite length_take_nonneg; math).
+        rewrite drop_app_l; rew_list; try (rewrite length_take_nonneg; math).
+        assert (Hil: i = length (take i l)) by (rewrite length_take_nonneg; math).
+        rewrite Hil at 3; rewrite drop_at_length; rew_list; auto.
+      + xsimpl*.
+  }
+  xapp.
+  xapp. {
+    math.
+  } {
+    math_rewrite (length l - 1 + 1 = length l); rewrite drop_at_length; auto.
+  } {
+    xsimpl*.
+  }
+Qed.
+Arguments array_to_list_spec {A} {EA} a l.
+

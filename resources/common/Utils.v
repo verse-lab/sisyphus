@@ -9,6 +9,59 @@ Proof.
   case b; simpl; auto.
 Qed.
 
+Definition opt_of_bool (x: bool) := if x then Some tt else None.
+
+Lemma opt_of_bool_none (b: bool) :
+  None = opt_of_bool b -> b = false.
+Proof. destruct b; simpl; auto; intros H; inversion H. Qed.  
+Lemma opt_of_bool_some (b: bool) :
+  Some tt = opt_of_bool b -> b = true.
+Proof. destruct b; simpl; auto; intros H; inversion H. Qed.  
+
+Lemma opt_of_bool_none_intro (b: bool) :
+  b = false -> None = opt_of_bool b.
+Proof. intros ->; simpl; auto. Qed.  
+Lemma opt_of_bool_some_intro (b: bool) :
+   b = true -> Some tt = opt_of_bool b.
+Proof. intros ->; simpl; auto. Qed.  
+
+Lemma is_some_opt_of_bool_eq (b: bool) :
+  is_some (opt_of_bool b) = b.
+Proof. case b; simpl; auto. Qed.
+
+Fixpoint list_foldi_internal (A: Type) (B: Type)
+  (i: int) (ls: list A) (init: B) (fp: int -> A -> B -> B) :=
+  match ls with
+  | nil => init
+  | h :: t =>
+      list_foldi_internal (i + 1) t (fp i h init) fp
+  end.
+
+Definition list_foldi (A: Type) (B: Type) (ls: list A) (init: B)
+  (fp: int -> A -> B -> B) :=
+  list_foldi_internal 0 ls init fp.
+
+Global Hint Unfold list_foldi.
+
+Lemma foldi_rcons (A: Type) (B: Type)
+  (fp: int -> A -> B -> B) (acc: B) (rls: list A) (vl: A) (ls: list A):
+  ls = rls & vl ->
+  list_foldi ls acc fp = fp (length rls) vl (list_foldi rls acc fp).
+Proof.
+  unfold list_foldi.
+  cut (forall t acc i vl,
+          list_foldi_internal i (t & vl) acc fp =
+            fp (i + length t) vl (list_foldi_internal i t acc fp)
+      ). {
+    intros H Hrls; rewrite Hrls.
+    apply H.
+  }
+  clear.
+  intros t; induction t as [ |  x xs IHxs ]; intros acc i vl.
+  - rew_list; intros; subst; simpl; auto; f_equal; math.
+  - rew_list; simpl. rewrite IHxs; f_equal; math.
+Qed.  
+
 
 Fixpoint list_findi_internal (A: Type) (i: int) (f: int -> A -> bool) (ls: list A) : option (int * A) :=
   match ls with
@@ -262,6 +315,29 @@ Proof.
   auto.
 Qed.
 
+Lemma drop_cons_unfold : forall A `{IA: Inhab A} (l: list A) i,
+    0 <= i < length l ->
+    drop i l = l[i] :: drop (i + 1) l.
+Proof.
+  intros A IA l; induction l.
+  - intros i; rewrite length_nil; math.
+  - intros i [Hgt Hlt].
+    case (Zle_lt_or_eq _ _ Hgt).
+    * intros Hgt1; rewrite length_cons in Hlt.
+      math_rewrite (i = (i - 1) + 1).
+      rewrite ! drop_cons; try math.
+      rewrite IHl; try (split; math).
+      rewrite read_cons_pos; try math.
+      math_rewrite (i - 1 + 1 - 1 = i - 1).
+      auto.
+    * intros H; rewrite <- H.
+      rewrite drop_cons; try math.
+      rewrite !drop_zero.
+      rewrite read_zero.
+      auto.
+Qed.
+
+
 Lemma case_rev_split : forall A (xs: list A) v l r,
     rev xs = l ++ v :: r ->
     xs = rev r ++ v :: rev l.
@@ -330,6 +406,186 @@ Proof.
   rewrite take_cons_pos; try math.
   rewrite app_last_l; repeat f_equal; try math.
 Qed.
+
+Lemma list_split_ith (A: Type) (IA: Inhab A) (l: list A) (i: int):
+  0 <= i < length l ->
+  l = take i l & l[i] ++ drop (i + 1) l.
+Proof.
+  intros Hlen.
+  rewrite <- (@list_eq_take_app_drop _ (i + 1) l) at 1; try math.
+  rewrite (take_pos_last IA); do 4 f_equal; try math.
+  apply int_index_prove; math.
+Qed.
+
+Lemma drop_update_zero {A: Type} `{EA: Enc A}
+            (i: int) (ls: list A) (vl: A)  :  
+  0 <= i < length ls ->
+  (drop i ls)[0:=vl] = vl :: drop (1 + i) ls.
+Proof.
+  gen i.
+  induction ls as [ | x xs IHxs]; intros i Hlen.
+  - rew_list in *; math.
+  - case (Z.eqb_spec i 0); intros Heq0.
+    + rewrite Heq0, drop_zero, update_zero.
+      rewrite drop_cons_pos; try math.
+      math_rewrite (1 + 0 - 1 = 0); rewrite drop_zero.
+      auto.
+    + rewrite drop_cons_pos; try math.
+      rewrite IHxs; try (rew_list in *; math).
+      f_equal.
+      math_rewrite (1 + (i - 1) = i).
+      math_rewrite (1 + i = i + 1).
+      rewrite drop_cons; try math.
+      auto.
+Qed.      
+
+Lemma fold_left_eq : forall A B (fp: B -> A -> B) (init: B) (ls : list A),
+    List.fold_left fp ls init = fold_left (fun v acc => fp acc v) init ls.
+Proof.
+  intros. gen init. induction ls; intros; simpl; rew_list.
+  - rewrite fold_left_nil; auto.
+  - rewrite fold_left_cons; auto.
+Qed.
+
+Lemma make_app (A: Type) (v: A) (i j: int):
+  i >= 0 -> j >= 0 ->
+  make (i + j) v = make i v ++ make j v.
+Proof.
+  gen i.
+  induction_wf IH: (downto 0) j.
+  intros i Hi Hj.
+  case (Z.eqb_spec j 0).
+  - intros H0; rewrite H0, make_zero; rew_list; f_equal; math.
+  - intros Hgt; assert (Hjgt0: j > 0) by math.
+    math_rewrite (i + j = (i + (j - 1)) + 1).
+    rewrite make_succ_r; try math.
+    rewrite IH; try math; try (apply downto_intro; math).
+    rew_list.
+    assert (Hjlt0: j = (j - 1) + 1) by math.
+    rewrite Hjlt0 at 2.
+    rewrite make_succ_r; try math; auto.
+Qed.
+
+Lemma filter_eq: forall A (f: A -> bool) l,
+    filter f l = List.filter f l.
+Proof.
+  intros A f l; induction l.
+  - simpl; rewrite filter_nil; auto.
+  - simpl; rewrite filter_cons.
+    rewrite If_istrue; case_eq (f a); simpl; intros Hfa;
+    rewrite IHl; auto.
+Qed.
+
+Lemma length_filter_take_leq_base : forall A (f: A -> bool) (l: list A) iv,
+    0 <= iv ->
+    length (filter f (take iv l)) <= iv.
+Proof.
+  intros.
+  case_eq (Z.le_ge_cases iv (length l)); intros Hcmp _; try math.
+  - assert (iv = length (take iv l)) as Hlt by (rewrite length_take; try math).
+    rewrite Hlt at 2; apply length_filter.
+  - apply (Z.le_trans _ (length l) _); try math.
+    rewrite take_ge; try math.
+    apply length_filter.
+Qed.
+
+Lemma length_filter_take_leq : forall A (f: A -> bool) (l: list A) iv, 
+    length (filter f (take iv l)) <= length (filter f l).
+Proof.
+  intros A f l; induction l.
+  - intros iv; rewrite take_nil; rewrite filter_nil; math.
+  - intros iv; case_eq (Z.le_gt_cases 0 iv).
+    * intros Hlv _; case_eq (Zle_lt_or_eq _ _ Hlv).
+      ** intros Hpos _.
+         rewrite take_cons_pos; try math.
+         rewrite !filter_cons.
+         rewrite !If_istrue.
+         pose proof (IHl (iv - 1)) as IHli.
+         case (f a); simpl; try rewrite ! length_cons; try math.
+      ** intros H0 _; rewrite <- H0. rewrite take_zero; rewrite filter_nil;
+           rewrite length_nil; try math.
+    * intros Hneg _; rewrite take_neg; try math; rewrite filter_nil;
+        rewrite length_nil; try math.
+Qed.      
+
+Lemma length_filter_succ: forall A `{IA: Inhab A} (f: A -> bool) (l: list A) (iv: int),
+    0 <= iv  ->
+    iv < length l ->
+    length (filter (fun x : A => f x) (take (iv + 1) l)) =
+      length (filter (fun x : A => f x) (take iv l)) + (if f l[iv] then 1 else 0).
+Proof.
+  intros A IA f l iv H0iv Hiv.
+  rewrite (@take_pos_last A IA l (iv + 1)); try (apply int_index_prove; try math).
+  rewrite filter_last.
+  math_rewrite (iv + 1 - 1 = iv).
+  rewrite If_istrue.
+  case_eq (f l[iv]); intros Hliv; try rewrite length_last; rew_list; try math.
+Qed.
+
+Lemma take_filter_succ: forall A `{IA: Inhab A} (f: A -> bool) (l: list A) iv jv,
+    f l[iv] -> jv < iv -> iv < length l ->
+    jv = length (filter (fun x : A => f x) (take iv l)) ->
+    take (jv + 1) (filter (fun x : A => f x) l) =
+      take jv (filter (fun x : A => f x) l) & l[iv].
+Proof.
+  intros A IA f l iv jv Hfliv Hjviv Hiv Hjv.
+  rewrite (@take_pos_last A IA _ (jv + 1)).
+  - {
+      case (@take_is_prefix A (iv + 1) l); intros l_suf Hlsuf.
+      math_rewrite (jv + 1 - 1 = jv).
+      rewrite Hlsuf at 2.
+      rewrite (@take_pos_last A IA l (iv + 1)); try (apply int_index_prove; try math).
+      rewrite filter_app; rewrite filter_last.
+      math_rewrite (iv + 1 - 1 = iv). rewrite If_l; auto.
+      rewrite read_app.
+      rewrite If_l; try (rewrite length_last; rewrite Hjv; math).
+      rewrite read_last_case.
+      rewrite If_l; try (rewrite Hjv; math).
+      auto.
+    }
+  - {
+      apply int_index_prove; try math.
+      rewrite <- length_eq. math_rewrite (jv + 1 - 1 = jv).
+      rewrite Hjv.
+      assert (0 <= iv) as Hivgt by math.
+      case (@take_is_prefix A (iv + 1) l); intros l_suf Hlsuf.
+      rewrite Hlsuf at 2.
+      rewrite filter_app; rewrite length_app.
+      rewrite (@take_pos_last A IA l (iv + 1)); try (apply int_index_prove; try math).
+      math_rewrite (iv + 1 - 1 = iv).
+      rewrite filter_last; rewrite If_l; auto; rewrite length_last.
+      math.
+    }
+Qed.
+
+Lemma drop_write_zero: forall A `{IA: Inhab A} (xs: list A) v i,
+    0 <= i < length xs ->
+    (drop i xs)[0:=v] =
+      v :: drop (i + 1) xs.
+Proof.
+  intros A IA xs v i Hi.
+  rewrite (@drop_cons_unfold A IA); try math.
+  rewrite update_zero; auto.
+Qed.
+
+Lemma filter_take_propagate: forall A `{IA: Inhab A} (l: list A) (f: A -> bool) iv jv,
+    f l[iv] -> 0 <= iv < length l ->
+    jv = length (filter (fun x : A => f x) (take iv l)) ->
+    (filter (fun x : A => f x) l)[jv] = l[iv].
+Proof.
+  introv Hfliv [Hlen_gt Hlen] Hjv.
+  pose proof (length_filter_take_leq_base f l Hlen_gt) as Hjvlen.
+  rewrite <- Hjv in Hjvlen.
+  rewrite <- (@list_eq_take_app_drop _ iv l) at 1; try math.
+  rewrite filter_app.
+  rewrite read_app.
+  rewrite If_r; try math.
+  rewrite <- Hjv.
+  math_rewrite (jv - jv = 0).
+  rewrite (@drop_cons_unfold A IA); try (split; math).
+  rewrite filter_cons; rewrite If_l; auto; rewrite read_zero.
+  auto.
+Qed.  
 
 Fixpoint filter_not (A: Type) (fp: A -> Prop) (ls: list A) : list A :=
   match ls with
@@ -436,3 +692,79 @@ Proof.
   - rewrite If_l; auto.
 Qed.
 
+
+Lemma drop_make_eq (A: Type) i j (vl: A) :
+  0 <= i <= j ->
+  drop i (make j vl) = make (j - i) vl.
+Proof.
+  intros Hij.
+  apply (eq_of_extens (Inhab_of_val vl)).
+  - rewrite length_drop; rewrite !length_make; try math.
+  - intros ind Hind; generalize Hind; rewrite index_eq_index_length, int_index_eq; intros Hind'.
+    rewrite length_drop_nonneg in *; rewrite !length_make in *; try math.
+    rewrite read_drop;
+      rewrite ?length_make; try math; try apply int_index_prove; try math.
+    rewrite read_make; try apply int_index_prove; try math.
+    rewrite read_make; try apply int_index_prove; try math.
+    auto.
+Qed.  
+
+Lemma take_make_eq (A: Type) i j (vl: A) :
+  0 <= i <= j ->
+  take i (make j vl) = make i vl.
+Proof.
+  intros Hij.
+  apply (eq_of_extens (Inhab_of_val vl)).
+  - rewrite length_take; rewrite !length_make; try math.
+  - intros ind Hind; generalize Hind; rewrite index_eq_index_length, int_index_eq; intros Hind'.
+    rewrite length_take_nonneg in *; rewrite ?length_make in *; try math.
+    rewrite read_take;
+      rewrite ?length_make; try math; try apply int_index_prove; try math.
+    rewrite read_make; try apply int_index_prove; try math.
+    rewrite read_make; try apply int_index_prove; try math.
+    auto.
+Qed.  
+
+Definition map2 (A: Type) (B: Type) (C: Type) (fp: A -> B -> C) (ls: list (A * B)) :=
+  map (fun '(x,y) => fp x y) ls.
+
+Lemma read_combine
+  (A: Type) `{IA: Inhab A}
+  (B: Type) `{IB: Inhab B}
+  (xs: list A) (ys: list B) (i: int):
+  length xs = length ys ->
+  0 <= i < length xs ->
+  (combine xs ys)[i] = (xs[i], ys[i]).
+Proof.
+  gen xs ys.
+  induction_wf IH: (downto 0) i; intros xs ys Hlen Hi.
+  case (Z.eqb_spec i 0) as [Hzero| Hnzero].
+  - rewrite Hzero.
+    case_eq xs; [intros Hnilx |intros x' xs' Heqx];
+      (case_eq ys; [intros Hnily |intros y' xys' Heqy]);
+    try (subst; rew_list in *; simpl; math).
+    rewrite combine_cons, !read_zero; auto.
+  - case_eq xs; [intros Hnilx |intros x' xs' Heqx];
+      (case_eq ys; [intros Hnily |intros y' ys' Heqy]);
+    try (subst; rew_list in *; simpl; math).
+    rewrite combine_cons.
+    math_rewrite (i = i - 1 + 1).
+    rewrite !read_succ; try (subst; rew_list in *; math);
+      try (rewrite length_eq, length_combine, <- length_eq;
+           subst; rew_list in *; math).
+    apply IH; try apply downto_intro; subst; rew_list in *;  try math.
+Qed.
+
+Lemma read_map2_combine
+  (A: Type) `{IA: Inhab A}
+  (B: Type) `{IB: Inhab B}
+  (C: Type) `{IC: Inhab C}
+  (fp: A -> B -> C) (xs: list A) (ys: list B) (i: int):
+  length xs = length ys ->
+  0 <= i < length xs ->
+  (map2 fp (combine xs ys))[i] = fp xs[i] ys[i].
+Proof.
+  intros Heq Hlen; unfold map2.
+  rewrite read_map; try (apply int_index_prove; rewrite ?length_combine; math).
+  rewrite read_combine; auto.
+Qed.

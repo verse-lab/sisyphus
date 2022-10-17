@@ -22,7 +22,7 @@ Lemma array_exists_spec :
 Proof using (All).
   xcf.
   xapp.
-  xapp;=> result.
+  xref result.
   xletopaque tmp Htmp.
   xapp (@while_upto_spec 0 (length l) tmp
            (fun i b => \[negb b = List.existsb fp (take i l)] \*
@@ -53,13 +53,18 @@ Proof using (All).
   }
   { math.  }
   { rewrite take_zero; simpl; auto. }
-  intros [|] i_b [Hlen Himpl] Hexists; xmatch; xapp; xsimpl*.
-  - rewrite Bool.implb_true_l in Himpl.
-    assert (Heq: i_b = length l) by (apply Z.eqb_eq; auto).
-    rewrite Heq, take_full_length; auto.
-  - simpl in Hexists.
-    rewrite <- Hexists.
-    rewrite <- (@list_eq_take_app_drop _ i_b l) at 1.
-    rewrite list_existsb_app; rewrite <- Hexists; simpl; auto.
-    math.
+  intros fin i_b Hind Hexists.
+  xmatch.
+  xapp.
+  xvals*. {
+    destruct fin; destruct Hind as [Hlen Himpl].
+    - rewrite Bool.implb_true_l in Himpl.
+      assert (Heq: i_b = length l) by (apply Z.eqb_eq; auto).
+      rewrite Heq, take_full_length; auto.
+    - simpl in Hexists.
+      rewrite <- Hexists.
+      rewrite <- (@list_eq_take_app_drop _ i_b l) at 1.
+      rewrite list_existsb_app; rewrite <- Hexists; simpl; auto.
+      math.
+  }
 Qed.
