@@ -49,7 +49,10 @@ let handle_decs asts  =
   prelude_str, import, rest
 
 let handle_spec asts =
-  Print_utils.string_of_coq_obj @@ List.hd asts, List.tl asts
+  match asts with
+  | spec :: rest -> Print_utils.string_of_coq_obj spec, rest
+  | _ ->
+    Format.ksprintf ~f:failwith "Failed to parse proof script. Script terminated prematurely; maybe some library failed to load?"
 
 let get_tactic name args state : Proof_spec.Script.step =
   let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
