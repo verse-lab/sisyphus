@@ -9,11 +9,22 @@
        ../../resources/find_mapi/Verify_find_mapi_old.v
        ../../resources/find_mapi/Find_mapi_old_ml.vo
 
-
        ../../resources/common/Utils.vo
+       ../../resources/common/Solver.vo
+       ../../resources/common/Tactics.vo
 
-       ../../resources/common/Sseq_ml.vo ../../resources/common/Verify_sseq.vo
-       ../../resources/common/Arr_ml.vo ../../resources/common/Verify_arr.vo
+       ../../resources/common/Verify_arr.vo ../../resources/common/Arr_ml.vo
+       ../../resources/common/Verify_combinators.vo ../../resources/common/Combinators_ml.vo
+       ../../resources/common/Verify_hashtbl.vo ../../resources/common/Hashtbl_ml.vo
+       ../../resources/common/Verify_list.vo ../../resources/common/Lst_ml.vo
+       ../../resources/common/Verify_opt.vo ../../resources/common/Opt_ml.vo
+       ../../resources/common/Verify_queue.vo ../../resources/common/Queue_ml.vo
+       ../../resources/common/Verify_set.vo ../../resources/common/Set_ml.vo
+       ../../resources/common/Verify_sll.vo ../../resources/common/Sll_ml.vo
+       ../../resources/common/Verify_sseq.vo ../../resources/common/Sseq_ml.vo
+       ../../resources/common/Verify_stack.vo ../../resources/common/Stack_ml.vo
+       ../../resources/common/Verify_tree.vo ../../resources/common/Tree_ml.vo
+       ../../resources/common/Verify_vec.vo ../../resources/common/Vec_ml.vo
  )
 
  (flags -rectypes)
