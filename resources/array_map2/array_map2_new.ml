@@ -10,6 +10,7 @@ let array_map2 (f: 'a -> 'b -> 'c) (xs: 'a array) (ys: 'b array) =
     let (ys: 'b list) = Array.to_list ys in
     let (combined: ('a * 'b) list) = List.combine xs ys in
     let (_: unit) = List.iteri (fun (i: int) (pair : 'a * 'b) ->
-      zs.(i) <- f (fst pair) (snd pair)
+      zs.(i) <- f (fst pair) (snd pair);
+      ()
     ) combined in
     zs
