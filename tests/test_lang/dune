@@ -77,3 +77,8 @@
    ../../resources/set_to_list/set_to_list_old.ml
    ../../resources/set_to_list/set_to_list_new.ml))
 
+(cram
+ (applies_to sll_of_array)
+ (deps
+   ../../resources/sll_of_array/sll_of_array_old.ml
+   ../../resources/sll_of_array/sll_of_array_new.ml))
