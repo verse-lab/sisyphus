@@ -50,7 +50,7 @@ Lemma until_upto_spec:
    SPEC (until_upto start stop f)
    PRE (I start None)
    POST (fun (res: option A) =>
-           \exists i, \[ i <= stop /\  implb (negb (is_some res)) (i =? stop)] \* I i res).
+           \exists i, \[ start <= i <= stop /\  implb (negb (is_some res)) (i =? stop)] \* I i res).
 Proof.
   intros A EA start stop f I.
   induction_wf IH: (upto stop) start.
@@ -67,7 +67,7 @@ Proof.
       xapp. { apply upto_intro; math. }
       { intros i Hi; apply HI; math. }
       { math. }
-      { intros b; xsimpl*. }
+      { intros b; xsimpl*; intros; split; auto; destruct H; try math; auto. }
 Qed.
 Arguments until_upto_spec {A} {EA} start stop f I Hf : rename.
 
@@ -113,7 +113,7 @@ Lemma while_downto_spec:
          ) -> stop <= start ->
    SPEC (while_downto start stop f)
    PRE (I start true)
-   POST (fun (b: bool) => \exists i, \[ stop <= i /\ implb b (i =? stop)] \* I i b).
+   POST (fun (b: bool) => \exists i, \[ stop <= i <= start /\ implb b (i =? stop)] \* I i b).
 Proof.
   intros start stop f I.
   induction_wf IH: (downto stop) start.
@@ -129,7 +129,7 @@ Proof.
       xapp. { apply downto_intro; math. }
       { intros i Hi; apply HI; math. }
       { math. }
-      { intros b; xsimpl*. }
+      { intros b; xsimpl*. intros x [H1 H2]; split; auto; math. }
     + xif; [intros _| intros []; auto].
       xvals*; split; auto; math.
 Qed.
@@ -147,7 +147,7 @@ Lemma until_downto_spec:
    SPEC (until_downto start stop f)
    PRE (I start None)
    POST (fun (res: option A) =>
-           \exists i, \[ stop <= i /\  implb (negb (is_some res)) (i =? stop)] \* I i res).
+           \exists i, \[ stop <= i <= start /\  implb (negb (is_some res)) (i =? stop)] \* I i res).
 Proof.
   intros A EA start stop f I.
   induction_wf IH: (downto stop) start.
@@ -164,7 +164,7 @@ Proof.
       xapp. { apply downto_intro; math. }
       { intros i Hi; apply HI; math. }
       { math. }
-      { intros b; xsimpl*. }
+      { intros b; xsimpl*. intros i [H1 H2]; split; auto; math. }
 Qed.
 Arguments until_downto_spec {A} {EA} start stop f I Hf : rename.
 

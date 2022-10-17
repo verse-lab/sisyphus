@@ -9,6 +9,13 @@ Proof.
   case b; simpl; auto.
 Qed.
 
+Lemma negb_iff (b: bool) :
+  b = false <-> ~ b.
+Proof.
+  case b; split; auto; intros H; try inversion H; auto.
+  contradiction H; auto.
+Qed.
+
 Definition opt_of_bool (x: bool) := if x then Some tt else None.
 
 Lemma opt_of_bool_none (b: bool) :
@@ -768,3 +775,113 @@ Proof.
   rewrite read_map; try (apply int_index_prove; rewrite ?length_combine; math).
   rewrite read_combine; auto.
 Qed.
+
+Fixpoint is_sorted_internal (x: int) (l: list int) :=
+  match l with
+  | nil => true
+  | h :: t => (x <=? h) && is_sorted_internal h t
+  end.
+
+Definition is_sorted (l: list int) :=
+  match l with
+  | nil => true
+  | h :: t => is_sorted_internal h t
+  end.
+
+Lemma is_sorted_cons (hd: int) (tl: list int) :
+  is_sorted (hd :: tl) -> is_sorted tl.
+Proof.
+  case tl as [| hd2 tl]; simpl; auto; rewrite istrue_and_eq.
+  intros []; auto.
+Qed.
+
+Lemma is_sorted_internal_gen hd (tl: list int):
+  is_sorted_internal hd tl ->
+  is_sorted tl.
+Proof.
+  destruct tl as [| tlh tll]; rew_list; try (intros; math).
+  intros Hlen; simpl; auto.
+  rew_list; simpl; rewrite istrue_and_eq; intros [_ ->]; auto.
+Qed.
+
+
+Lemma is_sorted_gen hd (tl: list int):
+  length tl > 0 ->
+  is_sorted tl ->
+  hd <= tl[0] ->
+  is_sorted (hd :: tl).
+Proof.
+  destruct tl as [| tlh tll]; rew_list; try (intros; math).
+  intros Hlen.
+  simpl; intros; subst; auto; rewrite H, istrue_and_eq; split; auto.
+  case (Z.leb_spec0 hd tlh); auto; intros; try math.
+Qed.
+
+Lemma not_is_sorted_gen (l: list int) (i: int) :
+  length l > 1 ->
+  0 < i <= length l - 1 ->
+  ~ l[i-1] <= l[i] ->
+  ~ is_sorted l.
+Proof.
+  intros H1 H2 Hf H_sorted; apply Hf; clear Hf; gen i H_sorted H2 H1.
+  destruct l as [| hd tl]; [rewrite length_nil; math | ]; simpl.
+  gen hd.
+  induction tl as [| nxt_hd tl H].
+  + intros hd i; rewrite length_cons, length_nil; math.
+  + intros hd i; simpl; rewrite !length_cons, istrue_and_eq.
+    intros [Hfp Hsorted_tl].
+    math_rewrite (1 + (1 + length tl) - 1 = length tl + 1).
+    intros Hi Hlen.
+    case (Z.eqb_spec i 1); [intros -> | intros Hneq1].
+    * math_rewrite (1 - 1 = 0).
+      rewrite read_zero, read_cons_pos; try math.
+      math_rewrite (1 - 1 = 0).
+      rewrite read_zero.
+      apply Z.leb_le; auto.
+    * assert (i > 1) by math.
+      rewrite read_cons_pos; try math.
+      rewrite (read_cons_pos Inhab_int hd); try math.
+      apply H; auto; try (rewrite length_cons; math).
+Qed.
+
+Lemma is_sorted_last_elt (l: list int) :
+  length l > 0 ->
+  is_sorted (drop (length l - 1) l).
+Proof.
+  case l as [| fst tl]; rew_list; intros; try math; auto.
+  gen fst H.
+  induction tl as [| x xs IHxs]; rew_list; intros fst.
+  - intros; math_rewrite (1 + 0 - 1 = 0); rewrite drop_zero; simpl; auto.
+  - intros Hgt; math_rewrite (1 + (1 + length xs) - 1 = length xs + 1).
+    rewrite drop_cons; try math.
+    math_rewrite (1 + length xs - 1 = length xs)  in IHxs.
+    eapply IHxs; auto; math.
+Qed.
+
+Lemma is_sorted_app_l (t r: list int) :
+  is_sorted t = false ->
+  is_sorted (t ++ r) = false.
+Proof.
+  case t; simpl; intros; try (inversion H; auto; math).
+  rew_list; simpl.
+  gen z H; induction l as [| x xs IHxs]; simpl.
+  - intros z H; inversion H; auto.
+  - rew_list; simpl; intros z H; rewrite <- if_else_false in *.
+    destruct (Z.leb z x).
+    + apply IHxs; auto.
+    + auto.
+Qed.      
+
+Lemma is_sorted_app_r (t r: list int) :
+  is_sorted r = false ->
+  is_sorted (t ++ r) = false.
+Proof.
+  case t; rew_list; simpl; auto; intros t_hd t_tl; clear t; rew_list; simpl.
+  gen r t_hd; induction t_tl.
+  - intros r t_hd; rew_list.
+    gen t_hd; induction r as [| rh rt IHr]; intros t_hd; simpl; intros H; auto.
+    rewrite H; case (t_hd <=? rh); simpl; auto.
+  - intros r t_hd Hr; rew_list; simpl; rewrite IHt_tl; auto.
+    case (t_hd <=? a); auto.
+Qed.      
+
