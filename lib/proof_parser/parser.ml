@@ -127,7 +127,17 @@ let rec handle_case name args state =
   `Case (state.pid, destr_id, eqn, parts_steps_names)
 
 and handle_xif name args state =
-  assert false
+  let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
+  let (left_steps, right_steps) = match partition_cases (List.tl state.asts) with
+    | [left; right] -> (left, right)
+    | cases ->
+      Format.ksprintf ~f:failwith "Failed to parse proof script. Expected two cases to xif, but found %d:\n%a"
+        (List.length cases) (List.pp (List.pp Print_utils.pp_vernac)) cases in
+
+  let left_proof = parse_proof {pid=state.pid; asts=left_steps} in
+  let right_proof = parse_proof {pid=state.pid; asts=right_steps} in  
+
+  `Xif (state.pid, vexpr_str, left_proof, right_proof)
 
 and get_prim_tactic name args state =
   let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
@@ -152,9 +162,9 @@ and unwrap_tactic sexp state =
     let name, args = Parser_utils.unwrap_tacalias sexp in
     begin match name with
     | "xif_as" ->
-      (* let step = handle_xif *)
-
-      assert false
+      let step = handle_xif name args state in
+      clear_state state;
+      Some step
     | _ ->
       let step = get_tactic name args state in
       move_to_next_ast state;
