@@ -228,7 +228,10 @@ let rec unwrap_expr sexp : Lang.Expr.t =
     | "_ = _" -> `App ("=", [l;r])
     | _ -> failwith "invalid assumptions"
     end
-
+  | "CNotation", [_; List[Atom "InConstrEntry"; Atom "_ [ _ ]"]; List (List [ls; ind] :: _)] ->
+    let ls = unwrap_value_with_loc ls |> fst |> unwrap_expr in
+    let ind = unwrap_value_with_loc ind |> fst |> unwrap_expr in
+    `App ("List.nth", [ls; ind])
   (* lambdas.... CLambdaN not supported *)
   | tag, _ -> failwith @@ Format.sprintf "found unhandled expr (tag: %s): %a" tag Sexplib.Sexp.pp_hum sexp
 

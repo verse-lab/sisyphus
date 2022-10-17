@@ -107,12 +107,15 @@ type step = [
   | `Intros of string
   | `Xseq of string
   | `Xsimpl of string
+  | `Xinhab of string
 ]
 
 let print_step print_steps : step -> PP.document =
   let open PP in
   let ppid pid = string_of_int pid ^ ": " in
   function
+  | `Xinhab str ->
+    (string @@ str ^ ".")
   | `Xsimpl str ->
     (string @@ str ^ ".")
   | `SepSplitTuple str ->
@@ -200,7 +203,7 @@ let extract_step_id (step: step) =
   | `Xletopaque (id, _)
   | `Xif (id, _, _, _)
   | `Xvals (id, _) -> Some id
-  | (`Xsimpl _ | `SepSplitTuple _ |`Xmatchcase _ | `Intros _ |`Xpurefun _
+  | (`Xinhab _ | `Xsimpl _ | `SepSplitTuple _ |`Xmatchcase _ | `Intros _ |`Xpurefun _
     |`Xdestruct _ | `Apply _ |`Xseq _ | `Rewrite _  | `Xcf _ |`Xpullpure _) -> None
 
 let rec fold_proof_script f acc ~start ~stop (steps: step list) =

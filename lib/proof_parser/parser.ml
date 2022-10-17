@@ -139,6 +139,19 @@ and handle_xif name args state =
 
   `Xif (state.pid, vexpr_str, left_proof, right_proof)
 
+and handle_tac_call tactic state =
+  let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
+  let fn, _ = Parser_utils.unwrap_value_with_loc tactic in
+  let fn = Parser_utils.unwrap_list fn in
+  let fn, _  = Parser_utils.unwrap_value_with_loc (List.nth fn 0) in
+  match fn with
+  | List [_; _; List [Atom "Id"; Atom ("xinhab" | "xinhab_inner")]] ->
+    `Xinhab vexpr_str
+  | _ ->
+    Format.ksprintf ~f:failwith "Failed to parse proof. Don't know how to handle %a."
+      Sexplib.Sexp.pp_hum fn
+
+
 and get_prim_tactic name args state =
   let vexpr_str = Print_utils.string_of_vexp (List.hd state.asts) in
   match name with
@@ -177,7 +190,13 @@ and unwrap_tactic sexp state =
   | "TacThen", tac_bindings ->
     let texp = List.hd tac_bindings |> Parser_utils.unwrap_value_with_loc |> fst in
     unwrap_tactic texp state
-  | "TacArg", _ ->
+  | "TacArg", [List [Atom "TacCall"; tactic]] ->
+    let step = handle_tac_call tactic state in
+    move_to_next_ast state;
+    Some step
+  | "TacArg", args ->
+    Format.ksprintf ~f:failwith "received unknown tacarg, don't know what to do with it....: %a"
+      Sexplib.Sexp.pp_hum Sexplib.Sexp.(List args)
     (* admit / admitted*)
     None
 

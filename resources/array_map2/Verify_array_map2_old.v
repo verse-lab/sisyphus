@@ -67,6 +67,6 @@ Proof using (All).
       rewrite update_zero; auto.
     }
     { math. } { rewrite take_zero; simpl; auto. }
-  xmatch.
-  xvals*. { repeat sis_handle_take_drop_full_length; rew_list; auto. }
+    xmatch.
+    xvals. { repeat sis_handle_take_drop_full_length; rew_list; auto. }
 Qed.
