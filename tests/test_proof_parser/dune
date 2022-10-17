@@ -13,6 +13,7 @@
          test_seq_to_array
          ; test_set_to_list
          test_sll_of_array
+         test_sll_partition
 
  )
  (deps
@@ -55,6 +56,9 @@
 
    ../../resources/sll_of_array/Verify_sll_of_array_old.v
    ../../resources/sll_of_array/Sll_of_array_old_ml.vo
+
+   ../../resources/sll_partition/Verify_sll_partition_old.v
+   ../../resources/sll_partition/Sll_partition_old_ml.vo
 
 
    ../../resources/common/Utils.vo

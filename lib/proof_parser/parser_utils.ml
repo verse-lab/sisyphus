@@ -157,35 +157,6 @@ let unwrap_ty sexp =
   let open Sexplib.Sexp in
   or_exn "lambda type" sexp @@ fun () -> unwrap_ty sexp
 
-let unwrap_lambda_arg sexp =
-  let open Sexplib.Sexp in
-  or_exn "lambda arg" sexp @@ fun () ->
-  match unwrap_tagged sexp with
-  | "CLocalAssum", [name; _; ty] ->
-    let "Name", [List [Atom "Id"; Atom name]] =
-      let [name] = unwrap_list name in
-      unwrap_value_with_loc name
-      |> fst
-      |> unwrap_tagged in
-    let ty =
-      let ty, _ = unwrap_value_with_loc ty in
-      unwrap_ty ty in
-    (`Var name, ty)
-[@@warning "-8"]
-
-let unwrap_clambda sexp =
-  match unwrap_tagged sexp with
-  | "CLambdaN", [args; body] ->
-    let args = unwrap_list args
-               |> List.map unwrap_lambda_arg in
-
-    let body, _ = unwrap_value_with_loc body in
-    args, body
-  | _ ->
-    Format.ksprintf ~f:failwith
-      "found invalid structure for clambda expression: %a"
-      Sexplib.Sexp.pp_hum sexp
-
 let unwrap_int_literal sexp : int =
   let open Sexplib.Sexp in
   match unwrap_tagged sexp with
@@ -234,6 +205,77 @@ let rec unwrap_expr sexp : Lang.Expr.t =
     `App ("List.nth", [ls; ind])
   (* lambdas.... CLambdaN not supported *)
   | tag, _ -> failwith @@ Format.sprintf "found unhandled expr (tag: %s): %a" tag Sexplib.Sexp.pp_hum sexp
+
+let unwrap_atom_pattern sexp =
+  or_exn "atom pattern" sexp @@ fun () ->
+  let open Sexplib.Sexp in
+  match sexp with
+  | List [Atom "CPatAtom"; List [pat]] ->
+    let pat = unwrap_value_with_loc pat |> fst in
+    begin match unwrap_tagged pat with
+    | _, [_; List [Atom "Id"; Atom cref]] -> cref
+    | _ -> failwith @@ Format.sprintf "found unexpected form for atom pattern: %a\nouter-sexp: %a"
+                         Sexplib.Sexp.pp pat
+                         Sexplib.Sexp.pp sexp
+    end
+  | _ -> failwith @@ Format.sprintf "found unexpected form for atom pattern: %a" Sexplib.Sexp.pp sexp
+
+
+let unwrap_tuple_pattern sexp =
+  let open Sexplib.Sexp in
+  or_exn "tuple pattern" sexp @@ fun () ->
+  match sexp with
+  | List [Atom "CPatNotation"; _; List [Atom "InConstrEntry"; Atom "( _ , _ , .. , _ )"]; args; _] ->
+    let args =
+      let rec unwrap_tuple_list acc = function
+        | List [List [vl]; List [rest]] ->
+          let vl = unwrap_value_with_loc vl |> fst |> unwrap_atom_pattern in
+          unwrap_tuple_list (vl :: acc) rest
+        | List [vl] ->
+          let vl = unwrap_value_with_loc vl |> fst |> unwrap_atom_pattern in
+          List.rev (vl :: acc)
+        | s -> Format.ksprintf ~f:failwith "found inner form for tuple: %a \nouter-sexp: %a"
+               Sexplib.Sexp.pp s
+               Sexplib.Sexp.pp sexp in
+      unwrap_tuple_list [] args in
+    args
+  | _ -> failwith @@ Format.sprintf "found unexpected form for tuple: %a" Sexplib.Sexp.pp sexp
+
+let unwrap_lambda_arg sexp =
+  let open Sexplib.Sexp in
+  or_exn "lambda arg" sexp @@ fun () ->
+  match unwrap_tagged sexp with
+  | "CLocalAssum", [name; _; ty] ->
+    let "Name", [List [Atom "Id"; Atom name]] =
+      let [name] = unwrap_list name in
+      unwrap_value_with_loc name
+      |> fst
+      |> unwrap_tagged in
+    let ty =
+      let ty, _ = unwrap_value_with_loc ty in
+      unwrap_ty ty in
+    (`Var name, ty)
+  | "CLocalPattern", [args] ->
+    let pattern, _ = unwrap_value_with_loc args in
+    let "CPatCast", [expr;ty] = unwrap_tagged pattern in
+    let args = unwrap_value_with_loc expr |> fst |> unwrap_tuple_pattern in
+    let ty = unwrap_value_with_loc ty |> fst |> unwrap_ty in
+    (`Tuple (args), ty)
+[@@warning "-8"]
+
+let unwrap_clambda sexp =
+  match unwrap_tagged sexp with
+  | "CLambdaN", [args; body] ->
+    let args = unwrap_list args
+               |> List.map unwrap_lambda_arg in
+
+    let body, _ = unwrap_value_with_loc body in
+    args, body
+  | _ ->
+    Format.ksprintf ~f:failwith
+      "found invalid structure for clambda expression: %a"
+      Sexplib.Sexp.pp_hum sexp
+
 
 let rec unwrap_assertion sexp : Proof_spec.Heap.Assertion.t =
   let open Sexplib.Sexp in
