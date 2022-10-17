@@ -94,3 +94,9 @@
  (deps
    ../../resources/stack_filter/stack_filter_old.ml
    ../../resources/stack_filter/stack_filter_new.ml))
+
+(cram
+ (applies_to stack_reverse)
+ (deps
+   ../../resources/stack_reverse/stack_reverse_old.ml
+   ../../resources/stack_reverse/stack_reverse_new.ml))

@@ -31,6 +31,7 @@ CLOSED: [2022-10-17 Mon 09:00]
 CLOSED: [2022-10-17 Mon 09:07]
 ** DONE Add parsing unit tests for stack_filter
 CLOSED: [2022-10-17 Mon 09:10]
-** TODO Add parsing unit tests for stack_reverse
+** DONE Add parsing unit tests for stack_reverse
+CLOSED: [2022-10-17 Mon 09:12]
 ** TODO Add parsing unit tests for vec_filter
 ** TODO You're the BEST around

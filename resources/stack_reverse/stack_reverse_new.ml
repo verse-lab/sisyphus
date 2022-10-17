@@ -7,7 +7,7 @@ let stack_reverse (s: 'a stack) =
     let _ = Queue.queue_enqueue buf elt in
     ()
   ) s in
-  let (_: unit) = Queue.queue_iter (fun elt ->
+  let (_: unit) = Queue.queue_iter (fun (elt: 'a) ->
     Stack.stack_push s elt
   ) buf in
   ()
