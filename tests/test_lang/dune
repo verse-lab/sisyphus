@@ -59,3 +59,9 @@
    ../../resources/array_of_rev_list/array_of_rev_list_old.ml
    ../../resources/array_of_rev_list/array_of_rev_list_new.ml))
 
+(cram
+ (applies_to hashtbl_invert)
+ (deps
+   ../../resources/hashtbl_invert/hashtbl_invert_old.ml
+   ../../resources/hashtbl_invert/hashtbl_invert_new.ml))
+
