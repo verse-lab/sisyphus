@@ -84,86 +84,85 @@ Proof. unfold Vector; rewrite repr_eq; xsimpl*. Qed.
 
 Definition vector := fun (A: Type) => loc.
 
-Section Vector.
 
-  Context {A: Type}.
-  Context `{EA: Enc A}.
-
-  Lemma vec_size_spec (vt: vector A) (ls: list A):
-    SPEC(vec_size vt)
+Lemma vec_size_spec {A: Type} `{EA: Enc A} (vt: vector A) (ls: list A):
+  SPEC(vec_size vt)
     PRE(vt ~> Vector ls)
     POST(fun (res: int) => \[res = length ls] \* vt ~> Vector ls).
-  Proof.
-    xcf; eauto.
-    xchange Vector_unfold;=> l D G Heq.
-    xapp.
-    rewrite Vector_unfold; xsimpl*.
-  Qed.
+Proof.
+  xcf; eauto.
+  rewrite Vector_unfold; xpull;=> l D G Heq.
+  xapp.
+  xsimpl*.
+Qed.
+#[export] Hint Extern 1 (RegisterSpec vec_size) => Provide vec_size_spec.
 
-  Lemma vec_get_spec `(IA: Inhab A) (vt: vector A) (i: int) (ls: list A):
-    index ls i ->
-    SPEC(vec_get vt i)
+Lemma vec_get_spec {A: Type} `{EA: Enc A} `(IA: Inhab A) (vt: vector A) (i: int) (ls: list A):
+  index ls i ->
+  SPEC(vec_get vt i)
     PRE(vt ~> Vector ls)
     POST(fun (res: A) => \[res = ls[i]] \* vt ~> Vector ls).
-  Proof.
-    xcf; eauto.
-    xchange Vector_unfold;=> l D G Heq.
-    xapp.
-    xapp. { subst; apply index_app_l; auto. }
-    rewrite Vector_unfold; xsimpl*.
-    rewrite Heq.
-    rewrite read_app.
-    rewrite index_eq_index_length, int_index_eq in H.
-    rewrite If_l; try math; auto.
-  Qed.
+Proof.
+  xcf; eauto.
+  rewrite Vector_unfold; xpull;=> l D G Heq.
+  xapp.
+  xapp. { subst; apply index_app_l; auto. }
+  xsimpl*.
+  rewrite Heq.
+  rewrite read_app.
+  rewrite index_eq_index_length, int_index_eq in H.
+  rewrite If_l; try math; auto.
+Qed.
+#[export] Hint Extern 1 (RegisterSpec vec_get) => Provide vec_get_spec.
 
-  Lemma vec_set_spec (vt: vector A) (i: int) (vl: A) (ls: list A):
-    index ls i ->
-    SPEC(vec_set vt i vl)
+Lemma vec_set_spec {A: Type} `{EA: Enc A} (vt: vector A) (i: int) (vl: A) (ls: list A):
+  index ls i ->
+  SPEC(vec_set vt i vl)
     PRE(vt ~> Vector ls)
     POSTUNIT(vt ~> Vector ls[i:=vl]).
-  Proof.
-    xcf; eauto.
-    xchange Vector_unfold;=> l D G Heq.
-    xapp.
-    xapp. { subst; apply index_app_l; auto. }
-    rewrite Vector_unfold; xsimpl*.
-    rewrite length_update; auto.
-    rewrite Heq.
-    rewrite update_app_l; try math.
-    eauto.
-    rewrite index_eq_index_length, int_index_eq in H.
-    math.
-  Qed.
+Proof.
+  xcf; eauto.
+  rewrite Vector_unfold; xpull;=> l D G Heq.
+  xapp.
+  xapp. { subst; apply index_app_l; auto. }
+  rewrite Vector_unfold; xsimpl*.
+  rewrite length_update; auto.
+  rewrite Heq.
+  rewrite update_app_l; try math.
+  eauto.
+  rewrite index_eq_index_length, int_index_eq in H.
+  math.
+Qed.
+#[export] Hint Extern 1 (RegisterSpec vec_set) => Provide vec_set_spec.
 
-  Lemma vec_fill_spec (vt: vector A) (start len: int) (vl: A)
-    (l m r: list A):
-    start = length l ->
-    len = length m ->
-    SPEC(vec_fill vt start len vl)
+Lemma vec_fill_spec {A: Type} `{EA: Enc A} (vt: vector A) (start len: int) (vl: A)
+  (l m r: list A):
+  start = length l ->
+  len = length m ->
+  SPEC(vec_fill vt start len vl)
     PRE(vt ~> Vector (l ++ m ++ r))
     POSTUNIT(vt ~> Vector (l ++ make (length m) vl ++ r)).
-  Proof.
-    xcf; eauto.
-    xchange Vector_unfold;=> ol D G Heq.
-    xapp.
-    xapp (array_fill_spec). { eauto. } { eauto. } { subst; rew_list; auto. }
-    rewrite Vector_unfold; xsimpl*.
-    rew_list; rewrite length_make; math.
-    subst; rew_list; eauto.
-  Qed.
+Proof.
+  xcf; eauto.
+  rewrite Vector_unfold; xpull;=> ol D G Heq.
+  xapp.
+  xapp (array_fill_spec). { eauto. } { eauto. } { subst; rew_list; auto. }
+  rewrite Vector_unfold; xsimpl*.
+  rew_list; rewrite length_make; math.
+  subst; rew_list; eauto.
+Qed.
+#[export] Hint Extern 1 (RegisterSpec vec_fill) => Provide vec_fill_spec.
   
-  Lemma vec_set_size_spec (vt: vector A) (len: int) (l r: list A):
-    len = length l ->
-    SPEC(vec_set_size vt len)
+Lemma vec_set_size_spec {A: Type} `{EA: Enc A} (vt: vector A) (len: int) (l r: list A):
+  len = length l ->
+  SPEC(vec_set_size vt len)
     PRE(vt ~> Vector (l ++ r))
     POSTUNIT(vt ~> Vector l).
-  Proof.
-    xcf; eauto.
-    xchange Vector_unfold;=> ol D G Heq.
-    xapp.
-    rewrite Vector_unfold; xsimpl*.
-    subst; rew_list; eauto.
-  Qed.
-
-End Vector.
+Proof.
+  xcf; eauto.
+  rewrite Vector_unfold;xpull;=> ol D G Heq.
+  xapp.
+  rewrite Vector_unfold; xsimpl*.
+  subst; rew_list; eauto.
+Qed.
+#[export] Hint Extern 1 (RegisterSpec vec_set_size) => Provide vec_set_size_spec.

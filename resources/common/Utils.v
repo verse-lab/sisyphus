@@ -699,6 +699,22 @@ Proof.
   - rewrite If_l; auto.
 Qed.
 
+Lemma count_split (A B: Type) (ls: list (A * B)) (P: A -> Prop):
+  length ls = count (fun '(vl, _) => P vl) ls + count (fun '(vl, _) => ~ P vl) ls.
+Proof.
+  induction ls as [| [l r]].
+  - rewrite !count_nil; rew_list; math.
+  - rewrite !count_cons; rew_list.
+    case (classic (P l));=> Hp.
+    + rewrite If_l, If_r; auto; rewrite IHls; math.
+    + rewrite If_r, If_l; auto; rewrite IHls; math.
+Qed.
+
+Definition filter_first (A: Type) (k: int) (ls: list (int * A)) :=
+  filter (fun '(k', _) => ~ (k = k')) ls.
+
+Definition exists_first (A: Type) (k: int) (ls: list (int * A)) :=
+  Exists (fun '(k', _) => k = k') ls.
 
 Lemma drop_make_eq (A: Type) i j (vl: A) :
   0 <= i <= j ->

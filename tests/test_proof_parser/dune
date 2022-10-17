@@ -16,6 +16,7 @@
          test_sll_partition
          test_stack_filter
          test_stack_reverse
+         test_vec_filter
  )
  (deps
 
@@ -68,6 +69,8 @@
    ../../resources/stack_reverse/Verify_stack_reverse_old.v
    ../../resources/stack_reverse/Stack_reverse_old_ml.vo
 
+   ../../resources/vec_filter/Verify_vec_filter_old.v
+   ../../resources/vec_filter/Vec_filter_old_ml.vo
 
    ../../resources/common/Utils.vo
    ../../resources/common/Solver.vo

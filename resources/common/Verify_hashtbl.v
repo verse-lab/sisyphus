@@ -8,22 +8,6 @@ Require Import Hashtbl_ml.
 From Common Require Import Utils.
 From Common Require Import Tactics.
 
-Lemma count_split (A B: Type) (ls: list (A * B)) (P: A -> Prop):
-  length ls = count (fun '(vl, _) => P vl) ls + count (fun '(vl, _) => ~ P vl) ls.
-Proof.
-  induction ls as [| [l r]].
-  - rewrite !count_nil; rew_list; math.
-  - rewrite !count_cons; rew_list.
-    case (classic (P l));=> Hp.
-    + rewrite If_l, If_r; auto; rewrite IHls; math.
-    + rewrite If_r, If_l; auto; rewrite IHls; math.
-Qed.
-
-Definition filter_first (A: Type) (k: int) (ls: list (int * A)) :=
-  filter (fun '(k', _) => ~ (k = k')) ls.
-
-Definition exists_first (A: Type) (k: int) (ls: list (int * A)) :=
-  Exists (fun '(k', _) => k = k') ls.
 
 Definition Hashtbl {A: Type} `{EA: Enc A} (ls: list (int * A)) (h: loc) :=
   h ~~~> `{
