@@ -142,6 +142,12 @@ let rec unwrap_ty sexp : Lang.Type.t =
     | adt, args -> ADT (adt, args, None)
     end
   | "CNotation", [_; List [Atom "InConstrEntry"; Atom ("int" | "credits")]; _] -> Int
+  | "CNotation", [_; List [Atom "InConstrEntry"; Atom "_ * _"]; List (List elts :: _)] ->
+    let tys = 
+      List.map unwrap_value_with_loc elts
+      |> List.map fst
+      |> List.map unwrap_ty in
+    Product tys
   | "CNotation", _ ->
     failwith @@ Format.sprintf "todo: implement support for product sexps: %a" Sexplib.Sexp.pp_hum sexp
 [@@warning "-8"]

@@ -1,4 +1,10 @@
-(tests (names test_make_rev_list test_array_of_rev_list test_find_mapi test_array_exists)
+(tests (names
+         test_make_rev_list
+         test_array_of_rev_list
+         test_array_exists
+         test_array_findi
+         test_find_mapi
+ )
  (deps ../../resources/make_rev_list/Verify_make_rev_list_old.v
        ../../resources/make_rev_list/Make_rev_list_old_ml.vo
 
@@ -9,6 +15,8 @@
        ../../resources/array_exists/Verify_array_exists_old.v
        ../../resources/array_exists/Array_exists_old_ml.vo
 
+       ../../resources/array_findi/Verify_array_findi_old.v
+       ../../resources/array_findi/Array_findi_old_ml.vo
 
        ../../resources/find_mapi/Verify_find_mapi_old.v
        ../../resources/find_mapi/Find_mapi_old_ml.vo
