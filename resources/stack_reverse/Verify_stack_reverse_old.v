@@ -25,7 +25,7 @@ Proof.
   }
   xmatch.
   xapp.
-  xlet as;=> revls Hrevls.
+  xletopaque revls Hrevls.
   xletopaque tmp2 Htmp2.
   xapp (list_iter_spec tmp2 revls
           (fun (ls: list A) =>

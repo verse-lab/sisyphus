@@ -15,6 +15,7 @@
          test_sll_of_array
          test_sll_partition
          test_stack_filter
+         test_stack_reverse
  )
  (deps
 
@@ -64,6 +65,8 @@
    ../../resources/stack_filter/Verify_stack_filter_old.v
    ../../resources/stack_filter/Stack_filter_old_ml.vo
 
+   ../../resources/stack_reverse/Verify_stack_reverse_old.v
+   ../../resources/stack_reverse/Stack_reverse_old_ml.vo
 
 
    ../../resources/common/Utils.vo
