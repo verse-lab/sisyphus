@@ -31,14 +31,14 @@
 
 
 (rule
-     (target find_mapi_new.sisyphus.ml)
-     (deps find_mapi_new.ml)
-     (action (with-stdout-to find_mapi_new.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" find_mapi_new.ml))))
+     (target array_is_sorted_new.sisyphus.ml)
+     (deps array_is_sorted_new.ml)
+     (action (with-stdout-to array_is_sorted_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" array_is_sorted_new.ml))))
 
 (rule
- (target Find_mapi_new_ml.v)
- (deps find_mapi_new.sisyphus.ml ../common/Arr_ml.v
+ (target Array_is_sorted_new_ml.v)
+ (deps array_is_sorted_new.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Hashtbl_ml.v
 ../common/Lst_ml.v
@@ -69,17 +69,17 @@
 ../common/sseq.cmj
 ../common/tree.cmj
 ../common/vec.cmj)
- (action (run cfmlc -I ../common -o ./Find_mapi_new_ml.v find_mapi_new.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Array_is_sorted_new_ml.v array_is_sorted_new.sisyphus.ml)))
 
 (rule
-     (target find_mapi_old.sisyphus.ml)
-     (deps find_mapi_old.ml)
-     (action (with-stdout-to find_mapi_old.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" find_mapi_old.ml))))
+     (target array_is_sorted_old.sisyphus.ml)
+     (deps array_is_sorted_old.ml)
+     (action (with-stdout-to array_is_sorted_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" array_is_sorted_old.ml))))
 
 (rule
- (target Find_mapi_old_ml.v)
- (deps find_mapi_old.sisyphus.ml ../common/Arr_ml.v
+ (target Array_is_sorted_old_ml.v)
+ (deps array_is_sorted_old.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Hashtbl_ml.v
 ../common/Lst_ml.v
@@ -110,4 +110,4 @@
 ../common/sseq.cmj
 ../common/tree.cmj
 ../common/vec.cmj)
- (action (run cfmlc -I ../common -o ./Find_mapi_old_ml.v find_mapi_old.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Array_is_sorted_old_ml.v array_is_sorted_old.sisyphus.ml)))

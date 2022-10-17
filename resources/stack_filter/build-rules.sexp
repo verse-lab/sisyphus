@@ -10,7 +10,8 @@
 ../common/Set_ml.vo
 ../common/Sll_ml.vo
 ../common/Sseq_ml.vo
-../common/Tree_ml.vo ../common/Solver.vo
+../common/Tree_ml.vo
+../common/Vec_ml.vo ../common/Solver.vo
 ../common/Tactics.vo
 ../common/Utils.vo
 ../common/Verify_arr.vo
@@ -46,7 +47,8 @@
 ../common/Set_ml.v
 ../common/Sll_ml.v
 ../common/Sseq_ml.v
-../common/Tree_ml.v ../common/arr.ml
+../common/Tree_ml.v
+../common/Vec_ml.v ../common/arr.ml
 ../common/combinators.ml
 ../common/hashtbl.ml
 ../common/lst.ml
@@ -55,7 +57,8 @@
 ../common/set.ml
 ../common/sll.ml
 ../common/sseq.ml
-../common/tree.ml ../common/arr.cmj
+../common/tree.ml
+../common/vec.ml ../common/arr.cmj
 ../common/combinators.cmj
 ../common/hashtbl.cmj
 ../common/lst.cmj
@@ -64,7 +67,8 @@
 ../common/set.cmj
 ../common/sll.cmj
 ../common/sseq.cmj
-../common/tree.cmj)
+../common/tree.cmj
+../common/vec.cmj)
  (action (run cfmlc -I ../common -o ./Stack_filter_new_ml.v stack_filter_new.sisyphus.ml)))
 
 (rule
@@ -84,7 +88,8 @@
 ../common/Set_ml.v
 ../common/Sll_ml.v
 ../common/Sseq_ml.v
-../common/Tree_ml.v ../common/arr.ml
+../common/Tree_ml.v
+../common/Vec_ml.v ../common/arr.ml
 ../common/combinators.ml
 ../common/hashtbl.ml
 ../common/lst.ml
@@ -93,7 +98,8 @@
 ../common/set.ml
 ../common/sll.ml
 ../common/sseq.ml
-../common/tree.ml ../common/arr.cmj
+../common/tree.ml
+../common/vec.ml ../common/arr.cmj
 ../common/combinators.cmj
 ../common/hashtbl.cmj
 ../common/lst.cmj
@@ -102,5 +108,6 @@
 ../common/set.cmj
 ../common/sll.cmj
 ../common/sseq.cmj
-../common/tree.cmj)
+../common/tree.cmj
+../common/vec.cmj)
  (action (run cfmlc -I ../common -o ./Stack_filter_old_ml.v stack_filter_old.sisyphus.ml)))
