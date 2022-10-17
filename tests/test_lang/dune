@@ -100,3 +100,10 @@
  (deps
    ../../resources/stack_reverse/stack_reverse_old.ml
    ../../resources/stack_reverse/stack_reverse_new.ml))
+
+(cram
+ (applies_to vec_filter)
+ (deps
+   ../../resources/vec_filter/vec_filter_old.ml
+   ../../resources/vec_filter/vec_filter_new.ml))
+
