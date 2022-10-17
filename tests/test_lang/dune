@@ -65,3 +65,9 @@
    ../../resources/hashtbl_invert/hashtbl_invert_old.ml
    ../../resources/hashtbl_invert/hashtbl_invert_new.ml))
 
+(cram
+ (applies_to seq_to_array)
+ (deps
+   ../../resources/seq_to_array/seq_to_array_old.ml
+   ../../resources/seq_to_array/seq_to_array_new.ml))
+
