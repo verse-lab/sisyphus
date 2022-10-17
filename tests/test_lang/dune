@@ -82,3 +82,9 @@
  (deps
    ../../resources/sll_of_array/sll_of_array_old.ml
    ../../resources/sll_of_array/sll_of_array_new.ml))
+
+(cram
+ (applies_to sll_partition)
+ (deps
+   ../../resources/sll_partition/sll_partition_old.ml
+   ../../resources/sll_partition/sll_partition_new.ml))
