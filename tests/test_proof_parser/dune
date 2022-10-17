@@ -3,6 +3,7 @@
          test_array_of_rev_list
          test_array_exists
          test_array_findi
+         test_array_foldi
          test_find_mapi
  )
  (deps ../../resources/make_rev_list/Verify_make_rev_list_old.v
@@ -17,6 +18,10 @@
 
        ../../resources/array_findi/Verify_array_findi_old.v
        ../../resources/array_findi/Array_findi_old_ml.vo
+
+       ../../resources/array_foldi/Verify_array_foldi_old.v
+       ../../resources/array_foldi/Array_foldi_old_ml.vo
+
 
        ../../resources/find_mapi/Verify_find_mapi_old.v
        ../../resources/find_mapi/Find_mapi_old_ml.vo
