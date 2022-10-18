@@ -19,26 +19,28 @@ jobs:
           opam-depext: false
 
       - name: Cache
-        id: cache-v2
+        id: cache-opam
         uses: actions/cache@v3
+        env:
+          cache-name: cache-opam
         with:
           path: |
             /home/runner/work/proof-repair/proof-repair/_opam/
-          key: cache-v2
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.opam') }}
 
       - name: Opam & Coq
-        if: steps.cache-v2.outputs.cache-hit != 'true'
+        if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
            opam repository add default https://github.com/ocaml/opam-repository.git --all-switches --set-default
            opam repository add coq-released https://coq.inria.fr/opam/released --all-switches --set-default
 
       - name: Install Dune
-        if: steps.cache-v2.outputs.cache-hit != 'true'
+        if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           opam install dune
 
       - name: Install
-        if: steps.cache-v2.outputs.cache-hit != 'true'
+        if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           opam install . --deps-only
 
