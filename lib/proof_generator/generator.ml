@@ -72,6 +72,24 @@ let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis.Embedding.embed_ex
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
+(* [is_typed_combinator lemma_name] determines if [lemma_name] refers
+   to one of Sisyphus' specialised fold combinators which takes an
+   explicit type parameter as its first argument.
+
+   Why is this required? Because Coq is unable to infer this type
+   automatically from the concrete arguments themselves, as the type
+   of this parameter isn't constrained by the input argument. If we
+   didn't make it explict, then when we attempt to calculate the type
+   of the combinator on concrete arguments, we would receive an unable
+   to find an instance error.
+*)
+let is_typed_combinator lemma_name =
+  match Names.Constant.to_string lemma_name with
+  | "Common.Verify_combinators.until_upto_spec" | "Common.Verify_combinators.until_downto_spec"
+  | "Common.Verify_combinators.nat_fold_up_spec" | "Common.Verify_combinators.nat_fold_down_spec" ->
+    true
+  | _ -> false
+
 
 let rec update_program_id_over_lambda (t: Proof_context.t)
           (`Lambda (_, body): [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ])  =
@@ -242,11 +260,9 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
   (* TODO: generalise this somehow? *)
   (* special case for until and fold combinators, which take their accumulator type as an explicit first parameter   *)
   let explicit_lemma_params =
-    match Names.Constant.to_string lemma_name with
-    | "Common.Verify_combinators.until_upto_spec" | "Common.Verify_combinators.until_downto_spec"
-    | "Common.Verify_combinators.nat_fold_up_spec" | "Common.Verify_combinators.nat_fold_down_spec" ->
-      List.drop 1 explicit_lemma_params
-    | _ -> explicit_lemma_params in
+    if is_typed_combinator lemma_name
+    then List.drop 1 explicit_lemma_params
+    else explicit_lemma_params in
 
   (* we assume that the first explicit arguments to the lemma match the arguments to the function  *)
   let param_bindings, remaining = combine_rem explicit_lemma_params f_args in
@@ -326,6 +342,9 @@ let renormalise_name t (s: string) : string option =
     else s)
     s_norm
 
+(* [calculate_inv_ty t ~f ~args] calculates the type of the invariant
+   required in order to symbolically execute lemma [f] on arguments
+   [args] *)
 let calculate_inv_ty t ~f:lemma_name ~args:f_args =
   let instantiated_spec =
     Format.sprintf "%s %s" (Names.Constant.to_string lemma_name)
@@ -1203,10 +1222,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* now before sending things back to the coq context, we have to
      re-normalise any higher order functions back to their pure models
      - in particular, when doing the synthesis, the expression
-     generator and proof term evaluator talk about the *real* function
-     [f], while our coq terms should talk about the *logical* function
-     model [fp]. See [resources/find_mapi/] for an example of how the
-     logical model looks. *)
+       generator and proof term evaluator talk about the *real* function
+       [f], while our coq terms should talk about the *logical* function
+       model [fp]. See [resources/find_mapi/] for an example of how the
+       logical model looks. *)
   let invariant =
     let subst v = StringMap.find_opt v hf_rev_map in
     let subst_expr e = Lang.Expr.subst_var subst e in
