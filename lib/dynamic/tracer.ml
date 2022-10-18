@@ -73,7 +73,11 @@ let encode_constructor_0 name =
   AH.Exp.(construct (str Longident.(Lident name)) None)
 
 let encode_constructor_n name args =
-  AH.Exp.(construct (str Longident.(Lident name)) (Some (tuple args)))
+  match args with
+  | [arg] ->
+    AH.Exp.(construct (str Longident.(Lident name)) (Some arg))
+  | args ->
+    AH.Exp.(construct (str Longident.(Lident name)) (Some (tuple args)))
 
 (* [build_enc_fun ty] returns an AST encoding a function to convert
    a value of type ty to the value type used in traces *)
@@ -421,6 +425,7 @@ module Generator = struct
     | Lang.Type.Unit -> Unit
     | Lang.Type.Var v -> Symbol v
     | Lang.Type.Int -> Int
+    | Lang.Type.Bool -> Bool
     | Lang.Type.List t -> List (of_type t)
     | Lang.Type.Array t -> Array (of_type t)
     | Lang.Type.Ref t -> Ref (of_type t)
