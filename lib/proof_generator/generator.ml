@@ -234,8 +234,21 @@ let instantiate_arguments t env args (ctx, heap_ctx) =
     application of lemma [name] to arguments [args], where [name] has
     type [ty]. *)
 let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
+  (* split lemma type into - params, invariants, and spec  *)
   let (lemma_params, lemma_invariants, spec) = Proof_utils.CFML.extract_spec lemma_full_type in
+  (* use coq's internals to drop any implicit parameters  *)
   let explicit_lemma_params = Proof_utils.drop_implicits lemma_name lemma_params in
+
+  (* TODO: generalise this somehow? *)
+  (* special case for until and fold combinators, which take their accumulator type as an explicit first parameter   *)
+  let explicit_lemma_params =
+    match Names.Constant.to_string lemma_name with
+    | "Common.Verify_combinators.until_upto_spec" | "Common.Verify_combinators.until_downto_spec"
+    | "Common.Verify_combinators.nat_fold_up_spec" | "Common.Verify_combinators.nat_fold_down_spec" ->
+      List.drop 1 explicit_lemma_params
+    | _ -> explicit_lemma_params in
+
+  (* we assume that the first explicit arguments to the lemma match the arguments to the function  *)
   let param_bindings, remaining = combine_rem explicit_lemma_params f_args in
   match remaining with
   | Some (Right _) | None | Some (Left [])  ->
