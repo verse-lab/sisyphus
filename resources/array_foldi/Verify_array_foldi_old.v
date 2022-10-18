@@ -24,7 +24,7 @@ Proof using (All).
   xcf.
   xapp.
   xletopaque tmp Htmp.
-  xapp (nat_fold_up_spec  0 (length l) tmp init
+  xapp (nat_fold_up_spec B  0 (length l) tmp init
           (fun (i: int) (res: B) =>
              \[res = list_foldi (take i l) init fp] \*
                a ~> Array l)

@@ -22,7 +22,7 @@ Proof using (All).
   xcf.
   xapp.
   xletopaque tmp Htmp.
-  xapp (until_upto_spec 0 (length l) tmp (fun (i: credits) (res: option B) =>
+  xapp (until_upto_spec B 0 (length l) tmp (fun (i: credits) (res: option B) =>
                a ~> Array l \* \[res = list_find_mapi fp (take i l)]
           )
        ). {

@@ -21,7 +21,7 @@ Proof using (All).
   - xvals*. { sis_list_solver. }
   - xref result.
     xletopaque tmp Htmp.
-    xapp (@while_downto_spec (length l - 1) 0 tmp
+    xapp (while_downto_spec (length l - 1) 0 tmp
             (fun (i: int) (b: bool) =>
                \[ b = is_sorted (drop i l) ] \*
                  result ~~> b \*

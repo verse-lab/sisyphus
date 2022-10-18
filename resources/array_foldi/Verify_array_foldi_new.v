@@ -32,6 +32,7 @@ Proof using (All).
     symmetry; erewrite foldi_rcons; auto.
     f_equal; auto.
   }
+  xmatch.
   xapp.
   xvals*.
 Qed.

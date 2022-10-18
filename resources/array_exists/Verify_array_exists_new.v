@@ -22,7 +22,7 @@ Proof using (All).
   xcf.
   xapp.
   xletopaque tmp Htmp.
-  xapp (until_upto_spec 0 (length l) tmp
+  xapp (until_upto_spec bool 0 (length l) tmp
           (fun (i: int) (b: option bool) =>
              \[is_some b = List.existsb fp (take i l)] \*
                a ~> Array l)
