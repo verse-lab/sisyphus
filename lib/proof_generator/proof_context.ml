@@ -75,6 +75,16 @@ let current_subproof {ctx; _} =
   | Some [] -> failwith "failed to obtain subproof - serapi returned no remaining subproofs."
   | None -> failwith "unable to retrieve subproof - serapi returned None."
 
+let current_subproof_opt {ctx; _} =
+  let module Ctx = (val ctx) in
+  Ctx.query Serapi.Serapi_protocol.Goals
+  |> Option.map @@ List.map (function[@warning "-8"]
+    | Serapi.Serapi_protocol.CoqGoal g -> g
+  )
+  |> function
+  | Some (goal :: _) -> Some goal
+  | _ -> None
+
 let current_goal t =
   match (current_subproof t).goals with
   | [goal] -> goal
@@ -82,11 +92,9 @@ let current_goal t =
   | _ -> failwith "failed to obtain focused goal - serapi returned multiple focused goals"
 
 let current_goal_opt t =
-  match (current_subproof t).goals with
-  | [goal] -> Some goal
-  | [] -> None
+  match (current_subproof_opt t) with
+  | Some Serapi.Serapi_goals.{goals=[goal]; _} -> Some goal
   | _ -> None
-
 
 let env {ctx; _} =
   let module Ctx = (val ctx) in
