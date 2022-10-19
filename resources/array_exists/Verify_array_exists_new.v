@@ -8,7 +8,6 @@ From Common Require Import Tactics Utils Solver Verify_opt.
 
 From ProofsArrayExists Require Import Array_exists_new_ml.
 
-
 Lemma array_exists_spec :
   forall (A : Type) `{EA : Enc A} (a : array A) (f : func) (l : list A) (fp: A -> bool),
     (forall (a: A),
