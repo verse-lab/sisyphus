@@ -27,7 +27,8 @@ Proof using (All).
        )). { math. } {
     sis_solve_start.
     xapp (sll_push_spec).
-    xsimpl*.
+    xmatch.
+    xvals*.
     symmetry; erewrite drop_cons_unfold; try math; f_equal.
     f_equal; math.
     f_equal; math.

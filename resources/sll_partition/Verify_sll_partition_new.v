@@ -8,7 +8,7 @@ From Common Require Import Verify_arr.
 From Common Require Import Tactics Utils Solver.
 
 From ProofsSllPartition Require Import Sll_partition_new_ml.
-                  
+
 Lemma sll_partition_spec :
   forall (A : Type) `{EA : Enc A} (p: func) (s : array A)
          (ls: list A) (pp: A -> bool),
@@ -25,12 +25,13 @@ Lemma sll_partition_spec :
 Proof using (All).
   xcf.
   xapp (sll_reverse_spec).
+  xmatch.
   xapp (sll_nil_spec). intros s_t.
   xapp (sll_nil_spec). intros s_f.
   xletopaque tmp Htmp.
   xapp (sll_iter_spec tmp s (fun (ls : list A) =>
                                s_t ~> SLL (filter pp (rev ls)) \*
-                               s_f ~> SLL (filter_not pp (rev ls)) 
+                               s_f ~> SLL (filter_not pp (rev ls))
        )). {
     sis_solve_start; xapp (sll_push_spec); xgo*;
       rew_list; rewrite ?filter_cons, ?filter_not_cons;
