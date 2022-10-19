@@ -268,6 +268,8 @@ let rec encode_expr (expr: Lang.Expr.t) =
     encode_constructor_0 name
   | `Constructor (name, args) ->
     encode_constructor_n name (List.map encode_expr args)
+  | `Tuple [elt] ->
+    encode_expr elt
   | `Tuple elts ->
     AH.Exp.tuple (List.map encode_expr elts)
   | `Lambda (args, body) ->

@@ -82,8 +82,9 @@ let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
   | `App (f, args) ->
     AH.Exp.apply (var (normalize f)) (List.map (fun e -> (AT.Nolabel, encode_expr e)) args)
   | `Lambda (args, body) ->
-    let args = List.map (function `Tuple params -> AH.Pat.tuple (List.map Fun.(pvar % fst) params)
-                                | `Var (v, _) -> pvar v) args in
+    let args = List.map (function
+      | `Tuple params -> AH.Pat.tuple (List.map Fun.(pvar % fst) params)
+      | `Var (v, _) -> pvar v) args in
     fun_ args (encode_expr body)
   | `Int n -> int_const n
   | `Constructor (f, []) ->
