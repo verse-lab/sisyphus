@@ -5,6 +5,10 @@ module AT = Asttypes
 
 module Log = (val Logs.src_log (Logs.Src.create ~doc:"Extracts ocaml programs from proof terms" "analysis.extract"))
 
+let debug pp =
+  if Configuration.print_proof_extraction ()
+  then Log.debug (fun f -> pp f)
+  else ()
 
 let () = Printexc.register_printer (function Failure e -> Some e | _ -> None)
 
@@ -196,7 +200,7 @@ let rec find_next_program_binding_name (trm: Proof_term.t) =
   | _ -> raise Not_found
   
 let rec extract ?replacing (trm: Proof_term.t) =
-  Log.debug (fun f -> f "extract %s@." (Proof_term.tag trm));
+  debug (fun f -> f "extract %s@." (Proof_term.tag trm));
   let extract trm = extract ?replacing trm in
   match trm with
   | Proof_term.XLetVal { pre; binding_ty; let_binding=(var, _); eq_binding; value; proof } ->

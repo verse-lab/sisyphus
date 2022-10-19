@@ -72,6 +72,7 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
     Product (Array.to_iter args |> Iter.map (extract_typ ?rel) |> Iter.to_list)
   | Constr.App (fname, [| ty |]), _ when Utils.is_ind_eq "Coq.Init.Datatypes.option" fname ->
     ADT ("option", [extract_typ ?rel ty], None)
+  | Constr.Var name, _ when String.equal "Coq.Numbers.BinNums.Z" (Names.Id.to_string name) -> Int
   | Constr.Var name, _ -> Var (Names.Id.to_string name)
   | Constr.Const _, _ when Utils.is_const_eq "CFML.Semantics.loc" c -> Loc
   | Constr.Const _, _ when Utils.is_const_eq "CFML.WPBuiltin.func" c -> Func None
@@ -384,7 +385,7 @@ let extract_env hyp =
         || Utils.is_const_eq "CFML.WPLifted.Wpgen_negpat" fn ->
       None                    (* specifications *)
     | Constr.Ind ((ty_name, _), _) ->
-      Some (name, `Val (Lang.Type.Var (Names.MutInd.to_string ty_name)))
+      Some (name, `Val (extract_typ vl))
     | Constr.Var _              (* init: A *)
     | Constr.App (_, _) ->
       Option.map (fun vl -> (name, `Val (vl))) (extract_typ_opt vl)

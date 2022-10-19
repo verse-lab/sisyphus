@@ -214,6 +214,10 @@ let instantiate_arguments t env args (ctx, heap_ctx) =
           )
         )
     end in
+  let lookup_var v ty =
+    let res = lookup_var v ty in
+    Log.debug (fun f -> f "lookup_var %s %a ==> %a@." v  Lang.Type.pp ty (Option.pp Lang.Expr.pp) res);
+    res in
   let rec instantiate_expr (vl, ty) =
     match vl, ty with
     | `Var v, ty ->
@@ -1174,12 +1178,14 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     generate_candidate_invariants t env
       ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
 
-  Configuration.dump_output "generated-pure-invariants" (fun f ->
-    f "%a" (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") Lang.Expr.pp) pure
-  );
-  Configuration.dump_output "generated-heap-invariants" (fun f ->
-    f "%a" (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") (List.pp Lang.Expr.pp)) heap
-  );
+  if Configuration.dump_generated_invariants () then begin
+    Configuration.dump_output "generated-pure-invariants" (fun f ->
+      f "%a" (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") Lang.Expr.pp) pure
+    );
+    Configuration.dump_output "generated-heap-invariants" (fun f ->
+      f "%a" (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") (List.pp Lang.Expr.pp)) heap
+    );
+  end;
 
   let () =
     let no_pure = List.length pure in

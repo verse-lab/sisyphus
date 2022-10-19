@@ -1,7 +1,8 @@
 [@@@warning "-33"]
 open Containers
 
-let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose
+let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose print_extraction_steps
+      dump_generated_invariants
       disable_z3_validation z3_default_timeout z3_challenging_timeout max_z3_calls
       deps coq_deps old_program new_program
       coq_dir coq_lib_name
@@ -10,7 +11,9 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose
   Random.init 2;
 
   Configuration.initialize
-    ?log_level ?log_dir ?dump_dir 
+    ?log_level ?log_dir ?dump_dir
+    ~print_proof_extraction:print_extraction_steps
+    ~dump_generated_invariants
     ?filter_logs:log_filter
     ?default_timeout:z3_default_timeout
     ?challenging_timeout:z3_challenging_timeout ?max_calls:max_z3_calls
@@ -140,6 +143,30 @@ let coq_verbose =
                            ~doc:"$(docv) indicates whether Sisyphus should run Coq with verbose output"
                            ~docv:"COQ_VERBOSE"
                            ["cv"; "coq-verbose"])
+
+let print_extraction_steps =
+  Arg.(
+    value @@
+    flag
+      (info ~doc:"$(opt) indicates whether sisyphus should dump \
+                  detailed information on its proof reduction and \
+                  analysis phases.  Can also be provided through the \
+                  $(env) ENV variable (as 1 to disable Z3 and 0 to \
+                  enable it (default))."
+         ~env:(env_var "SIS_DUMP_EXTRACTION") ["dump-extraction"])
+  )
+
+let dump_generated_invariants =
+  Arg.(
+    value @@
+    flag
+      (info ~doc:"$(opt) indicates whether sisyphus should dump \
+                  generated invariants to the DUMP_DIR directory.  Can \
+                  also be provided through the $(env) ENV variable (as \
+                  1 to disable Z3 and 0 to enable it (default))."
+         ~env:(env_var "SIS_DUMP_INVARIANTS") ["dump-invariants"])
+  )
+
 
 let disable_z3_validation =
   Arg.(
@@ -288,6 +315,8 @@ let () =
                  $ log_filter
                  $ dump_dir
                  $ coq_verbose
+                 $ print_extraction_steps
+                 $ dump_generated_invariants
                  $ disable_z3_validation
                  $ z3_default_timeout
                  $ z3_challenging_timeout

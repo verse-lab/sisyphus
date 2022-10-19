@@ -12,13 +12,11 @@ type t = {
      corresponding program variables.
 
       This information is obtained purely mechanically during
-     execution of the program.  *)
+     execution of the program and is required to handle renaming that
+     might occur when creating fresh variables.  *)
   logical_mappings: string StringMap.t;
   (** [logical_mappings] are a mapping of logical mappings of concrete
-     values (i.e [s]) to their corresponding logical variables [l].
-
-
-     *)  
+     values (i.e [s]) to their corresponding logical variables [l]. *)  
   args: (string * Lang.Type.t) list;
   (** [args] are a full list of formal parameters to the function
      being evaluated *)
@@ -70,12 +68,7 @@ let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
   (* bindings map proof vars to their corresponding program vars  *)
   let bindings =
     List.to_iter args
-    |> Iter.filter_map (fun (v, ty) ->
-      (* if the variable is pure, then its proof var is the same as its program var *)
-      if is_pure_ty ty
-      then Some (v,v)
-      else None
-    )
+    |> Iter.map (fun (v, _ty) -> (v,v))
     |> StringMap.of_iter in
   let gamma = StringMap.of_list args in
   let poly_vars =
