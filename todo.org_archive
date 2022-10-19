@@ -1265,3 +1265,52 @@ CLOSED: [2022-10-19 Wed 03:12]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Update code to properly instantiate until and fold combinators
+CLOSED: [2022-10-19 Wed 03:13]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:34
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update build testing function to instantiate arguments properly again
+CLOSED: [2022-10-19 Wed 03:26]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:34
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* TODO Find out what fails next
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:34
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: TODO
+:END:
+
+* DONE Update proof term to have casing on ADTs
+CLOSED: [2022-10-19 Wed 08:20]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 08:20
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add support for casing on ADTs
+CLOSED: [2022-10-19 Wed 08:20]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 08:20
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

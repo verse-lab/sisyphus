@@ -755,12 +755,8 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     }
   | Constr.App (trm, [| arg |]) when Constr.isCase trm && Proof_utils.is_eq_refl arg ->
     reify_proof_term coq_env env trm
-  | Constr.App (trm, args) ->
-    Format.ksprintf ~f:failwith
-      "reify_proof_term env received App of %s (%s) to %d args\n%s@."
-      (String.take 4_000_000 (Proof_utils.Debug.constr_to_string trm)) (Proof_utils.Debug.tag trm)
-      (Array.length args)
-      (Array.to_string (fun v -> "{" ^ String.take 40_000 (Proof_utils.Debug.constr_to_string v) ^ "}") args)
+  | Constr.App (trm, [| _prop; _hfalse |]) when Proof_utils.is_const_eq "Coq.Init.Logic.False_ind" trm ->
+    CaseFalse
   | Constr.Lambda ({Context.binder_name;_}, ty, proof) ->
     let binder_name = name_to_string binder_name in
     let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
@@ -814,6 +810,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
         (* we expect the type of the constructor to be a simple (polymorphic) OCaml-like type: *)
         let params, constr_type = match constr_tys with
           | [Lang.Type.Func (Some (args, res))] -> args, res
+          | [res] -> [], res
           |  _ ->
             Format.ksprintf ~f:failwith "found unexpected type for constructor %a"
               Lang.Type.pp_fn f in
@@ -852,7 +849,12 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       vl;
       cases
     }
-
+  | Constr.App (trm, args) ->
+    Format.ksprintf ~f:failwith
+      "reify_proof_term env received App of %s (%s) to %d args\n%s@."
+      (String.take 4_000_000 (Proof_utils.Debug.constr_to_string trm)) (Proof_utils.Debug.tag trm)
+      (Array.length args)
+      (Array.to_string (fun v -> "{" ^ String.take 40_000 (Proof_utils.Debug.constr_to_string v) ^ "}") args)
   | Constr.Case (info, _, _, _, _, _, cases) ->
     Format.ksprintf ~f:failwith
       "reify_proof_term env received case on %s: %s"

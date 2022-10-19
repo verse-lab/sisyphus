@@ -7,8 +7,4 @@ and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
 ** TODO Add parsing unit tests for array_partition
-** DONE Update code to properly instantiate until and fold combinators
-CLOSED: [2022-10-19 Wed 03:13]
-** TODO Update build testing function to instantiate arguments properly again
-** TODO Find out what fails next
 ** TODO You're the BEST around
