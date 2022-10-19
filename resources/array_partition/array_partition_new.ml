@@ -1,14 +1,16 @@
 open Arr
 
-let partition p xs =
-  let left, right = ref [], ref [] in
-  array_iter (fun vl ->
-    if p vl
+let partition (p: 'a -> bool) (xs: 'a array) =
+  let (left: 'a list ref) = ref [] in
+  let (right: 'a list ref) = ref [] in
+  let (_: unit) = array_iter (fun (vl: 'a) ->
+    let (r: bool) = p vl in
+    if r
     then left := vl :: !left
     else right := vl :: !right
-  ) xs;
-  let left = List.rev !left in
-  let right = List.rev !right in
-  let left = Array.of_list left in
-  let right = Array.of_list right in
+  ) xs in
+  let (left: 'a list) = List.rev !left in
+  let (right: 'a list) = List.rev !right in
+  let (left: 'a array) = Array.of_list left in
+  let (right: 'a array) = Array.of_list right in
   left, right
