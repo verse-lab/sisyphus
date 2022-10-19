@@ -25,9 +25,8 @@ Lemma array_partition_spec :
   ).
 Proof using (All).
   xcf.
-  xref a_f.
   xref a_t.
-  xmatch.
+  xref a_f.
   xletopaque tmp Htmp.
   xapp (array_iter_spec tmp a l (fun (ls: list A) =>
                                    a_t ~~> filter pp (rev ls) \*
@@ -35,12 +34,13 @@ Proof using (All).
        )). {
     sis_solve_start; autorewrite with rew_list filter_lemmas; sis_handle_if.
   }
+  xmatch.
   xapp.
   xlet.
   xapp.
   xlet.
   xapp. intros Ht.
   xapp. intros Hf.
-  xvals*. { rewrite Pleft; autorewrite with rew_list filter_lemmas; auto. }
-  { rewrite Pright; autorewrite with rew_list filter_lemmas; auto. }
+  xvals*. { rewrite Pleft_l; autorewrite with rew_list filter_lemmas; auto. }
+  { rewrite Pright_l; autorewrite with rew_list filter_lemmas; auto. }
 Qed.

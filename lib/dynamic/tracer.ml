@@ -77,7 +77,7 @@ let encode_constructor_n name args =
 
 (* [build_enc_fun ty] returns an AST encoding a function to convert
    a value of type ty to the value type used in traces *)
-let build_enc_fun v = 
+let build_enc_fun v =
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
   let tmp_var_id_count = ref 0 in
   let fresh () =
@@ -154,7 +154,7 @@ let build_enc_fun v =
             ]))
     | Lang.Type.ADT (_adt, _tys, _) -> None
     | Lang.Type.Product tys ->
-      let+ enc_funs = 
+      let+ enc_funs =
         List.map build_enc_fun tys
         |> List.all_some in
       let pat_vars =
@@ -195,7 +195,7 @@ let build_heap_enc_exp (v: Lang.Type.t) var =
     Some (AH.Exp.variant "Array" @@ Some (
       list_map enc_fun (array_to_list (AH.Exp.ident (str Longident.(Lident var))))
     ))
-  | Lang.Type.Ref ty -> 
+  | Lang.Type.Ref ty ->
     let+ enc_fun = build_enc_fun ty in
     Some (AH.Exp.variant "PointsTo" @@ Some (
       AH.Exp.apply enc_fun [
@@ -229,7 +229,7 @@ let encode_heap env =
 
 let wrap_with_observe env ~at ~then_ =
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
-  AH.Exp.sequence 
+  AH.Exp.sequence
     AH.Exp.(apply (ident Longident.(str @@ Ldot ((Lident "Sisyphus_tracing"), "observe"))) [
       Labelled "at", encode_int at;
       Labelled "env", encode_env env;
@@ -311,7 +311,7 @@ let annotate ?(deep=false) ({ prelude; name; args; body; _ }: Lang.Expr.t Lang.P
     | `LetLambda (var, `Lambda (params, lambody), body) ->
       let vb =
         let pat = (AH.Pat.var (str var)) in
-        let lambody = 
+        let lambody =
           let env = List.fold_left (fun env param -> add_param param env) env params in
           List.fold_right (fun param exp -> AH.Exp.fun_ Nolabel None (encode_param param) exp) params @@
           encode_stmt ~observe:(if deep then true else false) env lambody in
@@ -421,6 +421,7 @@ module Generator = struct
     | Lang.Type.Unit -> Unit
     | Lang.Type.Var v -> Symbol v
     | Lang.Type.Int -> Int
+    | Lang.Type.Bool -> Bool
     | Lang.Type.List t -> List (of_type t)
     | Lang.Type.Array t -> Array (of_type t)
     | Lang.Type.Ref t -> Ref (of_type t)
@@ -455,17 +456,17 @@ module Generator = struct
            tuple [fresh_int poly_vars s; AH.Exp.constant (Pconst_string (s, Location.none, None))]
           ]
       )
-    | Int -> 
+    | Int ->
       let* i = Random.int 10 in
       pure @@ AH.Exp.constant (Pconst_integer (string_of_int i, None))
-    | Bool -> 
+    | Bool ->
       let* b = Random.State.bool in
       pure @@  encode_constructor_0 (if b then "true" else "false")
     | List ty ->
       let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr poly_vars ty) |> list_seq in
       pure (encode_list contents)
-    | Array ty -> 
+    | Array ty ->
       let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr poly_vars ty) |> list_seq in
       pure @@ AH.Exp.array contents
@@ -478,7 +479,7 @@ module Generator = struct
     | Product elts ->
       let* elts = List.map (sample_expr poly_vars) elts |> list_seq in
       pure @@ AH.Exp.tuple elts
-    | Converted (conv, ty) -> 
+    | Converted (conv, ty) ->
       let* sz = Random.pick_array [|3; 4; 5; 8; 10|] in
       let* contents = List.init sz (fun _ -> sample_expr poly_vars ty) |> list_seq in
       pure @@ AH.Exp.(
@@ -584,7 +585,7 @@ module Generator = struct
     pure @@
     List.fold_right (fun (_, _, var) body ->
       AH.Exp.fun_ Nolabel None var body
-    ) args body 
+    ) args body
 
 
   let sample ?st (schema: schema) : instantiation =
@@ -685,7 +686,7 @@ let bitrace env (deps1, prog1) (deps2, prog2) =
   assert (List.equal Generator.equal_arg_schema schema (Generator.extract_schema prog2));
   let prog1 = CompilationContext.eval_definition_with_annotations env ~deps:deps1 ~prog:prog1 in
   let prog2 = CompilationContext.eval_definition_with_annotations env ~deps:deps2 ~prog:prog2 in
-  fun ?st () -> 
+  fun ?st () ->
     let input = Generator.sample ?st schema in
     Log.debug (fun f -> f "synthesized random arguments %a@." (List.pp Pprintast.expression) input);
     let trace1 = generate_trace env prog1 input in
@@ -695,7 +696,7 @@ let bitrace env (deps1, prog1) (deps2, prog2) =
 let execution_trace env (deps2, prog2) =
   let schema = Generator.extract_schema prog2 in
   let prog2 = CompilationContext.eval_definition_with_annotations  env ~deps:deps2 ~prog:prog2 in
-  fun ?st () -> 
+  fun ?st () ->
     let input = Generator.sample ?st schema in
     let trace2 = generate_trace env prog2 input in
     input, trace2

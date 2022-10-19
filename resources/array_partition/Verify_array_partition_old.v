@@ -4,7 +4,6 @@ From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
 From Common Require Import Verify_arr.
-
 From Common Require Import Tactics Utils Solver.
 
 From ProofsArrayPartition Require Import Array_partition_old_ml.
@@ -71,6 +70,7 @@ Proof using (All).
           rewrite length_drop_nonneg, Ha_t_data, length_make, Htvr; rew_list; try math.
           rewrite Ha_t_data, Htvr, length_make; rew_list;  try math.
         }
+        xmatch.
         xapp*.
         xsimpl*. {
           rewrite filter_last, Htmpcond, If_l; rew_list; auto; try math.
@@ -114,6 +114,7 @@ Proof using (All).
           rewrite length_drop_nonneg, Ha_f_data, length_make, Htvr; rew_list; try math.
           rewrite Ha_f_data, Htvr, length_make; rew_list;  try math.
         }
+        xmatch.
         xapp*.
         xsimpl*. {
           rewrite filter_last, If_r; rew_list; auto; try math.
@@ -148,8 +149,9 @@ Proof using (All).
               apply int_index_prove; math.
               apply int_index_prove; math.
           }
-        } 
+        }
     }
+    xmatch.
     xapp.
     xapp. { apply length_nonneg. }
     intros a_left.
