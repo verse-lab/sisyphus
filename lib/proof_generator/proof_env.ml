@@ -9,10 +9,15 @@ type t = {
      corresponding definitions and observation points. *)
   bindings: string StringMap.t;
   (** [bindings] are a mapping of proof vars (i.e [idx]) to their
-     corresponding program variables.  *)
+     corresponding program variables.
+
+      This information is obtained purely mechanically during
+     execution of the program.  *)
   logical_mappings: string StringMap.t;
   (** [logical_mappings] are a mapping of logical mappings of concrete
      values (i.e [s]) to their corresponding logical variables [l].
+
+
      *)  
   args: (string * Lang.Type.t) list;
   (** [args] are a full list of formal parameters to the function
@@ -45,6 +50,7 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
   | Lang.Type.Unit
   | Lang.Type.Bool
   | Lang.Type.Var _ -> true
+  | Lang.Type.ADT ("option", [ty], _)
   | Lang.Type.List ty -> is_pure_ty ty
   | Lang.Type.Product elts ->
     List.for_all is_pure_ty elts
