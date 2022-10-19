@@ -109,7 +109,6 @@ let env {ctx; _} =
   | None -> failwith "unable to obtain proof env - serapi returned None."
 
 let typeof_opt t expr =
-  Log.debug (fun f -> f "checking the type of %s" expr);
   let no_hyps = List.length (current_goal t).hyp in
   append t "pose proof (%s)." expr;
   match current_goal_opt t with
@@ -117,7 +116,7 @@ let typeof_opt t expr =
   | Some goal ->
     if List.length goal.hyp <= no_hyps
     then (cancel_last t; None)
-    else let (_, _, ty) = List.hd goal.hyp in let module Ctx = (val t.ctx) in (cancel_last t; Some ty)
+    else let (_, _, ty) = List.hd goal.hyp in (cancel_last t; Some ty)
 
 let typeof t expr =
   assert (not (String.equal expr "="));
@@ -126,7 +125,7 @@ let typeof t expr =
   match current_goal_opt t with
   | None ->
     Format.ksprintf
-      ~f:failwith "attempted to check type of invalid (syntax) expression (%s)." expr;
+      ~f:failwith "attempted to check type of invalid (syntax) expression (%s)." expr
   | Some goal ->
     if List.length goal.hyp <= no_hyps then
       Format.ksprintf

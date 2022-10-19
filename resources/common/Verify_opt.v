@@ -19,6 +19,7 @@ Proof.
     pose proof (C a).
     contradiction H; auto.
 Qed.
+#[export] Hint Extern 1 (RegisterSpec option_is_some) => Provide opt_is_some_spec.
 
 Lemma opt_is_none_spec : forall (A:Type) `{EA: Enc A} (v: option A),
     SPEC_PURE (option_is_none v)
@@ -31,6 +32,7 @@ Proof.
     unfold Wpgen_negpat in C.
     destruct v; simpl; auto.
 Qed.
+#[export] Hint Extern 1 (RegisterSpec option_is_none) => Provide opt_is_none_spec.
 
 Lemma not_is_some_eq (A: Type) (x: option A):
   is_some x = false -> x = None.

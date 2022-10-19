@@ -91,6 +91,15 @@ let is_typed_combinator lemma_name =
     true
   | _ -> false
 
+(* [is_option_combinator lemma_name] determines if [lemma_name] refers
+   to one of Sispyhus' specialised fold combinators which take an
+   explicit type parameter as its first argument.  *)
+let is_option_combinator lemma_name =
+  match Names.Constant.to_string lemma_name with
+  | "Common.Verify_combinators.until_upto_spec" | "Common.Verify_combinators.until_downto_spec" -> true
+  | _ -> false
+
+
 
 let rec update_program_id_over_lambda (t: Proof_context.t)
           (`Lambda (_, body): [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ])  =
@@ -142,7 +151,6 @@ let build_complete_params t ~inv lemma_name init_params =
         "%s %s"
         (Names.Constant.to_string lemma_name)
         (arg_list_to_str params) in
-    Log.debug (fun f -> f "checking the type of %s" term);
     Proof_context.typeof t term in
   let inv_name = ref (Some (fst inv)) in
   let inv = ref inv in
@@ -185,7 +193,9 @@ let build_complete_params t ~inv lemma_name init_params =
     to represent polymorphic values. *)
 let instantiate_arguments t env args (ctx, heap_ctx) =
   let lookup_var v ty =
-    Log.debug (fun f -> f "Key list is %a" (List.pp String.pp) (StringMap.keys env.Proof_env.bindings |> List.of_iter));
+    Log.debug (fun f -> f "Key list is [%a]"
+                          (List.pp String.pp)
+                          (StringMap.keys env.Proof_env.bindings |> List.of_iter));
     begin match StringMap.find_opt v env.Proof_env.bindings with
     | None -> Some (`Var v)
     | Some v ->
@@ -293,6 +303,9 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
     | "not" -> Lang.Type.[[Bool], Bool]
     | "-" -> Lang.Type.[[Int; Int], Int]
     | "+" -> Lang.Type.[[Int; Int], Int]
+    | "=" -> []
+    | s when not (String.exists Char.(fun c -> ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')) s) ->
+      Format.ksprintf ~f:failwith "found unknown operator %s" s
     | s ->
       let (let+) x f = Option.bind x f in
       Option.value ~default:[] @@
@@ -313,7 +326,6 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
           ) in
         Some (instantiations)
       | _ -> None in
-  Log.debug (fun f -> f "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.List.t] ty));
   ty
 
 let renormalise_name t (s: string) : string option =
@@ -344,23 +356,26 @@ let renormalise_name t (s: string) : string option =
    required in order to symbolically execute lemma [f] on arguments
    [args] *)
 let calculate_inv_ty t ~f:lemma_name ~args:f_args =
+  let combinator_ty = 
+    if is_typed_combinator lemma_name
+    then 
+      let ty = Proof_utils.CFML.extract_xapp_type (Proof_context.current_goal t).ty in
+      let ty =
+        if is_option_combinator lemma_name
+        then match ty with | Lang.Type.ADT ("option", [ty], _) -> ty
+                           | _ -> Format.ksprintf ~f:failwith "invalid option combinator type %a" Lang.Type.pp ty
+        else ty in
+      Some (`Type ty)
+    else None in
   let instantiated_spec =
-    let args = List.map (fun (v, ty) -> `Typed (v, ty)) f_args in
-    let args =
-      if is_typed_combinator lemma_name
-      then 
-        let ty =
-          Proof_utils.CFML.extract_xapp_type
-            (Proof_context.current_goal t).ty in
-        `Type ty :: args
-      else args in
+    let args = Option.to_list combinator_ty @ List.map (fun (v, ty) -> `Typed (v, ty)) f_args in
     Format.sprintf "%s %s" (Names.Constant.to_string lemma_name)
       (arg_list_to_str args) in
   let instantiated_spec = (Proof_context.typeof t instantiated_spec) in
   let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
   let tys = Proof_utils.CFML.unwrap_invariant_type ty in
   let tys = List.mapi (fun i v -> Format.sprintf "arg%d" i, v) tys in
-  name_to_string binder_name, tys
+  combinator_ty, (name_to_string binder_name, tys)
 
 (** [reduce_term t term] reduces a proof term [term] using ultimate
     reduction.  *)
@@ -435,11 +450,13 @@ let reduce_term t term =
 
 
 
-(** [build_testing_function t env ~pre ~f ~args obs] builds a test
-    specification from a partially reduced proof term of the lemma [f]
-    applied to values of its arguments [args] at the current position
-    in a concrete observation [obs] *)
-let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) =
+(** [build_testing_function t env ?combinator_ty ~pre ~f ~args obs]
+   builds a test specification from a partially reduced proof term of
+   the lemma [f] applied to values of its arguments [args] at the
+   current position in a concrete observation [obs]. [combinator_ty]
+   is an optional explicit type if the combinator is one of the
+   sisyphus dedicated loop combinators. *)
+let build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) =
   Log.debug (fun f -> f "build_testing_function called on %s.\nProof context:\n%s"
                         (Names.Constant.to_string lemma_name)
                         (Proof_context.extract_proof_script t));
@@ -464,15 +481,7 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
           f "instantiated args=%s@."
             ([%show: (Lang.Expr.t * Lang.Type.t) List.t] instantiated_params));
 
-        let params = List.map (fun (vl, ty) -> `Typed (vl, ty)) instantiated_params in
-        let params =
-          if is_typed_combinator lemma_name
-          then
-            let ty =
-              Proof_utils.CFML.extract_xapp_type
-                (Proof_context.current_goal t).ty in
-            `Type ty :: params
-          else params in
+        let params = Option.to_list combinator_ty @ List.map (fun (vl, ty) -> `Typed (vl, ty)) instantiated_params in
 
         (* next, add evars for the remaining arguments to lemma *)
         let lemma_complete_params, inv_ty =
@@ -565,6 +574,9 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         |> (if uses_options
             then StringSet.add "is_some"
             else Fun.id)
+        |> (if uses_options
+            then StringSet.add "Opt.option_is_some"
+            else Fun.id)
         (* add in any hof functions in our proof env  *)
         |> Fun.flip StringSet.add_iter
              (List.to_iter proof_vars
@@ -607,6 +619,8 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       | Lang.Type.Int
       | Lang.Type.Bool
       | Lang.Type.Val -> Some (v,ty)
+      (* TODO(KIRAN): HANDLE ADTS *)
+      | Lang.Type.ADT ("option", _, _) -> Some (v, ty)
       | _ -> None
     ) in
 
@@ -1128,7 +1142,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       (function `Impure heaplet -> Some (Proof_utils.CFML.extract_impure_heaplet heaplet) | _ -> None)
       (match pre with | `Empty -> [] | `NonEmpty ls -> ls) in
 
-  let inv_ty = calculate_inv_ty t ~f:lemma_name ~args:f_args in
+  let combinator_ty, inv_ty = calculate_inv_ty t ~f:lemma_name ~args:f_args in
 
   (* collect an observation for the current program point *)
   let observations =
@@ -1139,7 +1153,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
   (* build an initial test specification from the partially reduced proof term applied to values at the current position *)
   let test_f =
-    build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
+    build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
 
   (* retrieve the body of the higher order function being called *)
   let fun_body =
@@ -1188,7 +1202,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       let cp = t.Proof_context.concrete () in
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
       let concrete_args = Dynamic.Concrete.args cp in
-      build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) in
+      build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) in
     prune_candidates_using_testf test_f (pure,heap) in
 
   (* and again (50 ms) *)
@@ -1197,7 +1211,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       let cp = t.Proof_context.concrete () in
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
       let concrete_args = Dynamic.Concrete.args cp in
-      build_testing_function t env  ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) in
+      build_testing_function t env ?combinator_ty  ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) in
     prune_candidates_using_testf test_f (pure,heap) in
 
 
@@ -1255,7 +1269,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* xapp lemma *)
   begin
     let lemma_name = Names.Constant.to_string lemma_name in
-    let const_args = (arg_list_to_str (List.map (fun (v, ty) -> `Untyped v) f_args)) in
+    let const_args = (arg_list_to_str (Option.to_list combinator_ty @ (List.map (fun (v, ty) -> `Untyped v) f_args))) in
     let pp_param =
       List.pp
         ~pp_sep:(fun fmt () -> Format.pp_print_string fmt " ")

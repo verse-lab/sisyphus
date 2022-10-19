@@ -59,7 +59,9 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
 
 let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
 
+  let rev_logical_mappings = StringMap.of_list (List.map Pair.swap logical_mappings) in
   let logical_mappings = StringMap.of_list logical_mappings in
+
   (* bindings map proof vars to their corresponding program vars  *)
   let bindings =
     List.to_iter args
@@ -69,7 +71,7 @@ let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
       then Some (v,v)
       (* if its not pure, then check if we have a logical mapping as
          [l ==> s] provided by the user. If so, map proof var [s] to program var [l]  *)
-      else StringMap.find_opt v logical_mappings
+      else StringMap.find_opt v rev_logical_mappings
            |> Option.map (fun bv -> (bv, v))
     )
     |> StringMap.of_iter in

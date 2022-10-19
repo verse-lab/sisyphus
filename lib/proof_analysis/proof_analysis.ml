@@ -769,7 +769,9 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
   | Constr.Case (info, _, _, _, _, _, [| |]) when String.equal (Names.MutInd.to_string (fst info.ci_ind)) "Coq.Init.Logic.False" ->
     Log.debug (fun f -> f "reify proof term on case false");
     CaseFalse
-  | Constr.Case (info, _univ, [|ty|], (ret_args, ret_ty), _inv, vl, cases) when Constr.isApp ty ->
+
+
+  | Constr.Case (info, _univ, tys, (ret_args, ret_ty), _inv, vl, cases) ->
     Log.debug (fun f -> f "reify proof term on case ADT");
 
     (* retrieve the inductive type being cased on *)
@@ -794,7 +796,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     ) inductive_type.mind_params_ctxt in
 
     (* retrieve the concrete formal params *)
-    let concrete_formal_params = Constr.destApp ty |> snd |> Array.to_list in
+    let concrete_formal_params = Array.to_list tys in
 
     asserts (List.compare_lengths formal_params concrete_formal_params = 0)
       (fun f -> f "expected inductive type to be fully instantiated.");
@@ -859,11 +861,6 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       (String.take 4_000_000 (Proof_utils.Debug.constr_to_string trm)) (Proof_utils.Debug.tag trm)
       (Array.length args)
       (Array.to_string (fun v -> "{" ^ String.take 40_000 (Proof_utils.Debug.constr_to_string v) ^ "}") args)
-  | Constr.Case (info, _, _, _, _, _, cases) ->
-    Format.ksprintf ~f:failwith
-      "reify_proof_term env received case on %s: %s"
-      (Names.MutInd.to_string (fst @@ info.ci_ind))
-      (String.take 4000 (Proof_utils.Debug.constr_to_string trm))
   | _ ->
     Format.ksprintf ~f:failwith
       "reify_proof_term env received %s"
