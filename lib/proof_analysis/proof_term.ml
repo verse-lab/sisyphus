@@ -70,6 +70,7 @@ type t =
   | XVal of { pre: sym_heap; value_ty: ty; value: expr }
   | XDone of sym_heap
   | CaseBool of { cond: expr; if_true: t; if_false: t }
+  | CaseADT of { vl: expr; cases: ((string * ty) list * t) list; }
   | VarApp of spec_app
   | AuxVarApp of string * spec_arg list * t
   | CharacteristicFormulae of {
@@ -110,4 +111,5 @@ let tag = function
   | Refl -> "Refl"
   | XIfVal _ -> "XIfVal"
   | CaseBool _ -> "CaseBool"
+  | CaseADT _ -> "CaseADT"
   | CaseFalse -> "CaseFalse"
