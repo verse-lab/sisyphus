@@ -27,6 +27,7 @@ let is_xval_lemma const = is_const_named "xval_lemma" const
 let is_xifval_lemma const = is_const_named "xifval_lemma" const
 let is_xdone_lemma const = is_const_named "xdone_lemma" const
 let is_mkstruct_erase const = is_const_named "MkStruct_erase" const
+let is_himpl const = is_const_named "himpl" const
 let is_himpl_hand_r const = is_const_named "himpl_hand_r" const
 let is_himpl_hexists_r const = is_const_named "himpl_hexists_r" const
 let is_himpl_hexists_l const = is_const_named "himpl_hexists_l" const
@@ -281,9 +282,32 @@ let extract_cfml_goal goal =
   in
   (pre, post)
 
+(** [extract_xapp_type c] given a coq term [c] representing a CFML
+   goal immediately prior to calling a function, returns the return
+   type of the function. *)
+let extract_xapp_type pre =
+  let extract_app_enforce name f n pre =
+    match Constr.kind pre with
+    | Constr.App (fname, args) when f fname && Array.length args > n ->
+      args.(n)
+    | _ ->
+      Log.err (fun f -> f "failed because unknown structure for %s: %s\n" name (Proof_debug.constr_to_string pre));
+      failwith name in
+  try
+    pre
+    |> extract_app_enforce "himpl" is_himpl 1
+    |> extract_app_enforce "wptag" is_wptag 0
+    |> extract_app_enforce "wpgen_let_trm" is_wp_gen_let_trm 0
+    |> extract_app_enforce "wptag" is_wptag 0
+    |> extract_app_enforce "xapp" is_wp_gen_app 0
+    |> extract_typ
+  with
+    Failure msg -> failwith ("extract_f_app failed " ^ msg ^ " because unsupported context: " ^ (Proof_debug.constr_to_string pre))
+
+
 (** [extract_xapp_fun c] given a coq term [c] representing a reified
-    CFML encoding of an OCaml program with a let of a function as the
-    next statement, extracts the function being calle'ds arguments *)
+   CFML encoding of an OCaml program with a let of a function as the
+   next statement, extracts the function being called's arguments. *)
 let extract_x_app_fun pre =
   let extract_app_enforce name f n pre =
     match Constr.kind pre with

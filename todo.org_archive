@@ -1245,3 +1245,23 @@ CLOSED: [2022-10-17 Mon 09:14]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Setup vterm to run tests
+CLOSED: [2022-10-19 Wed 02:53]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:12
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update code to use combinator
+CLOSED: [2022-10-19 Wed 03:12]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:12
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

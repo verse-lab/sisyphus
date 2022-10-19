@@ -44,7 +44,8 @@ let name_to_string name = Format.to_string Pp.pp_with (Names.Name.print name)
 
 let arg_list_to_str args =
   (List.map (function
-       `Untyped vl -> "(" ^ Proof_utils.Printer.show_expr vl ^ ")"
+     | `Type ty -> "(" ^ Proof_utils.Printer.show_ty ty ^ ")"
+     | `Untyped vl -> "(" ^ Proof_utils.Printer.show_expr vl ^ ")"
      | `Typed (vl, ty) -> "(" ^ Proof_utils.Printer.show_expr vl ^ ": " ^ Proof_utils.Printer.show_ty ty ^ ")"
    ) args
    |> String.concat " ")
@@ -140,7 +141,7 @@ let build_complete_params t ~inv lemma_name init_params =
       Format.sprintf
         "%s %s"
         (Names.Constant.to_string lemma_name)
-        (arg_list_to_str (List.map (fun v -> v) params)) in
+        (arg_list_to_str params) in
     Log.debug (fun f -> f "checking the type of %s" term);
     Proof_context.typeof t term in
   let inv_name = ref (Some (fst inv)) in
@@ -347,8 +348,17 @@ let renormalise_name t (s: string) : string option =
    [args] *)
 let calculate_inv_ty t ~f:lemma_name ~args:f_args =
   let instantiated_spec =
+    let args = List.map (fun (v, ty) -> `Typed (v, ty)) f_args in
+    let args =
+      if is_typed_combinator lemma_name
+      then 
+        let ty =
+          Proof_utils.CFML.extract_xapp_type
+            (Proof_context.current_goal t).ty in
+        `Type ty :: args
+      else args in
     Format.sprintf "%s %s" (Names.Constant.to_string lemma_name)
-      (arg_list_to_str (List.map (fun (v, ty) -> `Typed (v, ty)) f_args)) in
+      (arg_list_to_str args) in
   let instantiated_spec = (Proof_context.typeof t instantiated_spec) in
   let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
   let tys = Proof_utils.CFML.unwrap_invariant_type ty in
@@ -457,9 +467,19 @@ let build_testing_function t env ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f
           f "instantiated args=%s@."
             ([%show: (Lang.Expr.t * Lang.Type.t) List.t] instantiated_params));
 
+        let params = List.map (fun (vl, ty) -> `Typed (vl, ty)) instantiated_params in
+        let params =
+          if is_typed_combinator lemma_name
+          then
+            let ty =
+              Proof_utils.CFML.extract_xapp_type
+                (Proof_context.current_goal t).ty in
+            `Type ty :: params
+          else params in
+
         (* next, add evars for the remaining arguments to lemma *)
         let lemma_complete_params, inv_ty =
-          build_complete_params t ~inv:inv_ty lemma_name (List.map (fun (vl, ty) -> `Typed (vl, ty)) instantiated_params) in
+          build_complete_params t ~inv:inv_ty lemma_name params in
 
         Log.debug (fun f ->
           f "considering app (%s %s)@."
