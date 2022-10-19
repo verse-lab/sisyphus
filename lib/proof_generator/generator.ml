@@ -296,27 +296,24 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
     | s ->
       let (let+) x f = Option.bind x f in
       Option.value ~default:[] @@
-      try
-        let ty = (Proof_context.typeof t s) in
-        let+ s_base = String.split_on_char '.' s |> List.last_opt in
-        let+ name = Proof_context.names t s_base in
-        match name with
-        | Names.GlobRef.ConstRef s ->
-          let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ ~name:s ty in
-          let instantiations =
-            List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) env.Proof_env.poly_vars) poly
-            |> List.map (fun subst ->
-              let subst = StringMap.of_list subst in
-              let map v = StringMap.find_opt v subst
-                          |> Option.value ~default:v in
-              List.map (Lang.Type.map_poly_var map) args
-              |> split_last
-            ) in
-          Some (instantiations)
-        | _ -> None
-      with
+      let+ ty = (Proof_context.typeof_opt t s) in
+      let+ s_base = String.split_on_char '.' s |> List.last_opt in
+      let+ name = Proof_context.names t s_base in
+      match name with
+      | Names.GlobRef.ConstRef s ->
+        let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ ~name:s ty in
+        let instantiations =
+          List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) env.Proof_env.poly_vars) poly
+          |> List.map (fun subst ->
+            let subst = StringMap.of_list subst in
+            let map v = StringMap.find_opt v subst
+                        |> Option.value ~default:v in
+            List.map (Lang.Type.map_poly_var map) args
+            |> split_last
+          ) in
+        Some (instantiations)
       | _ -> None in
-  (* Log.debug (fun f -> f "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.Option.t] ty)); *)
+  Log.debug (fun f -> f "checking the type of %s -> %s\n@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.List.t] ty));
   ty
 
 let renormalise_name t (s: string) : string option =

@@ -109,6 +109,7 @@ let env {ctx; _} =
   | None -> failwith "unable to obtain proof env - serapi returned None."
 
 let typeof_opt t expr =
+  Log.debug (fun f -> f "checking the type of %s" expr);
   assert (not (String.equal expr "="));
   let no_hyps = List.length (current_goal t).hyp in
   append t "pose proof (%s)." expr;
