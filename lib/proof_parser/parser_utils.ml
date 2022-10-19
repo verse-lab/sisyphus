@@ -27,6 +27,13 @@ let unwrap_tagged =
   function [@warning "-8"]
   | List (Atom t :: args) -> t, args
 
+(** [unwrap_id s] given a s-expression of the form [(Id
+    <arg>)] returns [<arg>]. *)
+let unwrap_id sexp =
+  match [@warning "-8"] unwrap_list sexp with
+  | [Atom "Id"; Atom id] -> id
+
+
 (** [unwrap_value_binding sexp] when given a s-expression of the form
    [([k] [vl])], where [k] is an atom, returns a tuple of [(k,v)].  *)
 let unwrap_value_binding =
@@ -88,23 +95,39 @@ let unwrap_tacgeneric_arg sexp =
     let  [@warning "-8"] ("constr", exp) = unwrap_genarg arg in
     exp
 
+(** [unwrap_dirpath sexp] when given a [sexp] of the form:
+    {[
+      (DirPath ([dirpath]))
+    ]}
+    returns [dirpath]. if it exists, else ""
+*)
+let unwrap_dirpath sexp =
+  let _, path = unwrap_tagged sexp in
+  match path with
+  | [List []] -> ""
+  | [List [List [Atom "Id"; Atom dir]]] -> dir ^ "."
+  | _ -> failwith @@ Format.sprintf "expected dirpath but received s: %a" Sexplib.Sexp.pp_hum sexp
+
+
 (** [unwrap_cref sexp] when given a [sexp] of the form:
     {[
       (CRef
          ((v
-             (Ser_Qualid _
+             (Ser_Qualid
+                dirpath
                 (Id [name])))
             (loc _)))
     ]}
-    returns [name]
+    returns [name] if dirpath is empty, else [dirpath][name]
 *)
 let unwrap_cref sexp =
   let open Sexplib.Sexp in
   match [@warning "-8"] unwrap_tagged sexp with
   | "CRef", [binding; _] ->
     let v, _ = unwrap_value_with_loc binding in
-    let _, [_; List [Atom "Id"; Atom cref]] = unwrap_tagged v in
-    cref
+    let _, [dirpath; List [Atom "Id"; Atom cref]] = unwrap_tagged v in
+    let dirpath = unwrap_dirpath dirpath in
+    dirpath ^ cref
 
 let or_exn name sexp f =
   try f () with
@@ -127,7 +150,7 @@ let rec unwrap_ty sexp : Lang.Type.t =
     let fname =
       let fname, _ = unwrap_value_with_loc fname in
       unwrap_cref fname in
-    let args = 
+    let args =
       let args = unwrap_list args
                  |> List.map (function List [data; _] ->
                    unwrap_value_with_loc data
@@ -143,7 +166,7 @@ let rec unwrap_ty sexp : Lang.Type.t =
     end
   | "CNotation", [_; List [Atom "InConstrEntry"; Atom ("int" | "credits")]; _] -> Int
   | "CNotation", [_; List [Atom "InConstrEntry"; Atom "_ * _"]; List (List elts :: _)] ->
-    let tys = 
+    let tys =
       List.map unwrap_value_with_loc elts
       |> List.map fst
       |> List.map unwrap_ty in
@@ -371,7 +394,7 @@ let unwrap_tacatom sexp =
     unwrap_prim_tactic tac
 
 let unwrap_xapp sexp =
-  let arg = unwrap_tacgeneric_arg sexp in 
+  let arg = unwrap_tacgeneric_arg sexp in
   (* an xapp is either a constant [CRef] or an application [CApp]. *)
   match [@warning "-8"] unwrap_tagged arg with
   | "CRef", _ -> unwrap_cref arg, [] (* if constant, just return the name, and 0 arguments *)
@@ -381,16 +404,12 @@ let unwrap_xapp sexp =
       "unhandled xapp argument type %s args [%a]"
       name (List.pp Sexplib.Sexp.pp_hum) args
 
-let get_id sexp =
-  match [@warning "-8"] unwrap_list sexp with
-  | [Atom "Id"; Atom id] -> id 
-
 let unwrap_elem_ident sexp =
   let open Sexplib.Sexp in
   match [@warning "-8"] unwrap_tagged sexp with
   | "ElimOnIdent", [binding] ->
     let v, _ = unwrap_value_with_loc binding in
-    v |> get_id
+    v |> unwrap_id
 
 let unwrap_destr_id sexp =
   let open Sexplib.Sexp in
@@ -403,14 +422,14 @@ let unwrap_eqn sexp =
   | [binding] ->
     let v, _ = unwrap_value_with_loc binding in
     match [@warning "-8"] unwrap_list v with
-    | [_; eqn] -> get_id eqn
+    | [_; eqn] -> unwrap_id eqn
 
 let unwrap_intro_naming sexp =
   let open Sexplib.Sexp in
   let [@warning "-8"] v, _ = unwrap_value_with_loc sexp in
   match [@warning "-8"] unwrap_list v with
   | [_;  id] -> match [@warning "-8"] unwrap_list id with
-    | [_; id] -> get_id id
+    | [_; id] -> unwrap_id id
 
 let unwrap_intro_namings_or_nil sexp =
   let open Sexplib.Sexp in
@@ -443,7 +462,7 @@ let unwrap_eqn_vars sexp =
   eqn, vars
 
 let unwrap_case sexp =
-  let open Sexplib.Sexp in 
+  let open Sexplib.Sexp in
   match [@warning "-8"] sexp with
   | [_; _; args] ->
     let [@warning "-8"] [args; _] = unwrap_list args in
@@ -452,4 +471,3 @@ let unwrap_case sexp =
     let destr_id = unwrap_destr_id destr in
     let eqn, vars = unwrap_eqn_vars eqn_vars in
     destr_id, eqn, vars
-
