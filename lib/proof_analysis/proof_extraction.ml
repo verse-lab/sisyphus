@@ -57,6 +57,9 @@ let rec encode_expr_as_pat (expr: Lang.Expr.t) : Parsetree.pattern =
   | `Int n -> pint_const n
   | `Constructor (f, []) ->
     AH.Pat.construct (loc (lid f)) None
+  | `Constructor (f, [arg]) ->
+    AH.Pat.construct (loc (lid f)) (Some (encode_expr_as_pat arg))
+
   | `Constructor (f, args) ->
     AH.Pat.construct (loc (lid f)) (Some (AH.Pat.tuple @@ List.map encode_expr_as_pat args))
   | `App (_, _)
@@ -108,6 +111,8 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.XMatch _ 
   | Proof_term.XApp _ 
   | Proof_term.XVal _  -> true
+  | Proof_term.CaseADT {cases; _} ->
+    List.exists (fun (_name,_args, rest) -> contains_symexec rest) cases
   | Proof_term.CaseBool {if_true; if_false; _} ->
     contains_symexec if_true || contains_symexec if_false
 
@@ -311,6 +316,12 @@ let rec extract ?replacing (trm: Proof_term.t) =
     AH.Exp.ifthenelse (encode_expr cond)
       (extract if_true)
       (Some (extract if_false))
+  | Proof_term.CaseADT {vl; cases} ->
+    let encode_case (name, args, rest) =
+      AH.Exp.case (encode_expr_as_pat (`Constructor (name, List.map (fun (v, _) -> `Var v) args)))
+        (extract rest) in
+    AH.Exp.match_ (encode_expr vl)
+      (List.map encode_case cases)
   | Proof_term.CaseFalse ->
     AH.Exp.assert_ (encode_expr (`Constructor ("false", [])))
   | _ ->
