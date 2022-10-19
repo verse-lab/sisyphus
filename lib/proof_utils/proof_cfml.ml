@@ -105,10 +105,10 @@ let extract_typ_opt ?rel c =
     Failure msg ->
     None
 
-(** [extract_fun_typ name c], given a function name [name] and Coq
+(** [extract_fun_typ ?name c], given a function name [name] and Coq
     term [c] representing [name]'s type, returns an internal encoding
     of the function's type.  *)
-let extract_fun_typ name c' =
+let extract_fun_typ ?name c' =
   let rec extract_foralls implicits pos acc c =
     match Constr.kind c with
     | Constr.Prod ({binder_name=Name name;_}, ty, rest) when Constr.is_Type ty ->
@@ -128,7 +128,10 @@ let extract_fun_typ name c' =
       extract_types implicits (pos + 1) foralls (acc ty) rest
     | _ -> List.rev (acc c) in
   (* first, retrieve implicits - we will be ignoring them *)
-  let implicits = Utils.get_implicits_for_fun name in
+  let implicits =
+    match name with
+    | None -> IntSet.empty
+    | Some name -> Utils.get_implicits_for_fun name in
   (* extract forall quantified types *)
   let qf, c, pos = extract_foralls implicits 0 [] c' in
   (* extract remaining types *)

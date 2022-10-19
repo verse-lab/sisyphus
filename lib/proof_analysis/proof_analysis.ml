@@ -16,6 +16,22 @@ type invariant_spec = string * string list
 type invariant = Lang.Expr.t * Lang.Expr.t list
 type 'a tester = 'a -> bool
 
+(** [asserts cond f] asserts that [cond] is true, and if not, fails
+    with the error produced by [f]. *)
+let asserts b f =
+  if not b then
+    failwith (f (Format.ksprintf ~f:failwith))
+
+let split_last ls =
+  let rec loop acc last =
+    function
+    | [] -> (List.rev acc, last)
+    | h :: t -> loop (last :: acc) h t in
+  match ls with
+  | h :: t ->
+    loop [] h t
+  | [] -> failwith "split_last called on empty list"
+
 (** [is_case_of_eq_sym] determines whether a {!Constr.t} term
     represents a case over an [Logic.eq_sym] equality.
 
@@ -63,7 +79,7 @@ type env = {
 
   bound_variables: string_set;
   (** [bound_variables] is a string set used to track variables bound
-     in the current context, and thereby avoid naming clashes.
+      in the current context, and thereby avoid naming clashes.
 
       Whenever a new binding is added, this set must be updated. *)
 
@@ -137,6 +153,9 @@ let rel_expr env ind =
 let is_in_let_fun_context env =
   env.in_let_fun_context
 
+(** [add binding ?ty var env] adds a fresh binding of [var] (with an
+    optional representable type [ty]) to the current evaluation
+    environment, giving it a fresh name if needed. *)
 let add_binding ?ty var env =
   let var =
     if not (StringSet.mem var env.bound_variables)
@@ -734,6 +753,8 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     CaseBool {
       cond; if_true; if_false
     }
+  | Constr.App (trm, [| arg |]) when Constr.isCase trm && Proof_utils.is_eq_refl arg ->
+    reify_proof_term coq_env env trm
   | Constr.App (trm, args) ->
     Format.ksprintf ~f:failwith
       "reify_proof_term env received App of %s (%s) to %d args\n%s@."
@@ -750,11 +771,89 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       reify_proof_term coq_env env proof      
     )
   | Constr.Case (info, _, _, _, _, _, [| |]) when String.equal (Names.MutInd.to_string (fst info.ci_ind)) "Coq.Init.Logic.False" ->
+    Log.debug (fun f -> f "reify proof term on case false");
     CaseFalse
+  | Constr.Case (info, _univ, [|ty|], (ret_args, ret_ty), _inv, vl, cases) when Constr.isApp ty ->
+    Log.debug (fun f -> f "reify proof term on case ADT");
+
+    (* retrieve the inductive type being cased on *)
+    let inductive_type = Environ.lookup_mind (fst info.ci_ind) coq_env in
+
+    asserts (Array.length inductive_type.mind_packets = 1)
+      (fun f -> f "expecting non-mutually recursive inductive type");
+
+    (* extract the definition of the inductive type *)
+    let inductive_def = inductive_type.mind_packets.(0) in
+    let inductive_constructor_tys = Array.to_list inductive_def.mind_user_lc in
+
+    (* extract the formal params for data type  *)
+    let formal_params = List.map (function
+        Context.Rel.Declaration.LocalAssum ({Context.binder_name=name; _}, _) ->
+        name
+      | Context.Rel.Declaration.LocalDef (_, _, _) ->
+        Format.ksprintf ~f:failwith "Inductive types with let bindings aren't supported by Sisyphus"
+    ) inductive_type.mind_params_ctxt in
+
+    (* retrieve the concrete formal params *)
+    let concrete_formal_params = Constr.destApp ty |> snd |> Array.to_list in
+
+    asserts (List.compare_lengths formal_params concrete_formal_params = 0)
+      (fun f -> f "expected inductive type to be fully instantiated.");
+
+    let vl = PCFML.extract_expr ~rel:(rel_expr env) vl in
+
+    let cases =
+      List.combine inductive_constructor_tys (Array.to_list cases)
+      |> List.map (fun (constr_type, (args, body)) ->
+        (* first parse the type of the constructor *)
+        let (Lang.Type.Forall (fparams, constr_tys)) as f = Proof_utils.CFML.extract_fun_typ constr_type in
+
+        asserts (List.compare_lengths fparams concrete_formal_params = 0)
+          (fun f -> f "expected inductive type's constructors to be fully instantiated (no GADTs, sorry)");
+
+        (* we expect the type of the constructor to be a simple (polymorphic) OCaml-like type: *)
+        let params, constr_type = match constr_tys with
+          | [Lang.Type.Func (Some (args, res))] -> args, res
+          |  _ ->
+            Format.ksprintf ~f:failwith "found unexpected type for constructor %a"
+              Lang.Type.pp_fn f in
+
+        (* now, instantiate polymorphic constructor type with concrete formal arguments  *)
+        let params, constr_type =
+          let subst =
+            List.combine fparams concrete_formal_params
+            |> List.map (Pair.map_snd (Proof_utils.CFML.extract_typ ~rel:(rel_ty env)))
+            |> StringMap.of_list in
+          List.map (Lang.Type.subst subst) params,
+          Lang.Type.subst subst constr_type in
+
+        let args = Array.to_list args
+                   |> List.map (fun name ->
+                     name_to_string name.Context.binder_name) in
+
+        asserts (List.compare_lengths params args = 0)
+          (fun f -> f "expected params introduced by case to match constructor");
+
+        (* calculate a the bindings introduced by the case,
+           and build a new binding environment for analysing
+           the body *)
+        let env, bindings =
+          List.combine args params
+          |> List.fold_map (fun env (name, ty) ->
+            let name, env = add_binding ~ty name env in
+            env, (name, ty)
+          ) env in
+        (* now reify the body of the case *)
+        let body = reify_proof_term coq_env env body in
+        (* and we're done! *)
+        (bindings, body)) in
+
+    CaseADT {
+      vl;
+      cases
+    }
+
   | Constr.Case (info, _, _, _, _, _, cases) ->
-    Log.debug (fun f ->
-      f "received case with %d cases" (Array.length cases)
-    );
     Format.ksprintf ~f:failwith
       "reify_proof_term env received case on %s: %s"
       (Names.MutInd.to_string (fst @@ info.ci_ind))

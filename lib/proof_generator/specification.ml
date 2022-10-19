@@ -562,7 +562,7 @@ let build_verification_condition (t: Proof_context.t) (defs: PV.def_map) (spec: 
       let typ = Proof_context.typeof t fn in
       let name = Libnames.qualid_of_string fn |> Nametab.locate_constant in
       try
-        let typ = Proof_utils.CFML.extract_fun_typ name typ in
+        let typ = Proof_utils.CFML.extract_fun_typ ~name typ in
         Some (fn, typ)
       with _ -> None
   ) functions in

@@ -302,7 +302,7 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
         let+ name = Proof_context.names t s_base in
         match name with
         | Names.GlobRef.ConstRef s ->
-          let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ s ty in
+          let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ ~name:s ty in
           let instantiations =
             List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) env.Proof_env.poly_vars) poly
             |> List.map (fun subst ->
