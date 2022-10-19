@@ -677,9 +677,10 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           (fun acc vl -> `App ("&&", [vl; acc])) h t
         |> Option.some
     ) in
+  let expected_empty_pure = List.is_empty gen_pure_spec in
 
   let heap = List.map_product_l (function `Hole ty -> gen ty | `Concrete vl -> [vl]) gen_heap_spec  in
-  pure, heap, !hof_rev_map
+  pure, heap, !hof_rev_map, expected_empty_pure
 
 let prune_candidates_using_testf test_f (pure, heap) =
   let start_time = Ptime_clock.now () in
@@ -1169,7 +1170,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   Log.debug (fun f -> f "mutable variables are %a" (StringSet.pp String.pp) mut_vars);
 
   (* generate initial invariants *)
-  let pure, heap, hf_rev_map =
+  let pure, heap, hf_rev_map, expected_no_pure =
     generate_candidate_invariants t env
       ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
 
@@ -1223,6 +1224,9 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* we check if we found any pure constraints - it may sometimes be
      the case that no pure constraints are needed *)
   let no_pure = List.is_empty pure in
+
+  if no_pure && not expected_no_pure then
+    Format.ksprintf ~f:failwith "failed to find pure invariant candidates.";
 
   let valid_candidate =
     if Configuration.validate_with_z3 () || Option.is_some (Configuration.max_z3_calls ())
