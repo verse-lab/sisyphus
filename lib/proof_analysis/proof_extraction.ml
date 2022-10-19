@@ -68,6 +68,8 @@ let rec encode_expr_as_pat (expr: Lang.Expr.t) : Parsetree.pattern =
 
 let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
   match expr with
+  | `Tuple [vl] ->
+    encode_expr vl
   | `Tuple vls ->
     AH.Exp.tuple (List.map encode_expr vls)
   | `Var v when String.prefix ~pre:"symbol_" v ->
@@ -86,6 +88,9 @@ let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
   | `Int n -> int_const n
   | `Constructor (f, []) ->
     AH.Exp.construct (loc (lid f)) None
+  | `Constructor (f, [arg]) ->
+    AH.Exp.construct (loc (lid f)) (Some (encode_expr arg))
+
   | `Constructor (f, args) ->
     AH.Exp.construct (loc (lid f)) (Some (AH.Exp.tuple @@ List.map encode_expr args))
 
@@ -146,14 +151,18 @@ let extract_xmatch_cases n trm =
       else n, acc
     | Proof_term.Lambda (_, _, rest) ->
       loop n acc rest
+
+    | Proof_term.CaseFalse
     | Proof_term.Refl -> n, acc
+
     | Proof_term.HimplTrans (_, _, l1, l2) ->
       let n, acc = loop n acc l1 in
       if n > 0
       then loop n acc l2
       else n, acc
     | _ ->
-      Format.ksprintf ~f:failwith "extract_xmatch_cases: found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm)) in
+      Format.ksprintf ~f:failwith "extract_xmatch_cases: found unsupported proof term %s"
+        (String.take 1000 ([%show: Proof_term.t] trm)) in
   loop n [] trm |> snd |> List.rev
 
 
