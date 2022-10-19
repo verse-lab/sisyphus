@@ -259,6 +259,8 @@ let parse ctx proof_str : Proof_spec.Script.script =
   let prelude, import, rest = handle_decs asts in
   let spec_str, rest = handle_spec rest in
   let steps = handle_script rest in
+  Configuration.dump_output "parsed-proof"
+    (fun f -> f "%a" (List.pp ~pp_sep:(fun fmt () -> Format.pp_print_newline fmt ()) Proof_spec.Script.pp_step) steps);
 
   {
     prelude;
