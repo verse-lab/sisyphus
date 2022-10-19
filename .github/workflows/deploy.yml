@@ -16,17 +16,41 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: 4.12.0
-          opam-repositories: |
-            default: https://github.com/ocaml/opam-repository.git
-            coq-released: https://coq.inria.fr/opam/released
-      - name: Install and Build
+          opam-depext: false
+
+      - name: Cache
+        id: cache-opam
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-opam
+        with:
+          path: |
+            /home/runner/work/proof-repair/proof-repair/_opam/
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.opam') }}
+
+      - name: Opam & Coq
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        run: |
+           opam repository add default https://github.com/ocaml/opam-repository.git --all-switches --set-default
+           opam repository add coq-released https://coq.inria.fr/opam/released --all-switches --set-default
+
+      - name: Install Dune
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        run: |
+          opam install dune
+
+      - name: Install
+        if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           opam install . --deps-only
-          opam exec -- dune build
-      - name: Run unit tests
+
+      - name: Build
         run: |
-          opam exec -- dune runtest ./tests
+          opam exec -- dune build
+
+      # - name: Run unit tests
+      #   run: |
+      #     opam exec -- dune runtest ./tests
       # - name: Run integration tests
       #   run: |
       #     opam exec -- dune runtest ./benchmarks
-
