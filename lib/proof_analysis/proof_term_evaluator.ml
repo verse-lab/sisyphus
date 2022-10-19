@@ -130,7 +130,8 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (filter_not (unwrap (eval ctx fp)) (unwrap (eval ctx ls)))
   | `App ("is_some", [arg]) ->
     wrap (Option.is_some (unwrap (eval ctx arg)))
-
+  | `App ("opt_of_bool", [b]) ->
+    wrap (if unwrap (eval ctx b) then Some () else None)
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr

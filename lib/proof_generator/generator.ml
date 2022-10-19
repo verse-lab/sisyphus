@@ -290,7 +290,7 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left [_, _]) -> ()
 
-let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
+let typeof ?(uses_options=false) t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
   let ty =
     match s with
     | "++" ->
@@ -328,7 +328,17 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
             List.map (Lang.Type.map_poly_var map) args
             |> split_last
           ) in
-        Some (instantiations)
+        let concrete_instantiations =
+          match poly, uses_options with
+          | [ty], true -> [
+              (* we use option unit as a hard-coded value for now *)
+              List.map (Lang.Type.subst
+                          (StringMap.of_list [ty, Lang.Type.ADT ("option", [Lang.Type.Unit], None)]))
+                args
+              |> split_last
+            ]
+          | _ -> [] in
+        Some (instantiations @ concrete_instantiations)
       | _ -> None in
   ty
 
@@ -518,7 +528,7 @@ let build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lem
   test_f t.Proof_context.compilation_context
 
 let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
-  let uses_options = StringMap.values env.Proof_env.gamma
+  let uses_options = Iter.append (StringMap.values env.Proof_env.gamma) (List.to_iter (snd inv_ty) |> Iter.map snd)
                      |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false)) in
   let invariant_has_bool = List.to_iter (snd inv_ty)
                            |> Iter.exists (function (_, Lang.Type.Bool) -> true | _ -> false) in
@@ -579,7 +589,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
             then StringSet.add "is_some"
             else Fun.id)
         |> (if uses_options
-            then StringSet.add "Opt.option_is_some"
+            then StringSet.add "opt_of_bool"
             else Fun.id)
         (* add in any hof functions in our proof env  *)
         |> Fun.flip StringSet.add_iter
@@ -599,12 +609,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         from_id to_id);
 
     Expr_generator.build_context ~ints:[1;2]
-      ~vars ~funcs ~env:(fun f ->
-        let res = typeof t env f in
-        Log.debug (fun pr -> pr "checking the type of %s ==> %s@." f
-                               ([%show: (Lang.Type.t list * Lang.Type.t) list] res));
-        res
-      )
+      ~vars ~funcs ~env:(fun f -> typeof ~uses_options t env f)
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
 
@@ -669,7 +674,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
            );
 
   let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx
-                                            (typeof t env) in
+                                            (typeof ~uses_options t env) in
   let pure =
     List.map_product_l List.(fun (v, ty) ->
       List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~blacklist:[v] ~fuel:3 ~initial:false ty)
