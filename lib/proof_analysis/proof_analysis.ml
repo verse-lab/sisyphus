@@ -780,7 +780,10 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
 
     (* extract the definition of the inductive type *)
     let inductive_def = inductive_type.mind_packets.(0) in
-    let inductive_constructor_tys = Array.to_list inductive_def.mind_user_lc in
+    let inductive_constructor_tys_and_names =
+      List.combine
+        (Array.to_list inductive_def.mind_consnames)
+        (Array.to_list inductive_def.mind_user_lc) in
 
     (* extract the formal params for data type  *)
     let formal_params = List.map (function
@@ -799,8 +802,9 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     let vl = PCFML.extract_expr ~rel:(rel_expr env) vl in
 
     let cases =
-      List.combine inductive_constructor_tys (Array.to_list cases)
-      |> List.map (fun (constr_type, (args, body)) ->
+      List.combine inductive_constructor_tys_and_names (Array.to_list cases)
+      |> List.map (fun ((constr_name, constr_type), (args, body)) ->
+        let constr_name = Names.Id.to_string constr_name in
         (* first parse the type of the constructor *)
         let (Lang.Type.Forall (fparams, constr_tys)) as f = Proof_utils.CFML.extract_fun_typ constr_type in
 
@@ -843,7 +847,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
         (* now reify the body of the case *)
         let body = reify_proof_term coq_env env body in
         (* and we're done! *)
-        (bindings, body)) in
+        (constr_name, bindings, body)) in
 
     CaseADT {
       vl;
