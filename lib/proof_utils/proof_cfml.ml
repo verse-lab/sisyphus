@@ -23,8 +23,10 @@ let is_xlet_trm_cont_lemma const = is_const_named "xlet_trm_cont_lemma" const
 let is_xseq_cont_lemma const = is_const_named "xseq_cont_lemma" const
 let is_xmatch_lemma const = is_const_named "xmatch_lemma" const
 let is_xapp_lemma const = is_const_named "xapp_lemma" const
+let is_xapps_lemma const = is_const_named "xapps_lemma" const
 let is_xval_lemma const = is_const_named "xval_lemma" const
 let is_xifval_lemma const = is_const_named "xifval_lemma" const
+let is_xifval_lemma_isTrue const = is_const_named "xifval_lemma_isTrue" const
 let is_xdone_lemma const = is_const_named "xdone_lemma" const
 let is_mkstruct_erase const = is_const_named "MkStruct_erase" const
 let is_himpl const = is_const_named "himpl" const
@@ -35,6 +37,7 @@ let is_hstars_simpl_keep const = is_const_named "hstars_simpl_keep" const
 let is_himpl_frame_r const = is_const_named "himpl_frame_r" const
 let is_himpl_hempty_pure const = is_const_named "himpl_hempty_hpure" const
 let is_xsimpl_start const = is_const_named "xsimpl_start" const
+let is_xsimpl_pick_lemma const = is_const_named "xsimpl_pick_lemma" const
 let is_himpl_hstar_hpure_l const = is_const_named "himpl_hstar_hpure_l" const
 let is_himpl_trans const = is_const_named "himpl_trans" const
 let is_hstars_simpl_start const = is_const_named "hstars_simpl_start" const
@@ -42,10 +45,13 @@ let is_hstars_simpl_cancel const = is_const_named "hstars_simpl_cancel" const
 let is_hstars_simpl_pick_lemma const = is_const_named "hstars_simpl_pick_lemma" const
 let is_himpl_refl const = is_const_named "himpl_refl" const
 let is_xsimpl_lr_exit_nogc_nocredits const = is_const_named "xsimpl_lr_exit_nogc_nocredits" const
+let is_xsimpl_lr_exit_nocredits const = is_const_named "xsimpl_lr_exit_nocredits" const
 let is_himpl_hforall_r const = is_const_named "himpl_hforall_r" const
 let is_hwand_hpure_r_intro const = is_const_named "hwand_hpure_r_intro" const
 let is_xsimpl_lr_cancel_same const = is_const_named "xsimpl_lr_cancel_same" const
 let is_xsimpl_lr_qwand const = is_const_named "xsimpl_lr_qwand" const
+let is_xsimpl_lr_hwand const = is_const_named "xsimpl_lr_hwand" const
+let is_xsimpl_flip_acc_l const = is_const_named "xsimpl_flip_acc_l" const
 let is_xsimpl_lr_qwand_unit const = is_const_named "xsimpl_lr_qwand_unit" const
 let is_xsimpl_lr_hgc_nocredits const = is_const_named "xsimpl_lr_hgc_nocredits" const
 let is_xsimpl_lr_refl_nocredits const = is_const_named "xsimpl_lr_refl_nocredits" const
@@ -230,6 +236,8 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `Tuple (args)
 
   (* arithmetic *)
+  | Constr.App (fname, [| _; _; l; r |]), _ when Utils.is_const_eq "TLC.LibOrder.lt" fname ->
+    `App ("<", [extract_expr ?rel l; extract_expr ?rel r])        
   | Constr.App (fname, [| _; _; l; r |]), _ when Utils.is_const_eq "TLC.LibOrder.le" fname ->
     `App ("<=", [extract_expr ?rel l; extract_expr ?rel r])        
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Nat.sub" fname ->
@@ -252,6 +260,7 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     let fname = Constr.destVar fname |> Names.Id.to_string in
     let args = List.map (extract_expr ?rel) (Array.to_list args) in
     `App (fname, args)
+  | Constr.Const (c, _), _ -> `Var (Names.Constant.to_string c)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a expr"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)

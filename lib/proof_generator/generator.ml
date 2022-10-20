@@ -461,6 +461,7 @@ let reduce_term t term =
     | ("Coq.ZArith.BinInt.Z"
       | "Coq.ZArith.BinIntDef.Z"
       | "Coq.ZArith.Znat.Nat2Z"
+      | "Coq.ZArith.Znat.Zabs2Nat"
       | "Coq.ZArith.Znat"
       | "Coq.micromega.ZifyInst"
       | "Coq.Init.Nat"
@@ -475,7 +476,9 @@ let reduce_term t term =
       | "Coq.Classes.Morphisms"
       | "Coq.Init.Logic"
       | "Coq.Arith.PeanoNat.Nat"
-      | "Coq.Bool.Bool"), _
+      | "Coq.Bool.Bool"
+      | "Coq.Classes.RelationClasses"
+      ), _
       -> `KeepOpaque
     | "TLC.LibInt", "le_zarith" -> `KeepOpaque
     | "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits", _ ->

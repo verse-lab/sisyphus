@@ -119,6 +119,7 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.XLetVal _ 
   | Proof_term.XLetTrmCont _
   | Proof_term.XMatch _ 
+  | Proof_term.XApps _
   | Proof_term.XApp _ 
   | Proof_term.XVal _  -> true
   | Proof_term.CaseADT {cases; _} ->
@@ -245,6 +246,17 @@ let rec extract ?replacing (trm: Proof_term.t) =
         AH.Vb.mk (pvar var) (encode_expr value_code)
       ] (extract proof)
     end
+  | Proof_term.XLetTrmCont {
+    pre; binding_ty; value_code;
+    proof=Proof_term.XApps { proof } (* TODO: make this more elegant.... *)
+  } ->
+    let var = find_next_program_binding_name proof in
+    wrap_with_invariant_check pre ~then_:begin fun () ->
+      AH.Exp.let_ AT.Nonrecursive [
+        AH.Vb.mk (pvar var) (encode_expr value_code)
+      ] (extract proof)
+    end
+
 
   | Proof_term.XApp { application; pre; fun_pre; proof_fun=AccRect { prop_type; proof=proof_fun; vl; args }; proof } ->
     if contains_symexec proof then
@@ -303,6 +315,21 @@ let rec extract ?replacing (trm: Proof_term.t) =
       wrap_with_invariant_check pre ~then_:begin fun () ->
         expr
       end
+  | Proof_term.XApps { application=(f, args); pre; fun_pre; proof } ->
+    let expr =
+      if Option.exists (String.equal f) replacing
+      then Format.ksprintf ~f:failwith "found non-var app application of recursive call.... %s"
+            (String.take 1000 ([%show: Proof_term.t] trm))
+      else encode_expr (`App (f, args)) in
+    if contains_symexec proof then
+      wrap_with_invariant_check pre ~then_:begin fun () ->
+        AH.Exp.sequence expr (extract proof)
+      end
+    else
+      wrap_with_invariant_check pre ~then_:begin fun () ->
+        expr
+      end
+
   | Proof_term.XVal { pre; value_ty; value } ->
     wrap_with_invariant_check pre ~then_:begin fun () ->
       encode_expr value
