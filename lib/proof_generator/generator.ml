@@ -71,6 +71,9 @@ let pp_constr fmt v =
 type expr = Lang.Expr.t
 let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis.Embedding.embed_expression vl)
 
+type name = Names.Name.t
+let pp_name fmt vl = Format.fprintf fmt "%s" (name_to_string vl)
+
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
 (* [is_typed_combinator lemma_name] determines if [lemma_name] refers
@@ -183,7 +186,9 @@ let build_complete_params t ~inv lemma_name init_params =
       let lemma_instantiated_type = mk_lemma_instantiated_type params in
       loop params lemma_instantiated_type
     | _ -> params, lemma_instantiated_type in
-  let params, _ = loop init_params (mk_lemma_instantiated_type init_params) in
+  let init_ty = (mk_lemma_instantiated_type init_params) in
+  Log.debug (fun f -> f "initial type before evaring is %s" (Proof_utils.Debug.constr_to_string_pretty init_ty));
+  let params, _ = loop init_params init_ty in
   params, !inv
 
 (** [instantiate_arguments t env args (ctx, heap_ctx)] attempts to
@@ -264,8 +269,9 @@ let instantiate_arguments t env args (ctx, heap_ctx) =
   |> List.all_some
 
 (** [ensure_single_invariant ~name ~ty ~args] when given the
-    application of lemma [name] to arguments [args], where [name] has
-    type [ty]. *)
+   application of lemma [name] to arguments [args], where [name] has
+   type [ty], ensures that [name] refers to a specification of the
+   correct type. *)
 let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
   (* split lemma type into - params, invariants, and spec  *)
   let (lemma_params, lemma_invariants, spec) = Proof_utils.CFML.extract_spec lemma_full_type in
@@ -285,15 +291,19 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
   | Some (Right _) | None | Some (Left [])  ->
     Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant/insufficient arguments?"
       Pp.pp_with (Names.Constant.print lemma_name)
-  | Some (Left ((_, inv_ty) :: logical_params)) when
-    (not (Proof_utils.CFML.is_invariant_ty inv_ty) ||
-     List.exists (Pair.snd_map Proof_utils.CFML.is_invariant_ty) logical_params) ->
+  | Some (Left ((_, inv_ty) :: logical_params)) when (* it is invalid for, either: *)
+      (not (Proof_utils.CFML.is_invariant_ty inv_ty) (* first argument after concrete to not be an invariant *)
+       || List.exists (Pair.snd_map Proof_utils.CFML.is_invariant_ty) logical_params)
+    (*  or any arguments after the invariant to be hprop-taking *) ->
     Format.ksprintf ~f:failwith "TODO: found function application %a zero or more than one invariants"
       Pp.pp_with (Names.Constant.print lemma_name)
-  | Some (Left (_ :: _ :: _)) ->
-    Format.ksprintf ~f:failwith "TODO: found function application %a with multiple invariants"
-      Pp.pp_with (Names.Constant.print lemma_name)
-  | Some (Left [_, _]) -> ()
+  | Some (Left (_ :: [])) ->
+    Log.debug (fun f -> f "ensure_single_invariant spec is %s\n" ([%show: constr] spec));
+    []
+  | Some (Left (_ :: logical_params)) ->
+    Log.debug (fun f -> f "ensure_single_invariant spec is %s\n" ([%show: constr] spec));
+
+    logical_params
 
 let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
   let ty =
@@ -394,6 +404,7 @@ let reduce_term t term =
     (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
      *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
     | ("Coq.ZArith.BinInt.Z"
+      | "Coq.ZArith.BinIntDef.Z"
       | "Coq.ZArith.Znat.Nat2Z"
       | "Coq.ZArith.Znat"
       | "Coq.micromega.ZifyInst"
@@ -408,6 +419,7 @@ let reduce_term t term =
       | "Coq.Init.Datatypes"
       | "Coq.Classes.Morphisms"
       | "Coq.Init.Logic"
+      | "Coq.Arith.PeanoNat.Nat"
       | "Coq.Bool.Bool"), _
       -> `KeepOpaque
     | "TLC.LibInt", "le_zarith" -> `KeepOpaque
@@ -423,7 +435,7 @@ let reduce_term t term =
           || String.prefix ~pre:"Common" path ->
       (* Log.debug (fun f -> f "Expanding %s:%s" path label); *)
       `Unfold
-    | _ -> failwith ("UNKNOWN PATH " ^ path) in
+    | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
   let env = Proof_context.env t in
   let (evd, reduced) =
     let evd = Evd.from_env env in
@@ -459,16 +471,19 @@ let reduce_term t term =
 
 
 
-(** [build_testing_function t env ?combinator_ty ~pre ~f ~args obs]
+(** [build_testing_function t env ?combinator_ty ~pre ~f ~args ~logic_args obs]
    builds a test specification from a partially reduced proof term of
    the lemma [f] applied to values of its arguments [args] at the
    current position in a concrete observation [obs]. [combinator_ty]
    is an optional explicit type if the combinator is one of the
-   sisyphus dedicated loop combinators. *)
-let build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) =
+   sisyphus dedicated loop combinators that requires its first
+   argument is an explicit type. *)
+let build_testing_function t env ?combinator_ty
+      ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args ~logic_args:l_args (concrete_args, observations) =
   Log.debug (fun f -> f "build_testing_function called on %s.\nProof context:\n%s"
                         (Names.Constant.to_string lemma_name)
                         (Proof_context.extract_proof_script t));
+  Log.debug (fun f -> f "logical params are: %s" ([%show: (name * constr) list] l_args));
   let higher_order_functions =
     List.combine env.Proof_env.args concrete_args
     |> List.filter_map (function
@@ -1140,7 +1155,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let (_, f_args) = Proof_utils.CFML.extract_app_full post in
 
   (* for now we only handle lemmas with a single higher order invariant *)
-  ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args;
+  let logical_params = ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args in
 
   let pre_heap =
     List.filter_map
@@ -1158,7 +1173,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
   (* build an initial test specification from the partially reduced proof term applied to values at the current position *)
   let test_f =
-    build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations in
+    build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lemma_name
+      ~args:f_args ~logic_args:logical_params observations in
 
   (* retrieve the body of the higher order function being called *)
   let fun_body =
@@ -1209,7 +1225,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       let cp = t.Proof_context.concrete () in
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
       let concrete_args = Dynamic.Concrete.args cp in
-      build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) in
+      build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args ~logic_args:logical_params
+        (concrete_args, observations) in
     prune_candidates_using_testf test_f (pure,heap) in
 
   (* and again (50 ms) *)
@@ -1218,7 +1235,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       let cp = t.Proof_context.concrete () in
       let observations = Dynamic.Concrete.lookup cp ((t.Proof_context.current_program_id :> int) - 1) in
       let concrete_args = Dynamic.Concrete.args cp in
-      build_testing_function t env ?combinator_ty  ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (concrete_args, observations) in
+      build_testing_function t env ?combinator_ty  ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args
+        ~logic_args:logical_params (concrete_args, observations) in
     prune_candidates_using_testf test_f (pure,heap) in
 
 
