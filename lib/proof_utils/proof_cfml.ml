@@ -278,7 +278,7 @@ let extract_heap c =
     | Constr.Const (_, _) when is_hempty c -> `Empty
     | Constr.App (fname, _) when is_hstar fname ->
       begin match destruct_heap c with
-      | heap -> `NonEmpty (List.rev heap)
+      | heap -> `NonEmpty heap
       | exception _ -> failwith ("unexpected heap structure: " ^ (Proof_debug.constr_to_string c))
       end
     | Constr.App (fname, _) when is_hpure fname ->
@@ -642,6 +642,7 @@ let extract_pre_heap pre =
   match extract_heap pre with
   | `Empty -> []
   | `NonEmpty heap ->
+    let heap = List.rev heap in
     (List.filter_map
        (function `Pure p -> Some (`Pure p)
                | `Impure inv when Constr.isApp inv && begin let (f, _) = Constr.destApp inv in Constr.isVar f end -> None
