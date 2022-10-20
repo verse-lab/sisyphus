@@ -278,7 +278,7 @@ let extract_heap c =
     | Constr.Const (_, _) when is_hempty c -> `Empty
     | Constr.App (fname, _) when is_hstar fname ->
       begin match destruct_heap c with
-      | heap -> `NonEmpty heap
+      | heap -> `NonEmpty (List.rev heap)
       | exception _ -> failwith ("unexpected heap structure: " ^ (Proof_debug.constr_to_string c))
       end
     | Constr.App (fname, _) when is_hpure fname ->

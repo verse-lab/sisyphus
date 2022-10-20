@@ -12,6 +12,7 @@ type t = Parsetree.expression
 type lambda_env = (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t
 type hof_env = (string * Parsetree.expression) list
 type obs = Dynamic.Concrete.context * Dynamic.Concrete.heap_context
+type heap_spec = Proof_spec.Heap.Heaplet.t list
 type invariant_spec = string * string list
 type invariant = Lang.Expr.t * Lang.Expr.t list
 type 'a tester = 'a -> bool
@@ -916,6 +917,7 @@ let analyse (coq_env: Environ.env)
       (lambda_env: lambda_env)
       (hof_env: hof_env)
       (obs: (Dynamic.Concrete.context * Dynamic.Concrete.heap_context))
+      (heap_spec: Proof_spec.Heap.Heaplet.t list)
       invariant_spec
       (trm: Constr.t)  =
   Log.debug (fun f ->
@@ -942,6 +944,6 @@ let analyse (coq_env: Environ.env)
       |> List.filter_map (fun name ->
         StringMap.find_opt name lambda_env
         |> Option.map (fun (_, v) -> (name, v))) in
-    Proof_test.build_test obs used_functions hof_env invariant_spec test_spec
+    Proof_test.build_test obs used_functions hof_env heap_spec invariant_spec test_spec
   | _ -> failwith ("found unsupported term " ^ Proof_utils.Debug.tag trm)
   

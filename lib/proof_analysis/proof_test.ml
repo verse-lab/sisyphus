@@ -6,18 +6,23 @@ module Log = (val Logs.src_log (Logs.Src.create ~doc:"Converts extracted proofs 
 module AH = Ast_helper
 module StringMap = Map.Make(String)
 
-let test_invariant heap_spec (pure, heap) ctx =
+let test_invariant
+      (real_heap_spec: Proof_spec.Heap.Heaplet.t list)
+      heap_spec =
+  let heap_mapping = StringMap.of_list heap_spec in
+  fun (pure, heap) ctx ->
   assert (Sisyphus_tracing.Wrap.unwrap (Proof_term_evaluator.eval ctx pure) : bool);
   List.iter
-    Proof_spec.Heap.Heaplet.(function
-      | (v, `Array _), heap_expr ->
+    Proof_spec.Heap.Heaplet.(fun ((PointsTo (v, _, _)), heap_expr) ->
+      match StringMap.find v heap_mapping with
+      | `Array _ ->
         let expr = `App ("=", [ `App ("Array.to_list", [`Var v]); heap_expr ]) in
         assert (Sisyphus_tracing.Wrap.unwrap (Proof_term_evaluator.eval ctx expr) : bool);          
-      | (v, `PointsTo _), heap_expr ->
+      | `PointsTo _ ->
         let expr = `App ("=", [ `App ("!", [`Var v]); heap_expr ]) in
         assert (Sisyphus_tracing.Wrap.unwrap (Proof_term_evaluator.eval ctx expr) : bool);          
       | _ -> ()
-    ) (List.combine_shortest heap_spec heap)
+    ) (List.combine_shortest real_heap_spec heap)
 
 let build_test
       ((pure, heap): Dynamic.Concrete.context * Dynamic.Concrete.heap_context)
@@ -25,6 +30,7 @@ let build_test
          (string *
           [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) list)
       (hofs: (string * Parsetree.expression) list)
+      (heap_spec: Proof_spec.Heap.Heaplet.t list)
       (invariant: (string * string list))
       (body: Parsetree.expression) =
   let pconst_str str = Parsetree.Pconst_string (str, Location.none, None) in
@@ -124,7 +130,7 @@ let build_test
       Dynamic.CompilationContext.eval ctx ast in
     fun inv ->
       try
-        body (test_invariant heap inv); true
+        body (test_invariant heap_spec heap inv); true
       with
       | Assert_failure (_, _, _) -> false
       | e ->
