@@ -35,6 +35,12 @@ let reduce pure =
   Log.debug (fun f -> f "reduced %d -> %d unique@." no_pure_original no_pure_updated);
   pure
 
+(** [asserts cond f] asserts that [cond] is true, and if not, fails
+    with the error produced by [f]. *)
+let asserts b f =
+  if not b then
+    failwith (f (Format.ksprintf ~f:failwith))
+
 let show_obs obs = [%show: (string * Dynamic.Concrete.value) list * (string * Dynamic.Concrete.heaplet) list] obs
 
 module StringMap = Map.Make(String)
@@ -155,8 +161,6 @@ let build_complete_params t ~inv lemma_name init_params =
         (Names.Constant.to_string lemma_name)
         (arg_list_to_str params) in
     Proof_context.typeof t term in
-  let inv_name = ref (Some (fst inv)) in
-  let inv = ref inv in
 
   let rec loop params lemma_instantiated_type =
     match Constr.kind lemma_instantiated_type with
@@ -165,20 +169,7 @@ let build_complete_params t ~inv lemma_name init_params =
         let base = match binder_name with
           | Names.Name.Anonymous -> None
           | Names.Name.Name _ -> Some (Format.to_string Pp.pp_with @@ Names.Name.print binder_name) in
-
         let new_name = Proof_context.fresh ?base t in
-        (* if we're defining an evar for the env, then we sometimes
-           run into problems if the name of the inv in the
-           specification happens to be already bound in the context.
-
-           As such, here we have a little check to update the name of
-           the invariant type to the name returned by fresh. *)
-        begin match !inv_name, base with
-        | Some i_name, Some b_name when String.equal i_name b_name ->
-          inv_name := None;
-          inv := (new_name, snd !inv);
-        | _ -> ()
-        end;
         new_name in
       Proof_context.append t "evar (%s: %s)." evar_name
         (Proof_utils.Debug.constr_to_string_pretty ty);
@@ -186,10 +177,20 @@ let build_complete_params t ~inv lemma_name init_params =
       let lemma_instantiated_type = mk_lemma_instantiated_type params in
       loop params lemma_instantiated_type
     | _ -> params, lemma_instantiated_type in
-  let init_ty = (mk_lemma_instantiated_type init_params) in
+  let init_ty = mk_lemma_instantiated_type init_params in
+  let init_params, inv =
+    asserts (Constr.isProd init_ty) (fun f -> f "expected invariant to be arrow type");
+    let (Context.{binder_name; _}, ty, _) = Constr.destProd init_ty in
+    asserts (Names.Name.is_name binder_name) (fun f -> f "expected first argument to be the invariant, and thus named");
+    let base = Format.to_string Pp.pp_with @@ Names.Name.print binder_name in
+    let fresh_inv_name = Proof_context.fresh ~base t in
+    Proof_context.append t "evar (%s: %s)." fresh_inv_name (Proof_utils.Debug.constr_to_string_pretty ty);
+    init_params @ [`Untyped (`Var fresh_inv_name)], (fresh_inv_name, snd inv) in
+
+  let init_ty = mk_lemma_instantiated_type init_params in
   Log.debug (fun f -> f "initial type before evaring is %s" (Proof_utils.Debug.constr_to_string_pretty init_ty));
   let params, _ = loop init_params init_ty in
-  params, !inv
+  params, inv
 
 (** [instantiate_arguments t env args (ctx, heap_ctx)] attempts to
     instantiate a list of concrete arguments [args] using an observed
@@ -298,11 +299,8 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
     Format.ksprintf ~f:failwith "TODO: found function application %a zero or more than one invariants"
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left (_ :: [])) ->
-    Log.debug (fun f -> f "ensure_single_invariant spec is %s\n" ([%show: constr] spec));
     []
   | Some (Left (_ :: logical_params)) ->
-    Log.debug (fun f -> f "ensure_single_invariant spec is %s\n" ([%show: constr] spec));
-
     logical_params
 
 let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =

@@ -344,7 +344,8 @@ let extract_x_app_fun pre =
     | Constr.App (fname, args) when f fname ->
       args.(n)
     | _ ->
-      Format.eprintf "failed because unknown structure for %s: %s\n" name (Proof_debug.constr_to_string pre);
+      Log.warn (fun f ->
+        f "failed because unknown structure for %s: %s\n" name (Proof_debug.constr_to_string pre));
       failwith "" in
   try
     pre
@@ -365,6 +366,8 @@ let extract_x_app_fun pre =
     named arguments, followed by a sequence of unnamed parameters and
     finally a non-product body. *)
 let extract_spec pre =
+  (* extract spec repeatedly destructs products (arrow types) until it
+     reaches a non-product type.  *)
   let extract_spec pre =
     let rec loop acc pre = 
       if Constr.isProd pre
@@ -373,41 +376,18 @@ let extract_spec pre =
         loop ((binder_name, ty) :: acc) pre
       else List.rev acc, pre in
     loop [] pre in
-  let rec split acc ls =
+  (* split_anonymous, given a list of parameters, partitions by the
+     first occurrence of an anonymous argument into a tuple of the
+     named arguments, and the remaining arguments *)
+  let rec split_anonymous acc ls =
     match ls with
     | [] -> (List.rev acc,[])
     | ((name, _) as h) :: t when Names.Name.is_anonymous name ->
       (List.rev acc, h::t)
-    | h :: t -> split (h :: acc) t in
+    | h :: t -> split_anonymous (h :: acc) t in
   let params, body = extract_spec pre in
-  let params, invariants = split [] params in
+  let params, invariants = split_anonymous [] params in
   (params, invariants, body)
-
-(** [extract_pre_heap c] given a Coq term [c] representing a partially
-    instantiated CFML specification, returns the pre-heap.
-
-    Note: assumes that a CFML spec has been sufficiently instantiated
-    such that any variables occuring in the pre-heap are not bound by
-    binders within [c]. *)
-let extract_pre_heap pre =
-  let extract_spec pre =
-    let rec loop acc pre = 
-      if Constr.isProd pre
-      then
-        let ({Context.binder_name; _}, ty, pre)  = Constr.destProd pre in
-        loop ((binder_name, ty) :: acc) pre
-      else List.rev acc, pre in
-    loop [] pre in
-  let rec split acc ls =
-    match ls with
-    | [] -> (List.rev acc,[])
-    | ((name, _) as h) :: t when Names.Name.is_anonymous name ->
-      (List.rev acc, h::t)
-    | h :: t -> split (h :: acc) t in
-  let params, body = extract_spec pre in
-  let params, invariants = split [] params in
-  (params, invariants, body)
-
 
 (** [extract_dyn_var ?rel c] given a Coq term [c] of the form {[Dyn v]}, extracts the corresponding expression and type.  *)
 let extract_dyn_var ?rel (c: Constr.t) =
@@ -632,3 +612,32 @@ let is_const_wp_fn_trm cst =
     let cst, _ = Constr.destConst cst  in
     is_const_wp_fn cst
   end
+
+
+(** [extract_pre_heap c] given a Coq term [c] representing a partially
+    instantiated CFML specification, returns the pre-heap.
+
+    Note: assumes that a CFML spec has been sufficiently instantiated
+    such that any variables occuring in the pre-heap are not bound by
+    binders within [c]. *)
+let extract_pre_heap pre =
+  let extract_spec pre =
+    let rec loop pre =
+      if Constr.isProd pre
+      then loop pre
+      else pre in
+    loop pre in
+
+  let spec = extract_spec pre in
+  let pre =
+    match (Constr.kind_nocast spec) with
+    | Constr.App (f, args) when Utils.is_const_eq "CFML.SepLifted.Triple" f ->
+      args.(3)
+    | _ ->
+      Format.ksprintf ~f:failwith
+        "unexpected structure for specification: %s" (Proof_debug.constr_to_string spec) in
+  match extract_heap pre with
+  | `Empty -> []
+  | `NonEmpty heap ->
+    (List.map (function `Pure p -> `Pure p
+                      | `Impure arr -> `Impure (extract_impure_heaplet arr)) heap)
