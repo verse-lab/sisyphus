@@ -589,6 +589,7 @@ let extract_impure_heaplet (c: Constr.t) : Proof_spec.Heap.Heaplet.t =
   match Constr.kind c with
   | Constr.App (fname, [| ty; body; var |]) when
       Utils.is_const_eq "CFML.SepBase.SepBasicSetup.HS.repr" fname ->
+    let var = if Constr.isCast var then let (t, _, _) = Constr.destCast var in t else var in
     let var =
       check_or_fail "variable" Constr.isVar var
       |> Constr.destVar |> Names.Id.to_string in
@@ -624,10 +625,11 @@ let extract_pre_heap pre =
   let extract_spec pre =
     let rec loop pre =
       if Constr.isProd pre
-      then loop pre
+      then
+        let (_, _, pre)  = Constr.destProd pre in
+        loop pre
       else pre in
     loop pre in
-
   let spec = extract_spec pre in
   let pre =
     match (Constr.kind_nocast spec) with
@@ -636,8 +638,26 @@ let extract_pre_heap pre =
     | _ ->
       Format.ksprintf ~f:failwith
         "unexpected structure for specification: %s" (Proof_debug.constr_to_string spec) in
+  Log.debug (fun f -> f "extract_pre_heap pre: %s" (Proof_debug.constr_to_string pre));
   match extract_heap pre with
   | `Empty -> []
   | `NonEmpty heap ->
-    (List.map (function `Pure p -> `Pure p
-                      | `Impure arr -> `Impure (extract_impure_heaplet arr)) heap)
+    (List.filter_map
+       (function `Pure p -> Some (`Pure p)
+               | `Impure inv when Constr.isApp inv && begin let (f, _) = Constr.destApp inv in Constr.isVar f end -> None
+               | `Impure c ->
+                 match Constr.kind_nocast c with
+                 | Constr.App (fname, [| ty; body; var |]) when
+                     Utils.is_const_eq "CFML.SepBase.SepBasicSetup.HS.repr" fname ->
+                   let var = match Constr.kind_nocast var with
+                     | Constr.Var name -> Names.Id.to_string name
+                     | _ -> 
+                       Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a var"
+                         (Proof_debug.constr_to_string var) (Proof_debug.tag var) (Proof_debug.constr_to_string_pretty var) in
+                   let ty = extract_typ ty in
+                   Some (`Impure (var, ty))
+                 | _ ->
+                   Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a heaplet"
+                     (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+       )
+    ) heap
