@@ -96,6 +96,26 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
       (Proof_debug.tag c)
       (Proof_debug.constr_to_string_pretty c)
 
+(** [is_invariant_ty ty] checks that [ty] is a arrow type that returns
+   HPROP. Raises an exception if the input constructor is not of the
+   correct form to be an argument to a loop spec. *)
+let is_invariant_ty ty =
+  let rec loop ity =
+    match Constr.kind_nocast ity with
+    | Constr.Const _ when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hprop" ity -> true
+    | Constr.Const _
+    | Constr.Rel _
+    | Constr.Var _
+    | Constr.Ind _
+    | Constr.App (_, _) -> false
+    | Constr.Prod ({ Context.binder_name=Names.Name.Anonymous; _ }, _, rest) -> loop rest
+    | _ ->
+      Format.ksprintf ~f:failwith "found unexpected form of argument type [%s] to function. %s in %s"
+        (Proof_debug.tag ity)
+        (Proof_debug.constr_to_string_pretty ity)
+        (Proof_debug.constr_to_string_pretty ty) in
+  loop ty
+
 (** [extract_typ_opt ?rel c] is the same as [extract_typ], but returns
     None when the constructor can not be represented as an internal
     type. *)

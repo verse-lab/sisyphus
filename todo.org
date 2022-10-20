@@ -11,6 +11,7 @@ lemma, the proof calls out to an external lemma to reduce the proof.
 CLOSED: [2022-10-20 Thu 02:46]
 ** DONE Update examples to use new interface to array iter
 CLOSED: [2022-10-20 Thu 02:55]
-** TODO Add function to PCFML to test if a function returns hprop
+** DONE Add function to PCFML to test if a function returns hprop
+CLOSED: [2022-10-20 Thu 05:13]
 ** TODO from extract inv ty, return a list of concrete params + logical params ahtt follow the invariant
 ** TODO You're the BEST around
