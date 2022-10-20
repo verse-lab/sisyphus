@@ -162,7 +162,7 @@ let instantiate_expr t env (ctx, heap_ctx) (vl,ty) =
         ~else_:(fun () ->
           List.Assoc.get ~eq:String.equal v heap_ctx
           |> Option.flat_map (function
-            | `Array ls ->
+            | `Array ls -> 
               begin match ty with
               | Lang.Type.List ty -> Proof_context.eval_tracing_list t ty ls
               | _ -> None
@@ -227,6 +227,8 @@ let instantiate_arguments_with_evars t lemma_name init_params =
         "%s %s"
         (Names.Constant.to_string lemma_name)
         (arg_list_to_str params) in
+    Log.debug (fun f -> f "proof context is:\n%s" (Proof_context.extract_proof_script t));
+    Log.debug (fun f -> f "pose proof (%s)." term);
     Proof_context.typeof t term in
   let rec loop params lemma_instantiated_type =
     match Constr.kind lemma_instantiated_type with
@@ -259,12 +261,12 @@ let build_complete_params t env obs ~inv lemma_name init_params logical_params =
   let mk_lemma_instantiated_type params =
     let term =
       Format.sprintf
-        "%s %s"
-        (Names.Constant.to_string lemma_name)
-        (arg_list_to_str params) in
+        "%s %s" (Names.Constant.to_string lemma_name) (arg_list_to_str params) in
     Proof_context.typeof t term in
 
   let init_ty = mk_lemma_instantiated_type init_params in
+
+  (* first, apply the specification to an evar representing the invariant *)
   let init_params, inv =
     asserts (Constr.isProd init_ty) (fun f -> f "expected invariant to be arrow type");
     let (Context.{binder_name; _}, ty, _) = Constr.destProd init_ty in
@@ -273,27 +275,32 @@ let build_complete_params t env obs ~inv lemma_name init_params logical_params =
     let fresh_inv_name = Proof_context.fresh ~base t in
     Proof_context.append t "evar (%s: %s)." fresh_inv_name (Proof_utils.Debug.constr_to_string_pretty ty);
     init_params @ [`Untyped (`Var fresh_inv_name)], (fresh_inv_name, snd inv) in
-
+  (* re calculate the type: *)
   let init_ty = mk_lemma_instantiated_type init_params in
+
   Log.debug (fun f -> f "initial type before evaring is %s" (Proof_utils.Debug.constr_to_string_pretty init_ty));
   let pre_heap = Proof_utils.CFML.extract_pre_heap init_ty in
-  Log.debug (fun f -> f "pre heap is %s"
-                        ([%show: [ `Impure of string * Lang.Type.t | `Pure of constr ] list ] pre_heap));
+
+  Log.debug (fun f -> f "pre heap is %s" ([%show: [ `Impure of string * Lang.Type.t | `Pure of constr ] list ] pre_heap));
   Log.debug (fun f -> f "obs is %s" (show_obs obs));
-  let logical_instantiations =
-    List.combine_shortest logical_params pre_heap
-    |> List.map (function
-      | (_, `Impure (name, ty)) ->
+
+  (* finally, for any logical params, assume they match the heaplets
+     in order, so retrieve the observations for the heap values
+     instead: *)
+  let _, init_params =
+    let logical_instantiations =
+      List.combine_shortest logical_params pre_heap in
+    List.fold_left (fun (init_ty, init_params) binding ->
+      match binding, Constr.kind_nocast init_ty with
+      | (_, `Impure (name, _)), Constr.Prod (_, ty, init_ty) ->
+        let ty = Proof_utils.CFML.extract_typ ty in
         let instantiated = instantiate_expr t env obs (`Var name, ty) in
-        Option.map_or ~default:(`Typed (`Var name, ty)) (fun res -> `Typed res)
-          instantiated
-      | _ -> failwith "Don't know how to instantiate logical parameters") in
+        let param = Option.map (fun res -> `Typed res) instantiated
+                    |> Option.get_exn_or (Format.sprintf "failed to instantiate") in
+          (init_ty, init_params @ [param])
+        | _ -> failwith "Don't know how to instantiate logical parameters"
+    ) (init_ty, init_params) logical_instantiations in
 
-  Log.debug (fun f -> f "build_complete_params: %s" @@
-              [%show: [ `Typed of expr * Lang.Type.t ] list]
-                logical_instantiations);
-
-  let init_params = init_params @ logical_instantiations in
   let params, _ = instantiate_arguments_with_evars t lemma_name init_params in
   params, inv
 
