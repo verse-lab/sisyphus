@@ -1344,3 +1344,33 @@ CLOSED: [2022-10-19 Wed 13:52]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Collect arguments to inv ty that are not ints and are fully instantiated
+CLOSED: [2022-10-20 Thu 02:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-20 Thu 02:42
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Take as input parameter to ty the concrete variables you need
+CLOSED: [2022-10-20 Thu 02:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-20 Thu 02:42
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE When given functions with one polymorphic variable, instantiate with input parameter
+CLOSED: [2022-10-20 Thu 02:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-20 Thu 02:42
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

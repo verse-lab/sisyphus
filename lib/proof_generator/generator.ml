@@ -290,7 +290,7 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left [_, _]) -> ()
 
-let typeof ?(uses_options=false) t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
+let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
   let ty =
     match s with
     | "++" ->
@@ -328,17 +328,7 @@ let typeof ?(uses_options=false) t env (s: string) : (Lang.Type.t list * Lang.Ty
             List.map (Lang.Type.map_poly_var map) args
             |> split_last
           ) in
-        let concrete_instantiations =
-          match poly, uses_options with
-          | [ty], true -> [
-              (* we use option unit as a hard-coded value for now *)
-              List.map (Lang.Type.subst
-                          (StringMap.of_list [ty, Lang.Type.ADT ("option", [Lang.Type.Unit], None)]))
-                args
-              |> split_last
-            ]
-          | _ -> [] in
-        Some (instantiations @ concrete_instantiations)
+        Some (instantiations)
       | _ -> None in
   ty
 
@@ -609,7 +599,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         from_id to_id);
 
     Expr_generator.build_context ~ints:[1;2]
-      ~vars ~funcs ~env:(fun f -> typeof ~uses_options t env f)
+      ~vars ~funcs ~env:(fun f -> typeof t env f)
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
 
@@ -674,7 +664,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
            );
 
   let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx
-                                            (typeof ~uses_options t env) in
+                                            (typeof t env) in
   let pure =
     List.map_product_l List.(fun (v, ty) ->
       List.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~blacklist:[v] ~fuel:3 ~initial:false ty)
