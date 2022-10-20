@@ -11,6 +11,8 @@ let max_z3_calls = ref None
 let z3_default_timeout = ref 100
 let z3_challenging_timeout = ref 15_000
 let inner_dump_dir = ref None
+let should_print_proof_extraction = ref false
+let should_dump_generated_invariants = ref false
 
 let pretty_reporter formatter = 
   let report src level ~over k user's_callback =
@@ -115,11 +117,13 @@ let combine r1 r2 =
     r2.Logs.report src level ~over (fun () -> v) msgf in
   { Logs.report }
 
-let initialize ?default_timeout ?challenging_timeout ?max_calls ?filter_logs ?should_validate_with_z3 ?log_level ?log_dir ?dump_dir () =
+let initialize ?default_timeout ?challenging_timeout ?max_calls ?filter_logs ?print_proof_extraction ?dump_generated_invariants ?should_validate_with_z3 ?log_level ?log_dir ?dump_dir () =
   update_opt z3_default_timeout default_timeout;
   update_opt z3_challenging_timeout challenging_timeout;
   update_opt validate_with_z3 should_validate_with_z3;
   max_z3_calls := Option.or_ ~else_:!max_z3_calls max_calls;
+  update_opt should_print_proof_extraction print_proof_extraction;
+  update_opt should_dump_generated_invariants dump_generated_invariants;
 
   Logs.set_level ~all:true log_level;
 
@@ -159,6 +163,10 @@ let z3_default_timeout () = !z3_default_timeout
 let z3_challenging_timeout () = !z3_challenging_timeout
 
 let max_z3_calls () = !max_z3_calls
+
+let print_proof_extraction () = !should_print_proof_extraction
+
+let dump_generated_invariants () = !should_dump_generated_invariants
 
 let dump_output name f =
   match !inner_dump_dir with

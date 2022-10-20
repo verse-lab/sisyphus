@@ -40,6 +40,7 @@ let collect_constants from_id to_id (steps: Proof_spec.Script.step list) =
   let collect_step cs : PS.Script.step -> _ = function
     | `Xapp (_, _, spec_args) ->
       List.fold_left collect_spec_arg cs spec_args
+    | `Xif _ | `Xinhab _
     | `SepSplitTuple _ | `Xmatchcase _ |`Intros _ |`Xpurefun _ |`Xvals _
     | `Xvalemptyarr _ |`Case _ |`Xletopaque _ |`Xdestruct _ |`Xalloc _
     | `Xref _ | `Xunit _ | `Xsimpl _ | `XappOpaque _

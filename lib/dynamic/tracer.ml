@@ -73,7 +73,11 @@ let encode_constructor_0 name =
   AH.Exp.(construct (str Longident.(Lident name)) None)
 
 let encode_constructor_n name args =
-  AH.Exp.(construct (str Longident.(Lident name)) (Some (tuple args)))
+  match args with
+  | [arg] ->
+    AH.Exp.(construct (str Longident.(Lident name)) (Some arg))
+  | args ->
+    AH.Exp.(construct (str Longident.(Lident name)) (Some (tuple args)))
 
 (* [build_enc_fun ty] returns an AST encoding a function to convert
    a value of type ty to the value type used in traces *)
@@ -264,6 +268,8 @@ let rec encode_expr (expr: Lang.Expr.t) =
     encode_constructor_0 name
   | `Constructor (name, args) ->
     encode_constructor_n name (List.map encode_expr args)
+  | `Tuple [elt] ->
+    encode_expr elt
   | `Tuple elts ->
     AH.Exp.tuple (List.map encode_expr elts)
   | `Lambda (args, body) ->

@@ -16,6 +16,27 @@ type invariant_spec = string * string list
 type invariant = Lang.Expr.t * Lang.Expr.t list
 type 'a tester = 'a -> bool
 
+let debug pp =
+  if Configuration.print_proof_extraction ()
+  then Log.debug (fun f -> pp f)
+  else ()
+
+(** [asserts cond f] asserts that [cond] is true, and if not, fails
+    with the error produced by [f]. *)
+let asserts b f =
+  if not b then
+    failwith (f (Format.ksprintf ~f:failwith))
+
+let split_last ls =
+  let rec loop acc last =
+    function
+    | [] -> (List.rev acc, last)
+    | h :: t -> loop (last :: acc) h t in
+  match ls with
+  | h :: t ->
+    loop [] h t
+  | [] -> failwith "split_last called on empty list"
+
 (** [is_case_of_eq_sym] determines whether a {!Constr.t} term
     represents a case over an [Logic.eq_sym] equality.
 
@@ -63,7 +84,7 @@ type env = {
 
   bound_variables: string_set;
   (** [bound_variables] is a string set used to track variables bound
-     in the current context, and thereby avoid naming clashes.
+      in the current context, and thereby avoid naming clashes.
 
       Whenever a new binding is added, this set must be updated. *)
 
@@ -137,6 +158,9 @@ let rel_expr env ind =
 let is_in_let_fun_context env =
   env.in_let_fun_context
 
+(** [add binding ?ty var env] adds a fresh binding of [var] (with an
+    optional representable type [ty]) to the current evaluation
+    environment, giving it a fresh name if needed. *)
 let add_binding ?ty var env =
   let var =
     if not (StringSet.mem var env.bound_variables)
@@ -312,16 +336,16 @@ let extract_match_code_case_values env (trm: Constr.t) : (Lang.Expr.t * Lang.Exp
 let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Proof_term.t  =
   match Constr.kind trm with
   | Constr.App (acc_rect, args) when PCFML.is_const_named "Acc_rect" acc_rect ->
-    Log.debug (fun f -> f "reify proof term on Acc_rect");
+    debug (fun f -> f "reify proof term on Acc_rect");
     extract_fold_specification coq_env env trm
   | Constr.App (trm , [| typ; proof |]) when Proof_utils.is_const_eq "TLC.LibTactics.rm" trm ->
-    Log.debug (fun f -> f "reify proof term on TlC.LibTactics.rm");
+    debug (fun f -> f "reify proof term on TlC.LibTactics.rm");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| typ; vl; prop; proof; vl'; proof_eq |]) when PCFML.is_const_named "eq_ind" trm ->
-    Log.debug (fun f -> f "reify proof term on eq_ind");
+    debug (fun f -> f "reify proof term on eq_ind");
     reify_proof_term coq_env env proof
   | Constr.App (trm, args) when PCFML.is_const_named "eq_ind" trm && Array.length args > 6 ->
-    Log.debug (fun f -> f "reify proof term on eq_ind multiple args");
+    debug (fun f -> f "reify proof term on eq_ind multiple args");
     let proof_term  = args.(3) in
     let args = Array.sub args 6 (Array.length args - 6) in
     let env, proof_term =
@@ -339,16 +363,16 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       ) (env, proof_term) args in
     reify_proof_term coq_env env proof_term
   | Constr.App (trm, args) when PCFML.is_const_named "reflexive_proper" trm ->
-    Log.debug (fun f -> f "reify proof term on reflexive_proper");
+    debug (fun f -> f "reify proof term on reflexive_proper");
     let proof = args.(Array.length args - 1) in
     reify_proof_term coq_env env proof
   | Constr.App (trm, [|
     pre; credits; hla;  hlw; hlt; hra; hrg; hrt; proof
   |]) when PCFML.is_xsimpl_lr_cancel_same trm ->
-    Log.debug (fun f -> f "reify proof term on xsimpl_lr_cancel_same");
+    debug (fun f -> f "reify proof term on xsimpl_lr_cancel_same");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| a; q1; q2; hla; nc; proof |]) when PCFML.is_xsimpl_lr_qwand trm ->
-    Log.debug (fun f -> f "reify proof term on xsimpl_lr_qwand");
+    debug (fun f -> f "reify proof term on xsimpl_lr_qwand");
     let ({Context.binder_name; _}, ty, proof) = Constr.destLambda proof in
     let binder_name = name_to_string binder_name in
     let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
@@ -357,20 +381,20 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
              reify_proof_term coq_env env proof
            )
   | Constr.App (trm, [| q1; q2; hla; nc; proof |]) when PCFML.is_xsimpl_lr_qwand_unit trm ->
-    Log.debug (fun f -> f "reify proof term on xsimpl_lr_qwand_unit");
+    debug (fun f -> f "reify proof term on xsimpl_lr_qwand_unit");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| hla; hrg; haffine; proof |]) when PCFML.is_xsimpl_lr_hgc_nocredits trm ->
-    Log.debug (fun f -> f "reify proof term on xsimpl_lr_hgc_nocredits");
+    debug (fun f -> f "reify proof term on xsimpl_lr_hgc_nocredits");
     reify_proof_term coq_env env proof    
   | Constr.App (trm, args (* [| ty; vl; prop; proof; vl'; proof_vl_eq_vl'; |] *)) when PCFML.is_const_named "eq_ind_r" trm ->
-    Log.debug (fun f -> f "reify proof term on eq_ind_r");
+    debug (fun f -> f "reify proof term on eq_ind_r");
     let proof = args.(3) in
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| ty; vl; prop; proof; vl'; proof_vl_eq_vl'; |]) when PCFML.is_const_named "eq_ind_r" trm ->
-    Log.debug (fun f -> f "reify proof term on eq_ind_r");
+    debug (fun f -> f "reify proof term on eq_ind_r");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| post_1; post_2; pre; proof_of_post_1; proof_of_post_2; |]) when PCFML.is_himpl_hand_r trm ->
-    Log.debug (fun f -> f "reify proof term on himpl_hand_r");
+    debug (fun f -> f "reify proof term on himpl_hand_r");
     let pre = extract_sym_heap env pre in
     HimplHandR (
       pre,
@@ -384,7 +408,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     proof_pre_impl_new_pre;
     proof_new_pre_impl_post
   |]) when PCFML.is_himpl_trans trm ->
-    Log.debug (fun f -> f "reify proof term on himpl_trans");
+    debug (fun f -> f "reify proof term on himpl_trans");
     let pre = extract_sym_heap env pre in
     let new_pre = extract_sym_heap env new_pre in
     HimplTrans (
@@ -394,10 +418,10 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       reify_proof_term coq_env env proof_new_pre_impl_post    
     )
   | Constr.App (trm, [| pre_frame_a;  pre_frame_b; post; proof |]) when PCFML.is_himpl_frame_r trm ->
-    Log.debug (fun f -> f "reify proof term on himpl_frame_r");
+    debug (fun f -> f "reify proof term on himpl_frame_r");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| prop; pre; post; proof |]) when PCFML.is_himpl_hstar_hpure_l trm ->
-    Log.debug (fun f -> f "reify proof term on himpl_hstar_hpure_l");
+    debug (fun f -> f "reify proof term on himpl_hstar_hpure_l");
     let ({Context.binder_name=proof_binding_name;_}, ty, proof) = Constr.destLambda proof in
     let proof_binding_name = name_to_string proof_binding_name in
     let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
@@ -408,24 +432,24 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       reify_proof_term coq_env env proof
     )
   | Constr.App (trm, [| pre; post; proof |]) when PCFML.is_xsimpl_lr_exit_nogc_nocredits trm ->
-    Log.debug (fun f -> f "reify proof term on xsimpl_lr_exit_nogc_nocredits");
+    debug (fun f -> f "reify proof term on xsimpl_lr_exit_nogc_nocredits");
     reify_proof_term coq_env env proof
   | Constr.App (trm, ([| pre; post; proof |] as args)) when PCFML.is_xsimpl_start trm ->
-    Log.debug (fun f -> f "reify proof term on xsimpl_start");
+    debug (fun f -> f "reify proof term on xsimpl_start");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| pre; post; proof |]) when PCFML.is_hstars_simpl_start trm ->
-    Log.debug (fun f -> f "reify proof term on hstars_simpl_start");
+    debug (fun f -> f "reify proof term on hstars_simpl_start");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| pre'; post_left; framed; post_right; proof |]) when PCFML.is_hstars_simpl_cancel trm ->
-    Log.debug (fun f -> f "reify proof term on hstars_simpl_cancel");
+    debug (fun f -> f "reify proof term on hstars_simpl_cancel");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| pre; pre'; post; proof_pre_eq_pre'; proof |]) when PCFML.is_hstars_simpl_pick_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on hstars_simpl_pick_lemma");
+    debug (fun f -> f "reify proof term on hstars_simpl_pick_lemma");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| post; post_proof |] ) when PCFML.is_himpl_hempty_pure trm ->
-    Log.debug (fun f -> f "reify proof term on himpl_hempty_pure (post=%s)" (Proof_utils.Debug.constr_to_string_pretty post));
+    debug (fun f -> f "reify proof term on himpl_hempty_pure (post=%s)" (Proof_utils.Debug.constr_to_string_pretty post));
     let post_expr = (PCFML.extract_expr ~rel:(rel_expr env) post) in
-    Log.debug (fun f -> f "reify proof term on post is %a" Lang.Expr.pp post_expr);
+    debug (fun f -> f "reify proof term on post is %a" Lang.Expr.pp post_expr);
     XDone ([`Invariant post_expr])
   | Constr.App (trm, [|
     exists_ty; exists_binding;
@@ -433,12 +457,12 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     post;
     proof
   |]) when PCFML.is_himpl_hexists_r trm ->
-    Log.debug (fun f -> f "reify proof term on himpl_hexists_r");
+    debug (fun f -> f "reify proof term on himpl_hexists_r");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [|
     _h1; _ha; _h; _ht; proof
   |]) when PCFML.is_hstars_simpl_keep trm ->
-    Log.debug (fun f -> f "reify proof term on hstars_simpl_keep");
+    debug (fun f -> f "reify proof term on hstars_simpl_keep");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [|
     exists_ty; 
@@ -446,7 +470,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     post;
     proof
   |]) when PCFML.is_himpl_hexists_l trm ->
-    Log.debug (fun f -> f "reify proof term on hstars_hexists_l");
+    debug (fun f -> f "reify proof term on hstars_hexists_l");
     let ({Context.binder_name=binding;_}, ty, proof) = Constr.destLambda proof in
     let binding_name = name_to_string binding in
     let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
@@ -456,7 +480,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       reify_proof_term coq_env env proof      
     )
   | Constr.App (trm, [| ty; post; pre; proof |]) when PCFML.is_himpl_hforall_r trm ->
-    Log.debug (fun f -> f "reify proof term on himpl_forall_r");
+    debug (fun f -> f "reify proof term on himpl_forall_r");
     let ({Context.binder_name=binding;_}, ty, proof) = Constr.destLambda proof in
     let binding_name = name_to_string binding in
     let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
@@ -471,7 +495,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     code;
     proof                       (* proof is a function with a binding *)
   |]) when PCFML.is_hwand_hpure_r_intro trm ->
-    Log.debug (fun f -> f "reify proof term on hwand_hpure_r_intro");
+    debug (fun f -> f "reify proof term on hwand_hpure_r_intro");
     let ({Context.binder_name=binding;_}, ty, proof) = Constr.destLambda proof in
     let binding_name = name_to_string binding in
     let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
@@ -506,7 +530,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     _post;                      (* function that takes in the result of body and returns the post condition *)
     proof                       (* function takes a value, and a proof value equals [let_vl], producing a proof  *)
   |]) when PCFML.is_xlet_val_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on xlet_val_lemma");
+    debug (fun f -> f "reify proof term on xlet_val_lemma");
 
     let let_vl = PCFML.extract_expr ~rel:(rel_expr env) let_vl in
     let pre = extract_sym_heap env pre in
@@ -539,7 +563,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     post;
     proof
   |]) when PCFML.is_xmatch_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on xmatch");
+    debug (fun f -> f "reify proof term on xmatch");
     let pre = extract_sym_heap env pre in
     let value = extract_match_code_case_values env code in
     XMatch {
@@ -555,7 +579,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     _post;                   (* post-condition of the term *)
     proof;                   (* rest of proof, should be a lambda that firsts binds fun  *)
   |]) when PCFML.is_xlet_fun_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on xlet_fun_lemma");
+    debug (fun f -> f "reify proof term on xlet_fun_lemma");
     let pre = extract_sym_heap env pre in
     let env = env
               |> with_let_fun_context ~ctx:true in
@@ -572,7 +596,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     rest_code;
     proof
   |]) when PCFML.is_xlet_trm_cont_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on xlet_trm_cont_lemma");
+    debug (fun f -> f "reify proof term on xlet_trm_cont_lemma");
     let pre = extract_sym_heap env pre in
     let value_code = PCFML.extract_embedded_expr ~rel:(rel_expr env) value_code in
     let binding_ty, binding_proof_ty = extract_proof_value env binding_ty |> extract_typ_from_proof_value in
@@ -590,7 +614,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     _code_snd;
     proof
   |]) when PCFML.is_xseq_cont_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on xseq_cont_lemma");
+    debug (fun f -> f "reify proof term on xseq_cont_lemma");
     reify_proof_term coq_env env proof
   | Constr.App (trm, [|
     ret_ty; enc_ret_ty;
@@ -603,7 +627,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     proof_fun;
     proof;
   |]) when PCFML.is_xapp_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on xapp_lemma");
+    debug (fun f -> f "reify proof term on xapp_lemma");
     let pre = extract_sym_heap env pre in
     let fun_pre = extract_sym_heap env fun_pre in
     let application =
@@ -626,7 +650,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       proof=reify_proof_term coq_env env proof;
     }
   | Constr.App (case, args) when is_case_of_eq_sym case ->
-    Log.debug (fun f -> f "reify proof term on case eq_sym");
+    debug (fun f -> f "reify proof term on case eq_sym");
     let (_, _, _, _, _, case_expr, branches) = Constr.destCase case in
     let (names, body) = branches.(0) in
     let kont, proof, env =
@@ -649,17 +673,17 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
            ) ((fun x -> x), body, env) in
     kont (reify_proof_term coq_env env proof)
   | Constr.App (trm, [| ty |]) when PCFML.is_xsimpl_lr_refl_nocredits trm ->
-    Log.debug (fun f -> f "reify proof term on case xsimpl_lr_refl_nocredits");
+    debug (fun f -> f "reify proof term on case xsimpl_lr_refl_nocredits");
     Refl
   | Constr.App (trm, [| ret_ty; enc_ret_ty; post; heaplet |]) when PCFML.is_xdone_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on case xdone_lemma");
+    debug (fun f -> f "reify proof term on case xdone_lemma");
     let heaplet = extract_sym_heap env heaplet in
     XDone heaplet
   | Constr.App (trm, [| heaplet |]) when PCFML.is_himpl_refl trm ->
-    Log.debug (fun f -> f "reify proof term on case himpl_refl");
+    debug (fun f -> f "reify proof term on case himpl_refl");
     Refl
   | Constr.App (trm, [| ty; enc_ty; vl; pre; post; proof |]) when PCFML.is_xval_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on case xval_lemma");
+    debug (fun f -> f "reify proof term on case xval_lemma");
     let pre = extract_sym_heap env pre in
     let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
     let vl = PCFML.extract_expr ~rel:(rel_expr env) vl in
@@ -669,7 +693,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       value=vl
     }
   | Constr.App (trm, [| ty; _enc_ty; cond; pre; post; _code_tr; _code_fl; proof_tr; proof_fl |]) when PCFML.is_xifval_lemma trm ->
-    Log.debug (fun f -> f "reify proof term on case xifval_lemma");
+    debug (fun f -> f "reify proof term on case xifval_lemma");
     let pre = extract_sym_heap env pre in
     let cond = PCFML.extract_expr ~rel:(rel_expr env) cond in
     let if_true = reify_proof_term coq_env env proof_tr in
@@ -689,7 +713,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
                |> Iter.to_list in
     VarApp (var, args)
   | Constr.App (var, args) when Constr.isRel var ->
-    Log.debug (fun f -> f "reify proof term on case app");
+    debug (fun f -> f "reify proof term on case app");
     let var = Constr.destRel var |> rel_expr env in
     if is_auxiliary_lemma env var
     then
@@ -712,7 +736,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
                  |> Iter.to_list in
       VarApp (var, args)
   | Constr.App (trm, args) when PCFML.is_const_wp_fn_trm trm && Array.length args > 5 ->
-    Log.debug (fun f -> f "reify proof term on const_wp_fn");
+    debug (fun f -> f "reify proof term on const_wp_fn");
     let pre = args.(Array.length args - 5) |> extract_sym_heap env in
     let proof = args.(Array.length args - 1) in
     let args = 
@@ -726,7 +750,7 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       proof=reify_proof_term coq_env env proof
     }
   | Constr.App (trm, [| arg |]) when Proof_utils.is_case_bool trm && Proof_utils.is_eq_refl arg ->
-    Log.debug (fun f -> f "reify proof term on case bool");
+    debug (fun f -> f "reify proof term on case bool");
     let[@warning "-8"] (_, _, _, _, _, cond, [| (_, if_tr); (_, if_fl) |]) = Constr.destCase trm in
     let cond = PCFML.extract_expr ~rel:(rel_expr env) cond in
     let if_true = reify_proof_term coq_env env if_tr in
@@ -734,12 +758,10 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     CaseBool {
       cond; if_true; if_false
     }
-  | Constr.App (trm, args) ->
-    Format.ksprintf ~f:failwith
-      "reify_proof_term env received App of %s (%s) to %d args\n%s@."
-      (String.take 4_000_000 (Proof_utils.Debug.constr_to_string trm)) (Proof_utils.Debug.tag trm)
-      (Array.length args)
-      (Array.to_string (fun v -> "{" ^ String.take 40_000 (Proof_utils.Debug.constr_to_string v) ^ "}") args)
+  | Constr.App (trm, [| arg |]) when Constr.isCase trm && Proof_utils.is_eq_refl arg ->
+    reify_proof_term coq_env env trm
+  | Constr.App (trm, [| _prop; _hfalse |]) when Proof_utils.is_const_eq "Coq.Init.Logic.False_ind" trm ->
+    CaseFalse
   | Constr.Lambda ({Context.binder_name;_}, ty, proof) ->
     let binder_name = name_to_string binder_name in
     let ty, proof_ty = extract_proof_value env ty |> extract_typ_from_proof_value in
@@ -750,15 +772,100 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       reify_proof_term coq_env env proof      
     )
   | Constr.Case (info, _, _, _, _, _, [| |]) when String.equal (Names.MutInd.to_string (fst info.ci_ind)) "Coq.Init.Logic.False" ->
+    debug (fun f -> f "reify proof term on case false");
     CaseFalse
-  | Constr.Case (info, _, _, _, _, _, cases) ->
-    Log.debug (fun f ->
-      f "received case with %d cases" (Array.length cases)
-    );
+
+
+  | Constr.Case (info, _univ, tys, (ret_args, ret_ty), _inv, vl, cases) ->
+    debug (fun f -> f "reify proof term on case ADT");
+
+    (* retrieve the inductive type being cased on *)
+    let inductive_type = Environ.lookup_mind (fst info.ci_ind) coq_env in
+
+    asserts (Array.length inductive_type.mind_packets = 1)
+      (fun f -> f "expecting non-mutually recursive inductive type");
+
+    (* extract the definition of the inductive type *)
+    let inductive_def = inductive_type.mind_packets.(0) in
+    let inductive_constructor_tys_and_names =
+      List.combine
+        (Array.to_list inductive_def.mind_consnames)
+        (Array.to_list inductive_def.mind_user_lc) in
+
+    (* extract the formal params for data type  *)
+    let formal_params = List.map (function
+        Context.Rel.Declaration.LocalAssum ({Context.binder_name=name; _}, _) ->
+        name
+      | Context.Rel.Declaration.LocalDef (_, _, _) ->
+        Format.ksprintf ~f:failwith "Inductive types with let bindings aren't supported by Sisyphus"
+    ) inductive_type.mind_params_ctxt in
+
+    (* retrieve the concrete formal params *)
+    let concrete_formal_params = Array.to_list tys in
+
+    asserts (List.compare_lengths formal_params concrete_formal_params = 0)
+      (fun f -> f "expected inductive type to be fully instantiated.");
+
+    let vl = PCFML.extract_expr ~rel:(rel_expr env) vl in
+
+    let cases =
+      List.combine inductive_constructor_tys_and_names (Array.to_list cases)
+      |> List.map (fun ((constr_name, constr_type), (args, body)) ->
+        let constr_name = Names.Id.to_string constr_name in
+        (* first parse the type of the constructor *)
+        let (Lang.Type.Forall (fparams, constr_tys)) as f = Proof_utils.CFML.extract_fun_typ constr_type in
+
+        asserts (List.compare_lengths fparams concrete_formal_params = 0)
+          (fun f -> f "expected inductive type's constructors to be fully instantiated (no GADTs, sorry)");
+
+        (* we expect the type of the constructor to be a simple (polymorphic) OCaml-like type: *)
+        let params, constr_type = match constr_tys with
+          | [Lang.Type.Func (Some (args, res))] -> args, res
+          | [res] -> [], res
+          |  _ ->
+            Format.ksprintf ~f:failwith "found unexpected type for constructor %a"
+              Lang.Type.pp_fn f in
+
+        (* now, instantiate polymorphic constructor type with concrete formal arguments  *)
+        let params, constr_type =
+          let subst =
+            List.combine fparams concrete_formal_params
+            |> List.map (Pair.map_snd (Proof_utils.CFML.extract_typ ~rel:(rel_ty env)))
+            |> StringMap.of_list in
+          List.map (Lang.Type.subst subst) params,
+          Lang.Type.subst subst constr_type in
+
+        let args = Array.to_list args
+                   |> List.map (fun name ->
+                     name_to_string name.Context.binder_name) in
+
+        asserts (List.compare_lengths params args = 0)
+          (fun f -> f "expected params introduced by case to match constructor");
+
+        (* calculate a the bindings introduced by the case,
+           and build a new binding environment for analysing
+           the body *)
+        let env, bindings =
+          List.combine args params
+          |> List.fold_map (fun env (name, ty) ->
+            let name, env = add_binding ~ty name env in
+            env, (name, ty)
+          ) env in
+        (* now reify the body of the case *)
+        let body = reify_proof_term coq_env env body in
+        (* and we're done! *)
+        (constr_name, bindings, body)) in
+
+    CaseADT {
+      vl;
+      cases
+    }
+  | Constr.App (trm, args) ->
     Format.ksprintf ~f:failwith
-      "reify_proof_term env received case on %s: %s"
-      (Names.MutInd.to_string (fst @@ info.ci_ind))
-      (String.take 4000 (Proof_utils.Debug.constr_to_string trm))
+      "reify_proof_term env received App of %s (%s) to %d args\n%s@."
+      (String.take 4_000_000 (Proof_utils.Debug.constr_to_string trm)) (Proof_utils.Debug.tag trm)
+      (Array.length args)
+      (Array.to_string (fun v -> "{" ^ String.take 40_000 (Proof_utils.Debug.constr_to_string v) ^ "}") args)
   | _ ->
     Format.ksprintf ~f:failwith
       "reify_proof_term env received %s"

@@ -1245,3 +1245,132 @@ CLOSED: [2022-10-17 Mon 09:14]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Setup vterm to run tests
+CLOSED: [2022-10-19 Wed 02:53]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:12
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update code to use combinator
+CLOSED: [2022-10-19 Wed 03:12]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:12
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update code to properly instantiate until and fold combinators
+CLOSED: [2022-10-19 Wed 03:13]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:34
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update build testing function to instantiate arguments properly again
+CLOSED: [2022-10-19 Wed 03:26]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:34
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* TODO Find out what fails next
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 03:34
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: TODO
+:END:
+
+* DONE Update proof term to have casing on ADTs
+CLOSED: [2022-10-19 Wed 08:20]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 08:20
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add support for casing on ADTs
+CLOSED: [2022-10-19 Wed 08:20]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 08:20
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE fix xapp arguments to take a type
+CLOSED: [2022-10-19 Wed 13:29]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 13:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE fix extracted type of combinator for until upto to remove option
+CLOSED: [2022-10-19 Wed 13:29]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 13:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update extraction to work with case ADT
+CLOSED: [2022-10-19 Wed 13:52]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-19 Wed 13:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Collect arguments to inv ty that are not ints and are fully instantiated
+CLOSED: [2022-10-20 Thu 02:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-20 Thu 02:42
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Take as input parameter to ty the concrete variables you need
+CLOSED: [2022-10-20 Thu 02:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-20 Thu 02:42
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE When given functions with one polymorphic variable, instantiate with input parameter
+CLOSED: [2022-10-20 Thu 02:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-20 Thu 02:42
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

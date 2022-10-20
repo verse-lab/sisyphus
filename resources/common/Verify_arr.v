@@ -6,8 +6,8 @@ From TLC Require Import LibListZ.
 From Common Require Import Utils Arr_ml.
 
 Lemma array_iter_spec :
-  forall A `{EA: Enc A} (f: func) (a: array A) (l: list A),
-  forall (I: list A -> hprop),
+  forall A `{EA: Enc A} (f: func) (a: array A),
+  forall (I: list A -> hprop) (l: list A),
   (forall v (t r: list A),
       (l = t++v::r) ->
      SPEC (f v)
@@ -17,7 +17,7 @@ Lemma array_iter_spec :
     PRE (a ~> Array l \* I nil)
     POST (fun (_: unit) => a ~> Array l \* I l).
 Proof using.
-  intros A EA f a l I f_spec.
+  intros A EA f a I l f_spec.
   xcf.
   xapp.
   xlet as;=> loop Hloop.
@@ -96,7 +96,7 @@ Proof using.
       xapp; try math; intros arr data Hdata.
       xapp;=> pos.
       xlet as;=> tmp Htmp.
-      xapp (array_iter_spec tmp a l
+      xapp (array_iter_spec tmp a
               (fun (t: list A) =>
                   arr ~> Array (take i t ++ drop (length (take i t)) data) \*
                   pos ~~> length t
@@ -146,7 +146,7 @@ Proof using.
       xapp; try math; intros arr data Hdata.
       xapp;=> pos.
       xlet as;=> tmp Htmp.
-      xapp (array_iter_spec tmp a l
+      xapp (array_iter_spec tmp a
               (fun (t: list A) =>
                   arr ~> Array (take i t ++ drop (length (take i t)) data) \*
                   pos ~~> length t

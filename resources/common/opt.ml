@@ -7,3 +7,7 @@ let option_is_some = function
 let option_is_none = function
   | None -> true
   | _ -> false
+
+let opt_of_bool = function
+  | true -> Some ()
+  | false -> None

@@ -5,6 +5,10 @@ module AT = Asttypes
 
 module Log = (val Logs.src_log (Logs.Src.create ~doc:"Extracts ocaml programs from proof terms" "analysis.extract"))
 
+let debug pp =
+  if Configuration.print_proof_extraction ()
+  then Log.debug (fun f -> pp f)
+  else ()
 
 let () = Printexc.register_printer (function Failure e -> Some e | _ -> None)
 
@@ -57,6 +61,9 @@ let rec encode_expr_as_pat (expr: Lang.Expr.t) : Parsetree.pattern =
   | `Int n -> pint_const n
   | `Constructor (f, []) ->
     AH.Pat.construct (loc (lid f)) None
+  | `Constructor (f, [arg]) ->
+    AH.Pat.construct (loc (lid f)) (Some (encode_expr_as_pat arg))
+
   | `Constructor (f, args) ->
     AH.Pat.construct (loc (lid f)) (Some (AH.Pat.tuple @@ List.map encode_expr_as_pat args))
   | `App (_, _)
@@ -65,6 +72,8 @@ let rec encode_expr_as_pat (expr: Lang.Expr.t) : Parsetree.pattern =
 
 let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
   match expr with
+  | `Tuple [vl] ->
+    encode_expr vl
   | `Tuple vls ->
     AH.Exp.tuple (List.map encode_expr vls)
   | `Var v when String.prefix ~pre:"symbol_" v ->
@@ -77,12 +86,16 @@ let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
   | `App (f, args) ->
     AH.Exp.apply (var (normalize f)) (List.map (fun e -> (AT.Nolabel, encode_expr e)) args)
   | `Lambda (args, body) ->
-    let args = List.map (function `Tuple params -> AH.Pat.tuple (List.map Fun.(pvar % fst) params)
-                                | `Var (v, _) -> pvar v) args in
+    let args = List.map (function
+      | `Tuple params -> AH.Pat.tuple (List.map Fun.(pvar % fst) params)
+      | `Var (v, _) -> pvar v) args in
     fun_ args (encode_expr body)
   | `Int n -> int_const n
   | `Constructor (f, []) ->
     AH.Exp.construct (loc (lid f)) None
+  | `Constructor (f, [arg]) ->
+    AH.Exp.construct (loc (lid f)) (Some (encode_expr arg))
+
   | `Constructor (f, args) ->
     AH.Exp.construct (loc (lid f)) (Some (AH.Exp.tuple @@ List.map encode_expr args))
 
@@ -108,6 +121,8 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.XMatch _ 
   | Proof_term.XApp _ 
   | Proof_term.XVal _  -> true
+  | Proof_term.CaseADT {cases; _} ->
+    List.exists (fun (_name,_args, rest) -> contains_symexec rest) cases
   | Proof_term.CaseBool {if_true; if_false; _} ->
     contains_symexec if_true || contains_symexec if_false
 
@@ -141,14 +156,18 @@ let extract_xmatch_cases n trm =
       else n, acc
     | Proof_term.Lambda (_, _, rest) ->
       loop n acc rest
+
+    | Proof_term.CaseFalse
     | Proof_term.Refl -> n, acc
+
     | Proof_term.HimplTrans (_, _, l1, l2) ->
       let n, acc = loop n acc l1 in
       if n > 0
       then loop n acc l2
       else n, acc
     | _ ->
-      Format.ksprintf ~f:failwith "extract_xmatch_cases: found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm)) in
+      Format.ksprintf ~f:failwith "extract_xmatch_cases: found unsupported proof term %s"
+        (String.take 1000 ([%show: Proof_term.t] trm)) in
   loop n [] trm |> snd |> List.rev
 
 
@@ -181,7 +200,7 @@ let rec find_next_program_binding_name (trm: Proof_term.t) =
   | _ -> raise Not_found
   
 let rec extract ?replacing (trm: Proof_term.t) =
-  Log.debug (fun f -> f "extract %s@." (Proof_term.tag trm));
+  debug (fun f -> f "extract %s@." (Proof_term.tag trm));
   let extract trm = extract ?replacing trm in
   match trm with
   | Proof_term.XLetVal { pre; binding_ty; let_binding=(var, _); eq_binding; value; proof } ->
@@ -311,6 +330,12 @@ let rec extract ?replacing (trm: Proof_term.t) =
     AH.Exp.ifthenelse (encode_expr cond)
       (extract if_true)
       (Some (extract if_false))
+  | Proof_term.CaseADT {vl; cases} ->
+    let encode_case (name, args, rest) =
+      AH.Exp.case (encode_expr_as_pat (`Constructor (name, List.map (fun (v, _) -> `Var v) args)))
+        (extract rest) in
+    AH.Exp.match_ (encode_expr vl)
+      (List.map encode_case cases)
   | Proof_term.CaseFalse ->
     AH.Exp.assert_ (encode_expr (`Constructor ("false", [])))
   | _ ->

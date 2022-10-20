@@ -28,7 +28,7 @@ Proof using (All).
   xref a_t.
   xref a_f.
   xletopaque tmp Htmp.
-  xapp (array_iter_spec tmp a l (fun (ls: list A) =>
+  xapp (array_iter_spec tmp a (fun (ls: list A) =>
                                    a_t ~~> filter pp (rev ls) \*
                                    a_f ~~> filter_not pp (rev ls)
        )). {

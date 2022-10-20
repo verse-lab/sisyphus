@@ -9,11 +9,14 @@ type t = {
      corresponding definitions and observation points. *)
   bindings: string StringMap.t;
   (** [bindings] are a mapping of proof vars (i.e [idx]) to their
-     corresponding program variables.  *)
+     corresponding program variables.
+
+      This information is obtained purely mechanically during
+     execution of the program and is required to handle renaming that
+     might occur when creating fresh variables.  *)
   logical_mappings: string StringMap.t;
   (** [logical_mappings] are a mapping of logical mappings of concrete
-     values (i.e [s]) to their corresponding logical variables [l].
-     *)  
+     values (i.e [s]) to their corresponding logical variables [l]. *)  
   args: (string * Lang.Type.t) list;
   (** [args] are a full list of formal parameters to the function
      being evaluated *)
@@ -45,6 +48,7 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
   | Lang.Type.Unit
   | Lang.Type.Bool
   | Lang.Type.Var _ -> true
+  | Lang.Type.ADT ("option", [ty], _)
   | Lang.Type.List ty -> is_pure_ty ty
   | Lang.Type.Product elts ->
     List.for_all is_pure_ty elts
@@ -60,18 +64,11 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
 let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
 
   let logical_mappings = StringMap.of_list logical_mappings in
+
   (* bindings map proof vars to their corresponding program vars  *)
   let bindings =
     List.to_iter args
-    |> Iter.filter_map (fun (v, ty) ->
-      (* if the variable is pure, then its proof var is the same as its program var *)
-      if is_pure_ty ty
-      then Some (v,v)
-      (* if its not pure, then check if we have a logical mapping as
-         [l ==> s] provided by the user. If so, map proof var [s] to program var [l]  *)
-      else StringMap.find_opt v logical_mappings
-           |> Option.map (fun bv -> (bv, v))
-    )
+    |> Iter.map (fun (v, _ty) -> (v,v))
     |> StringMap.of_iter in
   let gamma = StringMap.of_list args in
   let poly_vars =

@@ -24,8 +24,8 @@ Lemma sll_partition_spec :
   ).
 Proof using (All).
   xcf.
-  xapp (sll_nil_spec). intros s_t.
-  xapp (sll_nil_spec). intros s_f.
+  xapp. intros s_t.
+  xapp. intros s_f.
   xletopaque tmp Htmp.
   xapp (sll_fold_spec tmp (s_t, s_f) s
           (fun (ls: list A) '((s_t, s_f): sll A * sll A) =>

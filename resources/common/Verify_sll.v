@@ -139,6 +139,7 @@ Proof.
   xchange SLL_fold_cons.
   xsimpl*.
 Qed.
+#[export] Hint Extern 1 (RegisterSpec sll_cons) => Provide sll_cons_spec.
   
 Lemma sll_nil_spec :
   forall A `{EA: Enc A}, 
@@ -152,6 +153,7 @@ Proof.
   xval.
   rewrite SLL_nil; xsimpl*.
 Qed.
+#[export] Hint Extern 1 (RegisterSpec sll_nil) => Provide sll_nil_spec.
 
 Lemma sll_push_spec :
   forall A `{EA: Enc A} (hd: A) (l: sll A) (ls: list A), 
@@ -177,7 +179,7 @@ Proof.
     xchange SLL_fold_cons.
     xsimpl*.
 Qed.
-
+#[export] Hint Extern 1 (RegisterSpec sll_push) => Provide sll_push_spec.
 
 Lemma sll_iter_spec :
   forall A `{EA: Enc A}
@@ -292,7 +294,7 @@ Proof.
   Unshelve.
   exact EA.
 Qed.
-
+#[export] Hint Extern 1 (RegisterSpec sll_iter) => Provide sll_iter_spec.
 
 Lemma sll_fold_spec :
   forall A `{EA: Enc A} B `{EB: Enc B} (f: func) (init: B) (l: sll A)
@@ -340,7 +342,7 @@ Proof.
   xsimpl*.
 Qed.
 Arguments sll_fold_spec {A} {EA} {B} {EB} f init l I ls Hf.
-
+#[export] Hint Extern 1 (RegisterSpec sll_fold) => Provide sll_fold_spec.
 
 Lemma sll_reverse_spec :
   forall A `{EA: Enc A} (l: sll A) (ls: list A),
@@ -404,6 +406,8 @@ Proof.
   xchange SLL_part_fold_last.
   xsimpl*.
 Qed.
+#[export] Hint Extern 1 (RegisterSpec sll_reverse) => Provide sll_reverse_spec.
+
 
 Lemma SLL_haffine {A: Type} `{EA: Enc A} (s: sll A) (ls: list A):
   haffine (s ~> SLL ls).

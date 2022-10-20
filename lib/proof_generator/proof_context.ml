@@ -75,11 +75,26 @@ let current_subproof {ctx; _} =
   | Some [] -> failwith "failed to obtain subproof - serapi returned no remaining subproofs."
   | None -> failwith "unable to retrieve subproof - serapi returned None."
 
+let current_subproof_opt {ctx; _} =
+  let module Ctx = (val ctx) in
+  Ctx.query Serapi.Serapi_protocol.Goals
+  |> Option.map @@ List.map (function[@warning "-8"]
+    | Serapi.Serapi_protocol.CoqGoal g -> g
+  )
+  |> function
+  | Some (goal :: _) -> Some goal
+  | _ -> None
+
 let current_goal t =
   match (current_subproof t).goals with
   | [goal] -> goal
   | [] -> failwith "failed to obtain focused goal - serapi returned no focused goals."
   | _ -> failwith "failed to obtain focused goal - serapi returned multiple focused goals"
+
+let current_goal_opt t =
+  match (current_subproof_opt t) with
+  | Some Serapi.Serapi_goals.{goals=[goal]; _} -> Some goal
+  | _ -> None
 
 let env {ctx; _} =
   let module Ctx = (val ctx) in
@@ -94,25 +109,48 @@ let env {ctx; _} =
   | None -> failwith "unable to obtain proof env - serapi returned None."
 
 let typeof_opt t expr =
-  assert (not (String.equal expr "="));
   let no_hyps = List.length (current_goal t).hyp in
   append t "pose proof (%s)." expr;
-  if List.length (current_goal t).hyp <= no_hyps
-  then (cancel_last t; None)
-  else let (_, _, ty) = List.hd (current_goal t).hyp in let module Ctx = (val t.ctx) in (cancel_last t; Some ty)
-
+  match current_goal_opt t with
+  | None -> (cancel_last t; None)
+  | Some goal ->
+    if List.length goal.hyp <= no_hyps
+    then (cancel_last t; None)
+    else let (_, _, ty) = List.hd goal.hyp in (cancel_last t; Some ty)
 
 let typeof t expr =
   assert (not (String.equal expr "="));
   let no_hyps = List.length (current_goal t).hyp in
   append t "pose proof (%s)." expr;
-  if List.length (current_goal t).hyp <= no_hyps then
+  match current_goal_opt t with
+  | None ->
     Format.ksprintf
-      ~f:failwith "attempted to check type of invalid expression (%s)." expr;
-  let (_, _, ty) = List.hd (current_goal t).hyp in
-  let module Ctx = (val t.ctx) in
-  cancel_last t;
-  ty
+      ~f:failwith "attempted to check type of invalid (syntax) expression (%s)." expr
+  | Some goal ->
+    if List.length goal.hyp <= no_hyps then
+      Format.ksprintf
+        ~f:failwith "attempted to check type of invalid (ill-typed) expression (%s)." expr;
+    let (_, _, ty) = List.hd goal.hyp in
+    let module Ctx = (val t.ctx) in
+    cancel_last t;
+    ty
+
+let etypeof t expr =
+  assert (not (String.equal expr "="));
+  let no_hyps = List.length (current_goal t).hyp in
+  append t "epose proof (%s)." expr;
+  match current_goal_opt t with
+  | None ->
+    Format.ksprintf
+      ~f:failwith "attempted to check type of invalid (syntax) expression (%s)." expr;
+  | Some goal ->
+    if List.length goal.hyp <= no_hyps then
+      Format.ksprintf
+        ~f:failwith "attempted to check type of invalid (ill-typed) expression (%s)." expr;
+    let (_, _, ty) = List.hd goal.hyp in
+    let module Ctx = (val t.ctx) in
+    cancel_last t;
+    ty
 
 let term_of t expr =
   let no_hyps = List.length (current_goal t).hyp in

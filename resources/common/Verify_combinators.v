@@ -69,7 +69,7 @@ Proof.
       { math. }
       { intros b; xsimpl*; intros; split; auto; destruct H; try math; auto. }
 Qed.
-Arguments until_upto_spec {A} {EA} start stop f I Hf : rename.
+Arguments until_upto_spec A {EA} start stop f I Hf : rename.
 
 Lemma for_upto_spec:
   forall (start stop: int) (f: func)
@@ -166,7 +166,7 @@ Proof.
       { math. }
       { intros b; xsimpl*. intros i [H1 H2]; split; auto; math. }
 Qed.
-Arguments until_downto_spec {A} {EA} start stop f I Hf : rename.
+Arguments until_downto_spec A {EA} start stop f I Hf : rename.
 
 Lemma for_downto_spec : forall (from: int) (down_to: int) (f: func),
   forall (I: int -> hprop),
@@ -235,7 +235,7 @@ Proof using.
   xapp; auto; try math.
   xsimpl*.
 Qed.
-Arguments nat_fold_up_spec {A} {EA} from upto f init I Hf HI : rename.
+Arguments nat_fold_up_spec A {EA} from upto f init I Hf HI : rename.
 
 Lemma nat_fold_down_spec :
   forall {A: Type} {EA: Enc A} (from: int) (downto: int) (f: func) (init: A)
@@ -271,4 +271,4 @@ Proof using.
   xapp; auto; try math.
   xsimpl*.
 Qed.
-Arguments nat_fold_down_spec {A} {EA} from downto f init I Hf HI : rename.
+Arguments nat_fold_down_spec A {EA} from downto f init I Hf HI : rename.

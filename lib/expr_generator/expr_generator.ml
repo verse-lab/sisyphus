@@ -109,7 +109,13 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
   let consts =
     List.fold_left (fun acc i ->
       Types.update_binding acc Int (`Int i)
-    ) consts ints in
+    ) consts ints
+    |>  Types.TypeMap.map (fun elts ->
+      let module S = Set.Make (struct
+                       type t = [ `Int of int | `Var of string ]
+                       [@@deriving ord]
+                     end) in
+      (S.of_list elts |> S.to_list :> expr list)) in
   let funcs =
     let normalize_name f = String.split_on_char '.' f |> List.last_opt |> Option.value ~default:f in
     List.fold_left (fun acc f ->

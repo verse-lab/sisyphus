@@ -19,7 +19,7 @@ Proof using (All).
   xif as cond.
   - xvals*. { sis_list_solver. }
   - xletopaque tmp Htmp.
-    xapp (until_downto_spec (length l - 1) 0 tmp
+    xapp (until_downto_spec unit (length l - 1) 0 tmp
             (fun (i: int) (b: option unit) =>
                \[b = opt_of_bool (negb (is_sorted (drop i l)))] \*
                  a ~> Array l)

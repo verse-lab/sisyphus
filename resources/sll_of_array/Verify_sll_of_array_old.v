@@ -16,19 +16,17 @@ Lemma sll_of_array_spec :
   POST (fun (s : sll A) => s ~> SLL ls \* a ~> Array ls).
 Proof using (All).
   xcf.
-  xapp (sll_nil_spec).
-  intros s.
+  xapp. intros s.
   xletopaque tmp Htmp.
-  xapp (array_iter_spec tmp a ls
+  xapp (array_iter_spec tmp a
           (fun (ls: list A) =>
              s ~> SLL (rev ls)
        )). {
     sis_solve_start.
-    xapp (sll_push_spec); xgo*.
     rew_list; auto.
   }
   xmatch.
-  xapp (sll_reverse_spec).
+  xapp.
   xmatch.
-  xvals. { rew_list; auto. }
+  xvals*. { rew_list; auto. }
 Qed.

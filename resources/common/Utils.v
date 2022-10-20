@@ -3,6 +3,9 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
+Definition existsb (A: Type) (p: A -> bool) (ls: list A) : bool :=
+  List.existsb p ls.
+
 Lemma negb_eq_neg (b: bool):
   negb b = ! b.
 Proof.
