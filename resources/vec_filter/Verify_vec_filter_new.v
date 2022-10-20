@@ -32,6 +32,7 @@ Proof.
     intros i Hi; apply Htmp; clear Htmp.
     xinhab.
     xapp. { sis_handle_int_index_prove.
+
       rewrite length_drop_nonneg; try (rew_list; math).
       split; try math; pose proof (length_filter_take_leq f_p l i);
         pose proof (length_filter l f_p);
@@ -61,6 +62,7 @@ Proof.
       xapp.
       xval.
       xvals*. {
+
         rewrite (take_pos_last IA (i + 1)); math_rewrite (i + 1 - 1 = i);
           try sis_handle_int_index_prove; rewrite filter_last, If_l; rew_list; auto; math.
       } {
@@ -72,6 +74,7 @@ Proof.
         do 2 f_equal; math.
       }
     - xval. xvals*. {
+
         rewrite (take_pos_last IA (i + 1)); math_rewrite (i + 1 - 1 = i);
           try sis_handle_int_index_prove; rewrite filter_last, If_r; rew_list; auto; math.
       } {
