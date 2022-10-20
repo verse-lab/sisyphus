@@ -7,4 +7,10 @@ and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
 ** TODO Add parsing unit tests for array_partition
+** DONE Test whether array iter works with list as parameter after invariant
+CLOSED: [2022-10-20 Thu 02:46]
+** DONE Update examples to use new interface to array iter
+CLOSED: [2022-10-20 Thu 02:55]
+** TODO Add function to PCFML to test if a function returns hprop
+** TODO from extract inv ty, return a list of concrete params + logical params ahtt follow the invariant
 ** TODO You're the BEST around

@@ -40,7 +40,7 @@ Proof using (All).
     xref c_t.
     xref c_f.
     xletopaque tmp Htmp.
-    xapp (array_iter_spec tmp a l (fun (prefix: list A) =>
+    xapp (array_iter_spec tmp a (fun (prefix: list A) =>
                                      c_t ~~> (length (filter pp prefix)) \*
                                        c_f ~~> (length (filter_not pp prefix)) \*
                                        a_t ~> Array (
