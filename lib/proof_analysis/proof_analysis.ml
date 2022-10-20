@@ -882,13 +882,6 @@ and extract_fold_specification (coq_env: Environ.env) (env: env) (trm: Constr.t)
              |> Iter.map (extract_proof_value env)
              |> Iter.map (function `Expr e -> `Expr e | v -> `ProofTerm ([%show: Proof_term.proof_value] v))
              |> Iter.to_list in
-  Log.debug (fun f ->
-    f "args to fold spec were %s (input 2 was %s)@. env is %a@."
-      ([%show: [ `Expr of Lang.Expr.t
-               | `ProofTerm of string ] list] args)
-      (Proof_utils.Debug.constr_to_string_pretty oargs.(7))
-      pp_env env)
-  ;
   (* t: args.(6)  == nil & x *)
   (* init: args.(7) == init *)
   let ({Context.binder_name=rec_vl;_}, rec_vl_ty, recursive_spec) = Constr.destLambda recursive_spec in
