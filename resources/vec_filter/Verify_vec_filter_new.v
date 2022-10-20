@@ -37,6 +37,7 @@ Proof.
         pose proof (length_filter l f_p);
         math.
     }
+
     xapp.
     pose proof (length_filter_take_leq f_p l i);
       pose proof (length_filter l f_p);
@@ -47,8 +48,9 @@ Proof.
     rewrite read_drop; try (rew_list; math);
         try (apply int_index_prove; try math; try (rewrite HD; rew_list; math)).
     math_rewrite (length (filter (fun x0 : A => f_p x0) (take i l)) +
-               (i - length (filter (fun x0 : A => f_p x0) (take i l))) = i).
-    xif;=> Hfp.
+                    (i - length (filter (fun x0 : A => f_p x0) (take i l))) = i).
+
+    xif;=> Hfp. (* note: introduces a unit call in the post-condition *)
     - xapp.
       xapp (@vec_set_spec A EA).  {
         sis_handle_int_index_prove.
