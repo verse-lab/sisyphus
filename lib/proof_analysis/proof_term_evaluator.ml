@@ -23,6 +23,7 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (Array.to_list (unwrap (eval ctx l)))
   | `App ("=", [l;r]) ->
     wrap (Equal.poly (unwrap (eval ctx l)) (unwrap (eval ctx r)))
+  | `App ("negb", [l])
   | `App ("not", [l]) ->
     wrap (not (unwrap (eval ctx l)))
   | `App ("&&", [l;r]) ->
@@ -132,6 +133,8 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (Option.is_some (unwrap (eval ctx arg)))
   | `App ("opt_of_bool", [b]) ->
     wrap (if unwrap (eval ctx b) then Some () else None)
+  | `App ("existsb", [f; ls]) ->
+    wrap (List.exists (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr
