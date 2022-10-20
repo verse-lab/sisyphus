@@ -14,8 +14,7 @@ Lemma array_partition_spec :
   (forall a: A,
       SPEC (p a)
       PRE (\[])
-      POST (fun (b: bool) => \[b = pp a])
-  ) ->
+      POST (fun (b: bool) => \[b = pp a])) ->
   SPEC (partition p a)
   PRE (a ~> Array l)
   POST (fun '((a_t, a_f) : (loc * loc)) =>
