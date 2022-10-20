@@ -97,8 +97,8 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
       (Proof_debug.constr_to_string_pretty c)
 
 (** [is_invariant_ty ty] checks that [ty] is a arrow type that returns
-   HPROP. Raises an exception if the input constructor is not of the
-   correct form to be an argument to a loop spec. *)
+    HPROP. Raises an exception if the input constructor is not of the
+    correct form to be an argument to a loop spec. *)
 let is_invariant_ty ty =
   let rec loop ity =
     match Constr.kind_nocast ity with
@@ -256,6 +256,36 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a expr"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
+(** [extract_heap c] when given a coq term [c] representing a heap,
+    returns a list of its constituent heaplets. *)
+let extract_heap c =
+  let destruct_heap pre =
+    let rec loop acc pre =
+      match Constr.kind pre with
+      | Constr.Const (_, _) when is_hempty pre -> acc
+      | Constr.App (fname, [|heaplet; rest|]) when is_hstar fname ->
+        begin match Constr.kind heaplet with
+        | Constr.App (fname, _) when is_hpure fname ->
+          loop (`Pure heaplet :: acc) rest             
+        | _ ->
+          loop (`Impure heaplet :: acc) rest
+        end
+      | _ ->
+        `Impure pre :: acc in
+    loop [] pre in
+  let pre =
+    match Constr.kind c with
+    | Constr.Const (_, _) when is_hempty c -> `Empty
+    | Constr.App (fname, _) when is_hstar fname ->
+      begin match destruct_heap c with
+      | heap -> `NonEmpty (List.rev heap)
+      | exception _ -> failwith ("unexpected heap structure: " ^ (Proof_debug.constr_to_string c))
+      end
+    | Constr.App (fname, _) when is_hpure fname ->
+      `NonEmpty ([`Pure c])
+    | _ -> `NonEmpty ([`Impure c]) in
+  pre
+
 (** [extract_cfml_goal goal] when given an intermediate CFML [goal],
     extracts the pre and post condition.  *)
 let extract_cfml_goal goal =
@@ -278,37 +308,13 @@ let extract_cfml_goal goal =
 
   let pre = List.nth args 0 and post = List.nth args 1 in
 
-  let destruct_heap pre =
-    let rec loop acc pre =
-      match Constr.kind pre with
-      | Constr.Const (_, _) when is_hempty pre -> acc
-      | Constr.App (fname, [|heaplet; rest|]) when is_hstar fname ->
-        begin match Constr.kind heaplet with
-        | Constr.App (fname, _) when is_hpure fname ->
-          loop (`Pure heaplet :: acc) rest             
-        | _ ->
-          loop (`Impure heaplet :: acc) rest 
-        end
-      | _ ->
-        (`Impure pre :: acc) in
-    loop [] pre in
-  let pre =
-    match Constr.kind pre with
-    | Constr.Const (_, _) when is_hempty pre -> `Empty
-    | Constr.App (fname, _) when is_hstar fname ->
-      begin match destruct_heap pre with
-      | heap -> `NonEmpty heap
-      | exception _ -> failwith ("unexpected pre-heap structure: " ^ (Proof_debug.constr_to_string pre))
-      end
-    | Constr.App (fname, _) when is_hpure fname ->
-      `NonEmpty ([`Pure pre])
-    | _ -> `NonEmpty ([`Impure pre])
-  in
+  let pre = extract_heap pre in
+
   (pre, post)
 
 (** [extract_xapp_type c] given a coq term [c] representing a CFML
-   goal immediately prior to calling a function, returns the return
-   type of the function. *)
+    goal immediately prior to calling a function, returns the return
+    type of the function. *)
 let extract_xapp_type pre =
   let extract_app_enforce name f n pre =
     match Constr.kind pre with
@@ -330,8 +336,8 @@ let extract_xapp_type pre =
 
 
 (** [extract_xapp_fun c] given a coq term [c] representing a reified
-   CFML encoding of an OCaml program with a let of a function as the
-   next statement, extracts the function being called's arguments. *)
+    CFML encoding of an OCaml program with a let of a function as the
+    next statement, extracts the function being called's arguments. *)
 let extract_x_app_fun pre =
   let extract_app_enforce name f n pre =
     match Constr.kind pre with
@@ -376,6 +382,32 @@ let extract_spec pre =
   let params, body = extract_spec pre in
   let params, invariants = split [] params in
   (params, invariants, body)
+
+(** [extract_pre_heap c] given a Coq term [c] representing a partially
+    instantiated CFML specification, returns the pre-heap.
+
+    Note: assumes that a CFML spec has been sufficiently instantiated
+    such that any variables occuring in the pre-heap are not bound by
+    binders within [c]. *)
+let extract_pre_heap pre =
+  let extract_spec pre =
+    let rec loop acc pre = 
+      if Constr.isProd pre
+      then
+        let ({Context.binder_name; _}, ty, pre)  = Constr.destProd pre in
+        loop ((binder_name, ty) :: acc) pre
+      else List.rev acc, pre in
+    loop [] pre in
+  let rec split acc ls =
+    match ls with
+    | [] -> (List.rev acc,[])
+    | ((name, _) as h) :: t when Names.Name.is_anonymous name ->
+      (List.rev acc, h::t)
+    | h :: t -> split (h :: acc) t in
+  let params, body = extract_spec pre in
+  let params, invariants = split [] params in
+  (params, invariants, body)
+
 
 (** [extract_dyn_var ?rel c] given a Coq term [c] of the form {[Dyn v]}, extracts the corresponding expression and type.  *)
 let extract_dyn_var ?rel (c: Constr.t) =
@@ -550,9 +582,9 @@ let unwrap_eq ?rel (c: Constr.t) =
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
 (** [extract_embedded_expr ?rel c] extracts a deeply embedded CFML
-   expression from a Coq term [c]. [rel] is a function that maps Coq's
-   de-bruijin indices to the corresponding terms in the wider typing
-   environment. *)
+    expression from a Coq term [c]. [rel] is a function that maps Coq's
+    de-bruijin indices to the corresponding terms in the wider typing
+    environment. *)
 let rec extract_embedded_expr ?rel (c: Constr.t) : Lang.Expr.t =
   match Constr.kind c, rel with
   | Constr.App (fn, [| f |]), _ when Utils.is_const_eq "CFML.WPLifted.Wptag" fn ->
