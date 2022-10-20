@@ -1,7 +1,9 @@
 # Thanks Yasu
 name: Build and all tests
 on:
-  # push:
+  push:
+    branches:
+      - master
   pull_request:
 jobs:
   build-and-deploy:
