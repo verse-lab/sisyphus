@@ -31,14 +31,13 @@ Proof.
        )). {
     intros i Hi; apply Htmp; clear Htmp.
     xinhab.
-    xapp. { sis_handle_int_index_prove.
-
+    xapp. {
+      sis_handle_int_index_prove.
       rewrite length_drop_nonneg; try (rew_list; math).
       split; try math; pose proof (length_filter_take_leq f_p l i);
         pose proof (length_filter l f_p);
         math.
     }
-
     xapp.
     pose proof (length_filter_take_leq f_p l i);
       pose proof (length_filter l f_p);
@@ -50,7 +49,6 @@ Proof.
         try (apply int_index_prove; try math; try (rewrite HD; rew_list; math)).
     math_rewrite (length (filter (fun x0 : A => f_p x0) (take i l)) +
                     (i - length (filter (fun x0 : A => f_p x0) (take i l))) = i).
-
     xif;=> Hfp. (* note: introduces a unit call in the post-condition *)
     - xapp.
       xapp (@vec_set_spec A EA).  {
@@ -85,35 +83,40 @@ Proof.
   } { math. }
   xmatch.
   xapp.
-  rewrite !take_full_length.
   xif;=> cond.
-  - xapp.
+  - xinhab.
+    xapp.
     xval.
     xif;=> cond2.
     + xapp (@vec_get_spec A EA). { sis_handle_int_index_prove. }
       xapp.
       xapp.
       xapp (@vec_fill_spec A EA). { eauto. } {
-        instantiate (1:=drop (length (filter (fun x : A => f_p x) l)) l).
-        rewrite length_drop_nonneg; math.
-      } { instantiate (1 := nil); rew_list; auto. }
+        rewrite !take_full_length in *.
+        rewrite length_drop_nonneg; try math.
+      } 
       xmatch.
       xval.
       xapp.
       xapp. { auto. }
       xmatch.
-      xvals*.
+      xvals*. {
+        rewrite !take_full_length in *; auto.
+      }
     + xval.
       xapp.
       xapp. { auto. }
       xmatch.
-      xvals*.
+      xvals*. {
+        rewrite !take_full_length in *; auto.
+      }
   - xval.
     xif; intros Hv; try (contradiction Hv; auto; math).
     xval.
     xapp.
-    xapp (@vec_set_size_spec). { auto. }
+    xapp. { auto. }
     xmatch.
-    xvals*.
-    Unshelve.  xinhab; auto.
+    xvals*. {
+        rewrite !take_full_length in *; auto.
+    } 
 Qed.
