@@ -285,6 +285,11 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
   | Some (Right _) | None | Some (Left [])  ->
     Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant/insufficient arguments?"
       Pp.pp_with (Names.Constant.print lemma_name)
+  | Some (Left ((_, inv_ty) :: logical_params)) when
+    (not (Proof_utils.CFML.is_invariant_ty inv_ty) ||
+     List.exists (Pair.snd_map Proof_utils.CFML.is_invariant_ty) logical_params) ->
+    Format.ksprintf ~f:failwith "TODO: found function application %a zero or more than one invariants"
+      Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left (_ :: _ :: _)) ->
     Format.ksprintf ~f:failwith "TODO: found function application %a with multiple invariants"
       Pp.pp_with (Names.Constant.print lemma_name)

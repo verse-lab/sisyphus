@@ -13,5 +13,6 @@ CLOSED: [2022-10-20 Thu 02:46]
 CLOSED: [2022-10-20 Thu 02:55]
 ** DONE Add function to PCFML to test if a function returns hprop
 CLOSED: [2022-10-20 Thu 05:13]
+** TODO Once we've instantiated the function with concrete arguments, when instantiating subsequent parameters, check if the variables are constrained.
 ** TODO from extract inv ty, return a list of concrete params + logical params ahtt follow the invariant
 ** TODO You're the BEST around
