@@ -17,8 +17,10 @@ let filter_blacklisted blacklisted_vars ls =
 type 'a type_map = 'a Types.TypeMap.t
 let pp_type_map f fmt vl =
   Types.TypeMap.pp
-    ~pp_start:Format.(fun fmt () -> pp_open_hovbox fmt 1; pp_print_string fmt "{")
-    ~pp_stop:Format.(fun fmt () -> pp_print_string fmt "}"; pp_open_hovbox fmt 1)
+    ~pp_start:Format.(fun fmt () -> pp_open_hovbox fmt 1; pp_print_string fmt "[")
+    ~pp_sep:Format.(fun fmt () -> pp_print_string fmt "; ")
+    ~pp_arrow:Format.(fun fmt () -> pp_print_string fmt ", ")
+    ~pp_stop:Format.(fun fmt () -> pp_print_string fmt "]"; pp_open_hovbox fmt 1)
     Lang.Type.pp_raw f fmt vl
 
 type expr = Lang.Expr.t
