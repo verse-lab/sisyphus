@@ -18,15 +18,23 @@
     else
     let (found: bool ref) = ref false in
     let (idx: int ref) = ref 0 in
-    let (value: 'a ref) = ref (Array.get t 0) in
+    let (first_elt: 'a) = Array.get t 0 in
+    let (value: 'a ref) = ref first_elt in
     let tmp =
     (fun
       (i: int)
       ->
       if f i (Array.get t i)
-        then idx := i; value := Array.get t i; found := true; false
+        then
+        idx := i;
+        let (ith_elt: 'a) = Array.get t i in
+        value := ith_elt; found := true; false
         else true)
     in
     let (unused: unit) = while_upto 0 length tmp in
-    if ! found then Some (! idx, ! value) else
+    if ! found
+    then
+    let (found_index: int) = ! idx in
+    let (found_value: 'a) = ! value in Some (found_index, found_value)
+    else
   None
