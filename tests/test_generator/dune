@@ -1,0 +1,5 @@
+(tests (names test_seq_to_array)
+ (preprocess (pps ppx_deriving.show))
+ (flags -rectypes)
+ (libraries expr_generator lang alcotest containers testing_utils)
+ (action (run %{test} %{env:ALCOTEST_FLAGS=test})))

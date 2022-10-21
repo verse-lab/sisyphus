@@ -1434,3 +1434,43 @@ CLOSED: [2022-10-21 Fri 10:48]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Run seq to array with dump output
+CLOSED: [2022-10-21 Fri 12:45]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 12:47
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Copy generation context
+CLOSED: [2022-10-21 Fri 12:45]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 12:47
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add folder for generation tests
+CLOSED: [2022-10-21 Fri 12:45]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 12:47
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Ensure that generator can find the invariant for TRUE invariant for seq to array 
+CLOSED: [2022-10-21 Fri 12:45]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 12:47
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
