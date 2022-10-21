@@ -1,4 +1,4 @@
-(tests (names test_seq_to_array test_make_rev_list test_array_exists)
+(tests (names test_seq_to_array test_make_rev_list test_array_exists test_array_find_mapi)
  (preprocess (pps ppx_deriving.show))
  (flags -rectypes)
  (libraries expr_generator lang alcotest containers testing_utils)
