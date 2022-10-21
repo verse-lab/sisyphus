@@ -932,6 +932,8 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
       symexec_alloc t env pat rest
     | `App ("ref", [_]) ->
       symexec_ref_alloc t env pat rest
+    | `App ("Array.get", [_; _]) ->
+      symexec_array_get t env pat rest
     | `App (_, prog_args)
       when List.exists (function
         |`Var v -> Proof_env.is_pure_lambda env v
@@ -1004,6 +1006,18 @@ and symexec_ref_alloc t env pat rest =
     env
     |> Proof_env.add_proof_binding ~proof_var:ref_name ~program_var:prog_ref
     |> Proof_env.add_binding ~var:prog_ref ~ty:ref_ty in
+  symexec t env rest
+and symexec_array_get t env pat rest =
+  Log.debug (fun f -> f "[%s] symexec_array_get %a"
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)
+                        Lang.Expr.pp_typed_param pat);
+  Proof_context.append t "xapp.";
+  Proof_context.append t "{";
+  Proof_context.append t "try sis_handle_int_index_prove.";
+  while List.length (Proof_context.current_subproof t).goals > 0 do 
+    Proof_context.append t "admit.";
+  done;
+  Proof_context.append t "}";
   symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
   Log.debug (fun f -> f "[%s] symexec_opaque_let %a = %a"
