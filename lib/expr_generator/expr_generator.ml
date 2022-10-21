@@ -174,7 +174,7 @@ let get_fuels ctx fuel fname arg_tys =
 
   List.mapi get_fuel arg_tys
 
-let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.env)  (ty: Lang.Type.t) k =
+let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx)  (ty: Lang.Type.t) k =
   (* Format.printf "Fuel = %s, Ty = %a@." (string_of_int fuel) Lang.Type.pp ty; *)
   match fuel with
   | fuel when fuel > 0 ->
@@ -204,7 +204,7 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.e
       let arg_with_fuels = get_fuels ctx fuel fname args in
       let+ funcs =
         mapM_product_l (fun (arg, fuel) ->
-          generate_expression ~blacklisted_vars ctx env ~fuel:fuel arg
+          generate_expression ~blacklisted_vars ctx ~fuel:fuel arg
         ) arg_with_fuels in
       let+ funcs = mapM (fun args kont -> kont (`App (fname, args))) funcs in
       kont funcs
@@ -225,17 +225,17 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx) (env: Types.e
   | _ -> k []
 
 
-let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx (env: env) pat kont  =
+let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx pat kont  =
   match pat with
   | `App (fname, args) ->
-    let+ args = mapM_product_l (instantiate_pat ~blacklisted_vars ctx env  ~fuel:(fuel)) args in
+    let+ args = mapM_product_l (instantiate_pat ~blacklisted_vars ctx  ~fuel:(fuel)) args in
     kont (List.map (fun args -> `App (fname, args)) args)
   | `Constructor (name, args) ->
-    let+ args = mapM_product_l (instantiate_pat ~blacklisted_vars ctx env ~fuel:(fuel)) args in
+    let+ args = mapM_product_l (instantiate_pat ~blacklisted_vars ctx ~fuel:(fuel)) args in
     kont (List.map (fun args -> `Constructor (name, args)) args)
   | `Int i as e -> kont [e]
   | `Tuple ls ->
-    let+ ls = mapM (instantiate_pat ~blacklisted_vars ctx env ~fuel:(fuel)) ls in
+    let+ ls = mapM (instantiate_pat ~blacklisted_vars ctx ~fuel:(fuel)) ls in
     if List.exists (fun xs -> List.length xs = 0) ls
     then kont []
     else kont (List.map (fun x -> `Tuple x) ls)
@@ -244,15 +244,15 @@ let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx (env: env) pat kont  =
     then kont [e]
     else kont []
   | `PatVar (str, ty) ->
-    generate_expression  ~blacklisted_vars ctx env ~fuel:(fuel) ty kont
+    generate_expression  ~blacklisted_vars ctx ~fuel:(fuel) ty kont
 
 (* generates a list of candidate expressions of a desired type;
  * if initial = true then only use patterns as a template to generate candidate expressions *)
-let generate_expression ?(blacklisted_vars=[]) ?(initial=true) ?fuel ctx (env: env) ty =
+let generate_expression ?(blacklisted_vars=[]) ?(initial=true) ?fuel ctx ty =
   let blacklisted_vars = StringSet.of_list blacklisted_vars in
   let pats = List.rev @@ (Types.TypeMap.find_opt ty ctx.pats |> Option.value ~default:[]) in
   if initial && List.length pats > 0 then
-    let pats = flat_mapM (instantiate_pat ~blacklisted_vars ctx env ?fuel) pats Fun.id in
+    let pats = flat_mapM (instantiate_pat ~blacklisted_vars ctx ?fuel) pats Fun.id in
     pats
   else
-    generate_expression ?fuel ~blacklisted_vars ctx env ty Fun.id
+    generate_expression ?fuel ~blacklisted_vars ctx ty Fun.id
