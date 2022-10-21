@@ -6,11 +6,4 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks for the PROOF GOD
-** DONE Add test for make rev list
-CLOSED: [2022-10-21 Fri 13:13]
-** DONE Add test for array exists
-CLOSED: [2022-10-21 Fri 14:26]
-** DONE Add test for array find mapi 
-CLOSED: [2022-10-21 Fri 14:36]
-** TODO Add test for array of rev list
 ** TODO You're the BEST around

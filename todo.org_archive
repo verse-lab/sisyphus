@@ -1474,3 +1474,43 @@ CLOSED: [2022-10-21 Fri 12:45]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Add test for make rev list
+CLOSED: [2022-10-21 Fri 13:13]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 14:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add test for array exists
+CLOSED: [2022-10-21 Fri 14:26]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 14:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add test for array find mapi 
+CLOSED: [2022-10-21 Fri 14:36]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 14:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add test for array of rev list
+CLOSED: [2022-10-21 Fri 14:52]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 14:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

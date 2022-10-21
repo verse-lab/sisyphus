@@ -1,4 +1,4 @@
-module T = Testing_utils.Make (struct let name = "seq_to_array" end)
+module T = Testing_utils.Make (struct let name = "array_find_mapi" end)
 
 let ctx =
   Expr_generator.make_raw_ctx
