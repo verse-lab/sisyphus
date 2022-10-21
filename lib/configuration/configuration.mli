@@ -17,12 +17,26 @@ val max_z3_calls : unit -> int option
    exceeding the max number of calls Sisyphus will just assume that its
    current invariant is valid.  *)
 
+val print_proof_extraction: unit -> bool
+(** [print_proof_extraction ()] returns a boolean indicating whether
+   Sisyphus should dump detailed information about reifying proof
+   terms.
+
+    Warning: Significantly increases run time. *)
+
+val dump_generated_invariants: unit -> bool
+(** [dump_generated_invariants ()] returns a boolean indicating whether
+   Sisyphus should dump out all the invariants that it finds.
+
+    Warning: Dumped invariant lists can be very large (~gbs in size). *)
 
 val initialize :
   ?default_timeout:int ->
   ?challenging_timeout:int ->
   ?max_calls:int ->
   ?filter_logs:string ->
+  ?print_proof_extraction:bool ->
+  ?dump_generated_invariants:bool ->
   ?should_validate_with_z3:bool ->
   ?log_level:Logs.level ->
   ?log_dir:Fpath.t ->
@@ -39,6 +53,11 @@ val initialize :
       logging output.  Only logging sources that match the regular
       expression will be printed.
 
+    - [print_proof_extraction] determines whether sisyphus should print detailed traces of its proof reduction
+      and extraction mechanism.
+
+    - [dump_generated_invariants] determines whether sisyphus should dump any
+      intermediate invariants it finds.
 
     - [should_validate_with_z3] specifies whether the runtime system
       should check generated candidates using Z3. Defaults to true.

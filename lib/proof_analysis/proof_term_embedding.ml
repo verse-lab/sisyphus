@@ -71,6 +71,8 @@ let rec embed_expression (expr: Lang.Expr.t) : Parsetree.expression =
     AH.Exp.constant (Parsetree.Pconst_integer (string_of_int n, None))
   | `Constructor (f, []) ->
     AH.Exp.construct (Location.mknoloc Longident.(Lident f)) None
+  | `Constructor (f, [expr]) ->
+    AH.Exp.construct (Location.mknoloc Longident.(Lident f)) (Some (embed_expression expr))
   | `Constructor (f, args) ->
     AH.Exp.construct (Location.mknoloc Longident.(Lident f)) (Some (embed_expression (`Tuple args)))
 

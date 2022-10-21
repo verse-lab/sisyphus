@@ -24,16 +24,16 @@ Lemma sll_partition_spec :
   ).
 Proof using (All).
   xcf.
-  xapp (sll_reverse_spec).
+  xapp.
   xmatch.
-  xapp (sll_nil_spec). intros s_t.
-  xapp (sll_nil_spec). intros s_f.
+  xapp. intros s_t.
+  xapp.  intros s_f.
   xletopaque tmp Htmp.
   xapp (sll_iter_spec tmp s (fun (ls : list A) =>
                                s_t ~> SLL (filter pp (rev ls)) \*
                                s_f ~> SLL (filter_not pp (rev ls))
        )). {
-    sis_solve_start; xapp (sll_push_spec); xgo*;
+    sis_solve_start;
       rew_list; rewrite ?filter_cons, ?filter_not_cons;
       try (rewrite If_l; auto; math);
       try (rewrite If_r; auto; math).
