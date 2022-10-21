@@ -340,6 +340,12 @@ let unwrap_spec_arg sexp : spec_arg =
       ~f:failwith "unhandled primitive tactic %s, args: %a"
       tag (List.pp Sexplib.Sexp.pp_hum) args
 
+let is_typed_combinator_spec = function
+  | "until_upto_spec"
+  | "until_downto_spec"
+  | "nat_fold_up_spec"
+  | "nat_fold_down_spec" -> true
+  | _ -> false
 
 let unwrap_tac_capp sexp =
   let open Sexplib.Sexp in
@@ -348,15 +354,15 @@ let unwrap_tac_capp sexp =
     let fname = unwrap_value_with_loc fname
                 |> fst
                 |> unwrap_cref in
-    let args  =
-      unwrap_list args
-      |> List.map
-           (function [@warning "-8"] List [binding; _] ->
-              unwrap_value_with_loc binding
-              |> fst
-              |> unwrap_spec_arg
-           )
-    in
+    let args = unwrap_list args in
+    let args = if is_typed_combinator_spec fname then List.drop 1 args else args in
+    let args =
+      List.map
+        (function [@warning "-8"] List [binding; _] ->
+           unwrap_value_with_loc binding
+           |> fst
+           |> unwrap_spec_arg
+        ) args in
     fname, args
 
 let unwrap_tactic_name sexp =
