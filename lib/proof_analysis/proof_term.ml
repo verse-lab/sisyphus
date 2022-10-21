@@ -6,7 +6,6 @@ let pp_ty = Lang.Type.pp_raw
 
 type sym_heap =
   [
-    (* `Heaplet of Proof_spec.Heap.Heaplet.t *)
     | `Invariant of expr
   ] list [@@deriving show]
 

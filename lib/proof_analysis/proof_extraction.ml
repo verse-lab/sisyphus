@@ -43,6 +43,8 @@ let lowercase s =
 let normalize = function
   | "TLC.LibList.app" -> "@"
   | "TLC.LibListZ.length" -> "List.length"
+  | "TLC.LibContainer.read" -> "List.nth"
+  | "TLC.LibListZ.drop" -> "Lst.list_drop"
   | s -> lowercase s
 
 let extract_sym s =
@@ -250,13 +252,15 @@ let rec extract ?replacing (trm: Proof_term.t) =
     pre; binding_ty; value_code;
     proof=Proof_term.XApps { proof } (* TODO: make this more elegant.... *)
   } ->
-    let var = find_next_program_binding_name proof in
-    wrap_with_invariant_check pre ~then_:begin fun () ->
-      AH.Exp.let_ AT.Nonrecursive [
-        AH.Vb.mk (pvar var) (encode_expr value_code)
-      ] (extract proof)
+    begin match find_next_program_binding_name proof with
+    | var ->
+      wrap_with_invariant_check pre ~then_:begin fun () ->
+        AH.Exp.let_ AT.Nonrecursive [
+          AH.Vb.mk (pvar var) (encode_expr value_code)
+        ] (extract proof)
+      end
+    | exception _ -> (extract proof)
     end
-
 
   | Proof_term.XApp { application; pre; fun_pre; proof_fun=AccRect { prop_type; proof=proof_fun; vl; args }; proof } ->
     if contains_symexec proof then

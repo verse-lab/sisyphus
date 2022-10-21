@@ -217,6 +217,9 @@ let rec extract_sym_heap env c =
     extract_sym_heap env h1 @ extract_sym_heap env h2
   | Constr.App (fn, _) when Proof_utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hcredits" fn ->
     []
+  (* we only care about the invariant, other heaplets are useless: TODO: might need to change this *)
+  | Constr.App (fn, _) when Proof_utils.is_const_eq "CFML.SepBase.SepBasicSetup.HS.repr" fn ->
+    []
   | Constr.Const _ when Proof_utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hempty" c -> []
   | _ -> 
     try [`Invariant (PCFML.extract_expr ~rel:(rel_expr env) c)] with

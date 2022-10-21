@@ -96,6 +96,9 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
         let res = extract_typ ?rel t in
         Lang.Type.Func (Some (List.rev acc, res)) in
     loop [] c
+  (* Proof irrelevance? pfftt... not on my watch:  *)
+  | Constr.Sort Prop, _ -> Lang.Type.Bool
+
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a type"
       (Proof_debug.constr_to_string c)
@@ -199,6 +202,13 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     `Constructor ("::", [extract_expr ?rel h; extract_expr ?rel tl])
   | Constr.App (const, [|ty|]), _ when Utils.is_constr_nil const ->
     `Constructor ("[]", [])
+  (* Hey, idiot! Yes. You. If you're adding things here to make
+     extraction work, DONT. Instead add it to [normalize] in
+     proof_extraction.ml See below for the graveyard of useless work
+     that some idiot (you) did in the past.  *)
+
+  (* | Constr.App (const, [| _int; _ty; _ls_ty; _read_inst; ls; int |]), _ when Utils.is_const_eq "TLC.LibContainer.read" const ->
+   *   `App ("List.nth", [extract_expr ?rel ls; extract_expr ?rel int]) *)
   (* | Constr.App (const, [| ty; ls |]), _ when Utils.is_const_eq "TLC.LibListZ.length" const ->
    *   `App ("List.length", []) *)
 
