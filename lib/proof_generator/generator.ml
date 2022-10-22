@@ -1011,6 +1011,7 @@ and symexec_array_get t env pat rest =
   Log.debug (fun f -> f "[%s] symexec_array_get %a"
                         (t.Proof_context.current_program_id |>  Lang.Id.show)
                         Lang.Expr.pp_typed_param pat);
+  Proof_context.append t "xinhab.";
   Proof_context.append t "xapp.";
   Proof_context.append t "{";
   Proof_context.append t "try sis_handle_int_index_prove.";
