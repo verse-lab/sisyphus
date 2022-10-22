@@ -28,17 +28,6 @@ let combine_rem xz yz =
     | x :: xz, y :: yz -> loop ((x, y) :: acc) xz yz in
   loop [] xz yz
 
-let seq_map_product_l (f: 'a -> 'b Seq.t) (l: 'a Seq.t) : 'b list Seq.t =
-  let rec prod_rec left right acc () =
-    match right () with
-    | Seq.Nil -> Seq.Cons (List.rev left, acc)
-    | Seq.Cons (l1, tail) ->
-      let l1 = f l1 in
-      Seq.fold_left
-        (fun acc x -> fun () -> prod_rec (x::left) tail acc ())
-        acc l1 () in
-  prod_rec [] l (Seq.nil)
-
 let seq_force ls =
   let rec loop i acc ls =
     match ls () with
@@ -769,7 +758,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
 
   let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx in
   let pure =
-    seq_map_product_l List.(fun (v, ty) ->
+    Utils.seq_map_product_l List.(fun (v, ty) ->
       Seq.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~blacklist:[v] ~fuel:3 ~initial:false ty)
     ) (Seq.of_list gen_pure_spec)
     |> Seq.filter_map (function
@@ -781,7 +770,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
     ) in
   let expected_empty_pure = List.is_empty gen_pure_spec in
 
-  let heap = seq_map_product_l (function `Hole ty -> gen ty | `Concrete vl -> Seq.singleton vl) (Seq.of_list gen_heap_spec)  in
+  let heap = Utils.seq_map_product_l (function `Hole ty -> gen ty | `Concrete vl -> Seq.singleton vl) (Seq.of_list gen_heap_spec)  in
   pure, heap, !hof_rev_map, expected_empty_pure
 
 let prune_candidates_using_testf test_f (pure, heap) =
@@ -1290,8 +1279,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
    *     Log.debug (fun f -> f "heap candidates: %s@." ([%show: Lang.Expr.t list list] heap)) in *)
 
   (* prune the candidates using the testing function *)
-  let (pure,heap) =
-    prune_candidates_using_testf test_f (pure,heap) in
+  let (pure,heap) = prune_candidates_using_testf test_f (pure,heap) in
 
   (* do it again *)
   let (pure,heap) =

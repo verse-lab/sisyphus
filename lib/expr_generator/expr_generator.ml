@@ -48,17 +48,6 @@ let make_raw_ctx :
     funcs = Types.TypeMap.of_list funcs;
   }
 
-let seq_map_product_l (f: 'a -> 'b Seq.t) (l: 'a Seq.t) : 'b list Seq.t =
-  let rec prod_rec left right acc () =
-    match right () with
-    | Seq.Nil -> Seq.Cons (List.rev left, acc)
-    | Seq.Cons (l1, tail) ->
-      let l1 = f l1 in
-      Seq.fold_left
-        (fun acc x -> fun () -> prod_rec (x::left) tail acc ())
-        acc l1 () in
-  prod_rec [] l (Seq.nil)
-  
 let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env proof_script =
   (* collect consts, functions and patterns from old proof script. *)
   let consts, old_funcs = Collector.collect_consts_and_funcs ~from_id ~to_id ~env proof_script in
@@ -177,7 +166,7 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx)  (ty: Lang.Ty
     let funcs =  Seq.flat_map (fun (fname, args) ->
       let arg_with_fuels = get_fuels ctx fuel fname args |> List.to_seq in
       let funcs =
-        seq_map_product_l (fun (arg, fuel) ->
+        Utils.seq_map_product_l (fun (arg, fuel) ->
           generate_expression ~blacklisted_vars ctx ~fuel:fuel arg
         ) arg_with_fuels in
       let funcs = Seq.map (fun args -> `App (fname, args)) funcs in
@@ -200,10 +189,10 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx)  (ty: Lang.Ty
 let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx pat () =
   match pat with
   | `App (fname, args) ->
-    let args = seq_map_product_l (instantiate_pat ~blacklisted_vars ctx  ~fuel:(fuel)) (Seq.of_list args) in
+    let args = Utils.seq_map_product_l (instantiate_pat ~blacklisted_vars ctx  ~fuel:(fuel)) (Seq.of_list args) in
     Seq.map (fun args -> `App (fname, args)) args ()
   | `Constructor (name, args) ->
-    let args = seq_map_product_l (instantiate_pat ~blacklisted_vars ctx ~fuel:(fuel)) (Seq.of_list args) in
+    let args = Utils.seq_map_product_l (instantiate_pat ~blacklisted_vars ctx ~fuel:(fuel)) (Seq.of_list args) in
     Seq.map (fun args -> `Constructor (name, args)) args ()
   | `Int i as e -> Seq.singleton e ()
   | `Tuple ls ->
