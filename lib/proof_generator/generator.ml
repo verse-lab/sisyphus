@@ -39,6 +39,15 @@ let seq_map_product_l (f: 'a -> 'b Seq.t) (l: 'a Seq.t) : 'b list Seq.t =
         acc l1 () in
   prod_rec [] l (Seq.nil)
 
+let seq_force ls =
+  let rec loop i acc ls =
+    match ls () with
+    | Seq.Nil -> i, List.rev acc
+    | Seq.Cons (h, t) ->
+      loop (i + 1) (h :: acc) t in
+  let (sz, ls) = loop 0 [] ls in
+  sz, Seq.of_list ls
+
 let reduce pure =
   let no_pure_original = List.length pure in
   let pure = ExprSet.of_list pure |> ExprSet.to_list in
@@ -792,6 +801,13 @@ let prune_candidates_using_testf test_f (pure, heap) =
       then Some heap
       else None
     ) heap in
+  let start_time = Ptime_clock.now () in
+  let (no_pure, pure) = seq_force pure in
+  Gc.full_major (); 
+  let (no_heap, heap) = seq_force heap in
+  Gc.full_major (); 
+  let end_time = Ptime_clock.now () in
+  Log.info (fun f -> f "Pruned down to %d pure and %d heap in %a" no_pure no_heap Ptime.Span.pp (Ptime.diff end_time start_time));
   pure, heap
 
 let has_pure_specification t =
