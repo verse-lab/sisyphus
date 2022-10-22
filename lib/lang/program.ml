@@ -35,6 +35,32 @@ type 'a t = {
 let ppr = pp
 let showr = show
 
+let rec fold f acc (stmt: 'a stmt) =
+  match stmt with
+  | `Match (vl, cases) ->
+    let acc = f acc vl in
+    List.fold_left
+      (fun acc (_, _, rest) ->
+         fold f acc rest)
+      acc cases
+  | `LetLambda (_, _, rest) -> fold f acc rest
+  | `IfThenElse (cond, l, r)
+  | `IfThen (cond, l, r) -> 
+    let acc = f acc cond in
+    let acc = fold f acc l in
+    fold f acc r
+  | `EmptyArray -> acc
+  | `Write (_, _, expr, rest) ->
+    let acc = f acc expr in
+    fold f acc rest
+  | `Value vl -> f acc vl
+  | `AssignRef (_, vl, rest) -> 
+    let acc = f acc vl in
+    fold f acc rest
+  | `LetExp (_, _, vl, rest) ->
+    let acc = f acc vl in
+    fold f acc rest
+
 let equal eq t1 t2 =
   String.equal t1.name t2.name
   && List.equal (fun (l,r) (l', r') -> String.equal l l' && Type.equal r r') t1.args t2.args
