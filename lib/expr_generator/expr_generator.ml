@@ -48,40 +48,6 @@ let make_raw_ctx :
     funcs = Types.TypeMap.of_list funcs;
   }
 
-let (let+) x f = x f
-let (|>>) x f kont = x (fun x -> f x kont)
-
-let mapM f ls kont =
-  let rec loop acc f ls kont =
-    match ls with
-    | [] -> kont (List.rev acc)
-    | h :: t ->
-      let+ h = f h in
-      loop (h :: acc) f t kont in
-  loop [] f ls kont
-
-let rec fold_leftM f accu l kont =
-  match l with
-    [] -> kont accu
-  | a::l ->
-    let+ accu = f accu a in
-    fold_leftM f accu l kont
-
-let mapM_product_l f l kont =
-  (* [left]: elements picked so far
-     [right]: sets to pick elements from
-     [acc]: accumulator for the result, to pass to continuation
-     [k]: continuation *)
-  let rec prod_rec left right k acc kont = match right with
-    | [] -> kont (k acc (List.rev left))
-    | l1 :: tail ->
-      let+ l1 = f l1 in
-      fold_leftM
-        (fun acc x -> prod_rec (x::left) tail k acc)
-        acc l1 kont
-  in
-  prod_rec [] l (fun acc l' -> (l' :: acc)) [] kont
-
 let seq_map_product_l (f: 'a -> 'b Seq.t) (l: 'a Seq.t) : 'b list Seq.t =
   let rec prod_rec left right acc () =
     match right () with
@@ -93,22 +59,6 @@ let seq_map_product_l (f: 'a -> 'b Seq.t) (l: 'a Seq.t) : 'b list Seq.t =
         acc l1 () in
   prod_rec [] l (Seq.nil)
   
-
-let flat_mapM f l kont =
-  let rec aux f l kont = match l with
-    | [] -> kont []
-    | x::l' ->
-      let+ y = f x in
-      let kont' tail = match y with
-        | [] -> kont tail
-        | [x] -> kont (x :: tail)
-        | [x;y] -> kont (x::y::tail)
-        | l -> kont (List.append l tail)
-      in
-      aux f l' kont'
-  in
-  aux f l kont
-
 let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env proof_script =
   (* collect consts, functions and patterns from old proof script. *)
   let consts, old_funcs = Collector.collect_consts_and_funcs ~from_id ~to_id ~env proof_script in
