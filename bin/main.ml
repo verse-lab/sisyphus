@@ -151,8 +151,8 @@ let print_extraction_steps =
       (info ~doc:"$(opt) indicates whether sisyphus should dump \
                   detailed information on its proof reduction and \
                   analysis phases.  Can also be provided through the \
-                  $(env) ENV variable (as 1 to disable Z3 and 0 to \
-                  enable it (default))."
+                  $(env) ENV variable (as 1 to dump steps and 0 to \
+                  disable it (default))."
          ~env:(env_var "SIS_DUMP_EXTRACTION") ["dump-extraction"])
   )
 
@@ -163,7 +163,7 @@ let dump_generated_invariants =
       (info ~doc:"$(opt) indicates whether sisyphus should dump \
                   generated invariants to the DUMP_DIR directory.  Can \
                   also be provided through the $(env) ENV variable (as \
-                  1 to disable Z3 and 0 to enable it (default))."
+                  1 to dump invariants and 0 to disable it (default))."
          ~env:(env_var "SIS_DUMP_INVARIANTS") ["dump-invariants"])
   )
 

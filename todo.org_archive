@@ -1374,3 +1374,63 @@ CLOSED: [2022-10-20 Thu 02:42]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Test whether array iter works with list as parameter after invariant
+CLOSED: [2022-10-20 Thu 02:46]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-20 Thu 06:04
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Update examples to use new interface to array iter
+CLOSED: [2022-10-20 Thu 02:55]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-20 Thu 06:05
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add function to PCFML to test if a function returns hprop
+CLOSED: [2022-10-20 Thu 05:13]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-20 Thu 06:05
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add parsing unit tests for array_partition
+CLOSED: [2022-10-21 Fri 10:48]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 10:48
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Once we've instantiated the function with concrete arguments, when instantiating subsequent parameters, check if the variables are constrained.
+CLOSED: [2022-10-21 Fri 10:48]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 10:48
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE from extract inv ty, return a list of concrete params + logical params ahtt follow the invariant
+CLOSED: [2022-10-21 Fri 10:48]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 10:48
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

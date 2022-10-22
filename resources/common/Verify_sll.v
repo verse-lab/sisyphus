@@ -192,7 +192,7 @@ Lemma sll_iter_spec :
              POSTUNIT (I (t & v))
          ) ->
          SPEC (sll_iter f l)
-         PRE (I nil \* l ~> SLL ls)
+         PRE (l ~> SLL ls \* I nil)
          POSTUNIT (I ls \* l ~> SLL ls).
 Proof.
   intros A EA f l I ls Hf.
@@ -242,7 +242,7 @@ Lemma sll_iter_drain_spec :
              POSTUNIT (I (t & v))
          ) ->
          SPEC (sll_iter_drain f l)
-         PRE (I nil \* l ~> SLL ls)
+         PRE (l ~> SLL ls \* I nil)
          POSTUNIT (I ls).
 Proof.
   intros A EA f l ls I Hf.
@@ -306,7 +306,7 @@ Lemma sll_fold_spec :
              POST (fun (acc: B) => I (t & v) acc)
          ) ->
          SPEC (sll_fold f init l)
-         PRE (I nil init \* l ~> SLL ls)
+         PRE (l ~> SLL ls \* I nil init)
          POST (fun (acc: B) => I ls acc \* l ~> SLL ls).
 Proof.
   intros A EA B EB f init l I ls Hf.

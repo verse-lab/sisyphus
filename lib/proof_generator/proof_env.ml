@@ -120,6 +120,7 @@ let normalize_observation env ((pure, heap): (Dynamic.Concrete.context * Dynamic
         Some (StringMap.find v rev_map, vl)
       | _ -> None
     ) heap in
+  
   (pure @ mapped,heap)
 
     

@@ -136,12 +136,12 @@ Qed.
 #[export] Hint Extern 1 (RegisterSpec vec_set) => Provide vec_set_spec.
 
 Lemma vec_fill_spec {A: Type} `{EA: Enc A} (vt: vector A) (start len: int) (vl: A)
-  (l m r: list A):
+  (l m: list A):
   start = length l ->
   len = length m ->
   SPEC(vec_fill vt start len vl)
-    PRE(vt ~> Vector (l ++ m ++ r))
-    POSTUNIT(vt ~> Vector (l ++ make (length m) vl ++ r)).
+    PRE(vt ~> Vector (l ++ m))
+    POSTUNIT(vt ~> Vector (l ++ make (length m) vl)).
 Proof.
   xcf; eauto.
   rewrite Vector_unfold; xpull;=> ol D G Heq.

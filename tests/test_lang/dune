@@ -60,6 +60,13 @@
    ../../resources/array_of_rev_list/array_of_rev_list_new.ml))
 
 (cram
+ (applies_to array_partition)
+ (deps
+   ../../resources/array_partition/array_partition_old.ml
+   ../../resources/array_partition/array_partition_new.ml))
+
+
+(cram
  (applies_to hashtbl_invert)
  (deps
    ../../resources/hashtbl_invert/hashtbl_invert_old.ml

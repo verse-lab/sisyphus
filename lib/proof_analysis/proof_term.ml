@@ -6,7 +6,6 @@ let pp_ty = Lang.Type.pp_raw
 
 type sym_heap =
   [
-    (* `Heaplet of Proof_spec.Heap.Heaplet.t *)
     | `Invariant of expr
   ] list [@@deriving show]
 
@@ -67,6 +66,12 @@ type t =
       proof_fun: t;
       proof: t
     }
+  | XApps of {
+      application: string * expr list;
+      pre: sym_heap;
+      fun_pre: sym_heap;
+      proof: t
+    }
   | XVal of { pre: sym_heap; value_ty: ty; value: expr }
   | XDone of sym_heap
   | CaseBool of { cond: expr; if_true: t; if_false: t }
@@ -102,6 +107,7 @@ let tag = function
   | XLetFun _ -> "XLetFun"
   | XMatch _ -> "XMatch"
   | XApp _ -> "XApp"
+  | XApps _ -> "XApps"
   | XVal _ -> "XVal"
   | XDone _ -> "XDone"
   | VarApp _ -> "VarApp"
