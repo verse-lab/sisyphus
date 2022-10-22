@@ -1514,3 +1514,34 @@ CLOSED: [2022-10-21 Fri 14:52]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Check observation used in list partition and see if l is defined
+CLOSED: [2022-10-22 Sat 12:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-22 Sat 12:10
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Check source code to work out if observation is printed before or after normalisation
+CLOSED: [2022-10-22 Sat 12:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-22 Sat 12:10
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE work out why l isn't defined
+CLOSED: [2022-10-22 Sat 12:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-22 Sat 12:10
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+

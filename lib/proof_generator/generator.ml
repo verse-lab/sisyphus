@@ -1479,6 +1479,13 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
     end
   | _ -> ()
   end;
+  let _functions =
+    Lang.Program.fold Lang.Expr.functions StringSet.empty prog.body
+    |> StringSet.filter (String.exists Char.(fun c -> ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')))
+    |> StringSet.fold (fun fn_name acc ->
+      (* add to db *)
+      failwith "failure"
+    ) StringSet.empty in
 
   symexec t (Proof_env.initial_env ~logical_mappings prog.args) prog.body;
   Proof_context.append t "Admitted.";
