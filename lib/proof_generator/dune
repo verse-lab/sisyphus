@@ -5,6 +5,7 @@
  (preprocess (pps ppx_deriving.std))
  (libraries
    coq
+   utils
    lang
    proof_validator
    proof_utils
