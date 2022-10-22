@@ -26,7 +26,7 @@ let () =
         ~blacklisted_vars:["arg1"] ~fuel:3 ~initial:false ctx
         pure_ty_1 in
     Alcotest.(check bool) "pure candidate is found" true @@
-      List.exists (Lang.Expr.equal pure_expr_1) pure_candidates
+      Containers.Seq.exists (Lang.Expr.equal pure_expr_1) pure_candidates
   end
 
 let () =
@@ -36,7 +36,7 @@ let () =
         ~blacklisted_vars:["arg0"] ~fuel:3 ~initial:false ctx
         pure_ty_2 in
     Alcotest.(check bool) "pure candidate is found" true @@
-      List.exists (Lang.Expr.equal pure_expr_2) pure_candidates
+      Containers.Seq.exists (Lang.Expr.equal pure_expr_2) pure_candidates
   end
 
 

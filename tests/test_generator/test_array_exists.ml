@@ -45,7 +45,7 @@ let () =
         ~blacklisted_vars:["arg1"] ~fuel:3 ~initial:false ctx
         pure_ty in
     Alcotest.(check bool) "pure candidate is found" true @@
-    List.exists (Lang.Expr.equal pure_expr) pure_candidates
+    Containers.Seq.exists (Lang.Expr.equal pure_expr) pure_candidates
   end
 
 let () = T.run ()

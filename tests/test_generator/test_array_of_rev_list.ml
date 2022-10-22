@@ -41,7 +41,7 @@ let () =
     let heap_candidates =
       Expr_generator.generate_expression ~fuel:2 ctx heap_ty in
     Alcotest.(check bool) "heap candidate is found" true @@
-    List.exists (Lang.Expr.equal heap_expr) heap_candidates
+    Containers.Seq.exists (Lang.Expr.equal heap_expr) heap_candidates
   end
 
 let () = T.run ()

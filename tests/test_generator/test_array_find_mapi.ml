@@ -39,7 +39,7 @@ let () =
         ~blacklisted_vars:["arg1"] ~fuel:3 ~initial:false ctx
         pure_ty in
     Alcotest.(check bool) "pure candidate is found" true @@
-    List.exists (Lang.Expr.equal pure_expr) pure_candidates
+    Containers.Seq.exists (Lang.Expr.equal pure_expr) pure_candidates
   end
 
 
@@ -48,7 +48,7 @@ let () =
     let heap_candidates =
       Expr_generator.generate_expression ~fuel:2 ctx heap_ty in
     Alcotest.(check bool) "heap candidate is found" true @@
-    List.exists (Lang.Expr.equal heap_expr) heap_candidates
+    Containers.Seq.exists (Lang.Expr.equal heap_expr) heap_candidates
   end
 
 let () = T.run ()

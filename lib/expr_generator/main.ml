@@ -158,6 +158,7 @@ let test_gen_heap () =
   let option_b = ADT ("option", [(Var "B")], None) in
 
   let exps = Expr_generator.generate_expression kirans_ctx ~fuel ~initial:false option_b in
+  let exps = Seq.to_list exps in
 
   print_endline "Results for Heap Assertion";
   print_endline @@ string_of_int @@ List.length exps;
@@ -182,6 +183,7 @@ let () =
 
   let fuel = 3 in
   let exps = Expr_generator.generate_expression kirans_ctx ~fuel ~blacklisted_vars:["arg1"] ~initial:false Bool in
+  let exps = Seq.to_list exps in
 
   print_endline "Results for Pure Assertion";
   print_endline @@ string_of_int @@ List.length exps;
