@@ -129,6 +129,15 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
         then filter_not fp t
         else h :: filter_not fp t in
     wrap (filter_not (unwrap (eval ctx fp)) (unwrap (eval ctx ls)))
+  | `App ("filter", [fp; ls]) ->
+    let rec filter fp ls =
+      match ls with
+      | [] -> []
+      | h :: t ->
+        if fp h
+        then h :: filter fp t
+        else filter fp t in
+    wrap (filter (unwrap (eval ctx fp)) (unwrap (eval ctx ls)))
   | `App ("is_some", [arg]) ->
     wrap (Option.is_some (unwrap (eval ctx arg)))
   | `App ("opt_of_bool", [b]) ->
