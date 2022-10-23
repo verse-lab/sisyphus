@@ -50,6 +50,8 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (List.map (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
   | `App (("TLC.LibList.rev" | "rev"), [ls]) ->
     wrap (List.rev (unwrap (eval ctx ls)))
+  | `App ("TLC.LibContainer.read", [ls; ind]) ->
+    wrap (List.nth (unwrap (eval ctx ls)) (unwrap (eval ctx ind)))
   | `App (("TLC.LibList.split" | "split"), [ls]) ->
     wrap (List.split (unwrap (eval ctx ls)))
   | `App (("TLC.LibList.take" | "TLC.LibListZ.take" | "take"), [n; ls]) ->
@@ -144,6 +146,12 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (if unwrap (eval ctx b) then Some () else None)
   | `App ("existsb", [f; ls]) ->
     wrap (List.exists (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
+  | `App ("option_value_fst", [default; opt]) ->
+    let option_value_fst default opt = match opt with None -> default | Some (fst, _) -> fst in
+    wrap (option_value_fst (unwrap (eval ctx default)) (unwrap (eval ctx opt)))
+  | `App ("option_value_snd", [default; opt]) ->
+    let option_value_snd default opt = match opt with None -> default | Some (_, snd) -> snd in
+    wrap (option_value_snd (unwrap (eval ctx default)) (unwrap (eval ctx opt)))
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr
