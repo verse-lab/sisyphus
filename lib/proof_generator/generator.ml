@@ -459,9 +459,28 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
       (arg_list_to_str args) in
   let instantiated_spec = (Proof_context.typeof t instantiated_spec) in
   let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
+
+  let framed_heaplets = 
+    let (_, _, body) = Proof_utils.CFML.extract_spec rest in
+    let _, args = Constr.destApp body in
+    let heaplets = match Proof_utils.CFML.extract_heap args.(3) with
+      | `Empty -> []
+      | `NonEmpty ls -> ls in
+    List.fold_left (fun fns trm ->
+      match trm with
+      | `Pure _ -> fns
+      | `Impure f ->
+        match Constr.kind_nocast f with
+        | Constr.App (f, [| _; _; var |]) when Proof_utils.CFML.is_const_named "repr" f ->
+          let var = if Constr.isCast var then let (c, _, _) = Constr.destCast var in c else var in
+          let id = Constr.destVar var in
+          StringSet.add (Names.Id.to_string id) fns
+        | _ -> fns
+    ) StringSet.empty heaplets in
+
   let tys = Proof_utils.CFML.unwrap_invariant_type ty in
   let tys = List.mapi (fun i v -> Format.sprintf "arg%d" i, v) tys in
-  combinator_ty, (name_to_string binder_name, tys)
+  framed_heaplets, combinator_ty, (name_to_string binder_name, tys)
 
 (** [reduce_term t term] reduces a proof term [term] using ultimate
     reduction.  *)
@@ -1230,7 +1249,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       (function `Impure heaplet -> Some (Proof_utils.CFML.extract_impure_heaplet heaplet) | _ -> None)
       (match pre with | `Empty -> [] | `NonEmpty ls -> ls) in
 
-  let combinator_ty, inv_ty = calculate_inv_ty t ~f:lemma_name ~args:f_args in
+  let framed_heaplets, combinator_ty, inv_ty = calculate_inv_ty t ~f:lemma_name ~args:f_args in
 
   (* collect an observation for the current program point *)
   let observations =
@@ -1382,10 +1401,12 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         | [] -> ""
         | heap ->
           (if no_pure then "" else " \\* ") ^
-          (List.map (function
-             | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)), expr ->
-               Format.sprintf "%s ~> %s %a"
-                 v f Proof_utils.Printer.pp_expr expr
+          (List.filter_map (function
+             | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)), expr when not (StringSet.mem v framed_heaplets) ->
+               Some (Format.sprintf "%s ~> %s %a"
+                       v f Proof_utils.Printer.pp_expr expr)
+             | Proof_spec.Heap.Heaplet.PointsTo (_, _, `App (_, _)), _ ->
+               None
              | Proof_spec.Heap.Heaplet.PointsTo (_, _, v), _ ->
                Format.ksprintf ~f:failwith
                  "found unsupported heaplet %a" Lang.Expr.pp v
