@@ -374,7 +374,7 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
         logical_params in
     logical_params
 
-let typeof ?concrete_types t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
+let typeof ?(product_types=[]) t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
   let ty =
     match s with
     | "++" ->
@@ -382,12 +382,16 @@ let typeof ?concrete_types t env (s: string) : (Lang.Type.t list * Lang.Type.t) 
         (fun v ->
            Lang.Type.([List (Var v); List (Var v)], List (Var v)))
         env.Proof_env.poly_vars
-    | "Opt.option_is_none"
-    | "Opt.option_is_some" ->
-      List.map
-        (fun v ->
-           Lang.Type.([ADT ("option", [Var v], None)], Bool))
-        env.Proof_env.poly_vars
+    | "option_value_fst" ->
+      List.map Lang.Type.(fun ((t1, t2)) ->  ([t1; ADT ("option", [Product [t1;t2]], None)], t1)) product_types
+    | "option_value_snd" ->
+      List.map Lang.Type.(fun ((t1, t2)) ->  ([t2; ADT ("option", [Product [t1;t2]], None)], t2)) product_types
+    | "Opt.option_is_some"
+    | "is_some" ->
+      List.map (fun ty ->
+        Lang.Type.([ADT ("option", [ty], None)], Bool)
+      ) ((List.map (fun v -> Lang.Type.Var v) env.poly_vars) @
+         List.map (fun (t1, t2) -> Lang.Type.Product [t1;t2]) product_types)
     | "not" -> Lang.Type.[[Bool], Bool]
     | "-" -> Lang.Type.[[Int; Int], Int]
     | "+" -> Lang.Type.[[Int; Int], Int]
@@ -407,8 +411,6 @@ let typeof ?concrete_types t env (s: string) : (Lang.Type.t list * Lang.Type.t) 
                               (Proof_utils.Debug.constr_to_string ty));
         let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ ~name:s ty in
         let instantiations =
-          match concrete_types with
-          | None ->
           List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) env.Proof_env.poly_vars) poly
           |> List.map (fun subst ->
             let subst = StringMap.of_list subst in
@@ -416,15 +418,7 @@ let typeof ?concrete_types t env (s: string) : (Lang.Type.t list * Lang.Type.t) 
                         |> Option.value ~default:v in
             List.map (Lang.Type.map_poly_var map) args
             |> split_last
-          )
-          | Some concrete_types ->
-            let poly_vars = List.map (fun var -> Lang.Type.Var var) env.Proof_env.poly_vars in
-            List.map_product_l (fun pv -> List.map (Pair.make pv) @@ concrete_types @ poly_vars) poly
-            |> List.map (fun subst ->
-              let subst = StringMap.of_list subst in
-              List.map (Lang.Type.subst subst) args
-              |> split_last
-            ) in
+          ) in
         Some (instantiations)
       | _ -> None in
   Log.debug (fun f -> f "typeof [%s] ==> [%s]@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.List.t] ty));
@@ -665,28 +659,22 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
   let invariant_has_bool = List.to_iter (snd inv_ty)
                            |> Iter.exists (function (_, Lang.Type.Bool) -> true | _ -> false) in
 
-  let uses_pairs = 
-    (StringMap.values env.Proof_env.gamma)
-    |> (match ret_ty with None -> Fun.id | Some ty -> Iter.cons ty)
-    |> Iter.cons (env.Proof_env.ret_ty)
-    |> Iter.exists
-         (Lang.Type.exists (function Lang.Type.(Product _) -> true | _ -> false)) in
-
-  let concrete_types =
-    if uses_pairs
-    then
-      let types ts ty =
-        Lang.Type.fold (fun ts -> function
-          | Lang.Type.Bool | Lang.Type.Int as t -> TypeSet.add t ts
-          | _ -> ts
-        ) ts ty in
-      let types =
-        types TypeSet.empty env.Proof_env.ret_ty
-        |> TypeSet.to_list in
-      Some types
-    else None in
-
-  Log.debug (fun f -> f "concrete_types are %a" (Option.pp (List.pp Lang.Type.pp)) concrete_types);
+  let product_types =
+    let module TypeSet = Set.Make(struct
+                           type t = (Lang.Type.t * Lang.Type.t)
+                           [@@deriving ord]
+                         end) in
+    let types ts ty =
+      Lang.Type.fold (fun ts -> function
+        | Lang.Type.Product [t1;t2] -> TypeSet.add (t1,t2) ts
+        | _ -> ts
+      ) ts ty in
+    let types =
+      (StringMap.values env.Proof_env.gamma)
+      |> (match ret_ty with None -> Fun.id | Some ty -> Iter.cons ty)
+      |> Iter.cons (env.Proof_env.ret_ty)
+      |> Iter.fold types TypeSet.empty in
+    TypeSet.to_list types in
 
   let is_loop_combinator =
     let mod_name = lemma_name |> Names.Constant.modpath |> Names.ModPath.to_string in
@@ -779,19 +767,14 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         match heaplet, StringMap.find_opt v env.gamma with
         | PointsTo (_, _, `App ("CFML.Stdlib.Pervasives_proof.Ref", [vl])), Some Lang.Type.(Ref ty)
           when expr_contains_free_variables vl  ->
-          [ vl, ty ]
+          [ vl, Lang.Type.to_coq_form ty ]
         | _ -> [ ]) pre_heap in
-    Log.debug (fun f -> f "INITIAL VALUES: [%a]"
-                          (List.pp
-                             (Pair.pp
-                                ~pp_start:(fun fmt () -> Format.pp_print_string fmt "(")
-                                ~pp_stop:(fun fmt () -> Format.pp_print_string fmt ")") 
-                                Lang.Expr.pp Lang.Type.pp)) initial_values);
+
     Expr_generator.build_context
       ~constants:initial_values
       ~ints:[1;2]
       ~vars ~funcs
-      ~env:(fun f -> typeof ?concrete_types t env f)
+      ~env:(fun f -> typeof ~product_types t env f)
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
 
