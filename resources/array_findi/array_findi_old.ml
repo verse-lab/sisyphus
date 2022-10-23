@@ -8,4 +8,4 @@ let findi (a: 'a array) (f: int -> 'a -> bool) =
       then (Some (i, a.(i)))
       else None) in
   res
-[@@with_logical_mapping ["l", "a"]]
+[@@with_logical_mapping ["l", "a"; "fp", "f"]]
