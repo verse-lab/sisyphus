@@ -3,6 +3,7 @@ open Containers
 module Log = (val Logs.src_log (Logs.Src.create ~doc:"Utilities for working with proofs" "pr.utils.debug"))
 
 module IntSet = Set.Make(Int)
+module StringSet = Set.Make(String)
 
 let is_const_named name const =
   Constr.isConst const &&
@@ -284,6 +285,8 @@ let extract_heap c =
       | Constr.Const (_, _) when is_hempty pre -> acc
       | Constr.App (fname, [|heaplet; rest|]) when is_hstar fname ->
         begin match Constr.kind heaplet with
+        | Constr.App (fname, [| fn |]) when is_hpure fname ->
+          loop (`Pure fn :: acc) rest             
         | Constr.App (fname, _) when is_hpure fname ->
           loop (`Pure heaplet :: acc) rest             
         | _ ->
@@ -300,10 +303,40 @@ let extract_heap c =
       | heap -> `NonEmpty (List.rev heap)
       | exception _ -> failwith ("unexpected heap structure: " ^ (Proof_debug.constr_to_string c))
       end
+    | Constr.App (fname, [| c |]) when is_hpure fname ->
+      `NonEmpty ([`Pure c])
     | Constr.App (fname, _) when is_hpure fname ->
       `NonEmpty ([`Pure c])
     | _ -> `NonEmpty ([`Impure c]) in
   pre
+
+(** [cfml_extract_logical_functions ?set c] returns the set [set] of all logical
+   functions used inside a CFML heaplet [c]. *)
+let cfml_extract_logical_functions ?(set=StringSet.empty) c =
+  let rec loop ?(is_repr=false) set c =
+    match Constr.kind_nocast c with
+    | Constr.App (f, [| arg |]) when is_hpure f ->
+      loop set arg
+    | Constr.App (f, [| _ty; body; _var |]) when is_const_named "repr" f ->
+      loop ~is_repr:true set body
+    | Constr.App (f, args) when is_repr ->
+      loop set args.(Array.length args - 1)
+    | Constr.App (f, [| _ty; body |]) when is_const_named "hexists" f ->
+      let _, _, body = Constr.destLambda body in
+      loop set body
+    | Constr.App (f, [| l; r |]) when is_const_named "hstar" f ->
+      let set = loop set l in
+      loop set r
+    | Constr.App (f, [| _ty; l; r |]) when Utils.is_coq_eq f ->
+      let set = loop set l in
+      loop set r
+    | Constr.App (f, args) when Constr.isConst f ->
+      let name, _ = Constr.destConst f in
+      let set = StringSet.add (Names.Constant.to_string name) set in
+      let args = Utils.drop_implicits name (Array.to_list args) in
+      List.fold_left loop set args
+    | _ -> set in
+  loop set c
 
 (** [extract_cfml_goal goal] when given an intermediate CFML [goal],
     extracts the pre and post condition.  *)
