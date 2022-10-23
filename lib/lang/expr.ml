@@ -256,7 +256,6 @@ let rec functions (funs: StringSet.t) : t -> StringSet.t = function
     List.fold_left functions (StringSet.add fname funs) args
   | `Lambda (_, body) -> functions funs body
 
-
 let rec subst_functions (f: string -> string option) : t -> t = function
   | `Tuple elts -> `Tuple (List.map (subst_functions f) elts)
   |`Constructor (fname,args) ->
@@ -268,3 +267,12 @@ let rec subst_functions (f: string -> string option) : t -> t = function
   | `Int _
   | `Var _ as v -> v
 
+let rec fold (f: 'a -> _ -> 'a) (acc: 'a) : t -> 'a = fun expr ->
+  let acc = f acc expr in
+  match expr with
+  | `Var _ -> acc
+  | `Int _ -> acc
+  | `Constructor (_, elts)
+  | `App (_, elts)
+  | `Tuple elts -> List.fold_left (fold f) acc elts
+  | `Lambda (_, body) -> fold f acc body
