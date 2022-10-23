@@ -3,30 +3,31 @@ module T = Testing_utils.Make (struct let name = "array_findi" end)
 let ctx =
   Expr_generator.make_raw_ctx
     ~consts:Lang.Type.[
-      (Var "A"), [`App (("TLC.LibContainer.read", [`Var ("l"); `Int (0)])) ];
-      Int, [`Var ("arg0"); `Int (0); `Int (1); `Int (2)];
-      Bool, [`Var ("arg1")];
-      (List (Var "A")), [`Var ("l")];
-      (Func (Some ([Int; (Var "A") ], Bool))), [`Var "f"]
+      (Var "A", [ `App ("TLC.LibContainer.read", [ `Var "l"; `Int 0 ]) ]);
+      (Int, [ `Var "arg0"; `Int 0; `Int 1; `Int 2 ]);
+      (Bool, [ `Var "arg1" ]);
+      (Func (Some ([ Int; Var "A" ], Bool)), [ `Var "f" ]);
+      (List (Var "A"), [ `Var "l" ]);
     ]
     ~pats:[]
     ~funcs:Lang.Type.[
-      (Var "A"), [("option_value_snd", [(Var "A"); (ADT ("option", [(Product [Int; (Var "A")])], None)) ])];
-      Int, [
-        ("+", [Int; Int]);
-        ("-", [Int; Int]);
-        ("length", [(List (Var "A")) ]);
-        ("option_value_fst", [Int; (ADT ("option", [(Product [Int; (Var "A")])], None)) ])
-      ];
-      Bool, [
-        ("is_some", [(ADT ("option", [(Var "A")], None)) ]);
-        ("is_some", [(ADT ("option", [(Product [Int; (Var "A")])], None)) ] );
-        ("not", [Bool])
-      ];
-      (List (Var "A")), [("take", [Int; (List (Var "A")) ])];
-      (ADT ("option", [(Product [Int; (Var "A")])], None)), [
-        ("list_findi", [(Func (Some ([Int; (Var "A") ], Bool))); (List (Var "A"))])
-      ]]
+      (Var "A", [ ( "option_value_snd", [ Var "A"; ADT ("option", [ Product [ Int; Var "A" ] ], None); ] ); ] );
+      (Int, [
+         ("+", [ Int; Int ]);
+         ("-", [ Int; Int ]);
+         ("length", [ List (Var "A") ]);
+         ("option_value_fst", [ Int; ADT ("option", [ Product [ Int; Var "A" ] ], None); ] );
+       ]);
+      (Bool, [
+         ("is_some", [ ADT ("option", [ Var "A" ], None) ]);
+         ("is_some", [ ADT ("option", [ Product [ Int; Var "A" ] ], None); ] );
+         ("not", [ Bool ]);
+       ]);
+      (List (Var "A"),
+       [ ("take", [ Int; List (Var "A") ]) ] );
+      (ADT ("option", [ Product [ Int; Var "A" ] ], None),
+       [ ("list_findi", [ Func (Some ([ Int; Var "A" ], Bool)); List (Var "A"); ] ); ] );
+    ]
 
 let pure_ty = Lang.Type.Bool
 let pure_expr =
