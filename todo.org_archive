@@ -1434,3 +1434,144 @@ CLOSED: [2022-10-21 Fri 10:48]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Run seq to array with dump output
+CLOSED: [2022-10-21 Fri 12:45]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 12:47
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Copy generation context
+CLOSED: [2022-10-21 Fri 12:45]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 12:47
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add folder for generation tests
+CLOSED: [2022-10-21 Fri 12:45]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 12:47
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Ensure that generator can find the invariant for TRUE invariant for seq to array 
+CLOSED: [2022-10-21 Fri 12:45]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 12:47
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add test for make rev list
+CLOSED: [2022-10-21 Fri 13:13]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 14:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add test for array exists
+CLOSED: [2022-10-21 Fri 14:26]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 14:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add test for array find mapi 
+CLOSED: [2022-10-21 Fri 14:36]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 14:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Add test for array of rev list
+CLOSED: [2022-10-21 Fri 14:52]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-21 Fri 14:52
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Check observation used in list partition and see if l is defined
+CLOSED: [2022-10-22 Sat 12:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-22 Sat 12:10
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Check source code to work out if observation is printed before or after normalisation
+CLOSED: [2022-10-22 Sat 12:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-22 Sat 12:10
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE work out why l isn't defined
+CLOSED: [2022-10-22 Sat 12:10]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-22 Sat 12:10
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+
+* DONE Test if true candidate is accepted by generated test fun
+CLOSED: [2022-10-23 Sun 08:48]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-23 Sun 08:48
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Leave out heaplets that are consumed by the higher order combinator
+CLOSED: [2022-10-23 Sun 08:02]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-23 Sun 08:48
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE iterate through functions, find the naem
+CLOSED: [2022-10-23 Sun 07:57]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-23 Sun 08:48
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:

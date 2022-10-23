@@ -4,9 +4,11 @@ module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
 type t = {
+
   lambda: (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t;
   (** [lambda] is a mapping of proof vars encoding lambdas to their
      corresponding definitions and observation points. *)
+
   bindings: string StringMap.t;
   (** [bindings] are a mapping of proof vars (i.e [idx]) to their
      corresponding program variables.
@@ -14,17 +16,25 @@ type t = {
       This information is obtained purely mechanically during
      execution of the program and is required to handle renaming that
      might occur when creating fresh variables.  *)
+
   logical_mappings: string StringMap.t;
   (** [logical_mappings] are a mapping of logical mappings of concrete
      values (i.e [s]) to their corresponding logical variables [l]. *)  
+
   args: (string * Lang.Type.t) list;
   (** [args] are a full list of formal parameters to the function
      being evaluated *)
+
   gamma: Lang.Type.t StringMap.t;
   (** [gamma] is the typing environment for the OCaml program (i.e
      doesn't include proof terms) *)
+
   poly_vars: string list;
   (** [poly_vars] is a list of polymorphic variables.  *)
+
+  logical_functions: string list;
+  (** [logical_functions] is a list of any logical functions found in
+     the specifications of functions used in the current program.  *)
 }
 
 let pp_lambda fmt (id, `Lambda (args, program)) =
@@ -60,8 +70,7 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
   | Lang.Type.Val -> false
 
 
-
-let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
+let initial_env ?(logical_mappings=[]) ?(logical_functions=[]) (args: (string * Lang.Type.t) list) =
 
   let logical_mappings = StringMap.of_list logical_mappings in
 
@@ -85,6 +94,7 @@ let initial_env ?(logical_mappings=[]) (args: (string * Lang.Type.t) list) =
     args;
     gamma;
     poly_vars;
+    logical_functions;
   }
 
 let has_definition env v = StringMap.mem v env.lambda
