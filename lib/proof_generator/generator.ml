@@ -402,8 +402,7 @@ let typeof ?(product_types=[]) t env (s: string) : (Lang.Type.t list * Lang.Type
       let (let+) x f = Option.bind x f in
       Option.value ~default:[] @@
       let+ ty = (Proof_context.typeof_opt t s) in
-      let+ s_base = String.split_on_char '.' s |> List.last_opt in
-      let+ name = Proof_context.names t s_base in
+      let+ name = Proof_context.names t s in
       match name with
       | Names.GlobRef.ConstRef s ->
         Log.debug (fun f -> f "checking the typeof %s ==> %s@.full:%s" (Names.Constant.to_string s)
@@ -411,16 +410,27 @@ let typeof ?(product_types=[]) t env (s: string) : (Lang.Type.t list * Lang.Type
                               (Proof_utils.Debug.constr_to_string ty));
         let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ ~name:s ty in
         let instantiations =
-          List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) env.Proof_env.poly_vars) poly
-          |> List.map (fun subst ->
-            let subst = StringMap.of_list subst in
-            let map v = StringMap.find_opt v subst
-                        |> Option.value ~default:v in
-            List.map (Lang.Type.map_poly_var map) args
-            |> split_last
-          ) in
+          match env.Proof_env.poly_vars with 
+          | (_ :: _) as poly_vars ->
+            List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) poly_vars) poly
+            |> List.map (fun subst ->
+              let subst = StringMap.of_list subst in
+              let map v = StringMap.find_opt v subst
+                          |> Option.value ~default:v in
+              List.map (Lang.Type.map_poly_var map) args
+              |> split_last)
+          | [] ->
+            let poly_vars = [Lang.Type.Int] in (* TODO: draw this from the arguments/env *)
+            List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) poly_vars) poly
+            |> List.map (fun subst ->
+              let subst = StringMap.of_list subst in
+              List.map (Lang.Type.subst subst) args
+              |> split_last
+            ) in
         Some (instantiations)
-      | _ -> None in
+      | n ->
+        Log.debug (fun f -> f "%s mapped to non const ref %s" s (Proof_utils.Debug.globref_to_string n));
+        None in
   Log.debug (fun f -> f "typeof [%s] ==> [%s]@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.List.t] ty));
   ty
 
