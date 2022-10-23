@@ -306,8 +306,8 @@ let build_complete_params t env obs ~inv lemma_name init_params logical_params =
         let instantiated = instantiate_expr t env obs (`Var name, ty) in
         let param = Option.map (fun res -> `Typed res) instantiated
                     |> Option.get_exn_or (Format.sprintf "failed to instantiate") in
-          (init_ty, init_params @ [param])
-        | _ -> failwith "Don't know how to instantiate logical parameters"
+        (init_ty, init_params @ [param])
+      | _ -> failwith "Don't know how to instantiate logical parameters"
     ) (init_ty, init_params) logical_instantiations in
 
   let params, _ = instantiate_arguments_with_evars t lemma_name init_params in
@@ -678,6 +678,10 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         |> Fun.flip StringSet.add_iter
              (List.to_iter proof_vars
               |> Iter.filter_map (function (name, Lang.Type.Func (Some _)) -> Some name | _ -> None))
+
+        (* add in any logical functions found in the proof *)
+        |> Fun.flip StringSet.add_list env.Proof_env.logical_functions
+
         |> StringSet.to_list in
       vars,funcs in
     let from_id, to_id =
@@ -1460,6 +1464,44 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let env = update_env_with_bindings env pat in
   symexec t env rest
 
+let find_logical_functions t body =
+  Lang.Program.fold Lang.Expr.functions StringSet.empty body
+  |> StringSet.filter (String.exists Char.(fun c -> ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')))
+  |> begin fun set -> StringSet.fold (fun fn_name acc ->
+    let fn_name =
+      if String.contains fn_name '.'
+      then
+        let (modl, fn) = List.hd_tl @@ String.split_on_char '.' fn_name in
+        modl ^ "_ml" ^ "." ^ String.concat "." fn
+      else fn_name in
+    let name = Proof_context.names t fn_name in
+    match name with
+    | None -> acc
+    | Some gref ->
+      let search_res = Proof_context.search t [
+        true, Search.(GlobSearchLiteral (GlobSearchString "spec"));
+        true, Search.(GlobSearchLiteral (GlobSearchSubPattern (Vernacexpr.InConcl, false, Pattern.PRef gref)))
+      ] |> List.head_opt in
+      match search_res with
+      | None -> acc
+      | Some (spec_name, _, ty) ->
+        Log.debug (fun f -> f "found spec for %s" Proof_utils.Debug.(globref_to_string spec_name));
+        let _args, _invs, assn = Proof_utils.CFML.extract_spec ty in
+        match Constr.kind_nocast assn with
+        | Constr.App (f, args) when Proof_utils.is_const_eq "CFML.SepLifted.Triple" f ->
+          let pre_heap = match Proof_utils.CFML.extract_heap args.(3) with | `Empty -> [] | `NonEmpty ls -> ls in
+          let _, _, post = Constr.destLambda args.(4) in
+          let post_heap = match Proof_utils.CFML.extract_heap post with | `Empty -> [] | `NonEmpty ls -> ls in
+          Log.debug (fun f -> f "function set before {%a}" (StringSet.pp String.pp) acc);
+          let acc = List.fold_left (fun acc -> function
+              `Pure c -> Proof_utils.CFML.cfml_extract_logical_functions ~set:acc c
+            | `Impure c -> Proof_utils.CFML.cfml_extract_logical_functions ~set:acc c
+          ) acc (pre_heap @ post_heap) in
+          acc
+        | _ -> acc
+  ) set StringSet.empty
+  end
+  |> StringSet.filter_map (fun f -> String.split_on_char '.' f |> List.last_opt)
 
 let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   Proof_context.append t {|xcf.|};
@@ -1479,14 +1521,9 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
     end
   | _ -> ()
   end;
-  let _functions =
-    Lang.Program.fold Lang.Expr.functions StringSet.empty prog.body
-    |> StringSet.filter (String.exists Char.(fun c -> ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')))
-    |> StringSet.fold (fun fn_name acc ->
-      (* add to db *)
-      failwith "failure"
-    ) StringSet.empty in
+  (* collect logical functions found in the specifications of any functions used in the program body  *)
+  let logical_functions = find_logical_functions t prog.body in
 
-  symexec t (Proof_env.initial_env ~logical_mappings prog.args) prog.body;
+  symexec t (Proof_env.initial_env ~logical_mappings ~logical_functions:(StringSet.to_list logical_functions) prog.args) prog.body;
   Proof_context.append t "Admitted.";
   Proof_context.extract_proof_script t
