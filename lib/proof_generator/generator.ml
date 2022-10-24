@@ -856,7 +856,9 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
     ) gen_pure_spec in
   let expected_empty_pure = List.is_empty gen_pure_spec in
 
-  let heap = (List.map (fun (var, ty) -> Seq.map (fun expr -> (var, expr)) @@ gen ty) gen_heap_spec)  in
+  let heap_fuel = if List.is_empty product_types then 2 else 3 in
+
+  let heap = (List.map (fun (var, ty) -> Seq.map (fun expr -> (var, expr)) @@ gen ~fuel:heap_fuel ty) gen_heap_spec)  in
   pure, heap, !hof_rev_map, expected_empty_pure
 
 let prune_candidates_using_testf test_f (pure, heap) =
