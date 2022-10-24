@@ -1,5 +1,13 @@
 open Containers
 
+(* let rec seq_map_product_l f l () =
+ *   match l() with
+ *   | Seq.Nil -> Seq.Cons ([], Seq.nil)
+ *   | Cons (l1, tail) ->
+ *     let l1 = f l1 in
+ *     let tail = seq_map_product_l f tail in
+ *     Seq.product_with (fun x tl -> x::tl) l1 tail () *)
+
 let seq_map_product_l (type a b) (f: a -> b Seq.t) (l: a Seq.t) : b list Seq.t =
   let rec prod_rec  (left: b list) (right: a CCSeq.t) () =
     match right () with
