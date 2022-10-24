@@ -569,6 +569,8 @@ let reduce_term t term =
       | "TLC.LibNat", "peano_induction" -> `Unfold
       | "TLC.LibNat", _ -> `KeepOpaque
 
+      | "TLC.LibListZ", "length" -> `KeepOpaque
+
       | "TLC.LibList", ("Nth_ind" | "nth_of_Nth" | "nth_default_of_Nth" | "nth_app_l" | "Nth_app_l") ->
         `KeepOpaque
 
@@ -588,8 +590,8 @@ let reduce_term t term =
             ||  String.prefix ~pre:"CFML" path
             || String.prefix ~pre:"TLC" path
             || String.prefix ~pre:"Common" path ->
-        (* if not @@ String.prefix ~pre:"CFML" path then
-         *   Log.debug (fun f -> f "Expanding %s:%s" path label); *)
+        if String.prefix ~pre:"CFML" path then
+          Log.debug (fun f -> f "Expanding %s:%s" path label);
         incr fuel;
         `Unfold
       | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
@@ -619,10 +621,10 @@ let reduce_term t term =
         ~filter
         env evd (Evd.MiniEConstr.of_constr term) in
     let term = EConstr.to_constr evd reduced in
-    Configuration.dump_output "reduced"
-      (fun f -> f "%s" (Proof_utils.Debug.constr_to_string term));
-    Configuration.dump_output "reduced-pretty"
-      (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty term));
+    (* Configuration.dump_output "reduced"
+     *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string term));
+     * Configuration.dump_output "reduced-pretty"
+     *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty term)); *)
     term
   | _ -> trm
 
