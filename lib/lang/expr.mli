@@ -94,3 +94,4 @@ val functions: StringSet.t -> t -> StringSet.t
 val subst_functions: (string -> string option) -> t -> t
 
 val fold: ('a -> t -> 'a) -> 'a -> t -> 'a
+val andb : t list -> t

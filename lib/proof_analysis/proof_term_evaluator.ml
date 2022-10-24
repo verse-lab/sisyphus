@@ -152,6 +152,16 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
   | `App ("option_value_snd", [default; opt]) ->
     let option_value_snd default opt = match opt with None -> default | Some (_, snd) -> snd in
     wrap (option_value_snd (unwrap (eval ctx default)) (unwrap (eval ctx opt)))
+  | `App ("is_sorted", [ls]) ->
+    let rec is_sorted_internal (x: int) (l: int list) =
+      match l with
+      | [] -> true
+      | h :: t -> (x <= h) && is_sorted_internal h t in
+    let is_sorted (l: int list) =
+      match l with
+      | [] -> true
+      | h :: t -> is_sorted_internal h t in
+    wrap (is_sorted (unwrap (eval ctx ls)))
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr
