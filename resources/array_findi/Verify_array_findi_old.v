@@ -4,8 +4,7 @@ From TLC Require Import LibListZ.
 
 From Common Require Import Verify_combinators.
 
-From Common Require Import Tactics.
-From Common Require Import Utils.
+From Common Require Import Tactics Utils Solver.
 
 From ProofsArrayFindi Require Import Array_findi_old_ml.
 
@@ -28,26 +27,14 @@ Proof using (All).
              \[b = list_findi fp (take i l)] \*
                a ~> Array l)
        ). {
-    intros i Hi.
-    apply Htmp.
-    assert (IA: Inhab A). {
-      destruct l; rew_list in Hi; try math.
-      apply Inhab_of_val; auto.
-    }
-    xpullpure Hexists.
-    xapp. { apply int_index_prove; math. }
-    xapp (H i l[i]). { math. }
-    xif;=> Hif.
-    xapp. { apply int_index_prove; math. }
-    xvals. {
+    sis_solve_start. {
       rewrite (take_pos_last IA); [|apply int_index_prove; rewrite <- ?length_eq; math].
       math_rewrite ((i + 1 - 1) = i).
       rewrite findi_unfold, findi_app_r; auto; simpl.
       rewrite length_take_nonneg; try math.
       math_rewrite (0 + i = i).
-      rewrite Hif; simpl; auto.
+      rewrite H1; simpl; auto.
     }
-    xvals*.
     {
       rewrite (take_pos_last IA); [|apply int_index_prove; rewrite <- ?length_eq; math].
       math_rewrite ((i + 1 - 1) = i).
@@ -55,12 +42,12 @@ Proof using (All).
       rewrite length_take_nonneg; try math.
       math_rewrite (0 + i = i).
       case_eq (fp i l[i]) ;=> Hfp; simpl; auto.
-      rewrite Hfp in Hif.
-      contradiction Hif; auto.
+      rewrite Hfp in H1.
+      contradiction H1; auto.
     }
   }
   { math.  }
-  { rewrite take_zero; simpl; auto. }
+  { sis_list_solver; simpl; auto. }
   intros res i_b Hres Hexists.
   xvals*. {
     destruct Hres as [Hlen Himpl].

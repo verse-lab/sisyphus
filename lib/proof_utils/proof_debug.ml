@@ -29,6 +29,12 @@ let tag ty =
   | Constr.Float _ -> "Float"
   | Constr.Array (_, _, _, _)  -> "Array"  
 
+let globref_to_string : Names.GlobRef.t -> string = function
+  | VarRef var -> Names.Id.to_string var
+  | ConstRef c -> Names.Constant.to_string c
+  | IndRef (id, _) -> Names.MutInd.to_string id
+  | ConstructRef ((id, _), _) -> Names.MutInd.to_string id
+
 let constr_to_string s = Format.sprintf "%a" Pp.pp_with (Constr.debug_print s)
 
 let constr_to_string_pretty s =
@@ -44,7 +50,6 @@ let ast ?at (module Ctx: Coq.Proof.PROOF)  =
     | [Serapi.Serapi_protocol.CoqAst v] -> Some v.v.expr
     | _ -> None
   ) |> Option.get_exn_or "failed to get ast"
-
 
 let typeof ?at (module Ctx: Coq.Proof.PROOF) name =
   let ty =

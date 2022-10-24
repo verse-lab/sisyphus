@@ -92,3 +92,6 @@ val upcast : simple_t -> t
 val downcast : t -> simple_t
 val functions: StringSet.t -> t -> StringSet.t
 val subst_functions: (string -> string option) -> t -> t
+
+val fold: ('a -> t -> 'a) -> 'a -> t -> 'a
+val andb : t list -> t

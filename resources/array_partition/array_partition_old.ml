@@ -22,4 +22,4 @@ let partition (p: 'a -> bool) (a: 'a array) =
     let (left: 'a array) = array_take !li left_arr in
     let (right: 'a array) = array_take !ri right_arr in
     left, right
-[@@with_logical_mapping ["l", "xs"; "pp", "p"]]
+[@@with_logical_mapping ["l", "a"; "pp", "p"]]

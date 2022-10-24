@@ -48,7 +48,7 @@ let make_raw_ctx :
     funcs = Types.TypeMap.of_list funcs;
   }
 
-let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env proof_script =
+let build_context ?(constants=[]) ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env proof_script =
   (* collect consts, functions and patterns from old proof script. *)
   let consts, old_funcs = Collector.collect_consts_and_funcs ~from_id ~to_id ~env proof_script in
 
@@ -61,13 +61,18 @@ let build_context ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env 
   let consts =
     List.fold_left (fun acc i ->
       Types.update_binding acc Int (`Int i)
-    ) consts ints
-    |>  Types.TypeMap.map (fun elts ->
+    ) consts ints in
+  let consts =
+    List.fold_left (fun consts (expr, ty) ->
+      Types.update_binding consts ty expr
+    ) consts constants in
+  let consts =
+    Types.TypeMap.map (fun elts ->
       let module S = Set.Make (struct
-                       type t = [ `Int of int | `Var of string ]
+                       type t = Lang.Expr.t
                        [@@deriving ord]
                      end) in
-      (S.of_list elts |> S.to_list :> expr list)) in
+      S.of_list elts |> S.to_list) consts in
   let funcs =
     let normalize_name f = String.split_on_char '.' f |> List.last_opt |> Option.value ~default:f in
     List.fold_left (fun acc f ->

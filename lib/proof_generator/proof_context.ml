@@ -173,16 +173,18 @@ let definition_of {ctx; _} txt =
 
 let names {ctx; _} txt =
   let module Ctx = (val ctx) in
-  Ctx.query Serapi.Serapi_protocol.(Names txt)
-  |> Option.flat_map Serapi.Serapi_protocol.(function
-    | CoqGlobRef name :: _ -> Some name
-    | _ -> None
+  Nametab.locate_all @@ (if String.contains txt '.'
+                         then  Libnames.qualid_of_string txt
+                         else Libnames.qualid_of_ident (Names.Id.of_string txt))
+  |> (fun ls ->
+      Option.or_
+        (List.find_opt (function Names.GlobRef.ConstRef _ -> true | _ -> false) ls)
+        ~else_:(List.head_opt ls)
   )
 
 let constant t txt =
   names t txt |> Option.map begin function
   | Names.GlobRef.ConstRef c -> c
-
   | Names.GlobRef.VarRef _ ->
     failwith (Format.sprintf "name %s resolved to var when expecting a const." txt)
   | Names.GlobRef.IndRef _ ->

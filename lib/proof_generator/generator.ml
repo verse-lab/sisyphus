@@ -2,8 +2,8 @@ open Containers
 
 module Log = (val Logs.src_log (Logs.Src.create ~doc:"Generates candidate invariants" "gen"))
 
-
 module ExprSet = Set.Make(Lang.Expr)
+module TypeSet = Set.Make(Lang.Type)
 
 let split_last =
   let rec loop last acc = function
@@ -36,6 +36,7 @@ let seq_force ls =
       loop (i + 1) (h :: acc) t in
   let (sz, ls) = loop 0 [] ls in
   sz, Seq.of_list ls
+
 
 let reduce pure =
   let no_pure_original = List.length pure in
@@ -88,6 +89,11 @@ let pp_expr fmt vl = Pprintast.expression fmt (Proof_analysis.Embedding.embed_ex
 
 type name = Names.Name.t
 let pp_name fmt vl = Format.fprintf fmt "%s" (name_to_string vl)
+
+let expr_contains_free_variables expr =
+  Lang.Expr.fold (fun contains_fv -> fun expr ->
+    contains_fv || match expr with `Var _ -> true | _ -> false
+  ) false expr
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
@@ -306,8 +312,8 @@ let build_complete_params t env obs ~inv lemma_name init_params logical_params =
         let instantiated = instantiate_expr t env obs (`Var name, ty) in
         let param = Option.map (fun res -> `Typed res) instantiated
                     |> Option.get_exn_or (Format.sprintf "failed to instantiate") in
-          (init_ty, init_params @ [param])
-        | _ -> failwith "Don't know how to instantiate logical parameters"
+        (init_ty, init_params @ [param])
+      | _ -> failwith "Don't know how to instantiate logical parameters"
     ) (init_ty, init_params) logical_instantiations in
 
   let params, _ = instantiate_arguments_with_evars t lemma_name init_params in
@@ -368,7 +374,7 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
         logical_params in
     logical_params
 
-let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
+let typeof ?(product_types=[]) t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
   let ty =
     match s with
     | "++" ->
@@ -376,12 +382,16 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
         (fun v ->
            Lang.Type.([List (Var v); List (Var v)], List (Var v)))
         env.Proof_env.poly_vars
-    | "Opt.option_is_none"
-    | "Opt.option_is_some" ->
-      List.map
-        (fun v ->
-           Lang.Type.([ADT ("option", [Var v], None)], Bool))
-        env.Proof_env.poly_vars
+    | "option_value_fst" ->
+      List.map Lang.Type.(fun ((t1, t2)) ->  ([t1; ADT ("option", [Product [t1;t2]], None)], t1)) product_types
+    | "option_value_snd" ->
+      List.map Lang.Type.(fun ((t1, t2)) ->  ([t2; ADT ("option", [Product [t1;t2]], None)], t2)) product_types
+    | "Opt.option_is_some"
+    | "is_some" ->
+      List.map (fun ty ->
+        Lang.Type.([ADT ("option", [ty], None)], Bool)
+      ) ((List.map (fun v -> Lang.Type.Var v) env.poly_vars) @
+         List.map (fun (t1, t2) -> Lang.Type.Product [t1;t2]) product_types)
     | "not" -> Lang.Type.[[Bool], Bool]
     | "-" -> Lang.Type.[[Int; Int], Int]
     | "+" -> Lang.Type.[[Int; Int], Int]
@@ -392,8 +402,7 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
       let (let+) x f = Option.bind x f in
       Option.value ~default:[] @@
       let+ ty = (Proof_context.typeof_opt t s) in
-      let+ s_base = String.split_on_char '.' s |> List.last_opt in
-      let+ name = Proof_context.names t s_base in
+      let+ name = Proof_context.names t s in
       match name with
       | Names.GlobRef.ConstRef s ->
         Log.debug (fun f -> f "checking the typeof %s ==> %s@.full:%s" (Names.Constant.to_string s)
@@ -401,16 +410,27 @@ let typeof t env (s: string) : (Lang.Type.t list * Lang.Type.t) list =
                               (Proof_utils.Debug.constr_to_string ty));
         let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ ~name:s ty in
         let instantiations =
-          List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) env.Proof_env.poly_vars) poly
-          |> List.map (fun subst ->
-            let subst = StringMap.of_list subst in
-            let map v = StringMap.find_opt v subst
-                        |> Option.value ~default:v in
-            List.map (Lang.Type.map_poly_var map) args
-            |> split_last
-          ) in
+          match env.Proof_env.poly_vars with 
+          | (_ :: _) as poly_vars ->
+            List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) poly_vars) poly
+            |> List.map (fun subst ->
+              let subst = StringMap.of_list subst in
+              let map v = StringMap.find_opt v subst
+                          |> Option.value ~default:v in
+              List.map (Lang.Type.map_poly_var map) args
+              |> split_last)
+          | [] ->
+            let poly_vars = [Lang.Type.Int] in (* TODO: draw this from the arguments/env *)
+            List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) poly_vars) poly
+            |> List.map (fun subst ->
+              let subst = StringMap.of_list subst in
+              List.map (Lang.Type.subst subst) args
+              |> split_last
+            ) in
         Some (instantiations)
-      | _ -> None in
+      | n ->
+        Log.debug (fun f -> f "%s mapped to non const ref %s" s (Proof_utils.Debug.globref_to_string n));
+        None in
   Log.debug (fun f -> f "typeof [%s] ==> [%s]@." s ([%show: (Lang.Type.t list * Lang.Type.t) Containers.List.t] ty));
   ty
 
@@ -459,9 +479,28 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
       (arg_list_to_str args) in
   let instantiated_spec = (Proof_context.typeof t instantiated_spec) in
   let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
+
+  let framed_heaplets = 
+    let (_, _, body) = Proof_utils.CFML.extract_spec rest in
+    let _, args = Constr.destApp body in
+    let heaplets = match Proof_utils.CFML.extract_heap args.(3) with
+      | `Empty -> []
+      | `NonEmpty ls -> ls in
+    List.fold_left (fun fns trm ->
+      match trm with
+      | `Pure _ -> fns
+      | `Impure f ->
+        match Constr.kind_nocast f with
+        | Constr.App (f, [| _; _; var |]) when Proof_utils.CFML.is_const_named "repr" f ->
+          let var = if Constr.isCast var then let (c, _, _) = Constr.destCast var in c else var in
+          let id = Constr.destVar var in
+          StringSet.add (Names.Id.to_string id) fns
+        | _ -> fns
+    ) StringSet.empty heaplets in
+
   let tys = Proof_utils.CFML.unwrap_invariant_type ty in
   let tys = List.mapi (fun i v -> Format.sprintf "arg%d" i, v) tys in
-  combinator_ty, (name_to_string binder_name, tys)
+  framed_heaplets, combinator_ty, (name_to_string binder_name, tys)
 
 (** [reduce_term t term] reduces a proof term [term] using ultimate
     reduction.  *)
@@ -607,14 +646,46 @@ let build_testing_function t env ?combinator_ty
     |> Option.get_exn_or "failed to construct an executable test specification" in
   test_f t.Proof_context.compilation_context
 
-let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args observations =
-  let uses_options = (StringMap.values env.Proof_env.gamma) 
-                     |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false)) in
-  let inv_uses_options = (List.to_iter (snd inv_ty) |> Iter.map snd)
-                         |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false)) in
+let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args ~ret:ret_ty observations =
+  let uses_options =
+    (StringMap.values env.Proof_env.gamma) 
+    |> (match ret_ty with None -> Fun.id | Some ty -> Iter.cons ty)
+    |> Iter.cons (env.Proof_env.ret_ty)
+    |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false)) in
+  let inv_uses_options =
+    (List.to_iter (snd inv_ty) |> Iter.map snd)
+    |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false)) in
+
+  let uses_option_pair =
+    (StringMap.values env.Proof_env.gamma)
+    |> (match ret_ty with None -> Fun.id | Some ty -> Iter.cons ty)
+    |> Iter.cons (env.Proof_env.ret_ty)
+    |> Iter.exists
+         (Lang.Type.exists (function Lang.Type.(ADT ("option", [Product [_; _]], _)) -> true | _ -> false)) in
+  let inv_uses_option_pair =
+    (List.to_iter (snd inv_ty) |> Iter.map snd)
+    |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", [Product [_; _]], _) -> true | _ -> false)) in
 
   let invariant_has_bool = List.to_iter (snd inv_ty)
                            |> Iter.exists (function (_, Lang.Type.Bool) -> true | _ -> false) in
+
+  let product_types =
+    let module TypeSet = Set.Make(struct
+                           type t = (Lang.Type.t * Lang.Type.t)
+                           [@@deriving ord]
+                         end) in
+    let types ts ty =
+      Lang.Type.fold (fun ts -> function
+        | Lang.Type.Product [t1;t2] -> TypeSet.add (t1,t2) ts
+        | _ -> ts
+      ) ts ty in
+    let types =
+      (StringMap.values env.Proof_env.gamma)
+      |> (match ret_ty with None -> Fun.id | Some ty -> Iter.cons ty)
+      |> Iter.cons (env.Proof_env.ret_ty)
+      |> Iter.fold types TypeSet.empty in
+    TypeSet.to_list types in
+
   let is_loop_combinator =
     let mod_name = lemma_name |> Names.Constant.modpath |> Names.ModPath.to_string in
     match mod_name with
@@ -674,10 +745,20 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         |> (if inv_uses_options
             then StringSet.add "opt_of_bool"
             else Fun.id)
+        |> (if uses_option_pair || inv_uses_option_pair
+            then StringSet.add "option_value_fst"
+            else Fun.id)
+        |> (if uses_option_pair || inv_uses_option_pair
+            then StringSet.add "option_value_snd"
+            else Fun.id)
         (* add in any hof functions in our proof env  *)
         |> Fun.flip StringSet.add_iter
              (List.to_iter proof_vars
               |> Iter.filter_map (function (name, Lang.Type.Func (Some _)) -> Some name | _ -> None))
+
+        (* add in any logical functions found in the proof *)
+        |> Fun.flip StringSet.add_list env.Proof_env.logical_functions
+
         |> StringSet.to_list in
       vars,funcs in
     let from_id, to_id =
@@ -691,8 +772,19 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
         (((t.Proof_context.current_program_id :> int)))
         from_id to_id);
 
-    Expr_generator.build_context ~ints:[1;2]
-      ~vars ~funcs ~env:(fun f -> typeof t env f)
+    let initial_values =
+      List.concat_map Proof_spec.Heap.Heaplet.(fun (PointsTo (v, _, _) as heaplet) ->
+        match heaplet, StringMap.find_opt v env.gamma with
+        | PointsTo (_, _, `App ("CFML.Stdlib.Pervasives_proof.Ref", [vl])), Some Lang.Type.(Ref ty)
+          when expr_contains_free_variables vl  ->
+          [ vl, Lang.Type.to_coq_form ty ]
+        | _ -> [ ]) pre_heap in
+
+    Expr_generator.build_context
+      ~constants:initial_values
+      ~ints:[1;2]
+      ~vars ~funcs
+      ~env:(fun f -> typeof ~product_types t env f)
       ~from_id ~to_id
       t.Proof_context.old_proof.Proof_spec.Script.proof in
 
@@ -721,7 +813,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       (StringMap.find_opt proof_var env.Proof_env.bindings) in
 
   let gen_heap_spec =
-    List.map
+    List.filter_map
       Proof_spec.Heap.Heaplet.(function
         | PointsTo (arr, _, `App ("CFML.WPArray.Array", [ls]))  ->
           let arr = ocaml_name arr in
@@ -732,8 +824,8 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
               Format.ksprintf ~f:failwith "failed to retrieve type of heaplet %s" arr in
           (* only attempt to synthesize the expression if it is actually mutated   *)
           if StringSet.mem arr mut_vars
-          then `Hole (Lang.Type.List elt_ty)
-          else `Concrete ls
+          then Some (arr, Lang.Type.List elt_ty)
+          else None
         | PointsTo (v, _, `App (("Ref" | "CFML.Stdlib.Pervasives_proof.Ref"), [vl])) ->
           Log.debug (fun f -> f "gen heap spec type of %s is %a" v (Option.pp Lang.Type.pp) (StringMap.find_opt v env.gamma));
           let v = ocaml_name v in
@@ -744,59 +836,60 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
               Format.ksprintf ~f:failwith "failed to retrieve type of heaplet %s" v in
           (* only attempt to synthesize the expression if it is actually mutated   *)
           if StringSet.mem v mut_vars
-          then `Hole elt_ty
-          else `Concrete vl
+          then Some (v, elt_ty)
+          else None
         | v ->
           Format.ksprintf ~f:failwith
             "found unsupported heaplet %a" pp v
       ) pre_heap in
 
-  Log.info (fun f -> f "Generation target is:\n - pure: %a\n - heap: %s"
-                       (List.pp (Pair.pp String.pp Lang.Type.pp)) gen_pure_spec
-                       ([%show: [`Concrete of Lang.Expr.t | `Hole of Lang.Type.t ] list] gen_heap_spec)
-           );
+  Log.info (fun f ->
+    f "Generation target is:\n - pure: %a\n - heap: %s"
+      (List.pp (Pair.pp String.pp Lang.Type.pp)) gen_pure_spec
+      ([%show: (string * Lang.Type.t) list] gen_heap_spec)
+  );
 
   let gen ?blacklist ?initial ?(fuel=2) = Expr_generator.generate_expression ?blacklisted_vars:blacklist ?initial ~fuel ctx in
   let pure =
-    Utils.seq_map_product_l List.(fun (v, ty) ->
+    List.map List.(fun (v, ty) ->
       Seq.map (fun expr -> `App ("=", [`Var v; expr])) (gen ~blacklist:[v] ~fuel:3 ~initial:false ty)
-    ) (Seq.of_list gen_pure_spec)
-    |> Seq.filter_map (function
-        [] -> None
-      | h :: t ->
-        List.fold_left
-          (fun acc vl -> `App ("&&", [vl; acc])) h t
-        |> Option.some
-    ) in
+    ) gen_pure_spec in
   let expected_empty_pure = List.is_empty gen_pure_spec in
 
-  let heap = Utils.seq_map_product_l (function `Hole ty -> gen ty | `Concrete vl -> Seq.singleton vl) (Seq.of_list gen_heap_spec)  in
+  let heap = (List.map (fun (var, ty) -> Seq.map (fun expr -> (var, expr)) @@ gen ty) gen_heap_spec)  in
   pure, heap, !hof_rev_map, expected_empty_pure
 
 let prune_candidates_using_testf test_f (pure, heap) =
   let pure =
-    Seq.filter_map (fun pure ->
-      match test_f (pure, [ ]) with
-      | false -> None
-      | true ->
-        match pure with
-        | `App ("=", [`Var _;`Var _]) -> None
-        | _ ->
-          Some pure
-    ) pure in
+    List.map
+      (Seq.filter_map (fun pure ->
+         match test_f (pure, [ ]) with
+         | false -> None
+         | true ->
+           match pure with
+           | `App ("=", [`Var _;`Var _]) -> None
+           | _ -> Some pure
+       )) pure in
   let heap =
-    Seq.filter_map (fun heap ->
-      if test_f (`Constructor ("true", []), heap)
+    List.map (Seq.filter_map (fun heap ->
+      if test_f (`Constructor ("true", []), [heap])
       then Some heap
       else None
-    ) heap in
+    )) heap in
   let start_time = Ptime_clock.now () in
-  let (no_pure, pure) = seq_force pure in
+  let (no_pure, pure) = List.map seq_force pure |> List.split in
+  if List.exists (fun v -> v <= 0) no_pure then
+    Format.ksprintf ~f:failwith "ran out of pure candidates";
   Gc.full_major (); 
-  let (no_heap, heap) = seq_force heap in
+  let (no_heap, heap) = List.map seq_force heap |> List.split in
+  if List.exists (fun v -> v <= 0) no_heap then
+    Format.ksprintf ~f:failwith "ran out of heap candidates";
   Gc.full_major (); 
   let end_time = Ptime_clock.now () in
-  Log.info (fun f -> f "Pruned down to %d pure and %d heap in %a" no_pure no_heap Ptime.Span.pp (Ptime.diff end_time start_time));
+  Log.info (fun f -> f "Pruned down to [%a] pure and [%a] heap in %a"
+                       (List.pp Int.pp) no_pure
+                       (List.pp Int.pp) no_heap
+                       Ptime.Span.pp (Ptime.diff end_time start_time));
   pure, heap
 
 let has_pure_specification t =
@@ -932,6 +1025,8 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
       symexec_alloc t env pat rest
     | `App ("ref", [_]) ->
       symexec_ref_alloc t env pat rest
+    | `App ("Array.get", [_; _]) ->
+      symexec_array_get t env pat rest
     | `App (_, prog_args)
       when List.exists (function
         |`Var v -> Proof_env.is_pure_lambda env v
@@ -958,6 +1053,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   | `Write _ -> failwith "don't know how to handle write"
   | `Value _ ->
     t.current_program_id <- Lang.Id.incr t.current_program_id;
+    Log.debug (fun f -> f "well done CHAMP, you're the best AROUND:\n%s@."(Proof_context.extract_proof_script t));
     Proof_context.append t "xvals.";
 
     while (Proof_context.current_subproof t).goals |> List.length > 0 do
@@ -1004,6 +1100,19 @@ and symexec_ref_alloc t env pat rest =
     env
     |> Proof_env.add_proof_binding ~proof_var:ref_name ~program_var:prog_ref
     |> Proof_env.add_binding ~var:prog_ref ~ty:ref_ty in
+  symexec t env rest
+and symexec_array_get t env pat rest =
+  Log.debug (fun f -> f "[%s] symexec_array_get %a"
+                        (t.Proof_context.current_program_id |>  Lang.Id.show)
+                        Lang.Expr.pp_typed_param pat);
+  Proof_context.append t "xinhab.";
+  Proof_context.append t "xapp.";
+  Proof_context.append t "{";
+  Proof_context.append t "try sis_handle_int_index_prove.";
+  while List.length (Proof_context.current_subproof t).goals > 0 do 
+    Proof_context.append t "admit.";
+  done;
+  Proof_context.append t "}";
   symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
   Log.debug (fun f -> f "[%s] symexec_opaque_let %a = %a"
@@ -1206,6 +1315,11 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
                         Lang.Expr.pp_typed_param pat
                         (List.pp Lang.Expr.pp) prog_args);
 
+  let ret_ty = match pat with
+    | `Tuple tys -> Some (Lang.Type.Product (List.map snd tys))
+    | `Var (_, Lang.Type.Unit) -> None
+    | `Var (_, ty) -> Some (ty) in
+
   Log.debug (fun f -> f "current proof script is %s" (Proof_context.extract_proof_script t));
   let module PDB = Proof_utils.Debug in
   let (pre, post) = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
@@ -1226,7 +1340,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       (function `Impure heaplet -> Some (Proof_utils.CFML.extract_impure_heaplet heaplet) | _ -> None)
       (match pre with | `Empty -> [] | `NonEmpty ls -> ls) in
 
-  let combinator_ty, inv_ty = calculate_inv_ty t ~f:lemma_name ~args:f_args in
+  let framed_heaplets, combinator_ty, inv_ty = calculate_inv_ty t ~f:lemma_name ~args:f_args in
 
   (* collect an observation for the current program point *)
   let observations =
@@ -1251,32 +1365,22 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* extract vars mutated by HOF *)
   let mut_vars = Program_utils.mutated_vars fun_body in
 
+  Log.debug (fun f -> f "pre-heap is [%a]" (List.pp Proof_spec.Heap.Heaplet.pp) pre_heap);
   Log.debug (fun f -> f "mutable variables are %a" (StringSet.pp String.pp) mut_vars);
 
   (* generate initial invariants *)
   let pure, heap, hf_rev_map, expected_no_pure =
-    generate_candidate_invariants t env
-      ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args (snd observations) in
+    generate_candidate_invariants t env ~mut_vars
+      ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args ~ret:ret_ty (snd observations) in
 
-  if Configuration.dump_generated_invariants () then begin
-    Configuration.dump_output "generated-pure-invariants" (fun f ->
-      f "%a" (Seq.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") Lang.Expr.pp) pure
-    );
-    Configuration.dump_output "generated-heap-invariants" (fun f ->
-      f "%a" (Seq.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") (List.pp Lang.Expr.pp)) heap
-    );
-  end;
-
-  (* let () =
-   *   let no_pure = List.length pure in
-   *   let no_impure = List.length heap in
-   *   Log.debug (fun f ->
-   *     f "found %d pure candidates and %d heap candidates@." no_pure no_impure;
+  (* if Configuration.dump_generated_invariants () then begin
+   *   Configuration.dump_output "generated-pure-invariants" (fun f ->
+   *     f "%a" (Seq.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") Lang.Expr.pp) pure
    *   );
-   *   if no_pure < 10 then
-   *     Log.debug (fun f -> f "pure candidates: %s@." ([%show: Lang.Expr.t Containers.List.t] pure));
-   *   if no_impure < 10 then
-   *     Log.debug (fun f -> f "heap candidates: %s@." ([%show: Lang.Expr.t list list] heap)) in *)
+   *   Configuration.dump_output "generated-heap-invariants" (fun f ->
+   *     f "%a" (Seq.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") (List.pp Lang.Expr.pp)) heap
+   *   );
+   * end; *)
 
   (* prune the candidates using the testing function *)
   let (pure,heap) = prune_candidates_using_testf test_f (pure,heap) in
@@ -1304,15 +1408,16 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
 
   List.iteri (fun i expr ->
     Log.info (fun f ->
-      f "example pure candidate %d: %s@." i ([%show: Lang.Expr.t option] expr)
-    )) [(Seq.head pure)];
+      f "example pure candidate %d: %s@." i ([%show: Lang.Expr.t option list] expr)
+    )) [(List.map Seq.head pure)];
 
   List.iteri (fun i expr -> Log.info  (fun f ->
-    f "example heap candidate %d: %s@." i ([%show: Lang.Expr.t list option] expr))) [Seq.head heap];
+    f "example heap candidate %d: %s@." i ([%show: (string * Lang.Expr.t) option list] expr)))
+    [List.map Seq.head heap];
 
   (* we check if we found any pure constraints - it may sometimes be
      the case that no pure constraints are needed *)
-  let no_pure = Seq.is_empty pure in
+  let no_pure = List.exists Seq.is_empty pure || List.is_empty pure in
 
   if no_pure && not expected_no_pure then
     Format.ksprintf ~f:failwith "failed to find pure invariant candidates.";
@@ -1328,16 +1433,16 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
         Configuration.dump_output "verification-condition" (fun f ->
           f "%a@." Proof_validator.VerificationCondition.pp_verification_condition vc);
         Proof_validator.build_validator vc in
-      find_first_valid_candidate_with_z3 t inv_ty vc ~heap ~pure
-    end
-    else begin
+      find_first_valid_candidate_with_z3 t inv_ty vc ~heap:(assert false) ~pure:(assert false)
+      |> Option.map (Pair.map_snd (List.map (Pair.make "")))
+     end else begin
       Log.warn (fun f ->
         f "validation with Z3 is disabled. Assuming that the first \
            invariant we find is valid. (proof left as an exercise to \
            the reader!)");
       let (let+ ) x f = Option.bind x f in
-      let pure = match Seq.head pure with None -> (`Constructor ("true", [])) | Some h -> h in
-      let+ heap = Seq.head heap in
+      let pure = match List.map Seq.head pure |> List.all_some with None -> (`Constructor ("true", [])) | Some h -> Lang.Expr.andb h in
+      let+ heap = List.map Seq.head heap |> List.all_some in
       Some (pure, heap)
     end in
 
@@ -1353,10 +1458,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let invariant =
     let subst v = StringMap.find_opt v hf_rev_map in
     let subst_expr e = Lang.Expr.subst_var subst e in
-    (subst_expr (fst invariant), List.map subst_expr (snd invariant)) in
+    (subst_expr (fst invariant), List.map (Pair.map_snd subst_expr) (snd invariant)) in
 
   Log.info (fun f -> f "FOUND INVARIANT: %s@." (
-    [%show: Lang.Expr.t * Lang.Expr.t Containers.List.t] invariant
+    [%show: Lang.Expr.t * (string * Lang.Expr.t) Containers.List.t] invariant
   ));
 
   (* xapp lemma *)
@@ -1372,20 +1477,24 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
            ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ": ")
            Format.pp_print_string
            Proof_utils.Printer.pp_ty) in
+    let heap_mapping = List.map Proof_spec.Heap.Heaplet.(fun (PointsTo (v, _, _) as pts) -> (v, pts)) pre_heap
+                       |> StringMap.of_list in
     let heap_state =
       begin
         match snd invariant with
         | [] -> ""
         | heap ->
           (if no_pure then "" else " \\* ") ^
-          (List.map (function
-             | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)), expr ->
-               Format.sprintf "%s ~> %s %a"
-                 v f Proof_utils.Printer.pp_expr expr
-             | Proof_spec.Heap.Heaplet.PointsTo (_, _, v), _ ->
+          (List.filter_map (fun (v, expr) -> match StringMap.find v heap_mapping with
+             | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)) when not (StringSet.mem v framed_heaplets) ->
+               Some (Format.sprintf "%s ~> %s %a"
+                       v f Proof_utils.Printer.pp_expr expr)
+             | Proof_spec.Heap.Heaplet.PointsTo (_, _, `App (_, _)) ->
+               None
+             | Proof_spec.Heap.Heaplet.PointsTo (_, _, v) ->
                Format.ksprintf ~f:failwith
                  "found unsupported heaplet %a" Lang.Expr.pp v
-           ) (List.combine pre_heap heap)
+           ) heap
            |> String.concat " \\* ")
       end in
     if no_pure
@@ -1438,16 +1547,16 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     failwith "tuple results from impure functions not supported"
 
   | `Var (_, Lang.Type.Unit) ->
+    if Constr.isProd (Proof_context.current_goal t).ty then
+      Proof_context.append t "intros.";
     Proof_context.append t "xmatch."
-
   | `Var (result, ty) ->
     if Constr.isProd (Proof_context.current_goal t).ty then begin
       let name = Proof_context.fresh ~base:result t in
       let h_name = Proof_context.fresh ~base:("H" ^ result) t in
       Proof_context.append t "intros %s %s." name h_name;
-      while Constr.isProd (Proof_context.current_goal t).ty do
-        Proof_context.append t "intros."
-      done
+      if Constr.isProd (Proof_context.current_goal t).ty then
+        Proof_context.append t "intros.";
     end;
     match snd invariant with
     | [] -> ()
@@ -1460,10 +1569,64 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let env = update_env_with_bindings env pat in
   symexec t env rest
 
+let find_logical_functions t body =
+  Lang.Program.fold Lang.Expr.functions StringSet.empty body
+  |> StringSet.filter (String.exists Char.(fun c -> ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')))
+  |> begin fun set -> StringSet.fold (fun fn_name acc ->
+    let fn_name =
+      if String.contains fn_name '.'
+      then
+        let (modl, fn) = List.hd_tl @@ String.split_on_char '.' fn_name in
+        modl ^ "_ml" ^ "." ^ String.concat "." fn
+      else fn_name in
+    let name = Proof_context.names t fn_name in
+    match name with
+    | None -> acc
+    | Some gref ->
+      let search_res = Proof_context.search t [
+        true, Search.(GlobSearchLiteral (GlobSearchString "spec"));
+        true, Search.(GlobSearchLiteral (GlobSearchSubPattern (Vernacexpr.InConcl, false, Pattern.PRef gref)))
+      ] |> List.head_opt in
+      match search_res with
+      | None -> acc
+      | Some (spec_name, _, ty) ->
+        Log.debug (fun f -> f "found spec for %s" Proof_utils.Debug.(globref_to_string spec_name));
+        let _args, _invs, assn = Proof_utils.CFML.extract_spec ty in
+        match Constr.kind_nocast assn with
+        | Constr.App (f, args) when Proof_utils.is_const_eq "CFML.SepLifted.Triple" f ->
+          let pre_heap = match Proof_utils.CFML.extract_heap args.(3) with | `Empty -> [] | `NonEmpty ls -> ls in
+          let _, _, post = Constr.destLambda args.(4) in
+          let post_heap = match Proof_utils.CFML.extract_heap post with | `Empty -> [] | `NonEmpty ls -> ls in
+          Log.debug (fun f -> f "function set before {%a}" (StringSet.pp String.pp) acc);
+          let acc = List.fold_left (fun acc -> function
+              `Pure c -> Proof_utils.CFML.cfml_extract_logical_functions ~set:acc c
+            | `Impure c -> Proof_utils.CFML.cfml_extract_logical_functions ~set:acc c
+          ) acc (pre_heap @ post_heap) in
+          acc
+        | _ -> acc
+  ) set StringSet.empty
+  end
+  |> StringSet.filter_map (fun f -> String.split_on_char '.' f |> List.last_opt)
 
 let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
   Proof_context.append t {|xcf.|};
-  let pre, _ = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
+  let pre, post = Proof_utils.CFML.extract_cfml_goal (Proof_context.current_goal t).ty in
+
+  let post_ty =
+    let post_tag, post_args = Constr.destApp post in
+    if not begin
+      String.equal "Wptag"
+        (fst (Constr.destConst post_tag)
+         |> Names.Constant.label
+         |> Names.Label.to_string)
+    end then
+      Format.ksprintf ~f:failwith
+        "unexpected goal post format, expected Wptag, found %s"
+        (Proof_utils.Debug.constr_to_string_pretty post);
+
+    let post_ty = Proof_utils.CFML.extract_typ post_args.(1) in
+    post_ty in
+
 
   (* handle pure preconditions *)
   begin match pre with
@@ -1479,7 +1642,15 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
     end
   | _ -> ()
   end;
+  (* collect logical functions found in the specifications of any functions used in the program body  *)
+  let logical_functions = find_logical_functions t prog.body in
 
-  symexec t (Proof_env.initial_env ~logical_mappings prog.args) prog.body;
+  Log.debug (fun f -> f "return type is %a" Lang.Type.pp post_ty);
+
+  symexec t (Proof_env.initial_env
+               ~ret_ty:post_ty
+               ~logical_mappings
+               ~logical_functions:(StringSet.to_list logical_functions)
+               prog.args) prog.body;
   Proof_context.append t "Admitted.";
   Proof_context.extract_proof_script t
