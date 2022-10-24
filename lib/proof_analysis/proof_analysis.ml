@@ -390,6 +390,12 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
   | Constr.App (trm, [| _nc; _hla; _hra; _hla'; _hrg; _eq; proof |]) when PCFML.is_xsimpl_flip_acc_l trm ->
     debug (fun f -> f "reify proof term on xsimpl_flip_acc_l");
     reify_proof_term coq_env env proof
+  | Constr.App (trm, [| _nc; _hla; _hra; _hra'; _hrg; _heq; proof |]) when PCFML.is_xsimpl_flip_acc_r trm ->
+    debug (fun f -> f "reify proof term on xsimpl_flip_acc_r");
+    reify_proof_term coq_env env proof
+  | Constr.App (trm, [| _h; _hra; _hrg; _hrt; _hl; proof |]) when PCFML.is_xsimpl_r_hgc_or_htop trm ->
+    debug (fun f -> f "reify proof term on xsimpl_r_hgc_or_htop");
+    reify_proof_term coq_env env proof
   | Constr.App (trm, [| q1; q2; hla; nc; proof |]) when PCFML.is_xsimpl_lr_qwand_unit trm ->
     debug (fun f -> f "reify proof term on xsimpl_lr_qwand_unit");
     reify_proof_term coq_env env proof
@@ -446,6 +452,12 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     reify_proof_term coq_env env proof
   | Constr.App (trm, [| _hla; _hra; _hrg; proof |]) when PCFML.is_xsimpl_lr_exit_nocredits trm ->
     debug (fun f -> f "reify proof term on xsimpl_lr_exit_nocredits");
+    reify_proof_term coq_env env proof
+  | Constr.App (trm, [| _h; _hra; _hrg; _hrt; _hl; proof |]) when PCFML.is_xsimpl_r_keep trm ->
+    debug (fun f -> f "reify proof term on xsimpl_r_keep");
+    reify_proof_term coq_env env proof    
+  | Constr.App (trm, [| _h; _nc; _hla; _hlw; _hlt; _hr; proof |]) when PCFML.is_xsimpl_l_acc_other trm ->
+    debug (fun f -> f "reify proof term on xsimpl_l_acc_other");
     reify_proof_term coq_env env proof    
   | Constr.App (trm, ([| pre; post; proof |] as args)) when PCFML.is_xsimpl_start trm ->
     debug (fun f -> f "reify proof term on xsimpl_start");
