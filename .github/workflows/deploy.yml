@@ -1,7 +1,9 @@
 # Thanks Yasu
 name: Build and all tests
 on:
-  # push:
+  push:
+    branches:
+      - master
   pull_request:
 jobs:
   build-and-deploy:
@@ -48,9 +50,12 @@ jobs:
         run: |
           opam exec -- dune build
 
-      # - name: Run unit tests
-      #   run: |
-      #     opam exec -- dune runtest ./tests
-      # - name: Run integration tests
-      #   run: |
-      #     opam exec -- dune runtest ./benchmarks
+      - name: Run unit tests
+        run: |
+          opam exec -- dune runtest ./tests
+
+      - name: Run integration tests
+        run: |
+          opam exec -- dune runtest ./benchmarks
+        env:
+          SIS_DISABLE_Z3: 1
