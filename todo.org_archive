@@ -1605,3 +1605,13 @@ CLOSED: [2022-10-24 Mon 06:55]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE Fix end of higher order function to only intros when needed
+CLOSED: [2022-10-24 Mon 08:21]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-24 Mon 08:21
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
