@@ -1053,6 +1053,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   | `Write _ -> failwith "don't know how to handle write"
   | `Value _ ->
     t.current_program_id <- Lang.Id.incr t.current_program_id;
+    Log.debug (fun f -> f "well done CHAMP, you're the best AROUND:\n%s@."(Proof_context.extract_proof_script t));
     Proof_context.append t "xvals.";
 
     while (Proof_context.current_subproof t).goals |> List.length > 0 do

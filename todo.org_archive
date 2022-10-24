@@ -1575,3 +1575,33 @@ CLOSED: [2022-10-23 Sun 07:57]
 :ARCHIVE_CATEGORY: todo
 :ARCHIVE_TODO: DONE
 :END:
+
+* DONE At Xapp, seed generator with expressions from pre-heap
+CLOSED: [2022-10-24 Mon 06:55]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-24 Mon 06:55
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE If gamma contains Option pair then add option_value_snd and option_value_fst to generation context
+CLOSED: [2022-10-24 Mon 06:55]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-24 Mon 06:55
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Seed polymorphic functions with arguments to inv
+CLOSED: [2022-10-24 Mon 06:55]
+:PROPERTIES:
+:ARCHIVE_TIME: 2022-10-24 Mon 06:55
+:ARCHIVE_FILE: ~/Documents/research/suslik-ocaml-writeup/ocaml/todo.org
+:ARCHIVE_OLPATH: Tasks for the PROOF GOD
+:ARCHIVE_CATEGORY: todo
+:ARCHIVE_TODO: DONE
+:END:
