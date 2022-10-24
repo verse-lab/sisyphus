@@ -568,6 +568,10 @@ let reduce_term t term =
       (* keep the reflection lemmas opaque, as they expand into cases that can't be reduced  *)
       | "TLC.LibNat", "peano_induction" -> `Unfold
       | "TLC.LibNat", _ -> `KeepOpaque
+
+      | "TLC.LibList", ("Nth_ind" | "nth_of_Nth" | "nth_default_of_Nth" | "nth_app_l" | "Nth_app_l") ->
+        `KeepOpaque
+
       | "TLC.LibContainer", _ -> `KeepOpaque
       | "TLC.LibReflect", _ -> `KeepOpaque
       | "TLC.LibRelation", _ -> `KeepOpaque
