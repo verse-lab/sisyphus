@@ -66,6 +66,8 @@ let rec pp_expr fmt (expr: Lang.Expr.t) =
       params pp_expr body
   | `Int n when n >= 0 -> Format.fprintf fmt "%d" n
   | `Int n -> Format.fprintf fmt "(%d)" n
+  | `Constructor ("true", []) -> Format.fprintf fmt "true"
+  | `Constructor ("false", []) -> Format.fprintf fmt "false"
   | `Constructor ("[]", []) -> Format.fprintf fmt "nil"
   | `Constructor ("::", [h; t]) ->
     Format.fprintf fmt "%a :: %a" pp_expr h pp_expr t

@@ -176,9 +176,10 @@ let names {ctx; _} txt =
   Nametab.locate_all @@ (if String.contains txt '.'
                          then  Libnames.qualid_of_string txt
                          else Libnames.qualid_of_ident (Names.Id.of_string txt))
-  |> (function
-    | name :: _ -> Some name
-    | _ -> None
+  |> (fun ls ->
+      Option.or_
+        (List.find_opt (function Names.GlobRef.ConstRef _ -> true | _ -> false) ls)
+        ~else_:(List.head_opt ls)
   )
 
 let constant t txt =

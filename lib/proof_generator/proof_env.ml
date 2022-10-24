@@ -25,6 +25,9 @@ type t = {
   (** [args] are a full list of formal parameters to the function
      being evaluated *)
 
+  ret_ty: Lang.Type.t;
+  (** [ret_ty] is the type of the return of the function. *)
+
   gamma: Lang.Type.t StringMap.t;
   (** [gamma] is the typing environment for the OCaml program (i.e
      doesn't include proof terms) *)
@@ -70,7 +73,7 @@ let rec is_pure_ty : Lang.Type.t -> bool = function
   | Lang.Type.Val -> false
 
 
-let initial_env ?(logical_mappings=[]) ?(logical_functions=[]) (args: (string * Lang.Type.t) list) =
+let initial_env ?(logical_mappings=[]) ?(logical_functions=[]) ~ret_ty (args: (string * Lang.Type.t) list) =
 
   let logical_mappings = StringMap.of_list logical_mappings in
 
@@ -91,7 +94,7 @@ let initial_env ?(logical_mappings=[]) ?(logical_functions=[]) (args: (string * 
     lambda=StringMap.empty;
     bindings;
     logical_mappings;
-    args;
+    args; ret_ty;
     gamma;
     poly_vars;
     logical_functions;

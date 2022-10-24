@@ -7,36 +7,36 @@ type t =
   (** [Unit] represents [(): unit] type.  *)
   | Var of string
   (** [Var v] represents a polymorphic variable [v]. Note: depending
-     on whether we retrieved this type from OCaml or Coq, the
-     representation of the type variable itself may differ in subtle
-     ways. For example, OCaml type variable strings [v] include the
-     prefixing apostrophe and are always lower case. Coq polymorphic
-     variables have no prefix and are upper case. *)
+      on whether we retrieved this type from OCaml or Coq, the
+      representation of the type variable itself may differ in subtle
+      ways. For example, OCaml type variable strings [v] include the
+      prefixing apostrophe and are always lower case. Coq polymorphic
+      variables have no prefix and are upper case. *)
   | Int
   (** [Int] represents the int [1: int] type. *)
   | Bool
   (** [Bool] represents the bool [true: bool] type.  *)
   | Func of (t list * t) option (* optionally include the internal parameters *)
   (** [Func f] represents a function type - if we know the actual type
-     of the function, then we include it in [f], otherwise [f] is
-     empty. This accounts for the case in which [Func] is used to
-     represent the [func] type from CFML which doesn't track the
-     argument and return types of the function.  *)
+      of the function, then we include it in [f], otherwise [f] is
+      empty. This accounts for the case in which [Func] is used to
+      represent the [func] type from CFML which doesn't track the
+      argument and return types of the function.  *)
   | Loc
   (** [Loc] represents CFML's [Loc] type  *)
   | List of t
   (** [List ty] represents a List type over elements of type [ty].  *)
   | Array of t
   (** [Array ty] represents an Array type over elements of type [ty].
-     *)
+  *)
   | Ref of t
   (** [Ref ty] represents a Ref type over elements of type [ty].  *)
   | Product of t list
   (** [Product tys] represents a product of [tys] types.  *)
   | ADT of string * t list * (string * string) option
   (** [ADT (name, tys, converters)] represents an arbitrary ADT named
-     [name] instantiated with types [tys], and optionally providing
-     converters [conv]. *)
+      [name] instantiated with types [tys], and optionally providing
+      converters [conv]. *)
   | Val
   (** [Val] represents CFML's opaque Val type.  *)
 [@@deriving show, eq, ord]
@@ -148,9 +148,30 @@ let rec map_poly_var f = function
     let tys = List.map (map_poly_var f) tys in
     Product tys
 
+let rec fold (f: 'a -> _ -> 'a) (acc: 'a) : t -> 'a = fun ty ->
+  let acc = f acc ty in
+  match ty with 
+  | Unit
+  | Var _
+  | Int
+  | Bool
+  | Loc
+  | Val
+  | Func None -> acc
+  | Func Some (args, ret) ->
+    List.fold_left (fold f) acc
+      (ret :: args)
+  | Ref ty
+  | Array ty
+  | List ty -> fold f acc ty
+  | Product tys
+  | ADT (_, tys, _) ->
+    List.fold_left (fold f) acc
+      tys
+
 (** [to_coq_form ty] converts a type [ty] into a form that will be
-   accepted by Coq (i.e updates any polymorphic variables) to have the
-   correct representation.  *)
+    accepted by Coq (i.e updates any polymorphic variables) to have the
+    correct representation.  *)
 let to_coq_form ty =
   map_poly_var (fun s ->
     if String.prefix ~pre:"'" s
@@ -159,11 +180,11 @@ let to_coq_form ty =
   ) ty
 
 (** [to_ocaml_form ty] converts a type [ty] into a form that will be
-   accepted by OCaml (i.e updates any polymorphic variables) to have the
-   correct representation.  *)
+    accepted by OCaml (i.e updates any polymorphic variables) to have the
+    correct representation.  *)
 let to_ocaml_form ty =
   map_poly_var (fun s ->
     if String.prefix ~pre:"'" s
     then s
     else "'" ^ (String.lowercase_ascii s)
-    ) ty
+  ) ty

@@ -4,8 +4,8 @@ From TLC Require Import LibListZ.
 
 From Common Require Import Verify_combinators.
 
-From Common Require Import Tactics.
-From Common Require Import Utils Verify_opt.
+From Common Require Import Tactics Utils Solver.
+From Common Require Import Verify_opt.
 
 From ProofsArrayFindi Require Import Array_findi_new_ml.
 

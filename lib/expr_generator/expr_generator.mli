@@ -18,9 +18,14 @@ type env = string -> ((Lang.Type.t list) * Lang.Type.t) list
 (** [env] represents a mapping of function names to their argument
    types and return types.  *)
 
-val build_context: ?vars:(string * Lang.Type.t) list -> ?ints:int list -> ?funcs:string list ->
-  from_id:int -> to_id:int -> env:env -> Proof_spec.Script.step list -> ctx
-(** [build_context ?vars ?ints ?funcs ~from_id ~to_id ~env proof]
+val build_context:
+  ?constants:(Lang.Expr.t * Lang.Type.t) list ->
+  ?vars:(string * Lang.Type.t) list ->
+  ?ints:int list ->
+  ?funcs:string list ->
+  from_id:int -> to_id:int ->
+  env:env -> Proof_spec.Script.step list -> ctx
+(** [build_context ?constants ?vars ?ints ?funcs ~from_id ~to_id ~env proof]
    constructs an enumerative-synthesis-based expression generation
    context, primed using expressions and functions taken from the
    proof script [proof], between proof points [from_id] to [to_id] *)
