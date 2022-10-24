@@ -1547,16 +1547,16 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     failwith "tuple results from impure functions not supported"
 
   | `Var (_, Lang.Type.Unit) ->
+    if Constr.isProd (Proof_context.current_goal t).ty then
+      Proof_context.append t "intros.";
     Proof_context.append t "xmatch."
-
   | `Var (result, ty) ->
     if Constr.isProd (Proof_context.current_goal t).ty then begin
       let name = Proof_context.fresh ~base:result t in
       let h_name = Proof_context.fresh ~base:("H" ^ result) t in
       Proof_context.append t "intros %s %s." name h_name;
-      while Constr.isProd (Proof_context.current_goal t).ty do
-        Proof_context.append t "intros."
-      done
+      if Constr.isProd (Proof_context.current_goal t).ty then
+        Proof_context.append t "intros.";
     end;
     match snd invariant with
     | [] -> ()
