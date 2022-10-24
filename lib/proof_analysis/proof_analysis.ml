@@ -841,6 +841,8 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     }
   | Constr.App (trm, [| arg |]) when Constr.isCase trm && Proof_utils.is_eq_refl arg ->
     reify_proof_term coq_env env trm
+  | Constr.App (trm, [| _ |]) when Constr.isCase trm ->
+    reify_proof_term coq_env env trm
   | Constr.App (trm, [| _prop; _hfalse |]) when Proof_utils.is_const_eq "Coq.Init.Logic.False_ind" trm ->
     CaseFalse
   | Constr.Lambda ({Context.binder_name;_}, ty, proof) ->
