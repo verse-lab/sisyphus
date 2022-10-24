@@ -276,3 +276,11 @@ let rec fold (f: 'a -> _ -> 'a) (acc: 'a) : t -> 'a = fun expr ->
   | `App (_, elts)
   | `Tuple elts -> List.fold_left (fold f) acc elts
   | `Lambda (_, body) -> fold f acc body
+
+let andb =
+  (function
+      [] -> `Constructor ("true", [])
+    | h :: t ->
+      List.fold_left
+        (fun acc vl -> `App ("&&", [vl; acc])) h t
+  )
