@@ -531,46 +531,64 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
 (** [reduce_term t term] reduces a proof term [term] using ultimate
     reduction.  *)
 let reduce_term t term =
+  let fuel = ref 0 in
   let filter ~path ~label =
-    match path, label with
-    (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
-     *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
-    | ("Coq.ZArith.BinInt.Z"
-      | "Coq.ZArith.BinIntDef.Z"
-      | "Coq.ZArith.Znat.Nat2Z"
-      | "Coq.ZArith.Znat.Zabs2Nat"
-      | "Coq.ZArith.Znat"
-      | "Coq.micromega.ZifyInst"
-      | "Coq.Init.Nat"
-      | "Coq.PArith.BinPos.Pos"
-      | "Coq.Init.Peano"
-      | "Coq.micromega.Tauto"
-      | "Coq.micromega.VarMap"
-      | "Coq.micromega.ZifyClasses"
-      | "Coq.micromega.ZMicromega"
-      | "Coq.Init.Wf"
-      | "Coq.Init.Datatypes"
-      | "Coq.Classes.Morphisms"
-      | "Coq.Init.Logic"
-      | "Coq.Arith.PeanoNat.Nat"
-      | "Coq.Bool.Bool"
-      | "Coq.Classes.RelationClasses"
-      ), _
-      -> `KeepOpaque
-    | "TLC.LibInt", "le_zarith" -> `KeepOpaque
-    | "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits", _ ->
-      (* no point expanding the SepSimplArgsCredits lemmas as they just rearrange heaplets *)
-      `KeepOpaque
-    (* keep the reflection lemmas opaque, as they expand into cases that can't be reduced  *)
-    | "TLC.LibReflect", _ -> `KeepOpaque
-
-    | _ when String.prefix ~pre:"Proofs" path
-          ||  String.prefix ~pre:"CFML" path
-          || String.prefix ~pre:"TLC" path
-          || String.prefix ~pre:"Common" path ->
-      (* Log.debug (fun f -> f "Expanding %s:%s" path label); *)
-      `Unfold
-    | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
+    if !fuel > 1_000_000
+    then `KeepOpaque
+    else
+      match path, label with
+      (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
+       *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
+      | ("Coq.ZArith.BinInt.Z"
+        | "Coq.ZArith.BinIntDef.Z"
+        | "Coq.ZArith.Znat.Nat2Z"
+        | "Coq.ZArith.Znat.Zabs2Nat"
+        | "Coq.ZArith.Znat"
+        | "Coq.micromega.ZifyInst"
+        | "Coq.Init.Nat"
+        | "Coq.PArith.BinPos.Pos"
+        | "Coq.Init.Peano"
+        | "Coq.micromega.Tauto"
+        | "Coq.micromega.VarMap"
+        | "Coq.micromega.ZifyClasses"
+        | "Coq.micromega.ZMicromega"
+        | "Coq.Init.Wf"
+        | "Coq.Init.Datatypes"
+        | "Coq.Classes.Morphisms"
+        | "Coq.Init.Logic"
+        | "Coq.Arith.PeanoNat.Nat"
+        | "Coq.Bool.Bool"
+        | "Coq.Classes.RelationClasses"
+        ), _
+        -> `KeepOpaque
+      | "TLC.LibInt", _ -> `KeepOpaque
+      | "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits", _ ->
+        (* no point expanding the SepSimplArgsCredits lemmas as they just rearrange heaplets *)
+        `KeepOpaque
+      (* keep the reflection lemmas opaque, as they expand into cases that can't be reduced  *)
+      | "TLC.LibNat", "peano_induction" -> `Unfold
+      | "TLC.LibNat", _ -> `KeepOpaque
+      | "TLC.LibContainer", _ -> `KeepOpaque
+      | "TLC.LibReflect", _ -> `KeepOpaque
+      | "TLC.LibRelation", _ -> `KeepOpaque
+      (* | "TLC.LibInt", "plus_nat_eq_plus_int" -> `KeepOpaque *)
+      (* | "TLC.LibWf", ("upto" | "wf_upto") -> `KeepOpaque *)
+      | "TLC.LibOrder", ("lt_is_strict_le" | "gt_is_inverse_strict_le") ->
+        `KeepOpaque
+      (* | "TLC.LibNat", "lt_peano" ->
+       *   `KeepOpaque
+       * | "TLC.LibNat", "le_peano" ->
+       *   (\* let _ = assert false in *\)
+       *   `KeepOpaque *)
+      | _ when String.prefix ~pre:"Proofs" path
+            ||  String.prefix ~pre:"CFML" path
+            || String.prefix ~pre:"TLC" path
+            || String.prefix ~pre:"Common" path ->
+        (* if not @@ String.prefix ~pre:"CFML" path then
+         *   Log.debug (fun f -> f "Expanding %s:%s" path label); *)
+        incr fuel;
+        `Unfold
+      | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
   let env = Proof_context.env t in
   let (evd, reduced) =
     let evd = Evd.from_env env in
