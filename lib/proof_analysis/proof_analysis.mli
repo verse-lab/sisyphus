@@ -7,7 +7,7 @@ type hof_env = (string * Parsetree.expression) list
 type obs = Dynamic.Concrete.context * Dynamic.Concrete.heap_context
 type heap_spec = Proof_spec.Heap.Heaplet.t list
 type invariant_spec = string * string list
-type invariant = Lang.Expr.t * Lang.Expr.t list
+type invariant = Lang.Expr.t * (string * Lang.Expr.t) list
 type 'a tester = 'a -> bool
 
 (** [analyze env lambda_env hof_env obs invariant_spec term ctx] when

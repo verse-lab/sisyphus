@@ -13,7 +13,7 @@ let test_invariant
   fun (pure, heap) ctx ->
   assert (Sisyphus_tracing.Wrap.unwrap (Proof_term_evaluator.eval ctx pure) : bool);
   List.iter
-    Proof_spec.Heap.Heaplet.(fun ((PointsTo (v, _, _)), heap_expr) ->
+    Proof_spec.Heap.Heaplet.(fun (v, heap_expr) ->
       match StringMap.find v heap_mapping with
       | `Array _ ->
         let expr = `App ("=", [ `App ("Array.to_list", [`Var v]); heap_expr ]) in
@@ -22,7 +22,7 @@ let test_invariant
         let expr = `App ("=", [ `App ("!", [`Var v]); heap_expr ]) in
         assert (Sisyphus_tracing.Wrap.unwrap (Proof_term_evaluator.eval ctx expr) : bool);          
       | _ -> ()
-    ) (List.combine_shortest real_heap_spec heap)
+    ) (heap)
 
 let build_test
       ((pure, heap): Dynamic.Concrete.context * Dynamic.Concrete.heap_context)
@@ -138,6 +138,6 @@ let build_test
         Log.warn (fun f ->
           f "evaluation of invariant %s failed dynamic tests \
              with non-assert exception %s@."
-            ([%show: Lang.Expr.t * Lang.Expr.t list] inv)
+            ([%show: Lang.Expr.t * (string * Lang.Expr.t) list] inv)
             (Printexc.to_string e));
         false
