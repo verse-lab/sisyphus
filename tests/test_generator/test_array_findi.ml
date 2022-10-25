@@ -4,7 +4,7 @@ let ctx =
   Expr_generator.make_raw_ctx
     ~consts:Lang.Type.[
       (Var "A", [ `App ("TLC.LibContainer.read", [ `Var "l"; `Int 0 ]) ]);
-      (Int, [ `Var "arg0"; `Int 0; `Int 1; `Int 2 ]);
+      (Int, [ `Var "arg0"; `Int 0; `Int 1 ]);
       (Bool, [ `Var "arg1" ]);
       (Func (Some ([ Int; Var "A" ], Bool)), [ `Var "f" ]);
       (List (Var "A"), [ `Var "l" ]);

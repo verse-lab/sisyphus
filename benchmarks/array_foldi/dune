@@ -1,0 +1,6 @@
+(tests
+ (names test_array_foldi)
+ (libraries alcotest bos containers benchmark_utils)
+ (deps ../../bin/main.exe (glob_files_rec ../../resources/*.{ml,v}) (glob_files_rec ../../resources/_CoqProject))
+ (preprocess (pps ppx_deriving.std))
+)

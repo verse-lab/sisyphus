@@ -97,6 +97,32 @@ let expr_contains_free_variables expr =
 
 let show_preheap = [%show: [> `Empty | `NonEmpty of [> `Impure of constr | `Pure of constr ] list ]]
 
+let print_heap ?(framed_heaplets=StringSet.empty) heap_mapping heap =
+  (List.filter_map (fun (v, expr) -> match StringMap.find v heap_mapping with
+     | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App ("CFML.Stdlib.Pervasives_proof.Ref", _))
+       when not (StringSet.mem v framed_heaplets) ->
+       Some (Format.sprintf "%s ~~> %a" v Proof_utils.Printer.pp_expr expr)
+     | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)) when not (StringSet.mem v framed_heaplets) ->
+       Some (Format.sprintf "%s ~> %s %a"
+               v f Proof_utils.Printer.pp_expr expr)
+     | Proof_spec.Heap.Heaplet.PointsTo (_, _, `App (_, _)) ->
+       None
+     | Proof_spec.Heap.Heaplet.PointsTo (_, _, v) ->
+       Format.ksprintf ~f:failwith
+         "found unsupported heaplet %a" Lang.Expr.pp v
+   ) heap
+   |> String.concat " \\* ")
+
+let pp_param =
+  List.pp
+    ~pp_sep:(fun fmt () -> Format.pp_print_string fmt " ")
+    (Pair.pp
+       ~pp_start:(fun fmt () -> Format.pp_print_string fmt "(")
+       ~pp_stop:(fun fmt () -> Format.pp_print_string fmt ")")
+       ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ": ")
+       Format.pp_print_string
+       Proof_utils.Printer.pp_ty) 
+
 (* [is_typed_combinator lemma_name] determines if [lemma_name] refers
    to one of Sisyphus' specialised fold combinators which takes an
    explicit type parameter as its first argument.
@@ -505,46 +531,88 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
 (** [reduce_term t term] reduces a proof term [term] using ultimate
     reduction.  *)
 let reduce_term t term =
+  let fuel = ref 30 in
   let filter ~path ~label =
-    match path, label with
-    (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
-     *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
-    | ("Coq.ZArith.BinInt.Z"
-      | "Coq.ZArith.BinIntDef.Z"
-      | "Coq.ZArith.Znat.Nat2Z"
-      | "Coq.ZArith.Znat.Zabs2Nat"
-      | "Coq.ZArith.Znat"
-      | "Coq.micromega.ZifyInst"
-      | "Coq.Init.Nat"
-      | "Coq.PArith.BinPos.Pos"
-      | "Coq.Init.Peano"
-      | "Coq.micromega.Tauto"
-      | "Coq.micromega.VarMap"
-      | "Coq.micromega.ZifyClasses"
-      | "Coq.micromega.ZMicromega"
-      | "Coq.Init.Wf"
-      | "Coq.Init.Datatypes"
-      | "Coq.Classes.Morphisms"
-      | "Coq.Init.Logic"
-      | "Coq.Arith.PeanoNat.Nat"
-      | "Coq.Bool.Bool"
-      | "Coq.Classes.RelationClasses"
-      ), _
-      -> `KeepOpaque
-    | "TLC.LibInt", "le_zarith" -> `KeepOpaque
-    | "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits", _ ->
-      (* no point expanding the SepSimplArgsCredits lemmas as they just rearrange heaplets *)
-      `KeepOpaque
-    (* keep the reflection lemmas opaque, as they expand into cases that can't be reduced  *)
-    | "TLC.LibReflect", _ -> `KeepOpaque
+    if !fuel <= 0
+    then `KeepOpaque
+    else
+      match path, label with
+      (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
+       *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
+      | ("Coq.ZArith.BinInt.Z"
+        | "Coq.ZArith.BinIntDef.Z"
+        | "Coq.ZArith.Znat.Nat2Z"
+        | "Coq.ZArith.Znat.Zabs2Nat"
+        | "Coq.ZArith.Znat"
+        | "Coq.ZArith.Zorder"
+        | "Coq.micromega.ZifyInst"
+        | "Coq.Init.Nat"
+        | "Coq.PArith.BinPos.Pos"
+        | "Coq.Init.Peano"
+        | "Coq.micromega.Tauto"
+        | "Coq.micromega.VarMap"
+        | "Coq.micromega.ZifyClasses"
+        | "Coq.micromega.ZMicromega"
+        | "Coq.Init.Wf"
+        | "Coq.Init.Datatypes"
+        | "Coq.Classes.Morphisms"
+        | "Coq.Init.Logic"
+        | "Coq.Arith.PeanoNat.Nat"
+        | "Coq.Bool.Bool"
+        | "Coq.Classes.RelationClasses"
+        ), _
+        -> `KeepOpaque
+      | "TLC.LibInt", _ -> `KeepOpaque
+      | "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits", _ ->
+        (* no point expanding the SepSimplArgsCredits lemmas as they just rearrange heaplets *)
+        `KeepOpaque
+      (* keep the reflection lemmas opaque, as they expand into cases that can't be reduced  *)
+      | "TLC.LibNat", "peano_induction" -> `Unfold
+      | "TLC.LibNat", _ -> `KeepOpaque
 
-    | _ when String.prefix ~pre:"Proofs" path
-          ||  String.prefix ~pre:"CFML" path
-          || String.prefix ~pre:"TLC" path
-          || String.prefix ~pre:"Common" path ->
-      (* Log.debug (fun f -> f "Expanding %s:%s" path label); *)
-      `Unfold
-    | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
+      | "TLC.LibListZ", "length" -> `KeepOpaque
+
+      | "TLC.LibList", ("Nth_ind" | "nth_of_Nth" | "nth_default_of_Nth" | "nth_app_l" | "Nth_app_l") ->
+        `KeepOpaque
+
+      | "TLC.LibContainer", _ -> `KeepOpaque
+      | "TLC.LibReflect", _ -> `KeepOpaque
+      | "TLC.LibRelation", _ -> `KeepOpaque
+
+      | "TLC.LibOrder", ("lt_is_strict_le" | "gt_is_inverse_strict_le") ->
+        `KeepOpaque
+
+      | "CFML.WPBuiltin", "array" -> `Unfold
+      | "CFML.WPBase", "mkstruct" -> `Unfold
+      | "CFML.WPArray", "Array" -> `KeepOpaque
+      | "CFML.Stdlib.Array_ml", _ -> `KeepOpaque
+      | "CFML.Stdlib.Array_proof", ("length_spec" | "get_spec") -> `KeepOpaque
+
+      | "CFML.WPLifted", ("MkStruct" | "MkStruct_erase" | "Wptag" | "Wpgen_app" | "Wpgen_let_fun" | "Wpgen_match"
+                         | "Wpgen_body" | "Wpgen_seq" | "Wpgen_done" | "Wpgen_negpat" | "Wpgen_case"
+                         | "Wpgen_val" | "Wpgen_let_trm" | "Wpgen_if") -> `Unfold
+
+      | "CFML.SepLifted", "Trm_apps" -> `Unfold
+      | "CFML.SepBase.SepBasicSetup.HS", "protect" -> `Unfold
+      | "CFML.SepBase.SepBasicSetup", "hwand_hpure_r_intro" -> `Unfold
+
+      | "CFML.WPTactics", ("xapp_lemma"| "xseq_cont_lemma" | "xapps_lemma" | "xmatch_lemma" | "xdone_lemma"
+                          | "xifval_lemma_isTrue" | "xlet_trm_cont_lemma" | "xlet_fun_lemma") -> `KeepOpaque
+      | "CFML.WPTactics",  "xval_lemma" -> decr fuel; `KeepOpaque
+
+      (* | "CFML.SepBase.SepBasicSetup.HS", ("xsimpl_l_hpure" | "xsimpl_r_hpure"
+       *                                    | "xsimpl_l_hexists" | "xsimpl_r_hexists") -> `Unfold *)
+      | "CFML.SepBase.SepBasicSetup.HS", _ -> `Unfold
+
+      | _ when String.prefix ~pre:"Proofs" path
+            ||  String.prefix ~pre:"CFML" path
+            || String.prefix ~pre:"TLC" path
+            || String.prefix ~pre:"Common" path ->
+        (* if String.prefix ~pre:"CFML" path then
+         *   Log.debug (fun f -> f "Expanding %s:%s" path label);
+         * incr fuel; *)
+        `Unfold
+      | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
   let env = Proof_context.env t in
   let (evd, reduced) =
     let evd = Evd.from_env env in
@@ -571,10 +639,10 @@ let reduce_term t term =
         ~filter
         env evd (Evd.MiniEConstr.of_constr term) in
     let term = EConstr.to_constr evd reduced in
-    Configuration.dump_output "reduced"
-      (fun f -> f "%s" (Proof_utils.Debug.constr_to_string term));
-    Configuration.dump_output "reduced-pretty"
-      (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty term));
+    (* Configuration.dump_output "reduced"
+     *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string term));
+     * Configuration.dump_output "reduced-pretty"
+     *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty term)); *)
     term
   | _ -> trm
 
@@ -782,7 +850,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
 
     Expr_generator.build_context
       ~constants:initial_values
-      ~ints:[1;2]
+      ~ints:[1]
       ~vars ~funcs
       ~env:(fun f -> typeof ~product_types t env f)
       ~from_id ~to_id
@@ -856,7 +924,9 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
     ) gen_pure_spec in
   let expected_empty_pure = List.is_empty gen_pure_spec in
 
-  let heap = (List.map (fun (var, ty) -> Seq.map (fun expr -> (var, expr)) @@ gen ty) gen_heap_spec)  in
+  let heap_fuel = if List.is_empty product_types then 2 else 3 in
+
+  let heap = (List.map (fun (var, ty) -> Seq.map (fun expr -> (var, expr)) @@ gen ~fuel:heap_fuel ty) gen_heap_spec)  in
   pure, heap, !hof_rev_map, expected_empty_pure
 
 let prune_candidates_using_testf test_f (pure, heap) =
@@ -878,18 +948,31 @@ let prune_candidates_using_testf test_f (pure, heap) =
     )) heap in
   let start_time = Ptime_clock.now () in
   let (no_pure, pure) = List.map seq_force pure |> List.split in
-  if List.exists (fun v -> v <= 0) no_pure then
-    Format.ksprintf ~f:failwith "ran out of pure candidates";
   Gc.full_major (); 
   let (no_heap, heap) = List.map seq_force heap |> List.split in
-  if List.exists (fun v -> v <= 0) no_heap then
-    Format.ksprintf ~f:failwith "ran out of heap candidates";
   Gc.full_major (); 
   let end_time = Ptime_clock.now () in
   Log.info (fun f -> f "Pruned down to [%a] pure and [%a] heap in %a"
                        (List.pp Int.pp) no_pure
                        (List.pp Int.pp) no_heap
                        Ptime.Span.pp (Ptime.diff end_time start_time));
+  if Option.value ~default:0 (List.reduce ( max ) no_heap) < 10 then begin
+    List.iter (fun heap_candidates ->
+      let first = ref true in
+      Seq.iter (fun (name, expr) ->
+        if !first then begin
+          Log.debug (fun f -> f "candidates for %s:" name);
+          first := false;
+        end;
+        Log.debug (fun f -> f "\t - %a" Lang.Expr.pp expr)
+      ) heap_candidates
+    ) heap
+  end;
+  if List.exists (fun v -> v <= 0) no_pure then
+    Format.ksprintf ~f:failwith "ran out of pure candidates";
+  if List.exists (fun v -> v <= 0) no_heap then
+    Format.ksprintf ~f:failwith "ran out of heap candidates";
+
   pure, heap
 
 let has_pure_specification t =
@@ -1193,8 +1276,11 @@ and symexec_if_then_else t env cond l r =
   let cond_vl_var = Proof_context.fresh ~base:("H_cond") t in
 
   Proof_context.append t "xif as %s." cond_vl_var;
+  let bullet = Proof_env.bullet env in
   (* now handle if true case *)
-  Proof_context.append t "- ";
+  Proof_context.append t "%s " bullet;
+
+  let env = Proof_env.with_nested_subproof env in
   symexec t env l;
 
   Log.debug (fun f ->
@@ -1203,7 +1289,7 @@ and symexec_if_then_else t env cond l r =
   );
 
   (* now handle if else case *)
-  Proof_context.append t "- ";
+  Proof_context.append t "%s " bullet;
   symexec t env r;
 
   Log.debug (fun f ->
@@ -1373,6 +1459,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     generate_candidate_invariants t env ~mut_vars
       ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args ~ret:ret_ty (snd observations) in
 
+
   (* if Configuration.dump_generated_invariants () then begin
    *   Configuration.dump_output "generated-pure-invariants" (fun f ->
    *     f "%a" (Seq.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt "\n@.") Lang.Expr.pp) pure
@@ -1422,31 +1509,9 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   if no_pure && not expected_no_pure then
     Format.ksprintf ~f:failwith "failed to find pure invariant candidates.";
 
-  let valid_candidate =
-    if Configuration.validate_with_z3 () || Option.is_some (Configuration.max_z3_calls ())
-    then begin
-      (* build a verification condition *)
-      let vc =
-        let vc =
-          Specification.build_verification_condition
-            t (Proof_env.env_to_defmap env) lemma_name in
-        Configuration.dump_output "verification-condition" (fun f ->
-          f "%a@." Proof_validator.VerificationCondition.pp_verification_condition vc);
-        Proof_validator.build_validator vc in
-      find_first_valid_candidate_with_z3 t inv_ty vc ~heap:(assert false) ~pure:(assert false)
-      |> Option.map (Pair.map_snd (List.map (Pair.make "")))
-     end else begin
-      Log.warn (fun f ->
-        f "validation with Z3 is disabled. Assuming that the first \
-           invariant we find is valid. (proof left as an exercise to \
-           the reader!)");
-      let (let+ ) x f = Option.bind x f in
-      let pure = match List.map Seq.head pure |> List.all_some with None -> (`Constructor ("true", [])) | Some h -> Lang.Expr.andb h in
-      let+ heap = List.map Seq.head heap |> List.all_some in
-      Some (pure, heap)
-    end in
+  let heap_mapping = List.map Proof_spec.Heap.Heaplet.(fun (PointsTo (v, _, _) as pts) -> (v, pts)) pre_heap
+                     |> StringMap.of_list in
 
-  let invariant = Option.get_exn_or "Failed to find suitable candidate" valid_candidate in
 
   (* now before sending things back to the coq context, we have to
      re-normalise any higher order functions back to their pure models
@@ -1455,84 +1520,65 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
        [f], while our coq terms should talk about the *logical* function
        model [fp]. See [resources/find_mapi/] for an example of how the
        logical model looks. *)
-  let invariant =
+  let candidates =
     let subst v = StringMap.find_opt v hf_rev_map in
     let subst_expr e = Lang.Expr.subst_var subst e in
-    (subst_expr (fst invariant), List.map (Pair.map_snd subst_expr) (snd invariant)) in
+    let pure_candidates =
+      Utils.seq_map_product_l Fun.id (List.to_seq pure)
+      |> Seq.map (fun pure -> subst_expr @@ Lang.Expr.andb pure) in
+    let heap_candidates =
+      Utils.seq_map_product_l Fun.id (List.to_seq heap)
+      |> Seq.map (fun candidates -> List.map (Pair.map_snd subst_expr) candidates) in
+    Seq.product pure_candidates heap_candidates
+    |> Seq.to_gen in
 
+  let found_acceptable_invariant = ref false in
+
+  let best_invariant_so_far = ref @@ Option.get_exn_or "Failed to find suitable candidate" (candidates ()) in
+
+  while not !found_acceptable_invariant do 
+    Log.info (fun f -> f "considering invariant: %s@." (
+      [%show: Lang.Expr.t * (string * Lang.Expr.t) Containers.List.t] !best_invariant_so_far
+    ));
+
+    (* xapp lemma *)
+    begin
+      let lemma_name = Names.Constant.to_string lemma_name in
+      let const_args = (arg_list_to_str (Option.to_list combinator_ty @ (List.map (fun (v, ty) -> `Untyped v) f_args))) in
+      let heap_state = match snd !best_invariant_so_far with
+        | [] -> ""
+        | heap -> (if no_pure then "" else " \\* ") ^ (print_heap ~framed_heaplets heap_mapping heap) in
+      let pure_state =
+        if no_pure
+        then ""
+        else Format.asprintf "\\[ %a ]" Proof_utils.Printer.pp_expr (fst !best_invariant_so_far) in
+      (Log.debug (fun f ->
+         f "sending: xapp (%s %s (fun %a => %s %s)). to the proof context@."
+           lemma_name
+           const_args
+           pp_param (snd inv_ty)
+           pure_state
+           heap_state);
+       Proof_context.append t
+         "xapp (%s %s (fun %a => %s %s))."
+         lemma_name
+         const_args
+         pp_param (snd inv_ty)
+         pure_state
+         heap_state)
+    end;
+    if Proof_context.current_subproof_opt t |> Option.is_some then begin
+      found_acceptable_invariant := true;
+    end else begin
+      (* for whatever reason, invariant failed to work (maybe evars or soemthing). anyway, try  *)
+      Proof_context.cancel_last t;
+      best_invariant_so_far := Option.get_exn_or "Failed to find suitable candidate" (candidates ());
+    end
+  done;
   Log.info (fun f -> f "FOUND INVARIANT: %s@." (
-    [%show: Lang.Expr.t * (string * Lang.Expr.t) Containers.List.t] invariant
+    [%show: Lang.Expr.t * (string * Lang.Expr.t) Containers.List.t] !best_invariant_so_far
   ));
 
-  (* xapp lemma *)
-  begin
-    let lemma_name = Names.Constant.to_string lemma_name in
-    let const_args = (arg_list_to_str (Option.to_list combinator_ty @ (List.map (fun (v, ty) -> `Untyped v) f_args))) in
-    let pp_param =
-      List.pp
-        ~pp_sep:(fun fmt () -> Format.pp_print_string fmt " ")
-        (Pair.pp
-           ~pp_start:(fun fmt () -> Format.pp_print_string fmt "(")
-           ~pp_stop:(fun fmt () -> Format.pp_print_string fmt ")")
-           ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ": ")
-           Format.pp_print_string
-           Proof_utils.Printer.pp_ty) in
-    let heap_mapping = List.map Proof_spec.Heap.Heaplet.(fun (PointsTo (v, _, _) as pts) -> (v, pts)) pre_heap
-                       |> StringMap.of_list in
-    let heap_state =
-      begin
-        match snd invariant with
-        | [] -> ""
-        | heap ->
-          (if no_pure then "" else " \\* ") ^
-          (List.filter_map (fun (v, expr) -> match StringMap.find v heap_mapping with
-             | Proof_spec.Heap.Heaplet.PointsTo (v, _, `App (f, _)) when not (StringSet.mem v framed_heaplets) ->
-               Some (Format.sprintf "%s ~> %s %a"
-                       v f Proof_utils.Printer.pp_expr expr)
-             | Proof_spec.Heap.Heaplet.PointsTo (_, _, `App (_, _)) ->
-               None
-             | Proof_spec.Heap.Heaplet.PointsTo (_, _, v) ->
-               Format.ksprintf ~f:failwith
-                 "found unsupported heaplet %a" Lang.Expr.pp v
-           ) heap
-           |> String.concat " \\* ")
-      end in
-    if no_pure
-    then
-      (Log.debug (fun f ->
-         f "sending: xapp (%s %s (fun %a =>  %s)). to the proof context@."
-           lemma_name
-           const_args
-           pp_param
-           (snd inv_ty)
-           heap_state);
-       Proof_context.append t
-         "xapp (%s %s (fun %a =>  %s))."
-         lemma_name
-         const_args
-         pp_param
-         (snd inv_ty)
-         heap_state)
-    else
-      (Log.debug (fun f ->
-         f "sending: xapp (%s %s (fun %a => \\[ %a ] %s)). to the proof context@."
-           lemma_name
-           const_args
-           pp_param
-           (snd inv_ty)
-           Proof_utils.Printer.pp_expr
-           (fst invariant)
-           heap_state);
-       Proof_context.append t
-         "xapp (%s %s (fun %a => \\[ %a ] %s))."
-         lemma_name
-         const_args
-         pp_param
-         (snd inv_ty)
-         Proof_utils.Printer.pp_expr
-         (fst invariant)
-         heap_state)
-  end;
 
   (* dispatch remaining subgoals by the best method: *)
   while (Proof_context.current_subproof t).goals |> List.length > 1 do
@@ -1558,7 +1604,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       if Constr.isProd (Proof_context.current_goal t).ty then
         Proof_context.append t "intros.";
     end;
-    match snd invariant with
+    match snd !best_invariant_so_far with
     | [] -> ()
     | _ ->
       Proof_context.append t "try xdestruct."
