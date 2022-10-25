@@ -1223,8 +1223,23 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
      *   let f_app = Proof_utils.CFML.extract_x_app_fun post in
      *   (\* use Coq's searching functionality to work out the spec for the function *\)
      *   find_spec t f_app in *)
-    (* TODO: do something smart here (i.e use the type of lemma full type to work out whether to intro any variables ) *)
+    (* TODO: do something smart here (i.e use the type of lemma full type to work out whether to intro any variables ) *)    
     Proof_context.append t "xapp.";
+    if Option.is_none (Proof_context.current_subproof_opt t) then begin
+      Proof_context.cancel_last t;
+      Proof_context.append t "xlet.";
+    end;
+    if Proof_context.(current_subproof t).goals |> List.length > 1 then
+      Format.ksprintf ~f:failwith "symbolic execution of %a lead to multiple non-trivial subgoals"
+        Lang.Expr.pp body;
+    (* while Proof_context.(current_subproof t).goals |> List.length > 1 do
+     *   Proof_context.append t "{ admit. }";
+     * done; *)
+    begin match Proof_context.(current_subproof t).goals with
+    | goal :: _ when Constr.isProd goal.ty ->
+      Proof_context.append t "intros.";
+    | _ -> ()
+    end;
     symexec t env rest
   end
 and symexec_match t env prog_expr cases =
