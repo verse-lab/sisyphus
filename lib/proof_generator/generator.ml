@@ -531,9 +531,9 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
 (** [reduce_term t term] reduces a proof term [term] using ultimate
     reduction.  *)
 let reduce_term t term =
-  let fuel = ref 0 in
+  let fuel = ref 30 in
   let filter ~path ~label =
-    if !fuel > 1_000_000
+    if !fuel <= 0
     then `KeepOpaque
     else
       match path, label with
@@ -577,22 +577,39 @@ let reduce_term t term =
       | "TLC.LibContainer", _ -> `KeepOpaque
       | "TLC.LibReflect", _ -> `KeepOpaque
       | "TLC.LibRelation", _ -> `KeepOpaque
-      (* | "TLC.LibInt", "plus_nat_eq_plus_int" -> `KeepOpaque *)
-      (* | "TLC.LibWf", ("upto" | "wf_upto") -> `KeepOpaque *)
+
       | "TLC.LibOrder", ("lt_is_strict_le" | "gt_is_inverse_strict_le") ->
         `KeepOpaque
-      (* | "TLC.LibNat", "lt_peano" ->
-       *   `KeepOpaque
-       * | "TLC.LibNat", "le_peano" ->
-       *   (\* let _ = assert false in *\)
-       *   `KeepOpaque *)
+
+      | "CFML.WPBuiltin", "array" -> `Unfold
+      | "CFML.WPBase", "mkstruct" -> `Unfold
+      | "CFML.WPArray", "Array" -> `KeepOpaque
+      | "CFML.Stdlib.Array_ml", _ -> `KeepOpaque
+      | "CFML.Stdlib.Array_proof", ("length_spec" | "get_spec") -> `KeepOpaque
+
+      | "CFML.WPLifted", ("MkStruct" | "MkStruct_erase" | "Wptag" | "Wpgen_app" | "Wpgen_let_fun" | "Wpgen_match"
+                         | "Wpgen_body" | "Wpgen_seq" | "Wpgen_done" | "Wpgen_negpat" | "Wpgen_case"
+                         | "Wpgen_val" | "Wpgen_let_trm" | "Wpgen_if") -> `Unfold
+
+      | "CFML.SepLifted", "Trm_apps" -> `Unfold
+      | "CFML.SepBase.SepBasicSetup.HS", "protect" -> `Unfold
+      | "CFML.SepBase.SepBasicSetup", "hwand_hpure_r_intro" -> `Unfold
+
+      | "CFML.WPTactics", ("xapp_lemma"| "xseq_cont_lemma" | "xapps_lemma" | "xmatch_lemma" | "xdone_lemma"
+                          | "xifval_lemma_isTrue" | "xlet_trm_cont_lemma" | "xlet_fun_lemma") -> `KeepOpaque
+      | "CFML.WPTactics",  "xval_lemma" -> decr fuel; `KeepOpaque
+
+      (* | "CFML.SepBase.SepBasicSetup.HS", ("xsimpl_l_hpure" | "xsimpl_r_hpure"
+       *                                    | "xsimpl_l_hexists" | "xsimpl_r_hexists") -> `Unfold *)
+      | "CFML.SepBase.SepBasicSetup.HS", _ -> `Unfold
+
       | _ when String.prefix ~pre:"Proofs" path
             ||  String.prefix ~pre:"CFML" path
             || String.prefix ~pre:"TLC" path
             || String.prefix ~pre:"Common" path ->
-        if String.prefix ~pre:"CFML" path then
-          Log.debug (fun f -> f "Expanding %s:%s" path label);
-        incr fuel;
+        (* if String.prefix ~pre:"CFML" path then
+         *   Log.debug (fun f -> f "Expanding %s:%s" path label);
+         * incr fuel; *)
         `Unfold
       | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
   let env = Proof_context.env t in
