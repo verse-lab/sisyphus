@@ -16,8 +16,7 @@ Lemma sll_of_array_spec :
   POST (fun (s : sll A) => s ~> SLL ls \* a ~> Array ls).
 Proof using (All).
   xcf.
-  xapp (sll_nil_spec).
-  intros s.
+  xapp. intros s.
   xapp.
   xletopaque tmp Htmp.
   xapp (for_downto_spec (length ls - 1) 0 tmp
