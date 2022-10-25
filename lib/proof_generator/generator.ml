@@ -544,6 +544,7 @@ let reduce_term t term =
         | "Coq.ZArith.Znat.Nat2Z"
         | "Coq.ZArith.Znat.Zabs2Nat"
         | "Coq.ZArith.Znat"
+        | "Coq.ZArith.Zorder"
         | "Coq.micromega.ZifyInst"
         | "Coq.Init.Nat"
         | "Coq.PArith.BinPos.Pos"
