@@ -33,6 +33,7 @@ let value_size (vl: Runtime.value) =
     | `Bool _ -> 1
     | `Value _ -> 5
     | `Constructor (_, vl) -> List.length vl
+    | `Opaque (_, vl) -> List.length vl
 
 let heaplet_size vl =
   match vl with
@@ -48,10 +49,16 @@ let heaplet_matches (v1: Runtime.heaplet) (v2: Runtime.heaplet) =
   match v1, v2 with
   | (`PointsTo v1, `PointsTo v2) -> Runtime.equal_value v1 v2
   | (`Array v1, `Array v2) -> List.equal Runtime.equal_value v1 v2
+
   | (`PointsTo (`List v1), `Array v2) -> List.equal Runtime.equal_value v1 v2
+  | (`PointsTo (`Opaque (_, v1)), `Array v2) -> List.equal Runtime.equal_value v1 v2
+
   | (`Array v1, `PointsTo (`List v2)) -> List.equal Runtime.equal_value v1 v2
+  | (`Array v1, `PointsTo (`Opaque (_, v2))) -> List.equal Runtime.equal_value v1 v2
+
   | (`PointsTo v1, `Array [v2]) -> Runtime.equal_value v1 v2
   | (`Array [v1], `PointsTo v2) -> Runtime.equal_value v1 v2
+
   | _ -> false
 
 let value_matches_heaplet (v1: Runtime.value) (v2: Runtime.heaplet) =
