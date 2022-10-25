@@ -3,7 +3,7 @@ module T = Testing_utils.Make (struct let name = "array_of_rev_list" end)
 let ctx =
   Expr_generator.make_raw_ctx
     ~consts:Lang.Type.[
-      Var "A", [`Var "x"]; Int, [`Int 0; `Int 1; `Int 2; `Var "len"];
+      Var "A", [`Var "x"]; Int, [`Int 0; `Int 1; `Var "len"];
       List (Var "A"), [`Var "_unused"; `Var "arg0"; `Var "l"]]
     ~pats:Lang.Type.[
       (Int,

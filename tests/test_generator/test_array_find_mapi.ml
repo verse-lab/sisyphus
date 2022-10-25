@@ -3,7 +3,7 @@ module T = Testing_utils.Make (struct let name = "array_find_mapi" end)
 let ctx =
   Expr_generator.make_raw_ctx
     ~consts:Lang.Type.[
-      Int, [`Int 0; `Int 1; `Int 2; `Var "arg0"]; Bool, [`Var "arg1"];
+      Int, [`Int 0; `Int 1; `Var "arg0"]; Bool, [`Var "arg1"];
       Func (Some ([Int; Var "A"], ADT ("option", [Var "B"], None))), [`Var "f"];
       List (Var "A"), [`Var "l"]]
     ~pats:[]

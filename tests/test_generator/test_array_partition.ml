@@ -3,7 +3,7 @@ module T = Testing_utils.Make (struct let name = "array_partition" end)
 let ctx =
   Expr_generator.make_raw_ctx
     ~consts:Lang.Type.[
-      Int, [`Int 1; `Int 2];
+      Int, [`Int 1];
       Func (Some ([Var "A"], Bool)), [`Var "p"];
       List (Var "A"), [`Var "arg0"; `Var "l"]]
     ~pats:Lang.Type.[

@@ -850,7 +850,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
 
     Expr_generator.build_context
       ~constants:initial_values
-      ~ints:[1;2]
+      ~ints:[1]
       ~vars ~funcs
       ~env:(fun f -> typeof ~product_types t env f)
       ~from_id ~to_id
