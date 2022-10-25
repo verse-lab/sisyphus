@@ -31,11 +31,12 @@ let combine_rem xz yz =
 let seq_force ls =
   let rec loop i acc ls =
     match ls () with
-    | Seq.Nil -> i, List.rev acc
-    | Seq.Cons (h, t) ->
-      loop (i + 1) (h :: acc) t in
+    | Seq.Cons (h, t) when i < 100 ->
+      loop (i + 1) (h :: acc) t
+    | Seq.Cons (h, t) -> i, Seq.append (Seq.of_list (List.rev (h :: acc))) t
+    | Seq.Nil -> i, Seq.of_list (List.rev acc) in
   let (sz, ls) = loop 0 [] ls in
-  sz, Seq.of_list ls
+  sz, ls
 
 
 let reduce pure =
@@ -952,7 +953,7 @@ let prune_candidates_using_testf test_f (pure, heap) =
   let (no_heap, heap) = List.map seq_force heap |> List.split in
   Gc.full_major (); 
   let end_time = Ptime_clock.now () in
-  Log.info (fun f -> f "Pruned down to [%a] pure and [%a] heap in %a"
+  Log.info (fun f -> f "Pruned down to [%a] <= pure and [%a] <= heap in %a"
                        (List.pp Int.pp) no_pure
                        (List.pp Int.pp) no_heap
                        Ptime.Span.pp (Ptime.diff end_time start_time));
