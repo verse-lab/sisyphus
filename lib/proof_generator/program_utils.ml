@@ -15,6 +15,7 @@ let is_pure (prog: [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Pr
     | `AssignRef _ | `IfThen _ -> false
     | `Write _ -> false
     | `Value _ -> true
+    | `LetExp (`Var (_, Lang.Type.Unit), _, _, _) -> false
     | `LetExp (_, _, _, rest) -> loop rest
     | `IfThenElse (_, l, r) -> loop l && loop r
   in
@@ -41,6 +42,10 @@ let mutated_vars (prog: [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t La
     | `IfThenElse (_, l, r) ->
       let vars = loop l vars in
       loop r vars
+    | `LetExp (`Var (_, Lang.Type.Unit), _, expr, rest) ->
+      let vars = Lang.Expr.vars ~with_funs:false vars expr in
+      loop rest vars
+
     | `LetExp (_, _, _, rest) ->
       loop rest vars
     | `EmptyArray  -> vars
