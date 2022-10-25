@@ -1002,6 +1002,7 @@ let analyse (coq_env: Environ.env)
       (heap_spec: Proof_spec.Heap.Heaplet.t list)
       invariant_spec
       (trm: Constr.t)  =
+  Log.info (fun f -> f "starting reification!@.");
   Log.debug (fun f ->
     f "observations at analyze were: %s" ([%show: ((string * Dynamic.Concrete.value) list * (string * Dynamic.Concrete.heaplet) list)] obs)
   );
@@ -1016,10 +1017,13 @@ let analyse (coq_env: Environ.env)
     let env = empty_env (Iter.cons (fst invariant_spec) (StringMap.keys lambda_env)) in
     (* convert proof term to simplified representation *)
     let proof_term = reify_proof_term coq_env env wp in
+    Log.info (fun f -> f "reification of proof term complete!@.");
     Configuration.dump_output "extracted-proof-term"
       (fun f -> f "%a" Proof_term.pp proof_term);
+    Log.info (fun f -> f "starting extraction!@.");
     (* extract a testing function from the code *)
     let test_spec = (Proof_extraction.extract proof_term) in
+    Log.info (fun f -> f "extraction complete!@.");
     let used_functions =
       used_functions env
       |> unique
