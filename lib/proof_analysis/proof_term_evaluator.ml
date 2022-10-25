@@ -95,6 +95,13 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
         if f i h then Some (i, h)
         else findi (i + 1) f t in
     wrap (findi 0 (unwrap (eval ctx f)) (unwrap (eval ctx ls)))
+  | `App ("list_foldi", [ls; init; fp]) ->
+    let rec list_foldi_internal (i: int) (ls: 'a list) (init: 'b) (fp: int -> 'a -> 'b -> 'b) =
+      match ls with
+      | [] -> init
+      | h :: t ->
+        list_foldi_internal (i + 1) t (fp i h init) fp in
+    wrap (list_foldi_internal 0 (unwrap (eval ctx ls)) (unwrap (eval ctx init)) (unwrap (eval ctx fp)))
   | `App ("list_findi_map", [f; ls]) ->
     let rec findi_map i f ls =
       match ls with

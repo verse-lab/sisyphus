@@ -2,7 +2,7 @@ module T = Testing_utils.Make (struct let name = "make_rev_list" end)
 
 let ctx = 
   Expr_generator.make_raw_ctx 
-    ~consts:Lang.Type.[Int, [`Int (1); `Int (2)];
+    ~consts:Lang.Type.[Int, [`Int (1)];
                        (List (Var "A")), [`Var ("arg0"); `Var ("arg1"); `Var ("ls")]]
     ~pats:Lang.Type.[(List (Var "A")), [`App (("rev", [`PatVar (( "arg_0", (List (Var "A"))))]))]]
     ~funcs:Lang.Type.[Int, [("+", [Int; Int]);

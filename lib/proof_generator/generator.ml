@@ -531,46 +531,88 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
 (** [reduce_term t term] reduces a proof term [term] using ultimate
     reduction.  *)
 let reduce_term t term =
+  let fuel = ref 30 in
   let filter ~path ~label =
-    match path, label with
-    (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
-     *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
-    | ("Coq.ZArith.BinInt.Z"
-      | "Coq.ZArith.BinIntDef.Z"
-      | "Coq.ZArith.Znat.Nat2Z"
-      | "Coq.ZArith.Znat.Zabs2Nat"
-      | "Coq.ZArith.Znat"
-      | "Coq.micromega.ZifyInst"
-      | "Coq.Init.Nat"
-      | "Coq.PArith.BinPos.Pos"
-      | "Coq.Init.Peano"
-      | "Coq.micromega.Tauto"
-      | "Coq.micromega.VarMap"
-      | "Coq.micromega.ZifyClasses"
-      | "Coq.micromega.ZMicromega"
-      | "Coq.Init.Wf"
-      | "Coq.Init.Datatypes"
-      | "Coq.Classes.Morphisms"
-      | "Coq.Init.Logic"
-      | "Coq.Arith.PeanoNat.Nat"
-      | "Coq.Bool.Bool"
-      | "Coq.Classes.RelationClasses"
-      ), _
-      -> `KeepOpaque
-    | "TLC.LibInt", "le_zarith" -> `KeepOpaque
-    | "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits", _ ->
-      (* no point expanding the SepSimplArgsCredits lemmas as they just rearrange heaplets *)
-      `KeepOpaque
-    (* keep the reflection lemmas opaque, as they expand into cases that can't be reduced  *)
-    | "TLC.LibReflect", _ -> `KeepOpaque
+    if !fuel <= 0
+    then `KeepOpaque
+    else
+      match path, label with
+      (* | "Coq.Init.Logic.eq_ind" when Option.is_some !eq_ind_reduce_name ->
+       *   `Subst (fst @@ Option.get_exn_or "invalid assumptions" !eq_ind_reduce_name) *)
+      | ("Coq.ZArith.BinInt.Z"
+        | "Coq.ZArith.BinIntDef.Z"
+        | "Coq.ZArith.Znat.Nat2Z"
+        | "Coq.ZArith.Znat.Zabs2Nat"
+        | "Coq.ZArith.Znat"
+        | "Coq.ZArith.Zorder"
+        | "Coq.micromega.ZifyInst"
+        | "Coq.Init.Nat"
+        | "Coq.PArith.BinPos.Pos"
+        | "Coq.Init.Peano"
+        | "Coq.micromega.Tauto"
+        | "Coq.micromega.VarMap"
+        | "Coq.micromega.ZifyClasses"
+        | "Coq.micromega.ZMicromega"
+        | "Coq.Init.Wf"
+        | "Coq.Init.Datatypes"
+        | "Coq.Classes.Morphisms"
+        | "Coq.Init.Logic"
+        | "Coq.Arith.PeanoNat.Nat"
+        | "Coq.Bool.Bool"
+        | "Coq.Classes.RelationClasses"
+        ), _
+        -> `KeepOpaque
+      | "TLC.LibInt", _ -> `KeepOpaque
+      | "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits", _ ->
+        (* no point expanding the SepSimplArgsCredits lemmas as they just rearrange heaplets *)
+        `KeepOpaque
+      (* keep the reflection lemmas opaque, as they expand into cases that can't be reduced  *)
+      | "TLC.LibNat", "peano_induction" -> `Unfold
+      | "TLC.LibNat", _ -> `KeepOpaque
 
-    | _ when String.prefix ~pre:"Proofs" path
-          ||  String.prefix ~pre:"CFML" path
-          || String.prefix ~pre:"TLC" path
-          || String.prefix ~pre:"Common" path ->
-      (* Log.debug (fun f -> f "Expanding %s:%s" path label); *)
-      `Unfold
-    | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
+      | "TLC.LibListZ", "length" -> `KeepOpaque
+
+      | "TLC.LibList", ("Nth_ind" | "nth_of_Nth" | "nth_default_of_Nth" | "nth_app_l" | "Nth_app_l") ->
+        `KeepOpaque
+
+      | "TLC.LibContainer", _ -> `KeepOpaque
+      | "TLC.LibReflect", _ -> `KeepOpaque
+      | "TLC.LibRelation", _ -> `KeepOpaque
+
+      | "TLC.LibOrder", ("lt_is_strict_le" | "gt_is_inverse_strict_le") ->
+        `KeepOpaque
+
+      | "CFML.WPBuiltin", "array" -> `Unfold
+      | "CFML.WPBase", "mkstruct" -> `Unfold
+      | "CFML.WPArray", "Array" -> `KeepOpaque
+      | "CFML.Stdlib.Array_ml", _ -> `KeepOpaque
+      | "CFML.Stdlib.Array_proof", ("length_spec" | "get_spec") -> `KeepOpaque
+
+      | "CFML.WPLifted", ("MkStruct" | "MkStruct_erase" | "Wptag" | "Wpgen_app" | "Wpgen_let_fun" | "Wpgen_match"
+                         | "Wpgen_body" | "Wpgen_seq" | "Wpgen_done" | "Wpgen_negpat" | "Wpgen_case"
+                         | "Wpgen_val" | "Wpgen_let_trm" | "Wpgen_if") -> `Unfold
+
+      | "CFML.SepLifted", "Trm_apps" -> `Unfold
+      | "CFML.SepBase.SepBasicSetup.HS", "protect" -> `Unfold
+      | "CFML.SepBase.SepBasicSetup", "hwand_hpure_r_intro" -> `Unfold
+
+      | "CFML.WPTactics", ("xapp_lemma"| "xseq_cont_lemma" | "xapps_lemma" | "xmatch_lemma" | "xdone_lemma"
+                          | "xifval_lemma_isTrue" | "xlet_trm_cont_lemma" | "xlet_fun_lemma") -> `KeepOpaque
+      | "CFML.WPTactics",  "xval_lemma" -> decr fuel; `KeepOpaque
+
+      (* | "CFML.SepBase.SepBasicSetup.HS", ("xsimpl_l_hpure" | "xsimpl_r_hpure"
+       *                                    | "xsimpl_l_hexists" | "xsimpl_r_hexists") -> `Unfold *)
+      | "CFML.SepBase.SepBasicSetup.HS", _ -> `Unfold
+
+      | _ when String.prefix ~pre:"Proofs" path
+            ||  String.prefix ~pre:"CFML" path
+            || String.prefix ~pre:"TLC" path
+            || String.prefix ~pre:"Common" path ->
+        (* if String.prefix ~pre:"CFML" path then
+         *   Log.debug (fun f -> f "Expanding %s:%s" path label);
+         * incr fuel; *)
+        `Unfold
+      | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
   let env = Proof_context.env t in
   let (evd, reduced) =
     let evd = Evd.from_env env in
@@ -597,10 +639,10 @@ let reduce_term t term =
         ~filter
         env evd (Evd.MiniEConstr.of_constr term) in
     let term = EConstr.to_constr evd reduced in
-    Configuration.dump_output "reduced"
-      (fun f -> f "%s" (Proof_utils.Debug.constr_to_string term));
-    Configuration.dump_output "reduced-pretty"
-      (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty term));
+    (* Configuration.dump_output "reduced"
+     *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string term));
+     * Configuration.dump_output "reduced-pretty"
+     *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty term)); *)
     term
   | _ -> trm
 
@@ -808,7 +850,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
 
     Expr_generator.build_context
       ~constants:initial_values
-      ~ints:[1;2]
+      ~ints:[1]
       ~vars ~funcs
       ~env:(fun f -> typeof ~product_types t env f)
       ~from_id ~to_id

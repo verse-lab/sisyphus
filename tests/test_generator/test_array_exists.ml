@@ -3,7 +3,7 @@ module T = Testing_utils.Make (struct let name = "array_exists" end)
 let ctx =
   Expr_generator.make_raw_ctx
     ~consts:Lang.Type.[
-      Int, [`Int 0; `Int 1; `Int 2; `Var "arg0"];
+      Int, [`Int 0; `Int 1; `Var "arg0"];
       Func (Some ([Var "A"], Bool)), [`Var "f"];
       List (Var "A"), [`Var "l"];
       ADT ("option", [Unit], None), [`Var "arg1"] ]

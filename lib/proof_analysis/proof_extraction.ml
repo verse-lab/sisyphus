@@ -61,6 +61,10 @@ let rec encode_expr_as_pat (expr: Lang.Expr.t) : Parsetree.pattern =
     AH.Pat.construct (loc (Longident.Ldot (Lident "Sisyphus_tracing", "Symbol"))) (Some (pstr_const v))
   | `Var v -> pvar v
   | `Int n -> pint_const n
+  | `Constructor ("nil", []) ->
+    AH.Pat.construct (loc (lid "[]")) None
+  | `Constructor ("cons", [hd; tl]) ->
+    AH.Pat.construct (loc (lid "::")) (Some (AH.Pat.tuple (List.map encode_expr_as_pat [hd;tl])))
   | `Constructor (f, []) ->
     AH.Pat.construct (loc (lid f)) None
   | `Constructor (f, [arg]) ->
@@ -93,6 +97,11 @@ let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
       | `Var (v, _) -> pvar v) args in
     fun_ args (encode_expr body)
   | `Int n -> int_const n
+  | `Constructor ("nil", []) ->
+    AH.Exp.construct (loc (lid "[]")) None
+  | `Constructor ("cons", args) ->
+    AH.Exp.construct (loc (lid "::")) (Some (AH.Exp.tuple @@ List.map encode_expr args))
+
   | `Constructor (f, []) ->
     AH.Exp.construct (loc (lid f)) None
   | `Constructor (f, [arg]) ->
