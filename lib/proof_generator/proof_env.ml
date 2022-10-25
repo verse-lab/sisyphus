@@ -4,6 +4,10 @@ module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
 type t = {
+  nested_proof_depth: int;
+  (** [nested_proof_depth] indicates the depth of the current nested
+     subproof - used to work out what symbol to use for subproof
+     bullets. *)
 
   lambda: (Lang.Id.t * [ `Lambda of Lang.Expr.typed_param list * Lang.Expr.t Lang.Program.stmt ]) StringMap.t;
   (** [lambda] is a mapping of proof vars encoding lambdas to their
@@ -91,6 +95,7 @@ let initial_env ?(logical_mappings=[]) ?(logical_functions=[]) ~ret_ty (args: (s
     |> StringSet.to_list
     |> List.map (fun s -> String.uppercase_ascii (String.drop 1 s)) in
   {
+    nested_proof_depth=0;
     lambda=StringMap.empty;
     bindings;
     logical_mappings;
@@ -99,6 +104,9 @@ let initial_env ?(logical_mappings=[]) ?(logical_functions=[]) ~ret_ty (args: (s
     poly_vars;
     logical_functions;
   }
+
+let with_nested_subproof env = {env with nested_proof_depth = env.nested_proof_depth + 1}
+let bullet env = match env.nested_proof_depth with 0 -> "-" | 1 -> "+" | 2 -> "*" | n -> String.concat "" (List.init n (fun _ -> "+"))
 
 let has_definition env v = StringMap.mem v env.lambda
 

@@ -53,8 +53,16 @@ Ltac xinhab_inner A :=
           assert (Hcond: v = true);
           [ destruct v; auto; contradiction cond; simpl; auto | rewrite Hcond in *] 
         ]
-    | _ => idtac
+    | _ => fail
     end.
+
+  Ltac xif_intros :=
+    let cond := fresh "Hcond" in
+    xif; lazymatch goal with
+    | [|- _ -> himpl _ _] => intros cond
+    | _ => fail
+    end.
+
 
   Tactic Notation "by" tactic(t) := t; done.
   Tactic Notation "first" tactic(t) := only 1 : t.
@@ -181,4 +189,4 @@ Ltac xinhab_inner A :=
     (xlet as;=> var Hvar;
      xif;=> cond_var;
      rewrite Hvar,istrue_isTrue_eq in cond_var;
-     clear Hvar var) || xif_pat Hcond.
+     clear Hvar var) || xif_pat Hcond || xif_intros.
