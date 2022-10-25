@@ -907,6 +907,25 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           if StringSet.mem v mut_vars
           then Some (v, elt_ty)
           else None
+        | PointsTo (var, _, `App (heap_pred, [ _ ])) as v when StringMap.mem var env.gamma ->
+          let ty = match StringMap.find var env.gamma with
+            | Lang.Type.ADT (_, [ty], _) -> Lang.Type.to_coq_form ty
+            | ty ->
+              Format.ksprintf ~f:failwith
+                "found unsupported heaplet %a inner type %a expected to be ADT with one parameter"
+                pp v Lang.Type.pp ty in
+          let ty =
+            Format.ksprintf ~f:(Proof_context.typeof t)
+              "@%s %a _" heap_pred Lang.Type.pp ty in
+          let hole_ty = match Constr.kind_nocast ty with
+            | Constr.Prod (_, ty, _) -> Proof_utils.CFML.extract_typ ty
+            | _ -> 
+              Format.ksprintf ~f:failwith
+                "found unsupported heaplet %a arg type %s expected to be product with one argument"
+                pp v (Proof_utils.Debug.constr_to_string_pretty ty) in
+          Format.ksprintf ~f:failwith
+            "found unsupported heaplet %a with hole type %a"
+            pp v  Lang.Type.pp hole_ty
         | PointsTo (var, ty, body) as v ->
           Format.ksprintf ~f:failwith
             "found unsupported heaplet %a (%s: %a ==> %a)"
