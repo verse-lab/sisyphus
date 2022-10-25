@@ -91,6 +91,10 @@ let build_test
         (let_ name
            (AH.Exp.array (List.map Proof_term_embedding.embed_value vls))
            rest)
+    | (name, `PointsTo (`Opaque _ as vl))::t ->
+      let+ rest = with_heap_bindings t in
+      kont (let_ name (Proof_term_embedding.embed_value vl)
+              rest)
     | (name, `PointsTo vl)::t ->
       let+ rest = with_heap_bindings t in
       kont (let_ name
