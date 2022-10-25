@@ -330,8 +330,25 @@ let convert : Parsetree.structure -> 'a Program.t = function
           Some elts
         | _ -> failwith "invalid structure for logical mappings"
       end |> Option.value ~default:[] in
+    let opaque_encoders =
+      begin
+        let open Option in
+        let* mapping = List.find_opt (fun attr ->
+          String.equal "with_opaque_encoding" attr.Parsetree.attr_name.txt 
+        ) pvb_attributes in
+        match mapping.attr_payload with
+        | Parsetree.PStr [{ pstr_desc=Pstr_eval (expr, _); pstr_loc }] ->
+          let elts = convert_list expr
+                     |> List.map convert_pair
+                     |> List.map (Pair.map_snd convert_pair)
+                     |> List.map (Pair.map_snd (Pair.map_same convert_string_const))
+                     |> List.map (Pair.map_fst convert_string_const) in
+          Some elts
+        | _ -> failwith "invalid structure for opaque encoders mappings"
+      end |> Option.value ~default:[] in
 
-    {prelude; logical_mappings;name;args;body}
+
+    {prelude; opaque_encoders; logical_mappings;name;args;body}
 
 let parse_lambda_str str = raw_parse_expr_str str |> convert_lambda StringSet.empty
 let parse_expr_str str = raw_parse_expr_str str |> convert_expr
