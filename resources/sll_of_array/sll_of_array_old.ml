@@ -10,3 +10,4 @@ let sll_of_array (a: 'a array) =
   let (_: unit) = sll_reverse s in
   s
 [@@with_logical_mapping ["ls", "a"]]
+[@@with_opaque_encoding ["sll", ("Sll.sll_of_list", "Sll.sll_to_list")]]

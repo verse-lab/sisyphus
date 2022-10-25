@@ -10,3 +10,4 @@ let sll_of_array (a: 'a array) =
     ()
   ) in
   s
+[@@with_opaque_encoding ["sll", ("Sll.sll_of_list", "Sll.sll_to_list")]]

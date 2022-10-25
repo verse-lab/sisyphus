@@ -15,6 +15,14 @@ let sll_push (hd: 'a) (ls: 'a sll) : unit =
   let (new_tl: 'a sll) = ref tl in
   ls := Node (hd, new_tl)
 
+let rec sll_of_list (ls: 'a list) : 'a sll =  match ls with
+  | [] -> sll_nil ()
+  | h :: t -> sll_cons h (sll_of_list t)
+
+let rec sll_to_list (ls: 'a sll) : 'a list =  match !ls with
+  | Nil -> []
+  | Node (h, t) -> h  :: sll_to_list t
+
 let sll_iter (f: 'a -> unit) (lst: 'a sll) =
   let rec aux node =
     match !node with
