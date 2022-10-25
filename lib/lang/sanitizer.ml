@@ -36,6 +36,8 @@ let rec convert_typ (ty: Parsetree.core_type) : Type.t =
     Int
   | Parsetree.Ptyp_constr ({txt=Lident "bool"}, []) ->
     Bool
+  | Parsetree.Ptyp_constr ({txt=Lident "unit"}, []) ->
+    Unit
   | Parsetree.Ptyp_constr ({txt=Lident user}, ity) ->
     let conv =
       List.find_map (fun (attr: Parsetree.attribute) ->
