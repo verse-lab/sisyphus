@@ -212,44 +212,33 @@ Proof using.
   xcf.
   xapp.
   xlet as;=> tmp Htmp.
-  assert (forall i t r,
-             i = length t ->
-             l = t ++ r ->
+  assert (forall i t,
+             0 <= i <= length l ->
+             t = take i l ->
              SPEC (tmp i)
                PRE (a ~> Array l \* I t)
                POST (fun _ : unit => a ~> Array l \* I l)
          ). {
     intros i; induction_wf IH: (upto (length l)) i.
-    intros t r Hi Htr; apply Htmp; clear Htmp.
+    intros t Hi Hti; apply Htmp; clear Htmp.
     xif;=> Hlen.
-    - assert (length l > 0). { destruct l; rew_list in *; math. }
-      assert (Inhab A). {
+    - assert (IA: Inhab A). {
         destruct l; rew_list in *; try math; apply Inhab_of_val; auto.
       }
-      xapp. { apply int_index_prove; rewrite <- ?length_eq; math. }
-      destruct r as [| rh rt]; rew_list in *; simpl.
-      + subst; math.
-      + xapp (H i l[i] t rt); auto. {
-          subst; rewrite read_app, If_r; try math.
-          math_rewrite (length t - length t = 0).
-          rewrite read_zero; auto.
-        } {
-          xapp (IH (i + 1)).
-          apply upto_intro; math.
-          rew_list; math.
-          subst; rewrite read_app, If_r; try math.
-          math_rewrite (length t - length t = 0).
-          rewrite read_zero; auto.
-          rew_list; f_equal.
-          xsimpl*.
-        }
-    - xvals*.
-      subst; rew_list in *.
-      assert (length r = 0) by math.
-      apply length_zero_inv in H0; rewrite H0; rew_list; xsimpl*.
+      xapp. { apply int_index_prove; math. }
+      xapp (H i l[i] t ((drop (i + 1) l))). { rewrite Hti, length_take_nonneg; auto. }
+      { rewrite <- (@drop_cons_unfold _ IA), Hti, list_eq_take_app_drop; auto; math. }
+      xapp. { apply upto_intro; math. } { math. } {
+        rewrite (take_pos_last IA), Hti; try apply int_index_prove; try math.
+        do 2 f_equal; try math; f_equal; math.
+      } { xsimpl*. }
+    - xvals*. {
+        assert (Hieq: i = length l) by math.
+        rewrite Hti, Hieq, take_full_length; xsimpl*.
+      }
   }
-  xapp; rew_list; auto; xsimpl*.
-Qed.
+  xapp. { math. } { rewrite take_zero; auto. } { xsimpl*. }
+Qed.  
 Arguments array_iteri_spec {A} {EA} f a I l HI.
 
 Lemma array_to_list_spec :
