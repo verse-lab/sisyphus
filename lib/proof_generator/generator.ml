@@ -907,9 +907,12 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
           if StringSet.mem v mut_vars
           then Some (v, elt_ty)
           else None
-        | v ->
+        | PointsTo (var, ty, body) as v ->
           Format.ksprintf ~f:failwith
-            "found unsupported heaplet %a" pp v
+            "found unsupported heaplet %a (%s: %a ==> %a)"
+            pp v var
+            (Option.pp Lang.Type.pp) ty
+            (Option.pp Lang.Type.pp) (StringMap.find_opt var env.gamma)
       ) pre_heap in
 
   Log.info (fun f ->
@@ -1204,10 +1207,10 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
                         Lang.Expr.pp_typed_param pat
                         Lang.Expr.pp body
             );
-  let prog_var = match pat with
+  let prog_var, prog_ty = match pat with
     | `Tuple _ ->
       failwith (Format.sprintf "TODO: implement handling of let _ = %a expressions" Lang.Expr.pp body)
-    | `Var (var, _) -> var in
+    | `Var (var, ty) -> var, ty in
   if is_simple_expression body
   then begin
     let var = Proof_context.fresh ~base:(prog_var) t in
@@ -1235,11 +1238,17 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
     (* while Proof_context.(current_subproof t).goals |> List.length > 1 do
      *   Proof_context.append t "{ admit. }";
      * done; *)
-    begin match Proof_context.(current_subproof t).goals with
-    | goal :: _ when Constr.isProd goal.ty ->
-      Proof_context.append t "intros.";
-    | _ -> ()
-    end;
+    let env = begin match Proof_context.(current_subproof t).goals with
+      | goal :: _ when Constr.isProd goal.ty ->
+        let intro_var = Proof_context.fresh ~base:prog_var t in
+        Proof_context.append t "intro %s." intro_var;
+        let env = Proof_env.add_binding ~var:intro_var ~ty:prog_ty env in
+        let env = Proof_env.add_proof_binding ~proof_var:intro_var ~program_var:prog_var env in
+        env
+      | _ ->
+        let env = Proof_env.add_binding ~var:prog_var ~ty:prog_ty env in
+        env
+    end in
     symexec t env rest
   end
 and symexec_match t env prog_expr cases =
