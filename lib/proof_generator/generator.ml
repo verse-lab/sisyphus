@@ -31,11 +31,12 @@ let combine_rem xz yz =
 let seq_force ls =
   let rec loop i acc ls =
     match ls () with
-    | Seq.Nil -> i, List.rev acc
-    | Seq.Cons (h, t) ->
-      loop (i + 1) (h :: acc) t in
+    | Seq.Cons (h, t) when i < 100 ->
+      loop (i + 1) (h :: acc) t
+    | Seq.Cons (h, t) -> i, Seq.append (Seq.of_list (List.rev (h :: acc))) t
+    | Seq.Nil -> i, Seq.of_list (List.rev acc) in
   let (sz, ls) = loop 0 [] ls in
-  sz, Seq.of_list ls
+  sz, ls
 
 
 let reduce pure =
@@ -952,7 +953,7 @@ let prune_candidates_using_testf test_f (pure, heap) =
   let (no_heap, heap) = List.map seq_force heap |> List.split in
   Gc.full_major (); 
   let end_time = Ptime_clock.now () in
-  Log.info (fun f -> f "Pruned down to [%a] pure and [%a] heap in %a"
+  Log.info (fun f -> f "Pruned down to [%a] <= pure and [%a] <= heap in %a"
                        (List.pp Int.pp) no_pure
                        (List.pp Int.pp) no_heap
                        Ptime.Span.pp (Ptime.diff end_time start_time));
@@ -1222,8 +1223,23 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
      *   let f_app = Proof_utils.CFML.extract_x_app_fun post in
      *   (\* use Coq's searching functionality to work out the spec for the function *\)
      *   find_spec t f_app in *)
-    (* TODO: do something smart here (i.e use the type of lemma full type to work out whether to intro any variables ) *)
+    (* TODO: do something smart here (i.e use the type of lemma full type to work out whether to intro any variables ) *)    
     Proof_context.append t "xapp.";
+    if Option.is_none (Proof_context.current_subproof_opt t) then begin
+      Proof_context.cancel_last t;
+      Proof_context.append t "xlet.";
+    end;
+    if Proof_context.(current_subproof t).goals |> List.length > 1 then
+      Format.ksprintf ~f:failwith "symbolic execution of %a lead to multiple non-trivial subgoals"
+        Lang.Expr.pp body;
+    (* while Proof_context.(current_subproof t).goals |> List.length > 1 do
+     *   Proof_context.append t "{ admit. }";
+     * done; *)
+    begin match Proof_context.(current_subproof t).goals with
+    | goal :: _ when Constr.isProd goal.ty ->
+      Proof_context.append t "intros.";
+    | _ -> ()
+    end;
     symexec t env rest
   end
 and symexec_match t env prog_expr cases =

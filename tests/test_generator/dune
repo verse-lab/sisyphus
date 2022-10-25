@@ -1,5 +1,5 @@
 (tests (names test_seq_to_array test_make_rev_list test_array_exists
-              ; test_array_partition
+              test_array_partition
               test_array_is_sorted
               test_array_foldi
               test_array_findi test_array_find_mapi test_array_of_rev_list)

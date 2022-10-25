@@ -1,7 +1,7 @@
 module T = Benchmark_utils.Make (struct let name = "array_exists" end)
 
 let () =
-  T.add_test "array_exists_mapi"
+  T.add_test "array_exists"
     (Benchmark_utils.sisyphus_runs_on
        ~path:"../../resources/array_exists"
        ~coq_name:"ProofsArrayExists"
