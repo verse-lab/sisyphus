@@ -1251,6 +1251,10 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
     if Proof_context.(current_subproof t).goals |> List.length > 1 then
       failwith "symbolic execution of %a lead to multiple non-trivial subgoals"
         Lang.Expr.pp body;
+    begin match prog_ty with
+    | Lang.Type.Unit -> Proof_context.append t "xmatch."
+    | _ -> ()
+    end;
     (* while Proof_context.(current_subproof t).goals |> List.length > 1 do
      *   Proof_context.append t "{ admit. }";
      * done; *)
