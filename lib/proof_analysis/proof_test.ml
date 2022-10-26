@@ -139,4 +139,9 @@ let build_test
              with non-assert exception %s@."
             ([%show: Lang.Expr.t * ((enc_fun * test_fun) * Lang.Expr.t) list] inv)
             (Printexc.to_string e));
-        false
+        Format.ksprintf ~f:failwith 
+          "evaluation of invariant %s failed dynamic tests \
+           with non-assert exception %s@."
+          ([%show: Lang.Expr.t * ((enc_fun * test_fun) * Lang.Expr.t) list] inv)
+          (Printexc.to_string e)
+
