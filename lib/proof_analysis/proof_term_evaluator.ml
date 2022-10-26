@@ -169,6 +169,8 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
       | [] -> true
       | h :: t -> is_sorted_internal h t in
     wrap (is_sorted (unwrap (eval ctx ls)))
+  | `App ("Sll.sll_to_list", [ls]) ->
+    wrap (Sll.sll_to_list (unwrap (eval ctx ls)))
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr
