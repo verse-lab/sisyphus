@@ -29,7 +29,7 @@ Proof using (All).
   xapp. intros s_t.
   xapp.  intros s_f.
   xletopaque tmp Htmp.
-  xapp (sll_iter_spec tmp s (fun (ls : list A) =>
+  xapp (sll_iter_drain_spec tmp s (fun (ls : list A) =>
                                s_t ~> SLL (filter pp (rev ls)) \*
                                s_f ~> SLL (filter_not pp (rev ls))
        )). {
@@ -43,7 +43,5 @@ Proof using (All).
     rewrite rev_rev; auto.
   } {
     rewrite rev_rev; auto.
-  } {
-    apply SLL_haffine.
   }
 Qed.
