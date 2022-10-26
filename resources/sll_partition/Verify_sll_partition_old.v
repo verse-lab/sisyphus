@@ -10,8 +10,8 @@ From Common Require Import Tactics Utils Solver.
 From ProofsSllPartition Require Import Sll_partition_old_ml.
                   
 Lemma sll_partition_spec :
-  forall (A : Type) `{EA : Enc A} (p: func) (s : array A)
-         (ls: list A) (pp: A -> bool),
+  forall (A : Type) `{EA : Enc A} (p: func) (s : sll A)
+         (pp: A -> bool) (ls: list A),
     (forall (x: A),
         SPEC_PURE (p x)
         POST (fun (b: bool) => \[b = pp x])
