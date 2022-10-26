@@ -959,7 +959,6 @@ and extract_fold_specification (coq_env: Environ.env) (env: env) (trm: Constr.t)
   let prop_spec = args.(2) |> extract_prop_spec env in
   let recursive_spec = args.(3) in
   let vl = PCFML.extract_expr ~rel:(rel_expr env) args.(4) in
-  let oargs = args in
   let args = Iter.int_range ~start:6 ~stop:(Array.length args - 1)
              |> Iter.map (fun i -> args.(i))
              |> Iter.map (extract_proof_value env)
