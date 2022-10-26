@@ -1,5 +1,10 @@
+type 'a node =
+  | Node of 'a * 'a node ref
+  | Nil
 
-type 'a sll
+type 'a sll = 'a node ref
+
+val sll_cons_unfold: 'a sll -> 'a sll
 
 val sll_cons : 'a -> 'a sll -> 'a sll
 

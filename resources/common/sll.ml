@@ -4,6 +4,10 @@ type 'a node =
 
 type 'a sll = 'a node ref
 
+let sll_cons_unfold (ls: 'a sll) : 'a sll = match !ls with
+  | Node (_, tl) -> tl
+  | _ -> assert false
+
 let sll_cons (hd: 'a) (tl: 'a sll) : 'a sll = ref (Node (hd, tl))
 
 let sll_nil () : 'a sll =
