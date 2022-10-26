@@ -119,8 +119,7 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.CaseFalse -> false
   | Proof_term.XDone _ -> false
   | Proof_term.HimplHandR (_, l1, l2)
-  | Proof_term.HimplTrans (_, _, l1, l2) ->
-    contains_symexec l1 || contains_symexec l2
+  | Proof_term.HimplTrans (_, _, l1, l2) -> contains_symexec l1 || contains_symexec l2
   | Proof_term.Lambda (_, _, rest) ->
     contains_symexec rest
   | Proof_term.AuxVarApp _

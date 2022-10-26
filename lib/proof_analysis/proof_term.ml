@@ -73,6 +73,7 @@ type t =
       proof: t
     }
   | XVal of { pre: sym_heap; value_ty: ty; value: expr }
+  | InfixColonEqualSpec of { ty: ty; reference: string; old_vl: expr; new_vl: expr; }
   | XDone of sym_heap
   | CaseBool of { cond: expr; if_true: t; if_false: t }
   | CaseADT of { vl: expr; cases: (string * (string * ty) list * t) list; }
@@ -89,6 +90,9 @@ type t =
       vl: expr;
       args: spec_arg list;
     }
+  | XChange of { first: t; second: t; }
+  | ReflOfEq of { proof: t }
+  | CustomFold of { lemma: string; no_existentials: int; reference: string; args: expr list }
   | Refl
   | CaseFalse
 and acc_rect_proof = {
@@ -99,6 +103,7 @@ and acc_rect_proof = {
 } [@@deriving show]
 
 let tag = function
+  | InfixColonEqualSpec _ -> "InfixColonEqualSpec"
   | HimplHandR _ -> "HimplHandR"
   | HimplTrans _ -> "HimplTrans"
   | Lambda _ -> "Lambda"
@@ -114,8 +119,11 @@ let tag = function
   | AuxVarApp _ -> "AuxVarApp"
   | CharacteristicFormulae _ -> "CharacteristicFormulae"
   | AccRect _ -> "AccRect"
+  | ReflOfEq _ -> "ReflOfEq"
   | Refl -> "Refl"
   | XIfVal _ -> "XIfVal"
+  | XChange _ -> "XChange"
   | CaseBool _ -> "CaseBool"
   | CaseADT _ -> "CaseADT"
   | CaseFalse -> "CaseFalse"
+  | CustomFold _ -> "CustomFold"
