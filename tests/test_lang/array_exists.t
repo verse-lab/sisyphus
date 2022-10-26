@@ -22,6 +22,6 @@
       ->
       if f (Array.get a i) then Some () else None)
     in
-    let (result: (() unit) option) = until_upto 0 len tmp in
+    let (result: (unit) option) = until_upto 0 len tmp in
     let (res: bool) = Opt.option_is_some result in
   res

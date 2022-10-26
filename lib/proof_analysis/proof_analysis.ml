@@ -14,7 +14,11 @@ type hof_env = (string * Parsetree.expression) list
 type obs = Dynamic.Concrete.context * Dynamic.Concrete.heap_context
 type heap_spec = Proof_spec.Heap.Heaplet.t list
 type invariant_spec = string * string list
-type invariant = Lang.Expr.t * (string * Lang.Expr.t) list
+
+type enc_fun = Lang.Expr.t -> Proof_spec.Heap.Heaplet.t
+type test_fun = Lang.Expr.t -> Lang.Expr.t
+
+type invariant = Lang.Expr.t * ((enc_fun * test_fun) * Lang.Expr.t) list
 type 'a tester = 'a -> bool
 
 let debug pp =
@@ -959,7 +963,6 @@ and extract_fold_specification (coq_env: Environ.env) (env: env) (trm: Constr.t)
   let prop_spec = args.(2) |> extract_prop_spec env in
   let recursive_spec = args.(3) in
   let vl = PCFML.extract_expr ~rel:(rel_expr env) args.(4) in
-  let oargs = args in
   let args = Iter.int_range ~start:6 ~stop:(Array.length args - 1)
              |> Iter.map (fun i -> args.(i))
              |> Iter.map (extract_proof_value env)

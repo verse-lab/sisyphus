@@ -1,4 +1,3 @@
-[@@@warning "-26"]
 open Containers
 
 module Log = (val Logs.src_log (Logs.Src.create ~doc:"Converts extracted proofs to OCaml programs" "analysis.test"))
@@ -6,22 +5,18 @@ module Log = (val Logs.src_log (Logs.Src.create ~doc:"Converts extracted proofs 
 module AH = Ast_helper
 module StringMap = Map.Make(String)
 
-let test_invariant
-      (real_heap_spec: Proof_spec.Heap.Heaplet.t list)
-      heap_spec =
-  let heap_mapping = StringMap.of_list heap_spec in
-  fun (pure, heap) ctx ->
+type enc_fun = Lang.Expr.t -> Proof_spec.Heap.Heaplet.t
+let pp_enc_fun fmt vl = Proof_spec.Heap.Heaplet.pp fmt (vl (`Var "??"))
+
+type test_fun = Lang.Expr.t -> Lang.Expr.t
+let pp_test_fun fmt vl = Format.fprintf fmt "(fun (??) -> %a)" Lang.Expr.pp (vl (`Var "??"))
+
+let test_invariant (pure, heap) ctx =
   assert (Sisyphus_tracing.Wrap.unwrap (Proof_term_evaluator.eval ctx pure) : bool);
   List.iter
-    Proof_spec.Heap.Heaplet.(fun (v, heap_expr) ->
-      match StringMap.find v heap_mapping with
-      | `Array _ ->
-        let expr = `App ("=", [ `App ("Array.to_list", [`Var v]); heap_expr ]) in
-        assert (Sisyphus_tracing.Wrap.unwrap (Proof_term_evaluator.eval ctx expr) : bool);          
-      | `PointsTo _ ->
-        let expr = `App ("=", [ `App ("!", [`Var v]); heap_expr ]) in
-        assert (Sisyphus_tracing.Wrap.unwrap (Proof_term_evaluator.eval ctx expr) : bool);          
-      | _ -> ()
+    Proof_spec.Heap.Heaplet.(fun ((_, test_fun), heap_expr) ->
+      let test_expr = test_fun heap_expr in
+      assert (Sisyphus_tracing.Wrap.unwrap (Proof_term_evaluator.eval ctx test_expr) : bool)
     ) (heap)
 
 let build_test
@@ -91,6 +86,10 @@ let build_test
         (let_ name
            (AH.Exp.array (List.map Proof_term_embedding.embed_value vls))
            rest)
+    | (name, `PointsTo (`Opaque _ as vl))::t ->
+      let+ rest = with_heap_bindings t in
+      kont (let_ name (Proof_term_embedding.embed_value vl)
+              rest)
     | (name, `PointsTo vl)::t ->
       let+ rest = with_heap_bindings t in
       kont (let_ name
@@ -131,13 +130,18 @@ let build_test
       Dynamic.CompilationContext.eval ctx ast in
     fun inv ->
       try
-        body (test_invariant heap_spec heap inv); true
+        body (test_invariant inv); true
       with
       | Assert_failure (_, _, _) -> false
       | e ->
         Log.warn (fun f ->
           f "evaluation of invariant %s failed dynamic tests \
              with non-assert exception %s@."
-            ([%show: Lang.Expr.t * (string * Lang.Expr.t) list] inv)
+            ([%show: Lang.Expr.t * ((enc_fun * test_fun) * Lang.Expr.t) list] inv)
             (Printexc.to_string e));
-        false
+        Format.ksprintf ~f:failwith 
+          "evaluation of invariant %s failed dynamic tests \
+           with non-assert exception %s@."
+          ([%show: Lang.Expr.t * ((enc_fun * test_fun) * Lang.Expr.t) list] inv)
+          (Printexc.to_string e)
+

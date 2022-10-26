@@ -45,6 +45,10 @@ let normalize = function
   | "TLC.LibListZ.length" -> "List.length"
   | "TLC.LibContainer.read" -> "List.nth"
   | "TLC.LibListZ.drop" -> "Lst.list_drop"
+  | "TLC.LibOrder.gt" -> ">"
+  | "TLC.LibOrder.lt" -> "<"
+  | "TLC.LibOrder.ge" -> ">="
+  | "TLC.LibOrder.le" -> "<="
   | s -> lowercase s
 
 let extract_sym s =

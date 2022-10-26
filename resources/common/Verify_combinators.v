@@ -179,9 +179,9 @@ Lemma for_downto_spec : forall (from: int) (down_to: int) (f: func),
     PRE (I from)
     POST (fun (_: unit) => I (down_to - 1)).
 Proof using.
-  intros from down_to.
+  intros from down_to f I.
   induction_wf IH: (downto down_to) from.
-  intros f I Hvld HI.
+  intros Hvld HI.
   xcf. 
   xif.
   - rewrite Px0__, istrue_isTrue_eq; intros ->.  

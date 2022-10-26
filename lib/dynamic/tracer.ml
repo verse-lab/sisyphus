@@ -2,7 +2,7 @@
 open Containers
 
 module Log = (val Logs.src_log (Logs.Src.create ~doc:"Tracing module for Sisyphus" "dyn.trace"))
-
+module StringMap = Map.Make (String)
 
 module Symbol = Sisyphus_tracing.Symbol
 
@@ -180,9 +180,14 @@ let build_enc_fun v =
 
 (* [build_heap_enc_exp ty var] returns an AST expression, that, when
    evaluated, will encode the heap-based [var]'s value (either array or ref). *)
-let build_heap_enc_exp (v: Lang.Type.t) var =
+let build_heap_enc_exp ?(encoders=StringMap.empty) (v: Lang.Type.t) var =
   let (let+) x f = Option.bind x f in
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
+  let fvar v =
+    Longident.unflatten (String.split_on_char '.' v)
+    |> Option.value ~default:(Longident.(Lident v))
+    |> Location.mknoloc
+    |> AH.Exp.ident in
   let list_map f ls =
     AH.Exp.(apply (ident (str Longident.(Ldot ((Lident "List"), "map")))) [
       Nolabel, f;
@@ -203,8 +208,19 @@ let build_heap_enc_exp (v: Lang.Type.t) var =
     let+ enc_fun = build_enc_fun ty in
     Some (AH.Exp.variant "PointsTo" @@ Some (
       AH.Exp.apply enc_fun [
-        Nolabel, bang (AH.Exp.ident (str Longident.(Lident var)))
+        Nolabel, bang (AH.Exp.ident (str Longident.(Lident var)));
       ]
+    ))
+  | Lang.Type.ADT (name, [ty], _) when StringMap.mem name encoders ->
+    let+ (of_list, to_list) = StringMap.find_opt name encoders in
+    let+ enc_fun = build_enc_fun ty in
+    Some (AH.Exp.variant "PointsTo" @@ Some (
+      AH.Exp.variant "Opaque" @@ Some (
+        AH.Exp.tuple [
+          AH.Exp.constant Parsetree.(Pconst_string (of_list, Location.none, None));
+          list_map enc_fun (AH.Exp.apply (fvar to_list) [ Nolabel, (AH.Exp.ident (str Longident.(Lident var))) ])
+        ]
+      )
     ))
   | _ -> None
 
@@ -220,9 +236,9 @@ let encode_env env =
   ) env
   |> encode_list
 
-let encode_heap env =
+let encode_heap ?(encoders=StringMap.empty) env =
   List.filter_map (fun (name, ty) ->
-    build_heap_enc_exp ty name |> Option.map (fun exp ->
+    build_heap_enc_exp ~encoders ty name |> Option.map (fun exp ->
       AH.Exp.tuple [
         encode_string name;
         exp
@@ -231,13 +247,13 @@ let encode_heap env =
   ) env
   |> encode_list
 
-let wrap_with_observe env ~at ~then_ =
+let wrap_with_observe ?(encoders=StringMap.empty) env ~at ~then_ =
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
   AH.Exp.sequence
     AH.Exp.(apply (ident Longident.(str @@ Ldot ((Lident "Sisyphus_tracing"), "observe"))) [
       Labelled "at", encode_int at;
       Labelled "env", encode_env env;
-      Labelled "heap", encode_heap env;
+      Labelled "heap", encode_heap ~encoders env;
     ])
     then_
 
@@ -278,7 +294,7 @@ let rec encode_expr (expr: Lang.Expr.t) =
       AH.Exp.fun_ Nolabel None pat body  in
     List.fold_right encode_fun args (encode_expr body)
 
-let annotate ?(deep=false) ({ prelude; name; args; body; _ }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
+let annotate ?(deep=false) ({ prelude; name; args; body; opaque_encoders; _ }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
   let add_param (param: Lang.Expr.typed_param) env =
     match param with
@@ -287,11 +303,12 @@ let annotate ?(deep=false) ({ prelude; name; args; body; _ }: Lang.Expr.t Lang.P
   let __raw_id, id =
     let id = ref 0 in
     id, fun () -> let vl = !id in incr id; vl in
+  let adt_encoders = StringMap.of_list opaque_encoders in
   let rec encode_stmt ~observe env (stmt: Lang.Expr.t Lang.Program.stmt) =
     let wrap then_ =
       if observe then
         let id = id () in
-        wrap_with_observe env ~at:id
+        wrap_with_observe ~encoders:adt_encoders  env ~at:id
           ~then_:(then_ ())
       else (then_ ()) in
     (* Format.printf "current program id is %d: %s@."

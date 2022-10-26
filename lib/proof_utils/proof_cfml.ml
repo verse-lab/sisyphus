@@ -104,6 +104,11 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
   (* Proof irrelevance? pfftt... not on my watch:  *)
   | Constr.Sort Prop, _ -> Lang.Type.Bool
 
+  | Constr.App (fname, [| ty |]), _ when Utils.is_const_eq "Common.Verify_sll.sll" fname ->
+    let fname, _ = Constr.destConst fname in
+    let fname = Names.Label.to_string (Names.Constant.label fname) in
+    ADT (fname, [extract_typ ?rel ty], None)
+
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a type"
       (Proof_debug.constr_to_string c)

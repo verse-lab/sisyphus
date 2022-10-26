@@ -7,6 +7,7 @@ type value = [
   | `List of value list
   | `Tuple of value list
   | `Constructor of string * value list
+  | `Opaque of string * value list
 ] [@@deriving show]
 
 type heaplet = [
@@ -21,6 +22,7 @@ let rec sanitise_value : Sisyphus_tracing.value -> value = function
   | `Bool b -> `Bool b
   | `Value s -> `Value (Sisyphus_tracing.Symbol.show s)
   | `Constructor (name, vls) -> `Constructor (name, List.map sanitise_value vls)
+  | `Opaque (name, vls) -> `Opaque (name, List.map sanitise_value vls)
 
 let sanitise_heaplet : Sisyphus_tracing.heaplet -> heaplet = function
   | `PointsTo vl -> `PointsTo (sanitise_value vl)

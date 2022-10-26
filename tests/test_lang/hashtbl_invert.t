@@ -6,10 +6,10 @@
     (fun
       ((k: int), (v: int))
       ->
-      let (unused: () unit) = Hashtbl.hashtbl_add c v k in
+      let (unused: unit) = Hashtbl.hashtbl_add c v k in
         ())
     in
-    let (unused: () unit) = hashtbl_iter h tmp in c
+    let (unused: unit) = hashtbl_iter h tmp in c
   NEW:
   let invert_hashtbl (h:
   (int) hashtbl) =
@@ -18,7 +18,7 @@
     (fun
       (c: (int) hashtbl) ((k: int), (v: int))
       ->
-      let (unused: () unit) = hashtbl_add c v k in
+      let (unused: unit) = hashtbl_add c v k in
         c)
     in
     let (res: (int) hashtbl) = hashtbl_fold h tmp c in

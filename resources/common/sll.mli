@@ -7,6 +7,10 @@ val sll_nil : unit -> 'a sll
 
 val sll_push : 'a -> 'a sll -> unit
 
+val sll_of_list: 'a list -> 'a sll
+
+val sll_to_list: 'a sll -> 'a list
+
 val sll_iter : ('a -> unit) -> 'a sll -> unit
 
 val sll_iter_drain : ('a -> unit) -> 'a sll -> unit
