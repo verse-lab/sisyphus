@@ -7,7 +7,7 @@ type t = {
 
   encoding_functions: (string * string) StringMap.t;
   (** [encoding_functions] represents a mapping from ADT type names to
-     their encoding [to_list, from_list] functions. Currently we use
+     their encoding [of_list, to_list] functions. Currently we use
      lists as the common intermediate representation, but in theory a
      generic structured value encoding could be used. *)
   
@@ -155,7 +155,7 @@ let normalize_observation env ((pure, heap): (Dynamic.Concrete.context * Dynamic
 
 let find_to_list_function_for env (adt_name: string) =
   match StringMap.find adt_name env.encoding_functions with
-  | (to_list, _) -> to_list
+  | (_, to_list) -> to_list
   | exception Not_found ->
     Format.ksprintf ~f:failwith "failed to find conversion functions for ADT %s (known mappings: %a)" adt_name
       (StringMap.pp String.pp (Pair.pp String.pp String.pp)) env.encoding_functions
