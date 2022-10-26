@@ -52,6 +52,8 @@ let asserts b f =
   if not b then
     failwith (f (Format.ksprintf ~f:failwith))
 
+let failwith fmt = Format.ksprintf ~f:failwith fmt
+
 let show_obs obs = [%show: (string * Dynamic.Concrete.value) list * (string * Dynamic.Concrete.heaplet) list] obs
 
 module StringMap = Map.Make(String)
@@ -76,8 +78,7 @@ let find_spec t const =
   | [(Names.GlobRef.ConstRef name, _, ty)] -> (name, ty)
   | [_] -> failwith "failure finding specification for function application: non-constant name for reference"
   | [] ->
-    Format.ksprintf ~f:failwith
-      "failure finding specification for function application of %s: could not find an appropriate specification"
+    failwith "failure finding specification for function application of %s: could not find an appropriate specification"
       (Names.Constant.to_string const)
   | _ -> failwith "failure finding specification for function application: ambiguity - more than one valid specification found"
 
@@ -109,8 +110,7 @@ let print_heap ?(framed_heaplets=StringSet.empty) heap_mapping heap =
      | Proof_spec.Heap.Heaplet.PointsTo (_, _, `App (_, _)) ->
        None
      | Proof_spec.Heap.Heaplet.PointsTo (_, _, v) ->
-       Format.ksprintf ~f:failwith
-         "found unsupported heaplet %a" Lang.Expr.pp v
+       failwith "found unsupported heaplet %a" Lang.Expr.pp v
    ) heap
    |> String.concat " \\* ")
 
@@ -384,13 +384,13 @@ let ensure_single_invariant ~name:lemma_name ~ty:lemma_full_type ~args:f_args  =
   let param_bindings, remaining = combine_rem explicit_lemma_params f_args in
   match remaining with
   | Some (Right _) | None | Some (Left [])  ->
-    Format.ksprintf ~f:failwith "TODO: found function application %a with no invariant/insufficient arguments?"
+    failwith "TODO: found function application %a with no invariant/insufficient arguments?"
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left ((_, inv_ty) :: logical_params)) when (* it is invalid for, either: *)
       (not (Proof_utils.CFML.is_invariant_ty inv_ty) (* first argument after concrete to not be an invariant *)
        || List.exists (Pair.snd_map Proof_utils.CFML.is_invariant_ty) logical_params)
     (*  or any arguments after the invariant to be hprop-taking *) ->
-    Format.ksprintf ~f:failwith "TODO: found function application %a zero or more than one invariants"
+    failwith "TODO: found function application %a zero or more than one invariants"
       Pp.pp_with (Names.Constant.print lemma_name)
   | Some (Left (_ :: [])) ->
     []
@@ -424,7 +424,7 @@ let typeof ?(product_types=[]) t env (s: string) : (Lang.Type.t list * Lang.Type
     | "+" -> Lang.Type.[[Int; Int], Int]
     | "=" -> []
     | s when not (String.exists Char.(fun c -> ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')) s) ->
-      Format.ksprintf ~f:failwith "found unknown operator %s" s
+      failwith "found unknown operator %s" s
     | s ->
       let (let+) x f = Option.bind x f in
       Option.value ~default:[] @@
@@ -496,7 +496,7 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
       let ty =
         if is_option_combinator lemma_name
         then match ty with | Lang.Type.ADT ("option", [ty], _) -> ty
-                           | _ -> Format.ksprintf ~f:failwith "invalid option combinator type %a" Lang.Type.pp ty
+                           | _ -> failwith "invalid option combinator type %a" Lang.Type.pp ty
         else ty in
       Some (`Type ty)
     else None in
@@ -613,7 +613,7 @@ let reduce_term t term =
          *   Log.debug (fun f -> f "Expanding %s:%s" path label);
          * incr fuel; *)
         `Unfold
-      | _ -> failwith ("UNKNOWN PATH " ^ path ^ " for " ^ "label") in
+      | _ -> failwith "UNKNOWN PATH %s for label" path in
   let env = Proof_context.env t in
   let (evd, reduced) =
     let evd = Evd.from_env env in
@@ -890,7 +890,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
             match StringMap.find_opt arr env.gamma with
             | Some (Array elt) -> Lang.Type.to_coq_form elt
             | _ ->
-              Format.ksprintf ~f:failwith "failed to retrieve type of heaplet %s" arr in
+              failwith "failed to retrieve type of heaplet %s" arr in
           (* only attempt to synthesize the expression if it is actually mutated   *)
           if StringSet.mem arr mut_vars
           then Some (arr, Lang.Type.List elt_ty)
@@ -902,36 +902,29 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
             match StringMap.find_opt v env.gamma with
             | Some (Ref elt) -> Lang.Type.to_coq_form elt
             | _ ->
-              Format.ksprintf ~f:failwith "failed to retrieve type of heaplet %s" v in
+              failwith "failed to retrieve type of heaplet %s" v in
           (* only attempt to synthesize the expression if it is actually mutated   *)
           if StringSet.mem v mut_vars
           then Some (v, elt_ty)
           else None
         | PointsTo (var, _, `App (heap_pred, [ _ ])) as v when StringMap.mem var env.gamma ->
-          let ty = match StringMap.find var env.gamma with
-            | Lang.Type.ADT (_, [ty], _) -> Lang.Type.to_coq_form ty
-            | ty ->
-              Format.ksprintf ~f:failwith
-                "found unsupported heaplet %a inner type %a expected to be ADT with one parameter"
-                pp v Lang.Type.pp ty in
+          let adt_name, ty = match StringMap.find var env.gamma with
+            | Lang.Type.ADT (adt_name, [ty], _) -> adt_name, Lang.Type.to_coq_form ty
+            | ty -> failwith "found unsupported heaplet (%a: %a) \
+                              expected to be ADT with one parameter" pp v Lang.Type.pp ty in
           let ty =
             Format.ksprintf ~f:(Proof_context.typeof t)
               "@%s %a _" heap_pred Lang.Type.pp ty in
           let hole_ty = match Constr.kind_nocast ty with
             | Constr.Prod (_, ty, _) -> Proof_utils.CFML.extract_typ ty
-            | _ -> 
-              Format.ksprintf ~f:failwith
-                "found unsupported heaplet %a arg type %s expected to be product with one argument"
-                pp v (Proof_utils.Debug.constr_to_string_pretty ty) in
-          Format.ksprintf ~f:failwith
+            | _ -> failwith "found unsupported heaplet %a arg type %s \
+                             expected to be product with one argument" pp v ([%show: constr] ty) in
+          failwith
             "found unsupported heaplet %a with hole type %a"
             pp v  Lang.Type.pp hole_ty
         | PointsTo (var, ty, body) as v ->
-          Format.ksprintf ~f:failwith
-            "found unsupported heaplet %a (%s: %a ==> %a)"
-            pp v var
-            (Option.pp Lang.Type.pp) ty
-            (Option.pp Lang.Type.pp) (StringMap.find_opt var env.gamma)
+          failwith "found unsupported heaplet %a (%s: %a ==> %a)"
+            pp v var (Option.pp Lang.Type.pp) ty (Option.pp Lang.Type.pp) (StringMap.find_opt var env.gamma)
       ) pre_heap in
 
   Log.info (fun f ->
@@ -992,9 +985,9 @@ let prune_candidates_using_testf test_f (pure, heap) =
     ) heap
   end;
   if List.exists (fun v -> v <= 0) no_pure then
-    Format.ksprintf ~f:failwith "ran out of pure candidates";
+    failwith "ran out of pure candidates";
   if List.exists (fun v -> v <= 0) no_heap then
-    Format.ksprintf ~f:failwith "ran out of heap candidates";
+    failwith "ran out of heap candidates";
 
   pure, heap
 
@@ -1010,7 +1003,7 @@ let has_pure_specification t =
     let _, _, spec =
       Proof_utils.CFML.extract_spec invariant in
     if not (Constr.isApp spec) || not @@ Proof_utils.is_const_eq "CFML.SepLifted.Triple" (fst (Constr.destApp spec)) then
-      Format.ksprintf ~f:failwith "unexpected invariant structure, expecting app of triple: %s"
+      failwith "unexpected invariant structure, expecting app of triple: %s"
         (Proof_utils.Debug.constr_to_string_pretty spec);
     let[@warning "-8"] [| _; _; _; pre; _ |] = snd (Constr.destApp spec) in
     Proof_utils.CFML.is_hempty pre
@@ -1166,7 +1159,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
       Proof_context.append t "{ admit. }";
     done
   | t ->
-    Format.ksprintf ~f:failwith
+    failwith
       "todo: implement support for %a constructs"
       (Lang.Program.pp_stmt_line Lang.Expr.print) t
 and symexec_lambda t env name body rest =
@@ -1228,7 +1221,7 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
             );
   let prog_var, prog_ty = match pat with
     | `Tuple _ ->
-      failwith (Format.sprintf "TODO: implement handling of let _ = %a expressions" Lang.Expr.pp body)
+      failwith "TODO: implement handling of let _ = %a expressions" Lang.Expr.pp body
     | `Var (var, ty) -> var, ty in
   if is_simple_expression body
   then begin
@@ -1252,7 +1245,7 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
       Proof_context.append t "xlet.";
     end;
     if Proof_context.(current_subproof t).goals |> List.length > 1 then
-      Format.ksprintf ~f:failwith "symbolic execution of %a lead to multiple non-trivial subgoals"
+      failwith "symbolic execution of %a lead to multiple non-trivial subgoals"
         Lang.Expr.pp body;
     (* while Proof_context.(current_subproof t).goals |> List.length > 1 do
      *   Proof_context.append t "{ admit. }";
@@ -1551,7 +1544,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let no_pure = List.exists Seq.is_empty pure || List.is_empty pure in
 
   if no_pure && not expected_no_pure then
-    Format.ksprintf ~f:failwith "failed to find pure invariant candidates.";
+    failwith "failed to find pure invariant candidates.";
 
   let heap_mapping = List.map Proof_spec.Heap.Heaplet.(fun (PointsTo (v, _, _) as pts) -> (v, pts)) pre_heap
                      |> StringMap.of_list in
@@ -1710,8 +1703,7 @@ let generate ?(logical_mappings=[]) t (prog: Lang.Expr.t Lang.Program.t) =
          |> Names.Constant.label
          |> Names.Label.to_string)
     end then
-      Format.ksprintf ~f:failwith
-        "unexpected goal post format, expected Wptag, found %s"
+      failwith "unexpected goal post format, expected Wptag, found %s"
         (Proof_utils.Debug.constr_to_string_pretty post);
 
     let post_ty = Proof_utils.CFML.extract_typ post_args.(1) in
