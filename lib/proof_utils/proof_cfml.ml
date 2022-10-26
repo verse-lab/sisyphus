@@ -120,6 +120,8 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
     List (extract_typ ?rel ty)
   | Constr.App (fname, [|ty|]), _ when Utils.is_const_eq "CFML.WPBuiltin.array" fname -> 
     Array (extract_typ ?rel ty)
+  | Constr.App (fname, [| ty |]), _ when  Utils.is_const_eq "CFML.Stdlib.Pervasives_ml.ref_" fname ->
+    Ref (extract_typ ?rel ty)
   | Constr.App (fname, args), _ when Utils.is_ind_eq "Coq.Init.Datatypes.prod" fname ->
     Product (Array.to_iter args |> Iter.map (extract_typ ?rel) |> Iter.to_list)
   | Constr.App (fname, [| ty |]), _ when Utils.is_ind_eq "Coq.Init.Datatypes.option" fname ->
