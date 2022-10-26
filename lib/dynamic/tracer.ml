@@ -439,26 +439,31 @@ module Generator = struct
 
   type instantiation = Parsetree.expression list
 
-  let rec of_type (t: Lang.Type.t) =
+  let rec of_type ?(encoders=StringMap.empty) (t: Lang.Type.t) =
     match t with
     | Lang.Type.Unit -> Unit
     | Lang.Type.Var v -> Symbol v
     | Lang.Type.Int -> Int
     | Lang.Type.Bool -> Bool
-    | Lang.Type.List t -> List (of_type t)
-    | Lang.Type.Array t -> Array (of_type t)
-    | Lang.Type.Ref t -> Ref (of_type t)
-    | Lang.Type.Product tys -> Product (List.map of_type tys)
+    | Lang.Type.List t -> List (of_type ~encoders t)
+    | Lang.Type.Array t -> Array (of_type ~encoders t)
+    | Lang.Type.Ref t -> Ref (of_type ~encoders t)
+    | Lang.Type.Product tys -> Product (List.map (of_type ~encoders) tys)
     | Lang.Type.ADT (_, [arg], Some (conv, _)) ->
       let lid = String.split_on_char '.' conv |> Longident.unflatten |> Option.get_exn_or "invalid converter" in
-      Converted (lid, of_type arg)
-    | Lang.Type.ADT ("option", [arg], None) -> Option (of_type arg)
+      Converted (lid, of_type ~encoders arg)
+    | Lang.Type.ADT ("option", [arg], None) -> Option (of_type ~encoders arg)
+    | Lang.Type.ADT (adt_name, [arg], None) when StringMap.mem adt_name encoders ->
+      let (of_list, _) = StringMap.find adt_name encoders in
+      let lid = String.split_on_char '.' of_list |> Longident.unflatten |> Option.get_exn_or "invalid converter" in
+      Converted (lid, of_type ~encoders arg)
     | Lang.Type.Func (Some (args, res)) ->
-      Function (List.map of_type args, of_type res)
+      Function (List.map (of_type  ~encoders) args, (of_type  ~encoders) res)
     | t -> failwith (Format.sprintf "unsupported argument type %a" Lang.Type.pp t)
 
   let extract_schema (prog: _ Lang.Program.t) : schema =
-    prog.args |> List.map (fun (_, ty) -> of_type ty)
+    let encoders = StringMap.of_list prog.opaque_encoders in
+    prog.args |> List.map (fun (_, ty) -> of_type ~encoders ty)
 
   let fresh_int idmap var =
     let id = Option.value ~default:1 (Hashtbl.find_opt idmap var) in
