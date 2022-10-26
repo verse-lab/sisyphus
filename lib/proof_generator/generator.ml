@@ -627,10 +627,10 @@ let reduce_term t term =
   let trm = (EConstr.to_constr evd reduced) in
   let f_app = Proof_utils.extract_trm_app trm in
   Log.info (fun f -> f "initial reduction phase passed @.");
-  Configuration.dump_output "reduced-first-try"
-    (fun f -> f "%s" (Proof_utils.Debug.constr_to_string trm));
-  Configuration.dump_output "reduced-first-try-pretty"
-    (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty trm));
+  (* Configuration.dump_output "reduced-first-try"
+   *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string trm));
+   * Configuration.dump_output "reduced-first-try-pretty"
+   *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty trm)); *)
   match f_app with
   (* when we fail to reduce the term to an application of a constant wp function, then we have to force the evaluation *)
   | Some f_app when not (Proof_utils.CFML.is_const_wp_fn f_app) ->
