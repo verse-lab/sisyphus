@@ -22,6 +22,7 @@ let is_xlet_fun_lemma const = is_const_named "xlet_fun_lemma" const
 let is_xlet_val_lemma const = is_const_named "xlet_val_lemma" const
 let is_xlet_trm_cont_lemma const = is_const_named "xlet_trm_cont_lemma" const
 let is_xseq_cont_lemma const = is_const_named "xseq_cont_lemma" const
+let is_xchange_lemma const = is_const_named "xchange_lemma" const
 let is_xmatch_lemma const = is_const_named "xmatch_lemma" const
 let is_xapp_lemma const = is_const_named "xapp_lemma" const
 let is_xapps_lemma const = is_const_named "xapps_lemma" const
@@ -45,10 +46,12 @@ let is_hstars_simpl_start const = is_const_named "hstars_simpl_start" const
 let is_hstars_simpl_cancel const = is_const_named "hstars_simpl_cancel" const
 let is_hstars_simpl_pick_lemma const = is_const_named "hstars_simpl_pick_lemma" const
 let is_himpl_refl const = is_const_named "himpl_refl" const
+let is_himpl_of_eq const = is_const_named "himpl_of_eq" const
 let is_xsimpl_lr_exit_nogc_nocredits const = is_const_named "xsimpl_lr_exit_nogc_nocredits" const
 let is_xsimpl_lr_exit_nocredits const = is_const_named "xsimpl_lr_exit_nocredits" const
 let is_himpl_hforall_r const = is_const_named "himpl_hforall_r" const
 let is_hwand_hpure_r_intro const = is_const_named "hwand_hpure_r_intro" const
+let is_xpull_protect const = is_const_named "xpull_protect" const
 let is_xsimpl_l_acc_other const = is_const_named "xsimpl_l_acc_other" const
 let is_xsimpl_lr_cancel_same const = is_const_named "xsimpl_lr_cancel_same" const
 let is_xsimpl_r_keep const = is_const_named "xsimpl_r_keep" const
@@ -60,6 +63,44 @@ let is_xsimpl_r_hgc_or_htop const = is_const_named "xsimpl_r_hgc_or_htop" const
 let is_xsimpl_lr_qwand_unit const = is_const_named "xsimpl_lr_qwand_unit" const
 let is_xsimpl_lr_hgc_nocredits const = is_const_named "xsimpl_lr_hgc_nocredits" const
 let is_xsimpl_lr_refl_nocredits const = is_const_named "xsimpl_lr_refl_nocredits" const
+let is_infix_colon_eq_spec const = is_const_named "infix_colon_eq_spec" const
+
+let to_cfml_ocaml_type s =
+  let elts = String.split_on_char '.' s in
+  match List.rev elts with
+  | ty_name :: modl :: _
+    when String.suffix ~suf:"_" ty_name && String.suffix ~suf:"_ml" modl ->
+    let modl = String.take (String.length modl - 3) modl in
+    let ty_name = String.take (String.length ty_name - 1) ty_name in
+    if String.equal modl "Pervasives"
+    then Some (None, ty_name)
+    else Some (Some modl, ty_name)
+  | _ -> None
+
+let unwrap_cfml_ocaml_type c = begin match Constr.kind_nocast c with
+  | Constr.Const (cst, _) ->
+    let label = Names.Constant.to_string cst in
+    to_cfml_ocaml_type label
+  | Constr.Ind ((ind, _), _) ->
+    let label = Names.MutInd.to_string ind in
+    to_cfml_ocaml_type label
+  | _ -> None
+end |> Option.map (function (None, ty) -> ty | (Some modl, ty) -> (modl ^ "." ^ ty))
+
+(** [is_cfml_custom_user_lemma] determines whether a given Coq term is
+    a custom user lemma used in folding and unfolding. *)
+let is_cfml_custom_user_lemma trm =
+  Constr.isConst trm && begin
+    let (cst, _) = Constr.destConst trm in
+    Names.Constant.to_string cst |> String.prefix ~pre:"Common."
+  end
+
+let unwrap_cfml_ocaml_constructor c =
+  match Constr.kind_nocast c with
+  | Constr.Construct (((cst, _), _), _) ->
+    let label = Names.MutInd.to_string cst in
+    to_cfml_ocaml_type label
+  | _ -> None
 
 (** [extract_typ ?rel c] extracts a Type from a Coq term. [rel] if
     provided is a function that coq's de-brujin indices to a concrete
