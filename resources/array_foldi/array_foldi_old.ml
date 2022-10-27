@@ -9,4 +9,4 @@ let foldi (a: 'a array) (init: 'b) (f: int -> 'a -> 'b -> 'b) =
        f i a.(i) acc)
      init in
   res
-[@@with_logical_mapping ["l", "a"; "f", "fp"]]
+[@@with_logical_mapping ["l", "a"; "fp", "f"]]

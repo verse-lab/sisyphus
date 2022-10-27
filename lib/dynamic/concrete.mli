@@ -5,6 +5,7 @@ type value = [
   | `List of value list
   | `Tuple of value list
   | `Constructor of string * value list
+  | `Opaque of string * value list
 ]  [@@deriving show]
 (** Represents an encoding of OCaml runtime values from a concrete execution trace. *)
 

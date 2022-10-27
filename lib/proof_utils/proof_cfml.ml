@@ -22,10 +22,14 @@ let is_xlet_fun_lemma const = is_const_named "xlet_fun_lemma" const
 let is_xlet_val_lemma const = is_const_named "xlet_val_lemma" const
 let is_xlet_trm_cont_lemma const = is_const_named "xlet_trm_cont_lemma" const
 let is_xseq_cont_lemma const = is_const_named "xseq_cont_lemma" const
+let is_xchange_lemma const = is_const_named "xchange_lemma" const
 let is_xmatch_lemma const = is_const_named "xmatch_lemma" const
 let is_xapp_lemma const = is_const_named "xapp_lemma" const
 let is_xapps_lemma const = is_const_named "xapps_lemma" const
+let is_xapp_record_Get const = is_const_named "xapp_record_Get" const
+let is_xapp_record_Set const = is_const_named "xapp_record_Set" const
 let is_xval_lemma const = is_const_named "xval_lemma" const
+let is_xval'_lemma const = is_const_named "xval'_lemma" const
 let is_xifval_lemma const = is_const_named "xifval_lemma" const
 let is_xifval_lemma_isTrue const = is_const_named "xifval_lemma_isTrue" const
 let is_xdone_lemma const = is_const_named "xdone_lemma" const
@@ -45,21 +49,64 @@ let is_hstars_simpl_start const = is_const_named "hstars_simpl_start" const
 let is_hstars_simpl_cancel const = is_const_named "hstars_simpl_cancel" const
 let is_hstars_simpl_pick_lemma const = is_const_named "hstars_simpl_pick_lemma" const
 let is_himpl_refl const = is_const_named "himpl_refl" const
+let is_himpl_of_eq const = is_const_named "himpl_of_eq" const
+let is_xsimpl_lr_cancel_eq_repr const = is_const_named "xsimpl_lr_cancel_eq_repr" const
 let is_xsimpl_lr_exit_nogc_nocredits const = is_const_named "xsimpl_lr_exit_nogc_nocredits" const
 let is_xsimpl_lr_exit_nocredits const = is_const_named "xsimpl_lr_exit_nocredits" const
 let is_himpl_hforall_r const = is_const_named "himpl_hforall_r" const
 let is_hwand_hpure_r_intro const = is_const_named "hwand_hpure_r_intro" const
+let is_xpull_protect const = is_const_named "xpull_protect" const
+let is_xsimpl_r_hpure const = is_const_named "xsimpl_r_hpure" const
 let is_xsimpl_l_acc_other const = is_const_named "xsimpl_l_acc_other" const
 let is_xsimpl_lr_cancel_same const = is_const_named "xsimpl_lr_cancel_same" const
 let is_xsimpl_r_keep const = is_const_named "xsimpl_r_keep" const
 let is_xsimpl_lr_qwand const = is_const_named "xsimpl_lr_qwand" const
 let is_xsimpl_lr_hwand const = is_const_named "xsimpl_lr_hwand" const
+let is_xsimpl_r_hexists const = is_const_named "xsimpl_r_hexists" const
 let is_xsimpl_flip_acc_l const = is_const_named "xsimpl_flip_acc_l" const
 let is_xsimpl_flip_acc_r const = is_const_named "xsimpl_flip_acc_r" const
 let is_xsimpl_r_hgc_or_htop const = is_const_named "xsimpl_r_hgc_or_htop" const
 let is_xsimpl_lr_qwand_unit const = is_const_named "xsimpl_lr_qwand_unit" const
 let is_xsimpl_lr_hgc_nocredits const = is_const_named "xsimpl_lr_hgc_nocredits" const
 let is_xsimpl_lr_refl_nocredits const = is_const_named "xsimpl_lr_refl_nocredits" const
+let is_infix_colon_eq_spec const = is_const_named "infix_colon_eq_spec" const
+
+let to_cfml_ocaml_type s =
+  let elts = String.split_on_char '.' s in
+  match List.rev elts with
+  | ty_name :: modl :: _
+    when String.suffix ~suf:"_" ty_name && String.suffix ~suf:"_ml" modl ->
+    let modl = String.take (String.length modl - 3) modl in
+    let ty_name = String.take (String.length ty_name - 1) ty_name in
+    if String.equal modl "Pervasives"
+    then Some (None, ty_name)
+    else Some (Some modl, ty_name)
+  | _ -> None
+
+let unwrap_cfml_ocaml_type c = begin match Constr.kind_nocast c with
+  | Constr.Const (cst, _) ->
+    let label = Names.Constant.to_string cst in
+    to_cfml_ocaml_type label
+  | Constr.Ind ((ind, _), _) ->
+    let label = Names.MutInd.to_string ind in
+    to_cfml_ocaml_type label
+  | _ -> None
+end |> Option.map (function (None, ty) -> ty | (Some modl, ty) -> (modl ^ "." ^ ty))
+
+(** [is_cfml_custom_user_lemma] determines whether a given Coq term is
+    a custom user lemma used in folding and unfolding. *)
+let is_cfml_custom_user_lemma trm =
+  Constr.isConst trm && begin
+    let (cst, _) = Constr.destConst trm in
+    Names.Constant.to_string cst |> String.prefix ~pre:"Common."
+  end
+
+let unwrap_cfml_ocaml_constructor c =
+  match Constr.kind_nocast c with
+  | Constr.Construct (((cst, _), _), _) ->
+    let label = Names.MutInd.to_string cst in
+    to_cfml_ocaml_type label
+  | _ -> None
 
 (** [extract_typ ?rel c] extracts a Type from a Coq term. [rel] if
     provided is a function that coq's de-brujin indices to a concrete
@@ -79,6 +126,8 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
     List (extract_typ ?rel ty)
   | Constr.App (fname, [|ty|]), _ when Utils.is_const_eq "CFML.WPBuiltin.array" fname -> 
     Array (extract_typ ?rel ty)
+  | Constr.App (fname, [| ty |]), _ when  Utils.is_const_eq "CFML.Stdlib.Pervasives_ml.ref_" fname ->
+    Ref (extract_typ ?rel ty)
   | Constr.App (fname, args), _ when Utils.is_ind_eq "Coq.Init.Datatypes.prod" fname ->
     Product (Array.to_iter args |> Iter.map (extract_typ ?rel) |> Iter.to_list)
   | Constr.App (fname, [| ty |]), _ when Utils.is_ind_eq "Coq.Init.Datatypes.option" fname ->
@@ -103,7 +152,17 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
     loop [] c
   (* Proof irrelevance? pfftt... not on my watch:  *)
   | Constr.Sort Prop, _ -> Lang.Type.Bool
-
+  | Constr.App (fname, [| ty |]), _ when Utils.is_const_eq "Common.Verify_sll.sll" fname ||
+                                         Utils.is_const_eq "Common.Sll_ml.sll_" fname ||
+                                         Utils.is_const_eq "Common.Verify_stack.stack" fname ||
+                                         Utils.is_const_eq "Common.Verify_queue.queue" fname ->
+    let fname, _ = Constr.destConst fname in
+    let fname = Names.Label.to_string (Names.Constant.label fname) in
+    let fname = if String.suffix ~suf:"_" fname then String.sub fname 0 (String.length fname - 1) else fname in
+    ADT (fname, [extract_typ ?rel ty], None)
+  | Constr.App (fname, [| ty |]), _ when Option.is_some (unwrap_cfml_ocaml_type fname) ->
+    let fname = unwrap_cfml_ocaml_type fname |> Option.get_exn_or "invalid assumptions" in
+    ADT (fname, [extract_typ ?rel ty], None)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a type"
       (Proof_debug.constr_to_string c)
@@ -173,29 +232,29 @@ let extract_fun_typ ?name c' =
   let c = extract_types implicits pos qf [] c in
   Lang.Type.Forall (List.rev qf,c)
 
-(** [extract_expr ?rel c] extracts an expression from a Coq term
+(** [extract_expr ?env ?rel c] extracts an expression from a Coq term
     [c]. [rel] is a function that maps Coq's de-bruijin indices to the
     corresponding terms in the wider typing environment. *)
-let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
+let rec extract_expr ?env ?rel (c: Constr.t) : Lang.Expr.t =
   match Constr.kind c, rel with
-  | Constr.Cast (c, _, _), _ -> extract_expr ?rel c
+  | Constr.Cast (c, _, _), _ -> extract_expr ?env ?rel c
   | Constr.Rel ind, Some f -> `Var (f ind)
   | Constr.Var v, _ -> `Var (Names.Id.to_string v)
   | Constr.App (value, [| c |]), _ when Utils.is_const_eq "TLC.LibReflect.istrue" value
                                      || Utils.is_const_eq "TLC.LibReflect.isTrue" value ->
-    extract_expr ?rel c
+    extract_expr ?env ?rel c
   | Constr.App (value, [| c |]), _ when Utils.is_const_eq "CFML.Semantics.trms_vals" value ->
-    extract_expr ?rel c
+    extract_expr ?env ?rel c
   | Constr.App (value, [| c |]), _ when Utils.is_const_eq "TLC.LibInt.nat_to_Z" value ->
-    extract_expr ?rel c
+    extract_expr ?env ?rel c
   | Constr.App (value, [| c |]), _ when Utils.is_constr_eq "CFML.Semantics.val" value ->
-    extract_expr ?rel c
+    extract_expr ?env ?rel c
 
   (* boolean *)
   | Constr.App (trm, [| l; r |]), _ when Utils.is_ind_eq "Coq.Init.Logic.and" trm ->
-    `App ("&&", [extract_expr ?rel l; extract_expr ?rel r])
+    `App ("&&", [extract_expr ?env ?rel l; extract_expr ?env ?rel r])
   | Constr.App (trm, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Datatypes.implb" trm ->
-    `App ("||", [`App ("not",  [extract_expr ?rel l]); extract_expr ?rel r])
+    `App ("||", [`App ("not",  [extract_expr ?env ?rel l]); extract_expr ?env ?rel r])
 
   | Constr.Construct _ , _ when Utils.is_constr_bool_true c ->
     `Constructor ("true", [ ])
@@ -204,7 +263,7 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
 
   (* lists *)
   | Constr.App (const, [|ty; h; tl|]), _ when Utils.is_constr_cons const ->
-    `Constructor ("::", [extract_expr ?rel h; extract_expr ?rel tl])
+    `Constructor ("::", [extract_expr ?env ?rel h; extract_expr ?env ?rel tl])
   | Constr.App (const, [|ty|]), _ when Utils.is_constr_nil const ->
     `Constructor ("[]", [])
   (* Hey, idiot! Yes. You. If you're adding things here to make
@@ -225,12 +284,12 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
   | Constr.App (const, [|ty|]), _ when Utils.is_constr_option_none const ->
     `Constructor ("None", [])
   | Constr.App (const, [|ty; vl|]), _ when Utils.is_constr_option_some const ->
-    `Constructor ("Some", [extract_expr ?rel vl])
+    `Constructor ("Some", [extract_expr ?env ?rel vl])
 
   (* equality *)
   | Constr.App (const, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.eqb" const ->
-    let l = extract_expr ?rel l in
-    let r = extract_expr ?rel r in
+    let l = extract_expr ?env ?rel l in
+    let r = extract_expr ?env ?rel r in
     `App ("=", [l;r])
   | Constr.App (const, [|_ty; l; r|]), _ when Utils.is_coq_eq const ->
     let l = extract_expr ?rel l in
@@ -246,39 +305,74 @@ let rec extract_expr ?rel (c: Constr.t) : Lang.Expr.t =
     let no_types = Array.length args / 2 in
     let args = Array.to_iter args
                |> Iter.drop no_types
-               |> Iter.map (extract_expr ?rel)
+               |> Iter.map (extract_expr ?env ?rel)
                |> Iter.to_list in
     `Tuple (args)
 
   (* arithmetic *)
   | Constr.App (fname, [| _; _; l; r |]), _ when Utils.is_const_eq "TLC.LibOrder.lt" fname ->
-    `App ("<", [extract_expr ?rel l; extract_expr ?rel r])        
+    `App ("<", [extract_expr ?env ?rel l; extract_expr ?env ?rel r])        
   | Constr.App (fname, [| _; _; l; r |]), _ when Utils.is_const_eq "TLC.LibOrder.le" fname ->
-    `App ("<=", [extract_expr ?rel l; extract_expr ?rel r])        
+    `App ("<=", [extract_expr ?env ?rel l; extract_expr ?env ?rel r])        
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Nat.sub" fname ->
-    `App ("-", [extract_expr ?rel l; extract_expr ?rel r])    
+    `App ("-", [extract_expr ?env ?rel l; extract_expr ?env ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.sub" fname ->
-    `App ("-", [extract_expr ?rel l; extract_expr ?rel r])    
+    `App ("-", [extract_expr ?env ?rel l; extract_expr ?env ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.Init.Nat.add" fname ->
-    `App ("+", [extract_expr ?rel l; extract_expr ?rel r])    
+    `App ("+", [extract_expr ?env ?rel l; extract_expr ?env ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.add" fname ->
-    `App ("+", [extract_expr ?rel l; extract_expr ?rel r])    
+    `App ("+", [extract_expr ?env ?rel l; extract_expr ?env ?rel r])    
   | Constr.App (fname, [| l; r |]), _ when Utils.is_const_eq "Coq.ZArith.BinInt.Z.mul" fname ->
-    `App ("*", [extract_expr ?rel l; extract_expr ?rel r])    
+    `App ("*", [extract_expr ?env ?rel l; extract_expr ?env ?rel r])    
 
   | Constr.App (fname, args), _ when Constr.isConst fname ->
     let fname, _ = Constr.destConst fname in
-    let args = Utils.drop_implicits fname (Array.to_list args) |> List.map (extract_expr ?rel) in
+    let args = Utils.drop_implicits fname (Array.to_list args) |> List.map (extract_expr ?env ?rel) in
     `App (Names.Constant.to_string fname, args)
 
   | Constr.App (fname, args), _ when Constr.isVar fname ->
     let fname = Constr.destVar fname |> Names.Id.to_string in
-    let args = List.map (extract_expr ?rel) (Array.to_list args) in
+    let args = List.map (extract_expr ?env ?rel) (Array.to_list args) in
     `App (fname, args)
-  | Constr.Const (c, _), _ -> `Var (Names.Constant.to_string c)
+  | Constr.Const (c, _), _ when not @@ String.equal (Names.Constant.to_string c) "CFML.Semantics.loc" ->
+    `Var (Names.Constant.to_string c)
+  | Constr.App (fname, args), _ when Option.is_some (unwrap_cfml_ocaml_constructor fname) && Option.is_some env ->
+    let ((id, _), constructor_ind), _ = Constr.destConstruct fname in
+    let modl_name, _ = unwrap_cfml_ocaml_constructor fname |> Option.get_exn_or "invalid assumptions" in
+    let fname =
+      let inductive_type = Environ.lookup_mind id (Option.get_exn_or "invalid assumptions" env) in
+      let inductive_name = inductive_type.mind_packets.(0).mind_consnames.(constructor_ind - 1) in
+      Names.Id.to_string inductive_name in
+    let fname = match modl_name with None -> fname | Some modl -> modl ^ "." ^ fname in
+    let args = Array.to_list args |> List.drop 1 |> List.map (extract_expr ?env ?rel) in
+    `Constructor (fname, args)
+  | Constr.Lambda (_, _, _), _ -> extract_and_eta_expand_lambda ?env ?rel c
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a expr"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+(** [extract_and_eta_expand_lambda ?env ?rel c] when given a coq term
+   [c] of the form [fun (x: 'a) => istrue (f x)] returns the
+   expression obtained by extracting [f] (i.e performs the eta
+   expansion and then extracts f). This function is required because
+   sometimes the coq context contains lambdas that we don't support in
+   general, but can support after eta-expansion. *)
+and extract_and_eta_expand_lambda ?env ?rel c =
+  let failwith fmt = Format.ksprintf ~f:failwith fmt in
+  let asserts cond = if not cond then failwith "unexpected form for lambda %s" (Proof_debug.constr_to_string_pretty c) in
+  asserts (Constr.isLambda c);
+  let binder, ty, body = Constr.destLambda c in
+  asserts (Constr.isApp body);
+  let (is_true, is_true_args) = Constr.destApp body in
+  asserts (Utils.is_const_eq "TLC.LibReflect.istrue" is_true && Array.length is_true_args = 1);
+  let is_true_arg = is_true_args.(0) in
+  asserts (Constr.isApp is_true_arg);
+  let (applied_fun, applied_args) = Constr.destApp is_true_arg in
+  asserts (Array.length applied_args = 1);
+  let rel = match rel with
+    | None -> None              (* update rel to account for the binding  *)
+    | Some f -> Some (fun ind -> f (ind - 1)) in
+  extract_expr ?env ?rel applied_fun
+
 
 (** [extract_heap c] when given a coq term [c] representing a heap,
     returns a list of its constituent heaplets. *)
@@ -315,7 +409,7 @@ let extract_heap c =
   pre
 
 (** [cfml_extract_logical_functions ?set c] returns the set [set] of all logical
-   functions used inside a CFML heaplet [c]. *)
+    functions used inside a CFML heaplet [c]. *)
 let cfml_extract_logical_functions ?(set=StringSet.empty) c =
   let rec loop ?(is_repr=false) set c =
     match Constr.kind_nocast c with
@@ -446,10 +540,10 @@ let extract_spec pre =
   (params, invariants, body)
 
 (** [extract_dyn_var ?rel c] given a Coq term [c] of the form {[Dyn v]}, extracts the corresponding expression and type.  *)
-let extract_dyn_var ?rel (c: Constr.t) =
+let extract_dyn_var ?env ?rel (c: Constr.t) =
   match Constr.kind c with
   | Constr.App (const, [| ty; _enc; vl |]) when Utils.is_constr_eq "CFML.SepLifted.dyn" const ->
-    (extract_expr ?rel vl, extract_typ ty)
+    (extract_expr ?env ?rel vl, extract_typ ty)
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in (%s) that could not be converted to a dyn"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
@@ -602,20 +696,46 @@ let unwrap_invariant_type ?rel (c: Constr.t) =
         (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)  in
   loop [] c
 
-(** [unwrap_eq ?rel c] when given a Coq term [c] representing an
+(** [unwrap_eq ?env ?rel c] when given a Coq term [c] representing an
     propositional equality, extracts the left and right hand sides of
     the equality. *)
-let unwrap_eq ?rel (c: Constr.t) =
+let unwrap_eq ?env ?rel (c: Constr.t) =
   match Constr.kind c with
   | Constr.App (fname, [| ty; l; r |]) when Utils.is_ind_eq "Coq.Init.Logic.eq" fname ->
     let ty = extract_typ ty in
-    let l = extract_expr ?rel l in
-    let r = extract_expr ?rel r in
+    let l = extract_expr ?env ?rel l in
+    let r = extract_expr ?env ?rel r in
     (ty, l, r)
   | _ ->
     Format.ksprintf ~f:failwith
       "found unexpected Coq term (%s)[%s] ==> %s, when expecting an equality"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+
+(** [embedded_field_name_to_function ~operation fld] converts an
+   embedded CFML field name [fld] of the form
+   [Common.<module-name>_ml.<field-name>'] to a function that can be
+   called to perform [operation] on said field. *)
+let embedded_field_name_to_function ~operation fld =
+    (* CFML encodes field accesses in the form (CFML.WPRecord.val_get_field Common.<module-name>_ml.<field-name>') *)
+    let components = String.split_on_char '.' fld |> List.rev in
+    (* extract the components *)
+    let field_name, components = List.hd_tl components in
+    let modl, _ = List.hd_tl components in
+    (* drop the last apostrophe in the field name *)
+    let field_name = String.take (String.length field_name - 1) field_name in
+    (* drop the _ml in the module name *)
+    let modl = String.take (String.length modl - 3) modl in
+    modl ^ "." ^ operation ^ "_" ^ field_name
+
+(** [extract_embedded_function_name expr] extracts a function name
+   from an [expr] expression representing an embedded CFML program AST. *)
+let extract_embedded_function_name expr =
+  match expr with 
+  | `Var v -> v
+  | `App ("CFML.WPRecord.val_get_field", [`Var fld]) ->
+    embedded_field_name_to_function ~operation:"get_field" fld
+  | expr -> Format.ksprintf ~f:failwith "found application to non-constant function (%a)"
+              Lang.Expr.pp expr  
 
 (** [extract_embedded_expr ?rel c] extracts a deeply embedded CFML
     expression from a Coq term [c]. [rel] is a function that maps Coq's
@@ -626,7 +746,7 @@ let rec extract_embedded_expr ?rel (c: Constr.t) : Lang.Expr.t =
   | Constr.App (fn, [| f |]), _ when Utils.is_const_eq "CFML.WPLifted.Wptag" fn ->
     extract_embedded_expr ?rel f
   | Constr.App (fn, [| ty; enc_ty; f; args |]), _ when Utils.is_const_eq "CFML.WPLifted.Wpgen_app" fn ->
-    let fn = extract_expr ?rel f |> function `Var v -> v | _ -> failwith "found application to non-constant function" in
+    let fn = extract_expr ?rel f |> extract_embedded_function_name in
     let args = 
       Utils.unwrap_inductive_list args
       |> List.map (extract_dyn_var ?rel) in
@@ -718,3 +838,28 @@ let extract_pre_heap pre =
                      (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
        )
     ) heap
+
+(** [count_no_existentials_in_unfold ty] counts the number of
+    existentials introduced by an unfold lemma with type [ty].  *)
+let count_no_existentials_in_unfold ty =
+  (* drop prods repeatedly drop prods until we reach the core lemmas *)
+  let rec drop_prods ty = match Constr.kind_nocast ty with
+    | Constr.Prod (_, _, ty) -> drop_prods ty
+    | _ -> ty in
+  let rec count_existentials acc ty = match Constr.kind_nocast ty with
+    | Constr.Prod (_, _, ty) -> count_existentials acc ty
+    | Constr.Lambda (_, _, ty) -> count_existentials acc ty
+    | Constr.App (trm, [| _; ty |]) when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hexists" trm ->
+      count_existentials (acc + 1) ty
+    | _ -> acc in
+  let inner_ty = drop_prods ty in
+  match Constr.kind_nocast inner_ty with
+  | Constr.App (eq, [| _; _; ty |]) when Utils.is_coq_eq eq  ->
+    count_existentials 0 ty
+  | Constr.App (himpl, [| _; ty |]) when is_himpl himpl ->
+    count_existentials 0 ty
+  | _ ->
+    Format.ksprintf ~f:failwith "unexpected structure for unfold lemma \
+                                 %s - expecting a sequence of products \
+                                 followed by an equality or himpl."
+      (Proof_debug.constr_to_string ty)

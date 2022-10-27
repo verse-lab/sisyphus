@@ -13,7 +13,7 @@ Lemma stack_reverse_spec
     SPEC (stack_reverse s)
     PRE(s ~> Stack ls)
     POSTUNIT(s ~> Stack (rev ls)).
-Proof.
+Proof using (All).
   xcf.
   xref buf.
   xletopaque tmp Htmp.

@@ -48,9 +48,14 @@ let make_raw_ctx :
     funcs = Types.TypeMap.of_list funcs;
   }
 
-let build_context ?(constants=[]) ?(vars=[]) ?(ints=[0;1;2;3]) ?(funcs=[]) ~from_id ~to_id ~env proof_script =
+let build_context ?(constants=[]) ?(vars=[]) ?(ints=[0;1]) ?(funcs=[]) ~from_id ~to_id ~env proof_script =
   (* collect consts, functions and patterns from old proof script. *)
-  let consts, old_funcs = Collector.collect_consts_and_funcs ~from_id ~to_id ~env proof_script in
+  let consts, old_funcs =
+    let consts, old_funcs = Collector.collect_consts_and_funcs ~from_id ~to_id ~env proof_script in
+    if Types.TypeMap.is_empty old_funcs
+    then (Log.debug (fun f -> f "failed to find functions, doing a deeper search");
+          Collector.collect_consts_and_funcs ~env proof_script)
+    else (consts, old_funcs) in
 
   let pats = Collector.collect_pats ~from_id ~to_id ~env proof_script in
   (*  update consts with variables *)
@@ -106,38 +111,46 @@ let get_fuels ctx fuel fname arg_tys =
   let open Lang.Type in
 
   (* empty arg types do not have a function that generates values of that type *)
-  let has_empty_arg = List.exists (fun arg ->
+  let has_empty_arg arg_tys = List.exists (fun arg ->
     Types.TypeMap.find_opt arg ctx.funcs
     |> Option.value ~default:[]
     |> List.is_empty
   ) arg_tys
   in
 
-  let is_func = function
-    | Func _ -> true
-    | _ -> false
-  in
 
-  (* if any argument doesnt need more fuel, then distribute more fuel to first non-function argument *)
-  let priority_arg =
-    List.find_mapi (fun i arg ->
-      if has_empty_arg && not (is_func arg)
-      then Some i
-      else None
-    ) arg_tys
-    |> Option.get_or ~default:(-1)
-  in
+  (* if any argument doesnt need more fuel,
+     - then distribute more fuel to a simple argument. ensure that this occurs only once. *)
+  let priority_arg_idx =
+    let is_simple = function Int | Bool | List _ -> true | _ -> false in
+    let can_be_prioritized ty =
+      let funcs = Types.TypeMap.find_opt ty ctx.funcs
+                  |> Option.value ~default:[] in
+      List.exists (fun (_, arg_tys) -> has_empty_arg arg_tys) funcs in
+
+    let priority_arg =
+      if has_empty_arg arg_tys then
+        List.find_mapi (fun i arg ->
+            if is_simple arg && not (can_be_prioritized arg)
+            then Some i
+            else None
+          ) arg_tys
+      else
+        None
+    in
+    Option.get_or ~default:(-1) priority_arg in
+
 
   let get_fuel i arg =
     match arg with
-    | _ when i = priority_arg -> arg, fuel
+    | _ when i = priority_arg_idx -> arg, fuel
     | _ -> arg, fuel - 1
   in
 
   List.mapi get_fuel arg_tys
 
 let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx)  (ty: Lang.Type.t) () =
-  (* Format.printf "Fuel = %s, Ty = %a@." (string_of_int fuel) Lang.Type.pp ty; *)
+  (* Log.debug (fun f -> f "Fuel = %s, Ty = %a@." (string_of_int fuel) Lang.Type.pp ty); *)
   match fuel with
   | fuel when fuel > 0 ->
     let consts = Types.TypeMap.find_opt ty ctx.consts
@@ -192,6 +205,7 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx)  (ty: Lang.Ty
 
 
 let rec instantiate_pat ?(fuel=3) ~blacklisted_vars ctx pat () =
+  (* Log.debug (fun f -> f "Fuel = %s, Pat = %a@." (string_of_int fuel) (Types.pp_pat) pat); *)
   match pat with
   | `App (fname, args) ->
     let args = Utils.seq_map_product_l (instantiate_pat ~blacklisted_vars ctx  ~fuel:(fuel)) (Seq.of_list args) in

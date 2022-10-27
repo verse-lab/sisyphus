@@ -48,25 +48,6 @@ end = struct
 
 end
 
-type expr = [
-    `Var of string
-  | `Bool of bool
-  | `Int of int
-  | `Tuple of expr list
-  | `App of string * expr list
-  | `Constructor of string * expr list
-]
-
-type opaque = ..
-
-module type ENCODEABLE = sig
-  type 'a t
-  val encode: ('a -> opaque) -> 'a t -> opaque
-  val reify: opaque -> expr
-  val pp: (Format.formatter -> 'a -> unit) -> Format.formatter -> opaque -> unit
-end
-
-
 type value = [
   | `Int of int
   | `Bool of bool
@@ -74,14 +55,29 @@ type value = [
   | `List of value list
   | `Tuple of value list
   | `Constructor of string * value list
-  (* | `Opaque of (module ENCODEABLE) * opaque *)
+  | `Opaque of string * value list
 ]
 
+let rec equal_value (l: value) (r: value) =
+  match l, r with
+  | `Int i, `Int j -> i = j
+  | `Bool bi, `Bool bj -> bi = bj
+  | `Value s1, `Value s2 -> Symbol.equal s1 s2
+  | (`List ls1 | `Tuple ls1 | `Opaque (_, ls1)),
+    (`List ls2 | `Tuple ls2 | `Opaque (_, ls2)) -> List.equal equal_value ls1 ls2
+  | `Constructor (name1, ls1), `Constructor (name2, ls2) ->
+    String.equal name1 name2 && List.equal equal_value ls1 ls2
+  | _ -> false
 
 type heaplet = [
     `PointsTo of value
   | `Array of value list
 ]
+
+let equal_heaplet (h1: heaplet) (h2: heaplet) = match h1, h2 with
+  | `PointsTo v1, `PointsTo v2 -> equal_value v1 v2
+  | `Array v1, `Array v2 -> List.equal equal_value v1 v2
+  | _ -> false
 
 type context = (string * value) list
 type heap_context = (string * heaplet) list

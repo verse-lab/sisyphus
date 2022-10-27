@@ -12,6 +12,9 @@ let stack_filter (f: 'a -> bool) (s: 'a stack) =
   let (_: unit) = stack_clear s in
   let (elts: 'a list) = !acc in
   let (_: unit) = List.iter (fun (vl: 'a) ->
-    stack_push s vl
+    let (_: unit) = stack_push s vl in
+    ()
   ) elts in
   ()
+[@@with_logical_mapping ["fp", "f"; "ls", "s"]]
+[@@with_opaque_encoding ["stack", ("Stack.stack_of_list", "Stack.stack_to_list")]]

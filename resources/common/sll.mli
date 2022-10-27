@@ -1,11 +1,20 @@
+type 'a node =
+  | Node of 'a * 'a node ref
+  | Nil
 
-type 'a sll
+type 'a sll = 'a node ref
+
+val sll_cons_unfold: 'a sll -> 'a sll
 
 val sll_cons : 'a -> 'a sll -> 'a sll
 
 val sll_nil : unit -> 'a sll
 
 val sll_push : 'a -> 'a sll -> unit
+
+val sll_of_list: 'a list -> 'a sll
+
+val sll_to_list: 'a sll -> 'a list
 
 val sll_iter : ('a -> unit) -> 'a sll -> unit
 

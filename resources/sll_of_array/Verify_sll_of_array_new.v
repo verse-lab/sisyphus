@@ -3,7 +3,7 @@ From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
 From Common Require Import Verify_sll.
-From Common Require Import Verify_combinators.
+From Common Require Import Verify_arr.
 
 From Common Require Import Tactics Utils Solver.
 
@@ -16,22 +16,17 @@ Lemma sll_of_array_spec :
   POST (fun (s : sll A) => s ~> SLL ls \* a ~> Array ls).
 Proof using (All).
   xcf.
-  xapp (sll_nil_spec).
-  intros s.
-  xapp.
+  xapp. intros s.
   xletopaque tmp Htmp.
-  xapp (for_downto_spec (length ls - 1) 0 tmp
-          (fun (i: int) =>
-             s ~> SLL ((drop (i + 1) ls)) \*
-               a ~> Array ls
-       )). { math. } {
+  xapp (array_iter_spec tmp a
+          (fun (ls: list A) =>
+             s ~> SLL (rev ls)
+       )). {
     sis_solve_start.
-    symmetry; erewrite drop_cons_unfold; try math; f_equal.
-    f_equal; math.
-    f_equal; math.
-  } { math_rewrite ((length ls - 1 + 1) = length ls); rewrite drop_at_length; auto. }
-  xmatch.
-  xval*. {
-    xsimpl*.
+    rew_list; auto.
   }
+  xmatch.
+  xapp.
+  xmatch.
+  xvals*. { rew_list; auto. }
 Qed.

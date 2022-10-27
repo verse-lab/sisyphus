@@ -27,6 +27,7 @@ let pp_structure_item fmt vl = Pprintast.structure fmt [vl]
 type 'a t = {
   prelude: structure_item list;
   logical_mappings: (string * string) list;
+  opaque_encoders: (string * (string * string)) list;
   name: string;
   args: (string * Type.t) list;
   body: 'a stmt

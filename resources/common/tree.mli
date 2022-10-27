@@ -1,12 +1,15 @@
-type 'a tree
+type 'a tree =
+  | Leaf of 'a
+  | Node of 'a * 'a tree * 'a tree
 
-val size : 'a tree -> int
 
-val head : 'a tree -> 'a
+val tree_size : 'a tree -> int
 
-val to_list : 'a tree -> 'a list
+val tree_head : 'a tree -> 'a
 
-val of_list : 'a list -> 'a tree
+val tree_to_list : 'a tree -> 'a list
+
+val tree_of_list : 'a list -> 'a tree
 
 val tree_iter : ('a -> unit) -> 'a tree -> unit
 

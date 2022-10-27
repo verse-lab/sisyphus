@@ -28,20 +28,24 @@ Definition sll := fun A : Type => loc.
 Lemma SLL_nil A `{EA: Enc A} (a: sll A):
   a ~> SLL (@nil A) = a ~~> @Nil A.
 Proof. xsimpl*. Qed.
+Arguments SLL_nil [A] {EA} a.
 
 Lemma SLL_cons A `{EA: Enc A} (a: sll A) (h: A) (t : list A):
   a ~> SLL (h :: t) = \exists (lt: loc), a ~~> Node h lt \* lt ~> SLL t.
 Proof. simpl SLL; rewrite repr_eq; xsimpl*. Qed.
+Arguments SLL_cons [A] {EA} a h t.
 
 Lemma SLL_fold_nil A `{EA: Enc A}  (new_a: loc):
   new_a ~~> @Nil A ==>
     new_a ~> @SLL A EA (@nil A).
 Proof. simpl SLL. rewrite (repr_eq (fun _ => _ ~~> _)); xsimpl*. Qed.
+Arguments SLL_fold_nil [A] {EA} new_a.
 
 Lemma SLL_fold_cons A `{EA: Enc A} (hd: A) (t: list A) (a: sll A) (new_a: loc):
   a ~> SLL t \* new_a ~~> Node hd a ==>
     new_a ~> SLL (hd :: t).
 Proof. simpl SLL. rewrite (repr_eq (fun _ => \exists _, _)); xsimpl*. Qed.
+Arguments SLL_fold_cons [A] {EA} hd t a new_a.
 
 Lemma SLL_part_nil A `{EA: Enc A} (a: sll A) (rst: sll A):
   a ~> SLL_part (@nil A) rst = \[a = rst].
@@ -232,9 +236,7 @@ Arguments sll_iter_spec {A} {EA} f ls Hf : rename.
 
 Lemma sll_iter_drain_spec :
   forall A `{EA: Enc A}
-         (f: func) (l: sll A) 
-         (ls: list A)
-         (I: list A -> hprop),
+         (f: func) (l: sll A) (I: list A -> hprop) (ls: list A),
          (forall t v r,
              ls = t & v ++ r ->
              SPEC (f v)
@@ -245,7 +247,7 @@ Lemma sll_iter_drain_spec :
          PRE (l ~> SLL ls \* I nil)
          POSTUNIT (I ls).
 Proof.
-  intros A EA f l ls I Hf.
+  intros A EA f l I ls Hf.
   xcf.
   xlet as;=> aux Haux.
   assert (forall (t r : list A),
@@ -261,17 +263,17 @@ Proof.
     - xchange SLL_nil. 
       xapp.
       xmatch.
-      xvals*. { subst; rew_list; xsimpl*. }
+      xvals*. { rewrite Hlstr, Hnil; rew_list; xsimpl*. }
     - xchange SLL_cons. intros tl.
       xapp.
       xmatch.
       xapp (Hf t rv rt).
-      + rew_list; subst; auto.
+      + rew_list; rewrite Hlstr, Heqr; auto.
       + case_eq rt; [intros Hrtnil | intros rth rtt Hrt].
         * xchange SLL_nil.
           xapp.
           xapp.
-          do 2 xchange SLL_fold_nil.
+          do 2 xchange (@SLL_fold_nil A EA).
           xapp (IH (len + 1)).
           ** apply upto_intro; subst; rew_list; math.
           ** subst; rew_list; math.
@@ -280,9 +282,9 @@ Proof.
         * xchange SLL_cons;=> rht_tl.
           xapp.
           xapp.
-          xchange (@SLL_fold_cons _ _ rth rtt rht_tl l).
+          xchange (SLL_fold_cons rth rtt rht_tl l).
           rewrite repr_eq. xpull;=> x_lt.
-          xchange (@SLL_fold_cons).
+          xchange SLL_fold_cons.
           xapp (IH (len + 1)).
           ** apply upto_intro; subst; rew_list; math.
           ** subst; rew_list; math.
@@ -291,10 +293,9 @@ Proof.
   }
   xapp (H); rew_list; auto.
   xsimpl*.
-  Unshelve.
-  exact EA.
 Qed.
-#[export] Hint Extern 1 (RegisterSpec sll_iter) => Provide sll_iter_spec.
+Arguments sll_iter_drain_spec {A} {EA} f l I ls Hf : rename.
+#[export] Hint Extern 1 (RegisterSpec sll_iter_drain) => Provide sll_iter_drain_spec.
 
 Lemma sll_fold_spec :
   forall A `{EA: Enc A} B `{EB: Enc B} (f: func) (init: B) (l: sll A)

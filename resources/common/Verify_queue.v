@@ -20,8 +20,7 @@ Definition Queue {A: Type} `{EA: Enc A} (ls: list A) (q: loc) :=
 
 Definition queue := fun (A: Type) => loc.
 
-
-Lemma Queue_unfold {A: Type} `{EA: Enc A} (ls: list A) (q: queue A):
+Lemma Queue_unfold {A: Type} `{EA: Enc A} (q: queue A) (ls: list A):
   q ~> Queue ls =
     \exists l r,
         \[ ls = r ++ l ] \*
@@ -31,6 +30,7 @@ Lemma Queue_unfold {A: Type} `{EA: Enc A} (ls: list A) (q: queue A):
             right' := r
           }.
 Proof. unfold Queue; rewrite repr_eq; xsimpl*. Qed.
+Arguments Queue_unfold [A] {EA} q ls.
 
 Lemma queue_init_spec  {A: Type} `{EA: Enc A}:
   SPEC_PURE (queue_init tt)
@@ -52,7 +52,7 @@ Lemma queue_enqueue_spec {A: Type} `{EA: Enc A}
     POSTUNIT (q ~> Queue (ls & hd)).
 Proof.
   xcf.
-  rewrite Queue_unfold; xpull;=> l r Hlr.
+  xchange Queue_unfold; xpull;=> l r Hlr.
   xapp.
   xapp.
   xapp.
@@ -72,10 +72,11 @@ Lemma queue_dequeue_spec {A: Type} `{EA: Enc A}
 Proof.
   xcf.
   xassert.
-  - rewrite Queue_unfold; xpull;=> l t Hlr.
+  - xchange Queue_unfold; xpull;=> l t Hlr.
     xapp.
-    xvals*; rew_list; try math.
-  - rewrite Queue_unfold; xpull;=> l t Hlr.
+    xvals; rew_list; try math.
+    rewrite Queue_unfold; xsimpl*; rew_list; math.
+  - xchange Queue_unfold; xpull;=> l t Hlr.
     xapp.
     xapp.
     xapp.
@@ -112,9 +113,8 @@ Lemma queue_iter_spec {A: Type} `{EA: Enc A}
     PRE (q ~> Queue ls \* I nil)
     POST (fun (_: unit) => q ~> Queue ls \* I ls).
 Proof.
-  intros Hf.
   xcf.
-  rewrite Queue_unfold; xpull;=> l r Hlr.
+  xchange Queue_unfold; xpull;=> l r Hlr.
   xapp.
   xlet.
   xapp.
@@ -126,15 +126,15 @@ Proof.
              SPEC (loop r)
                PRE (I t)
                POSTUNIT (I ls)). {
-    intros t; remember (length t) as len; gen t.
-    induction_wf IH: (upto (length ls)) len; intros t Hlen r' Htr.
+    clear l r Prev_left Hlr.
+    intros t r; remember (length t) as len; gen r t.
+    induction_wf IH: (upto (length ls)) len; intros r t Hlen Htr.
     apply Hloop; clear Hloop.
-    case_eq r'; [intros Hnil | intros rh rt Hrht].
-    - xmatch. xvals*. subst; rew_list; xsimpl*; rew_list in Htr; subst; xsimpl*.
+    case_eq r; [intros Hnil | intros rh rt Hrht].
+    - xmatch. xvals*; subst; rew_list; xsimpl*; rew_list in Htr; subst; xsimpl*.
     - xmatch.
-      xapp (Hf rh t rt); try (subst; rew_list; auto; math).
+      xapp (H rh t rt); try (subst; rew_list; auto; math).
       xapp (IH (len + 1)); try apply upto_intro; try (subst; rew_list; auto; math).
-      rewrite Hlen, Htr, Hrht; rew_list; math.
       xsimpl*.
   }
   xapp.
@@ -142,6 +142,7 @@ Proof.
   rewrite Prev_left, rev_rev; auto.
   xsimpl*.
   rewrite Prev_left, rev_rev; rew_list; auto.
+  rewrite Queue_unfold; xsimpl*.
   instantiate (1 := nil); rew_list; auto.
   rew_list; auto.
 Qed.

@@ -32,8 +32,7 @@ let rec embed_value (expr: Dynamic.Concrete.value) : Parsetree.expression =
   match expr with
   | `Tuple elts -> AH.Exp.tuple (List.map embed_value elts)
   | `List vls ->
-    List.rev vls
-    |> List.fold_left (fun t h -> cons (embed_value h) t) nil
+    List.fold_right (fun h t -> cons (embed_value h) t) vls nil
   | `Int n ->
     AH.Exp.constant (Parsetree.Pconst_integer (string_of_int n, None))    
   | `Bool true ->
@@ -50,6 +49,8 @@ let rec embed_value (expr: Dynamic.Concrete.value) : Parsetree.expression =
   | `Constructor (f, elts) -> 
     AH.Exp.construct Location.(mknoloc Longident.(Lident f))
       (Some (AH.Exp.tuple @@ List.map embed_value elts))
+  | `Opaque (f, elts) ->
+    AH.Exp.apply (fvar f) [Nolabel, (List.fold_right (fun h t -> cons (embed_value h) t) elts nil)]
 
 let rec embed_expression (expr: Lang.Expr.t) : Parsetree.expression =
   match expr with

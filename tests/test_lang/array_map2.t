@@ -36,5 +36,5 @@
       zs.(i) <- f (fst pair) (snd pair);
         ())
     in
-    let (unused: () unit) = List.iteri tmp combined in
+    let (unused: unit) = List.iteri tmp combined in
   zs

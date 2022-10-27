@@ -3,7 +3,7 @@ module T = Testing_utils.Make (struct let name = "array_is_sorted" end)
 let ctx =
   Expr_generator.make_raw_ctx
     ~consts:Lang.Type.[
-      Int, [`Var ("arg0"); `Int (0);`Int (1); `Int (2)];
+      Int, [`Var ("arg0"); `Int (0);`Int (1)];
       Bool,[`Var ("arg1")];
       (List Int), [`Var ("l")]
     ]

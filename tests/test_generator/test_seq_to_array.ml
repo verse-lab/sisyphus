@@ -4,7 +4,7 @@ let ctx =
   Expr_generator.make_raw_ctx
     ~consts:Lang.Type.[
       ((Var "A"), [`Var ("init")]);
-      (Int, [`Int (1); `Int (2); `Var ("arg1"); `Var ("idx"); `Var ("len")]);
+      (Int, [`Int (1); `Var ("arg1"); `Var ("idx"); `Var ("len")]);
       (List (Var "A")), [`Var ("arg0"); `Var ("l"); `Var ("ls"); `Var ("rest")]]
     ~pats:Lang.Type.[
       Int, [`App (("length", [`PatVar (("arg_0", Lang.(List (Var "A"))))]))];

@@ -20,6 +20,11 @@ let rec pp_ty fmt (ty: Lang.Type.t) =
       ~pp_stop:(fun fmt () -> Format.fprintf fmt ")")
       ~pp_sep:(fun fmt () -> Format.fprintf fmt " * ") pp_ty
       fmt tys
+  | Lang.Type.ADT (name, [arg], _) when String.contains name '.' && List.length (String.split_on_char '.' name) = 2 ->
+    let name = String.split_on_char '.' name |> List.rev |> List.hd in
+    Format.fprintf fmt "(%s %a)"
+      name (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt " ")
+                   (fun fmt exp -> Format.fprintf fmt "(%a)" pp_ty exp)) [arg]
   | Lang.Type.ADT (name, args, _) ->
     Format.fprintf fmt "(%s %a)"
       name (List.pp ~pp_sep:(fun fmt () -> Format.fprintf fmt " ")

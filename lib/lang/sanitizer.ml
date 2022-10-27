@@ -36,6 +36,8 @@ let rec convert_typ (ty: Parsetree.core_type) : Type.t =
     Int
   | Parsetree.Ptyp_constr ({txt=Lident "bool"}, []) ->
     Bool
+  | Parsetree.Ptyp_constr ({txt=Lident "unit"}, []) ->
+    Unit
   | Parsetree.Ptyp_constr ({txt=Lident user}, ity) ->
     let conv =
       List.find_map (fun (attr: Parsetree.attribute) ->
@@ -286,9 +288,11 @@ let convert_pair : Parsetree.expression -> Parsetree.expression * Parsetree.expr
     Format.ksprintf ~f:failwith "convert_pair expecting a tuple of two elements, but called with expression %a"
       Pprintast.expression expr
 
-let convert_string_const : Parsetree.expression -> string =
+let convert_string_expr : Parsetree.expression -> string =
   function
     { pexp_desc=Pexp_constant (Pconst_string (s, _, _)) ; _ } -> s
+  | { pexp_desc=Pexp_ident {txt=s; _}; _} ->
+    (Longident.flatten s |> String.concat ".")
   | expr ->
     Format.ksprintf ~f:failwith "convert_string_const expecting a string literal, but called with expression %a"
       Pprintast.expression expr
@@ -324,12 +328,29 @@ let convert : Parsetree.structure -> 'a Program.t = function
         | Parsetree.PStr [{ pstr_desc=Pstr_eval (expr, _); pstr_loc }] ->
           let elts = convert_list expr
                      |> List.map convert_pair
-                     |> List.map (Pair.map_same convert_string_const) in
+                     |> List.map (Pair.map_same convert_string_expr) in
           Some elts
         | _ -> failwith "invalid structure for logical mappings"
       end |> Option.value ~default:[] in
+    let opaque_encoders =
+      begin
+        let open Option in
+        let* mapping = List.find_opt (fun attr ->
+          String.equal "with_opaque_encoding" attr.Parsetree.attr_name.txt 
+        ) pvb_attributes in
+        match mapping.attr_payload with
+        | Parsetree.PStr [{ pstr_desc=Pstr_eval (expr, _); pstr_loc }] ->
+          let elts = convert_list expr
+                     |> List.map convert_pair
+                     |> List.map (Pair.map_snd convert_pair)
+                     |> List.map (Pair.map_snd (Pair.map_same convert_string_expr))
+                     |> List.map (Pair.map_fst convert_string_expr) in
+          Some elts
+        | _ -> failwith "invalid structure for opaque encoders mappings"
+      end |> Option.value ~default:[] in
 
-    {prelude; logical_mappings;name;args;body}
+
+    {prelude; opaque_encoders; logical_mappings;name;args;body}
 
 let parse_lambda_str str = raw_parse_expr_str str |> convert_lambda StringSet.empty
 let parse_expr_str str = raw_parse_expr_str str |> convert_expr

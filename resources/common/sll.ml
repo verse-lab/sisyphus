@@ -4,6 +4,10 @@ type 'a node =
 
 type 'a sll = 'a node ref
 
+let sll_cons_unfold (ls: 'a sll) : 'a sll = match !ls with
+  | Node (_, tl) -> tl
+  | _ -> assert false
+
 let sll_cons (hd: 'a) (tl: 'a sll) : 'a sll = ref (Node (hd, tl))
 
 let sll_nil () : 'a sll =
@@ -14,6 +18,14 @@ let sll_push (hd: 'a) (ls: 'a sll) : unit =
   let (tl: 'a node) = !ls in
   let (new_tl: 'a sll) = ref tl in
   ls := Node (hd, new_tl)
+
+let rec sll_of_list (ls: 'a list) : 'a sll =  match ls with
+  | [] -> sll_nil ()
+  | h :: t -> sll_cons h (sll_of_list t)
+
+let rec sll_to_list (ls: 'a sll) : 'a list =  match !ls with
+  | Nil -> []
+  | Node (h, t) -> h  :: sll_to_list t
 
 let sll_iter (f: 'a -> unit) (lst: 'a sll) =
   let rec aux node =

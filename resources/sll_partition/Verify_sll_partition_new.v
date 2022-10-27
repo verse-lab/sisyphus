@@ -10,8 +10,8 @@ From Common Require Import Tactics Utils Solver.
 From ProofsSllPartition Require Import Sll_partition_new_ml.
 
 Lemma sll_partition_spec :
-  forall (A : Type) `{EA : Enc A} (p: func) (s : array A)
-         (ls: list A) (pp: A -> bool),
+  forall (A : Type) `{EA : Enc A} (p: func) (s : sll A)
+         (pp: A -> bool) (ls: list A),
     (forall (x: A),
         SPEC_PURE (p x)
         POST (fun (b: bool) => \[b = pp x])
@@ -29,7 +29,7 @@ Proof using (All).
   xapp. intros s_t.
   xapp.  intros s_f.
   xletopaque tmp Htmp.
-  xapp (sll_iter_spec tmp s (fun (ls : list A) =>
+  xapp (sll_iter_drain_spec tmp s (fun (ls : list A) =>
                                s_t ~> SLL (filter pp (rev ls)) \*
                                s_f ~> SLL (filter_not pp (rev ls))
        )). {
@@ -43,7 +43,5 @@ Proof using (All).
     rewrite rev_rev; auto.
   } {
     rewrite rev_rev; auto.
-  } {
-    apply SLL_haffine.
   }
 Qed.
