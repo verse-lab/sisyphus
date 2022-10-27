@@ -28,14 +28,14 @@ Proof using (All).
   xif as cond.
   - xvalemptyarr. { repeat sis_list_solver. }
   - xinhab_inner A.
+    xapp. { try sis_handle_int_index_prove. }
     xinhab_inner B.
-    xapp. { sis_handle_int_index_prove. }
-    xapp. { sis_handle_int_index_prove. }
+    xapp. { try sis_handle_int_index_prove. }
     xapp.
     xalloc cs data Hdata.
-    xapp (array_to_list_spec xs).
-    xapp (array_to_list_spec ys).
-    xapp (list_combine_spec). { auto. }
+    xapp.
+    xapp.
+    xapp. { auto. }
     xletopaque tmp Htmp.
     xapp (list_ml_iteri_spec tmp (combine lx ly)
             (fun (t: list (A * B)) =>
@@ -64,7 +64,7 @@ Proof using (All).
       rewrite H1, Heq; rew_list; math.
     }
     xmatch.
-    xvals*. {
+    xvals. {
       subst.
       assert (length lx = length (combine lx ly)). {
         rewrite !length_eq, length_combine; auto; math.

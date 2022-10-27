@@ -34,6 +34,7 @@ Proof using.
     xsimpl.
 Qed.
 Arguments list_fold_spec {A} {HA} {B} {HB} f init l I Hf : rename.
+#[export] Hint Extern 1 (RegisterSpec List_ml.fold_left) => Provide list_fold_spec.
 
 Lemma list_iter_spec : forall [A : Type] {EA : Enc A}
                               (f : func) (l : list A)
@@ -49,7 +50,7 @@ Proof using.
   apply List_proof.iter_spec; auto.
 Qed.
 Arguments list_iter_spec {A} {EA} f l I HI : rename.
-
+#[export] Hint Extern 1 (RegisterSpec List_ml.iter) => Provide list_iter_spec.
 
 Lemma list_ml_iteri_spec : forall A `{EA: Enc A},
   forall (f:func)  (l: list A) (I: list A -> hprop)  ,
@@ -86,6 +87,7 @@ Proof using.
   xapp (tmp_spec 0 l); auto; try xsimpl; rew_list; try math.
 Qed.
 Arguments list_ml_iteri_spec {A} {HA} f s l I Hf : rename.
+#[export] Hint Extern 1 (RegisterSpec List_ml.iteri) => Provide list_ml_iteri_spec.
 
 Lemma hd_spec: forall (A: Type) `{EA: Enc A} `{IA: Inhab A} (ls: list A),
     length ls > 0 ->
@@ -98,6 +100,7 @@ Proof.
   - rew_list in Hls; math.
   - xvals. rew_list; auto.
 Qed.    
+#[export] Hint Extern 1 (RegisterSpec hd) => Provide hd_spec.
 
 Lemma tl_spec: forall (A: Type) `{EA: Enc A} (ls: list A),
     length ls > 0 ->
@@ -110,6 +113,7 @@ Proof.
   - rew_list in Hls; math.
   - xvals. rew_list; auto.
 Qed.    
+#[export] Hint Extern 1 (RegisterSpec tl) => Provide tl_spec.
 
 Lemma list_combine_spec :
   forall (A: Type) `{EA: Enc A} (B: Type) `{EB: Enc B} (l1: list A) (l2: list B),
@@ -132,3 +136,5 @@ Proof.
     + math.
     + xvals*.
 Qed.
+Arguments list_combine_spec {A} {EA} {B} {EB} l1 l2 Hl1l2.
+#[export] Hint Extern 1 (RegisterSpec List_ml.combine) => Provide list_combine_spec.
