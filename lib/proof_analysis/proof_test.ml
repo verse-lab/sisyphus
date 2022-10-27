@@ -133,6 +133,7 @@ let build_test
         body (test_invariant inv); true
       with
       | Assert_failure (_, _, _) -> false
+      | Invalid_argument _ -> false
       | e ->
         Log.warn (fun f ->
           f "evaluation of invariant %s failed dynamic tests \
