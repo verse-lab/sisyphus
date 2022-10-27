@@ -610,6 +610,7 @@ let reduce_term t term =
       | "Common.Verify_sll", "sll_iter_drain_spec" -> `Unfold
       | "Common.Verify_sll", "SLL" -> `Unfold
       | "Common.Verify_sll", ("SLL_cons" | "SLL_nil" | "SLL_fold_cons" | "SLL_fold_nil") -> `KeepOpaque
+      | "Common.Verify_queue", "Queue_unfold" -> `KeepOpaque
 
       | _ when String.prefix ~pre:"Proofs" path
             ||  String.prefix ~pre:"CFML" path
