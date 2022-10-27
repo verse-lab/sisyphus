@@ -13,3 +13,5 @@ let array_map2 (f: 'a -> 'b -> 'c) (xs: 'a array) (ys: 'b array) =
       ()
     ) in
     zs
+[@@with_logical_mapping ["fp", "f"; "lx", "xs"; "ly", "ys"]]
+[@@with_sanitizer Arr.array_map2_sanitizer]
