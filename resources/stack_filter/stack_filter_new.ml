@@ -12,3 +12,4 @@ let stack_filter (f: 'a -> bool) (s: 'a stack) =
     ()
   ) keep in
   ()
+[@@with_opaque_encoding ["stack", ("Stack.stack_of_list", "Stack.stack_to_list")]]

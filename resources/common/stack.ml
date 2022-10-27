@@ -3,6 +3,9 @@ type 'a stack = {
   mutable elements: 'a list
 }
 
+let stack_of_list (elts: 'a list) = { size=List.length elts; elements = elts}
+let stack_to_list (stack: 'a stack) = stack.elements
+
 let stack_init () : 'a stack = { size=0; elements=[] }
 
 let stack_size (s: 'a stack) : int = s.size
