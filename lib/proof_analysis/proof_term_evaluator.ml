@@ -179,6 +179,9 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (Stack.stack_to_list (unwrap (eval ctx ls)))
   | `App ("Queue.queue_to_list", [ls]) ->
     wrap (Queue.queue_to_list (unwrap (eval ctx ls)))
+  | `App ("map2", [fp; ls]) ->
+    let map2 fp ls = List.map (fun (x, y) -> fp x y) ls in
+    wrap (map2 (unwrap (eval ctx fp)) (unwrap (eval ctx ls)))
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr
