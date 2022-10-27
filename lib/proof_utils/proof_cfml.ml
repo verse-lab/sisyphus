@@ -711,12 +711,11 @@ let unwrap_eq ?env ?rel (c: Constr.t) =
       "found unexpected Coq term (%s)[%s] ==> %s, when expecting an equality"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
-(** [extract_embedded_function_name expr] extracts a function name
-   from an [expr] expression representing an embedded CFML program AST. *)
-let extract_embedded_function_name expr =
-  match expr with 
-  | `Var v -> v
-  | `App ("CFML.WPRecord.val_get_field", [`Var fld]) ->
+(** [embedded_field_name_to_function ~operation fld] converts an
+   embedded CFML field name [fld] of the form
+   [Common.<module-name>_ml.<field-name>'] to a function that can be
+   called to perform [operation] on said field. *)
+let embedded_field_name_to_function ~operation fld =
     (* CFML encodes field accesses in the form (CFML.WPRecord.val_get_field Common.<module-name>_ml.<field-name>') *)
     let components = String.split_on_char '.' fld |> List.rev in
     (* extract the components *)
@@ -726,7 +725,15 @@ let extract_embedded_function_name expr =
     let field_name = String.take (String.length field_name - 1) field_name in
     (* drop the _ml in the module name *)
     let modl = String.take (String.length modl - 3) modl in
-    modl ^ ".get_field_" ^ field_name
+    modl ^ "." ^ operation ^ "_" ^ field_name
+
+(** [extract_embedded_function_name expr] extracts a function name
+   from an [expr] expression representing an embedded CFML program AST. *)
+let extract_embedded_function_name expr =
+  match expr with 
+  | `Var v -> v
+  | `App ("CFML.WPRecord.val_get_field", [`Var fld]) ->
+    embedded_field_name_to_function ~operation:"get_field" fld
   | expr -> Format.ksprintf ~f:failwith "found application to non-constant function (%a)"
               Lang.Expr.pp expr  
 
