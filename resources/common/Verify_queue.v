@@ -20,7 +20,7 @@ Definition Queue {A: Type} `{EA: Enc A} (ls: list A) (q: loc) :=
 
 Definition queue := fun (A: Type) => loc.
 
-Lemma Queue_unfold {A: Type} `{EA: Enc A} (ls: list A) (q: queue A):
+Lemma Queue_unfold {A: Type} `{EA: Enc A} (q: queue A) (ls: list A):
   q ~> Queue ls =
     \exists l r,
         \[ ls = r ++ l ] \*
@@ -30,7 +30,7 @@ Lemma Queue_unfold {A: Type} `{EA: Enc A} (ls: list A) (q: queue A):
             right' := r
           }.
 Proof. unfold Queue; rewrite repr_eq; xsimpl*. Qed.
-Arguments Queue_unfold [A] {EA} ls q.
+Arguments Queue_unfold [A] {EA} q ls.
 
 Lemma queue_init_spec  {A: Type} `{EA: Enc A}:
   SPEC_PURE (queue_init tt)
