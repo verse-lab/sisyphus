@@ -38,3 +38,11 @@ let array_foldi_left f init t =
     else aux (i + 1) (f i t.(i) acc)
   in
   aux 0 init
+
+let array_map2_sanitizer (f, xs, ys) =
+  let lxs = Array.length xs in
+  let lys = Array.length ys in
+  let new_len = if lxs < lys then lxs else lys in
+  let new_xs = array_take new_len xs in
+  let new_ys = array_take new_len ys in
+  (f, new_xs, new_ys)
