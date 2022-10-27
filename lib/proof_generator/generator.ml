@@ -337,11 +337,11 @@ let build_complete_params t env obs ~inv lemma_name init_params logical_params =
       List.combine_shortest logical_params pre_heap in
     List.fold_left (fun (init_ty, init_params) binding ->
       match binding, Constr.kind_nocast init_ty with
-      | (_, `Impure (name, _)), Constr.Prod (_, ty, init_ty) ->
+      | (lname, `Impure (name, _)), Constr.Prod (_, ty, init_ty) ->
         let ty = Proof_utils.CFML.extract_typ ty in
         let instantiated = instantiate_expr t env obs (`Var name, ty) in
         let param = Option.map (fun res -> `Typed res) instantiated
-                    |> Option.get_exn_or (Format.sprintf "failed to instantiate") in
+                    |> Option.get_exn_or (Format.sprintf "failed to instantiate (%s=%s): %a" name lname Lang.Type.pp ty) in
         (init_ty, init_params @ [param])
       | _ -> failwith "Don't know how to instantiate logical parameters"
     ) (init_ty, init_params) logical_instantiations in
@@ -607,6 +607,9 @@ let reduce_term t term =
       (* | "CFML.SepBase.SepBasicSetup.HS", ("xsimpl_l_hpure" | "xsimpl_r_hpure"
        *                                    | "xsimpl_l_hexists" | "xsimpl_r_hexists") -> `Unfold *)
       | "CFML.SepBase.SepBasicSetup.HS", _ -> `Unfold
+      | "Common.Verify_sll", "sll_iter_drain_spec" -> `Unfold
+      | "Common.Verify_sll", "SLL" -> `Unfold
+      | "Common.Verify_sll", ("SLL_cons" | "SLL_nil" | "SLL_fold_cons" | "SLL_fold_nil") -> `KeepOpaque
 
       | _ when String.prefix ~pre:"Proofs" path
             ||  String.prefix ~pre:"CFML" path
@@ -627,10 +630,10 @@ let reduce_term t term =
   let trm = (EConstr.to_constr evd reduced) in
   let f_app = Proof_utils.extract_trm_app trm in
   Log.info (fun f -> f "initial reduction phase passed @.");
-  Configuration.dump_output "reduced-first-try"
-    (fun f -> f "%s" (Proof_utils.Debug.constr_to_string trm));
-  Configuration.dump_output "reduced-first-try-pretty"
-    (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty trm));
+  (* Configuration.dump_output "reduced-first-try"
+   *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string trm));
+   * Configuration.dump_output "reduced-first-try-pretty"
+   *   (fun f -> f "%s" (Proof_utils.Debug.constr_to_string_pretty trm)); *)
   match f_app with
   (* when we fail to reduce the term to an application of a constant wp function, then we have to force the evaluation *)
   | Some f_app when not (Proof_utils.CFML.is_const_wp_fn f_app) ->

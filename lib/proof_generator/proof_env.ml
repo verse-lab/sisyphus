@@ -146,6 +146,8 @@ let normalize_observation env ((pure, heap): (Dynamic.Concrete.context * Dynamic
     List.filter_map (function
       | (v, `Array vls) when StringMap.mem v rev_map ->
         Some (StringMap.find v rev_map, `List vls)
+      | (v, `PointsTo (`Opaque (_, vls))) when StringMap.mem v rev_map ->
+        Some (StringMap.find v rev_map, `List vls)
       | (v, `PointsTo vl) when StringMap.mem v rev_map ->
         Some (StringMap.find v rev_map, vl)
       | _ -> None

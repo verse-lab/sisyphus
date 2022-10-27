@@ -16,7 +16,12 @@ let loc v = Location.{txt=v; loc=none}
 
 let pvar s = AH.Pat.var (loc s)
 
-let lid s = Longident.Lident s
+let lid s =
+  let id = if String.contains s '.'
+    then Longident.unflatten (String.split_on_char '.' s)
+    else None in
+  Option.value ~default:(Longident.Lident s) id
+
 let const v = AH.Exp.constant v
 
 let pconst v = AH.Pat.constant v
@@ -24,11 +29,7 @@ let str_const v = const (Parsetree.Pconst_string (v, Location.none, None))
 let int_const v = const (Parsetree.Pconst_integer (string_of_int v, None))
 let pstr_const v = pconst (Parsetree.Pconst_string (v, Location.none, None))
 let pint_const v = pconst (Parsetree.Pconst_integer (string_of_int v, None))
-let var v =
-  let id = if String.contains v '.'
-    then Longident.unflatten (String.split_on_char '.' v)
-    else None in
-  AH.Exp.ident (loc (Option.value ~default:(lid v) id))
+let var v = AH.Exp.ident (loc (lid v))
 
 let fun_ args body =
   List.fold_left
@@ -49,6 +50,7 @@ let normalize = function
   | "TLC.LibOrder.lt" -> "<"
   | "TLC.LibOrder.ge" -> ">="
   | "TLC.LibOrder.le" -> "<="
+  | "CFML.Stdlib.Pervasives_ml.infix_colon_eq__" -> ":="
   | s -> lowercase s
 
 let extract_sym s =
@@ -91,7 +93,7 @@ let rec encode_expr (expr: Lang.Expr.t) : Parsetree.expression =
     AH.Exp.apply
       (AH.Exp.ident (loc sym_of_raw))
       [ Nolabel, AH.Exp.tuple [AH.Exp.constant (Pconst_integer (id, None));
-                                          AH.Exp.constant (Pconst_string (sym, Location.none, None))] ]
+                               AH.Exp.constant (Pconst_string (sym, Location.none, None))] ]
   | `Var v -> var v
   | `App (f, args) ->
     AH.Exp.apply (var (normalize f)) (List.map (fun e -> (AT.Nolabel, encode_expr e)) args)
@@ -119,8 +121,7 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.CaseFalse -> false
   | Proof_term.XDone _ -> false
   | Proof_term.HimplHandR (_, l1, l2)
-  | Proof_term.HimplTrans (_, _, l1, l2) ->
-    contains_symexec l1 || contains_symexec l2
+  | Proof_term.HimplTrans (_, _, l1, l2) -> contains_symexec l1 || contains_symexec l2
   | Proof_term.Lambda (_, _, rest) ->
     contains_symexec rest
   | Proof_term.AuxVarApp _
@@ -137,20 +138,24 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.XApps _
   | Proof_term.XApp _ 
   | Proof_term.XVal _  -> true
+  | Proof_term.XChange {first; second} -> contains_symexec first || contains_symexec second
   | Proof_term.CaseADT {cases; _} ->
     List.exists (fun (_name,_args, rest) -> contains_symexec rest) cases
   | Proof_term.CaseBool {if_true; if_false; _} ->
     contains_symexec if_true || contains_symexec if_false
+  | Proof_term.ReflOfEq _ -> false
+  | Proof_term.InfixColonEqualSpec _ -> false
+  | Proof_term.CustomFold _ -> false
 
 (** [extract_xmatch_cases n trm] extracts [n] xmatch cases from [trm].
 
     The general structure of a proof term used to analyse a match
-   construct is with an xmatch lemma at the root, and then a subproof
-   consistent of a sequence of `himplhandr` lemmas, one for each case,
-   with the final `himplhandr` being terminated with an xdone lemma by
-   contradiction (this doesn't correspond to anything in the program,
-   but rather is required in the proof to capture the exhaustiveness
-   of the match so we ignore it). *)
+    construct is with an xmatch lemma at the root, and then a subproof
+    consistent of a sequence of `himplhandr` lemmas, one for each case,
+    with the final `himplhandr` being terminated with an xdone lemma by
+    contradiction (this doesn't correspond to anything in the program,
+    but rather is required in the proof to capture the exhaustiveness
+    of the match so we ignore it). *)
 let extract_xmatch_cases n trm =
   let rec extract_eq acc trm =
     match trm with
@@ -194,13 +199,13 @@ let rec wrap_with_invariant_check (pre: Proof_term.sym_heap) ~then_ =
     AH.Exp.sequence (encode_expr expr) (wrap_with_invariant_check t ~then_)
 
 (** [find_next_program_binding_name trm] when given a proof term,
-   calculates the next lambda that binds a variable with an
-   OCaml-representable type.
+    calculates the next lambda that binds a variable with an
+    OCaml-representable type.
 
-   Sometimes symbolic execution steps in a proof use lambda subterms
-   to name the values they instantiate, and in these cases, this
-   function is useful for "peeking" into the proof term to work out an
-   appropriate name. *)
+    Sometimes symbolic execution steps in a proof use lambda subterms
+    to name the values they instantiate, and in these cases, this
+    function is useful for "peeking" into the proof term to work out an
+    appropriate name. *)
 let rec find_next_program_binding_name (trm: Proof_term.t) =
   match trm with
   | Proof_term.Lambda (name, `Ty _, _) -> name
@@ -214,7 +219,38 @@ let rec find_next_program_binding_name (trm: Proof_term.t) =
     | false, false -> raise Not_found
     end
   | _ -> raise Not_found
-  
+
+(** [find_next_n_bindings n trm] traverses [trm] to find the next [n]
+    lambda bindings and their names.  *)
+let find_next_n_bindings no_existentials proof =
+  let rec loop acc trm =
+    if List.length acc >= no_existentials
+    then List.rev acc
+    else match trm with
+      | Proof_term.Lambda (name, (`Ty _), rest)-> loop (name :: acc) rest
+      | Proof_term.HimplTrans (_, _, l1, l2) ->
+        begin match  contains_symexec l1, contains_symexec l2 with
+        | true, false -> loop acc l1
+        | false, true -> loop acc l2
+        | true, true -> failwith "found impossible situation - HimplTrans with symbolic execution on both branches...."
+        | false, false -> raise Not_found
+        end
+      | _ -> raise Not_found in
+  loop [] proof
+
+(** [unfold_lemma_to_unfold_function lemma] converts a unfold lemma
+    name to a corresponding function that implements the lemma.  *)
+let unfold_lemma_to_unfold_function lemma =
+  match List.rev @@ String.split_on_char '.' lemma with
+  | name :: modl :: _ when String.prefix ~pre:"Verify_" modl ->
+    let unfold_name = String.lowercase_ascii name ^ "_unfold" in
+    let module_name = String.drop (String.length "Verify_") modl in
+    String.capitalize_ascii module_name ^ "." ^ unfold_name
+  | _ ->
+    Format.ksprintf ~f:failwith
+      "invalid naming scheme for unfold lemma %s - expecting something of the form ...Verify_<modl>.<lemma_name>"
+      lemma
+
 let rec extract ?replacing (trm: Proof_term.t) =
   debug (fun f -> f "extract %s@." (Proof_term.tag trm));
   let extract trm = extract ?replacing trm in
@@ -250,12 +286,22 @@ let rec extract ?replacing (trm: Proof_term.t) =
     | true, true -> failwith "found impossible situation - HimplTrans with symbolic execution on both branches...."
     | false, false -> AH.Exp.construct (loc (lid "()")) None
     end
+
   | Proof_term.Lambda (_, _, rest) -> extract rest
+
+  | Proof_term.XLetTrmCont {
+    pre=_; binding_ty=_; value_code=_;
+    proof=Proof_term.XApp { proof_fun=AuxVarApp _ } as proof (* TODO: make this more elegant.... *)
+  } ->
+    (extract proof)
+
   | Proof_term.XLetTrmCont {
     pre; binding_ty; value_code;
     proof=Proof_term.XApp { proof } (* TODO: make this more elegant.... *)
   } ->
-    let var = find_next_program_binding_name proof in
+    let var = match find_next_program_binding_name proof with
+      | var -> var
+      | exception Not_found -> "_unused" in
     wrap_with_invariant_check pre ~then_:begin fun () ->
       AH.Exp.let_ AT.Nonrecursive [
         AH.Vb.mk (pvar var) (encode_expr value_code)
@@ -336,7 +382,7 @@ let rec extract ?replacing (trm: Proof_term.t) =
     let expr =
       if Option.exists (String.equal f) replacing
       then Format.ksprintf ~f:failwith "found non-var app application of recursive call.... %s"
-            (String.take 1000 ([%show: Proof_term.t] trm))
+             (String.take 1000 ([%show: Proof_term.t] trm))
       else encode_expr (`App (f, args)) in
     if contains_symexec proof then
       wrap_with_invariant_check pre ~then_:begin fun () ->
@@ -382,6 +428,23 @@ let rec extract ?replacing (trm: Proof_term.t) =
       (List.map encode_case cases)
   | Proof_term.CaseFalse ->
     AH.Exp.assert_ (encode_expr (`Constructor ("false", [])))
+  | Proof_term.XChange {first = ReflOfEq { proof = CustomFold {
+    lemma; no_existentials; reference; _
+  } }; second=proof } ->
+    if no_existentials <= 0
+    then extract proof
+    else begin
+      let vars = find_next_n_bindings no_existentials proof in
+      let unfold_fun = unfold_lemma_to_unfold_function lemma in
+      let pats = match vars with
+          [v] -> AH.Pat.var (loc v)
+        | vars -> AH.Pat.tuple (List.map (fun v -> AH.Pat.var (loc v)) vars) in
+      AH.Exp.let_ Nonrecursive [
+        AH.Vb.mk pats (AH.Exp.apply (var unfold_fun) [Nolabel, (var reference)])
+      ] (extract proof)
+    end 
+  | Proof_term.XChange { first; second } when not (contains_symexec first) && contains_symexec second ->
+    extract second    
   | _ ->
     Format.ksprintf ~f:failwith "found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm))
 and extract_recursive_function

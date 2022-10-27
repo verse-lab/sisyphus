@@ -22,6 +22,7 @@ Definition stack := fun (A: Type) => loc.
 Lemma Stack_unfold {A: Type} `{EA: Enc A} (ls: list A) (s: loc):
   s ~> Stack ls = s ~~~> `{ size' := length ls; elements' := ls }.
 Proof. unfold Stack; rewrite repr_eq; xsimpl*. Qed.
+Arguments Stack_unfold [A] {EA} ls s.
 
 Lemma stack_init_spec {A: Type} `{EA: Enc A}:
   SPEC(stack_init tt)
@@ -41,7 +42,7 @@ Lemma stack_size_spec {A: Type} `{EA: Enc A} (s: stack A) (ls: list A):
     POST (fun (sz: int) => \[ sz = length ls ] \* s ~> Stack ls).
 Proof.
   xcf; auto.
-  rewrite Stack_unfold.
+  xchange Stack_unfold.
   xapp.
   xsimpl*.
 Qed.
@@ -53,7 +54,7 @@ Lemma stack_pop_spec {A: Type} `{EA: Enc A} (s: stack A) (hd: A) (tl: list A):
     POST (fun (res: A) => \[ res = hd ] \* s ~> Stack tl).
 Proof.
   xcf; auto.
-  rewrite Stack_unfold.
+  xchange Stack_unfold.
   xassert.
   xgo*; rew_list; math.
   xgo*.
@@ -67,8 +68,8 @@ Lemma stack_push_spec {A: Type} `{EA: Enc A} (s: stack A) (hd: A) (tl: list A):
     PRE (s ~> Stack tl)
     POST (fun (_: unit) => s ~> Stack (hd :: tl)).
 Proof.
-  xcf; auto. 
-  rewrite Stack_unfold.
+  xcf; auto.
+  xchange Stack_unfold.
   xgo*.
   rewrite Stack_unfold.
   xgo*.
@@ -82,7 +83,7 @@ Lemma stack_clear_spec {A: Type} `{EA: Enc A} (s: stack A) (tl: list A):
     POST (fun (_: unit) => s ~> Stack (@nil A)).
 Proof.
   xcf; auto. 
-  rewrite Stack_unfold.
+  xchange Stack_unfold.
   xgo*.
 Qed.
 #[export] Hint Extern 1 (RegisterSpec stack_clear) => Provide stack_clear_spec.
@@ -116,7 +117,7 @@ Proof.
       xapp (IH (len + 1)); try apply upto_intro; try (subst; rew_list; auto; math).
       xsimpl*.
   }
-  rewrite Stack_unfold.
+  xchange Stack_unfold.
   xapp.
   xapp; rew_list; auto.
   xsimpl*.

@@ -268,6 +268,8 @@ let rec eval_tracing_value t (ty: Lang.Type.t) (vl: Dynamic.Concrete.value) : La
     `Tuple elts
   | (Lang.Type.List ty, `List elts) ->
     eval_tracing_list t ty elts
+  | (Lang.Type.List ty, `Opaque (_, elts)) ->
+    eval_tracing_list t ty elts
   | (_, `Int n) -> Some (`Int n)
   | (ty, `Value vl) ->
     let var = fresh ~base:vl t in

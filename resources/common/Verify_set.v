@@ -16,6 +16,7 @@ Definition intset := loc.
 Lemma Intset_unfold (ls: list int) (s: loc):
   s ~> Intset ls = s ~~> ls \* \[noduplicates ls].
 Proof. unfold Intset; rewrite repr_eq; xsimpl*. Qed.
+Arguments Intset_unfold ls s : clear implicits.
 
 Lemma set_mem_spec (s: intset) (k: int) (ls: list int) :
   SPEC(set_mem k s)
