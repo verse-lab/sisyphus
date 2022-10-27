@@ -1,55 +1,51 @@
 Set Implicit Arguments.
+Generalizable Variables EA.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
 From Common Require Import Tactics Solver Utils.
-From Common Require Import Verify_tree.
+From Common Require Import Verify_tree Tree_ml.
 
 From ProofsTreeToArray Require Import Tree_to_array_old_ml.
 
 Lemma tree_to_array_spec :
-  forall (A : Type) `{EA : Enc A} (lt : ltree A) (t : ltree A),
+  forall {A : Type} `{EA : Enc A} (t : tree_ A),
   SPEC (tree_to_array t)
-  PRE \[Tree lt t]
-  POST (fun a : loc => a ~> Array (tree_to_list lt)).
+  PRE \[]
+  POST (fun a : loc => a ~> Array (tol t)).
 Proof using (All).
   xcf.
-  xpullpure Ht.
-  xapp (size_spec lt). { auto. }
-  xapp (head_spec lt). { auto. }
-  Set Ltac Debug.
+  xapp+.
+  xapp+.
   xalloc arr data Hdata.
-  xapp; try (pose proof (lsize_gt0 lt); math); intros arr data Hdata.
-  xapp; intros ri.
-  xletopaque f Hf.
-  xapp (tree_iter_spec f t lt
-                       (fun (ls: list A) =>
-                          ri ~~> (length ls)
-                             \* arr ~> Array (ls ++ drop (length ls) data))
+  xapp+. intros i.
+  xletopaque tmp Htmp.
+  xapp (tree_iter_spec tmp t
+          (fun (ls: list A) =>
+             i ~~> (length ls)
+               \* arr ~> Array (ls ++ drop (length ls) data))
        ). {
-    intros. apply Hf.
-    xgo*.
-    + apply int_index_prove; try math. rewrite <- !length_eq. rew_list.
-      rewrite !lsize_eq, !H in *.
-      rewrite !Hdata, !length_drop_nonneg; rewrite !length_make; rew_list; math.
-    + rew_list; math.
-    + rew_list.
-      rewrite !lsize_eq, !H,  !Hdata in *.
+    sis_solve_start; rew_list; auto. 
+    + apply int_index_prove; try math; rewrite <- !length_eq; rew_list.
+      rewrite !tree_size_eq in *; rewrite Hdata, Heq, length_drop_nonneg;
+        rewrite !length_make; rew_list; try math.
+    + math.
+    + rewrite !tree_size_eq, !Heq,  !Hdata in *.
       erewrite (@update_app_r _ _ 0 t0 (length t0)); auto; try math.
       f_equal.
-      rewrite (drop_nth (make (length t0) (lhead lt)) (lhead lt)
-              (make (length r) (lhead lt))). {
+      rewrite (drop_nth (make (length t0) (thead t)) (thead t)
+              (make (length r) (thead t))). {
         rewrite update_zero; do 2 f_equal; math.
       }
       { rew_list; rewrite make_app; eauto; try math; eauto.
       math_rewrite (1 + length r = length r + 1).
       rewrite make_succ_l; try math; auto. }
       { rewrite length_make; math. }
-  } { auto. }
+  }
   xmatch.
   xvals*. {
     rewrite Hdata.
-    rewrite lsize_eq; rewrite <- (length_make (lhead lt)) at 1; try math.
+    rewrite tree_size_eq; rewrite <- (length_make (thead t)) at 1; try math.
     rewrite drop_at_length; rew_list; auto.
   }
 Qed.
