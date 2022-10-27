@@ -244,7 +244,8 @@ let find_next_n_bindings no_existentials proof =
 let unfold_lemma_to_unfold_function lemma =
   match List.rev @@ String.split_on_char '.' lemma with
   | name :: modl :: _ when String.prefix ~pre:"Verify_" modl ->
-    let unfold_name = String.lowercase_ascii name ^ "_unfold" in
+    let name = String.lowercase_ascii name in
+    let unfold_name = if String.suffix ~suf:"_unfold" name then name else name ^ "_unfold" in
     let module_name = String.drop (String.length "Verify_") modl in
     String.capitalize_ascii module_name ^ "." ^ unfold_name
   | _ ->
