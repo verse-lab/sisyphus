@@ -44,6 +44,7 @@ let lowercase s =
 let normalize = function
   | "TLC.LibList.app" -> "@"
   | "TLC.LibListZ.length" -> "List.length"
+  | "TLC.LibList.rev" -> "List.rev"
   | "TLC.LibContainer.read" -> "List.nth"
   | "TLC.LibListZ.drop" -> "Lst.list_drop"
   | "TLC.LibOrder.gt" -> ">"
