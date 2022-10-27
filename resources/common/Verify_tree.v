@@ -7,7 +7,7 @@ From Common Require Import Utils Tactics.
 From Common Require Import Tree_ml.
 
 (* used for reasoning about tree combinators: [tree_iter] and [tree_fold] *)
-Fixpoint tol {A} (lt: tree_ A) :=
+Fixpoint tol (A: Type) (lt: tree_ A) :=
   match lt with
   | Leaf vl => (vl :: nil)
   | Node vl t1 t2 => tol t1 ++ (vl :: nil) ++ tol t2
@@ -25,7 +25,7 @@ Proof using.
 Qed.
 
 (* size *)
-Fixpoint tsize {A} (lt: tree_ A) :=
+Fixpoint tsize (A: Type) (lt: tree_ A) :=
   match lt with
   | Leaf _ => 1
   | Node _ lt1 lt2 => 1 + tsize lt1 + tsize lt2
@@ -68,12 +68,12 @@ Qed.
 Hint Extern 1 (RegisterSpec tree_size) => Provide tree_size_spec.
 
 (* head *)
-Definition thead {A} (t: tree_ A) :=
+Definition thead A (t: tree_ A) :=
   match t with
   | Leaf vl => vl
   | Node vl _ _ => vl
   end.
-Arguments thead {A} t : rename.
+Arguments thead A t : rename.
 
 Lemma tree_head_spec : forall {A} `{EA: Enc A} (t: tree_ A),
     SPEC_PURE (tree_head t)
