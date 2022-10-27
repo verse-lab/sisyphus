@@ -4,6 +4,9 @@ type 'a queue = {
   mutable right: 'a list;
 }
 
+let queue_to_list (q: 'a queue) : 'a list = q.right @ List.rev q.left
+let queue_of_list (q: 'a list) : 'a queue = {size=List.length q; left=[]; right=q}
+
 let queue_init () : 'a queue = { size=0; left = []; right = [] }
 
 let queue_enqueue (q: 'a queue) (hd: 'a) =
