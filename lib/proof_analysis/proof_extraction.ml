@@ -323,6 +323,19 @@ let rec extract ?replacing (trm: Proof_term.t) =
     | exception _ -> (extract proof)
     end
 
+  | Proof_term.XLetTrmCont {
+    pre; binding_ty; value_code;
+    proof
+  } ->
+    begin match find_next_program_binding_name proof with
+    | var ->
+      wrap_with_invariant_check pre ~then_:begin fun () ->
+        AH.Exp.let_ AT.Nonrecursive [
+          AH.Vb.mk (pvar var) (encode_expr value_code)
+        ] (extract proof)
+      end
+    | exception _ -> (extract proof)
+    end
   | Proof_term.XApp { application; pre; fun_pre; proof_fun=AccRect { prop_type; proof=proof_fun; vl; args }; proof } ->
     if contains_symexec proof then
       wrap_with_invariant_check pre ~then_:begin fun () ->
