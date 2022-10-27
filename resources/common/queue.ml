@@ -4,6 +4,13 @@ type 'a queue = {
   mutable right: 'a list;
 }
 
+let queue_unfold q = (q.left, q.right)
+
+let get_field_left q = q.left
+let get_field_right q = q.right
+let set_field_left q vl = q.left <- vl
+let set_field_right q vl = q.right <- vl
+
 let queue_to_list (q: 'a queue) : 'a list = q.right @ List.rev q.left
 let queue_of_list (q: 'a list) : 'a queue = {size=List.length q; left=[]; right=q}
 
