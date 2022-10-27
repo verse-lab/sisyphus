@@ -708,6 +708,25 @@ let unwrap_eq ?env ?rel (c: Constr.t) =
       "found unexpected Coq term (%s)[%s] ==> %s, when expecting an equality"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
+(** [extract_embedded_function_name expr] extracts a function name
+   from an [expr] expression representing an embedded CFML program AST. *)
+let extract_embedded_function_name expr =
+  match expr with 
+  | `Var v -> v
+  | `App ("CFML.WPRecord.val_get_field", [`Var fld]) ->
+    (* CFML encodes field accesses in the form (CFML.WPRecord.val_get_field Common.<module-name>_ml.<field-name>') *)
+    let components = String.split_on_char '.' fld |> List.rev in
+    (* extract the components *)
+    let field_name, components = List.hd_tl components in
+    let modl, _ = List.hd_tl components in
+    (* drop the last apostrophe in the field name *)
+    let field_name = String.take (String.length field_name - 1) field_name in
+    (* drop the _ml in the module name *)
+    let modl = String.take (String.length modl - 3) modl in
+    modl ^ ".get_field_" ^ field_name
+  | expr -> Format.ksprintf ~f:failwith "found application to non-constant function (%a)"
+              Lang.Expr.pp expr  
+
 (** [extract_embedded_expr ?rel c] extracts a deeply embedded CFML
     expression from a Coq term [c]. [rel] is a function that maps Coq's
     de-bruijin indices to the corresponding terms in the wider typing
@@ -717,7 +736,7 @@ let rec extract_embedded_expr ?rel (c: Constr.t) : Lang.Expr.t =
   | Constr.App (fn, [| f |]), _ when Utils.is_const_eq "CFML.WPLifted.Wptag" fn ->
     extract_embedded_expr ?rel f
   | Constr.App (fn, [| ty; enc_ty; f; args |]), _ when Utils.is_const_eq "CFML.WPLifted.Wpgen_app" fn ->
-    let fn = extract_expr ?rel f |> function `Var v -> v | _ -> failwith "found application to non-constant function" in
+    let fn = extract_expr ?rel f |> extract_embedded_function_name in
     let args = 
       Utils.unwrap_inductive_list args
       |> List.map (extract_dyn_var ?rel) in
