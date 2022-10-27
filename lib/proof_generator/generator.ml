@@ -935,6 +935,9 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
             pp v var (Option.pp Lang.Type.pp) ty (Option.pp Lang.Type.pp) (StringMap.find_opt var env.gamma)
       ) pre_heap in
 
+  if List.is_empty gen_pure_spec && List.is_empty gen_heap_spec then
+    failwith "found an empty generation context...... this shouldn't happen - pre heap is %s"
+      ([%show: Proof_spec.Heap.Heaplet.t list ] pre_heap);
   Log.info (fun f ->
     f "Generation target is:\n - pure: %a\n - heap: %s"
       (List.pp (Pair.pp String.pp Lang.Type.pp)) gen_pure_spec
