@@ -147,7 +147,9 @@ let rec extract_typ ?rel (c: Constr.t) : Lang.Type.t =
   (* Proof irrelevance? pfftt... not on my watch:  *)
   | Constr.Sort Prop, _ -> Lang.Type.Bool
   | Constr.App (fname, [| ty |]), _ when Utils.is_const_eq "Common.Verify_sll.sll" fname ||
-                                         Utils.is_const_eq "Common.Sll_ml.sll_" fname ->
+                                         Utils.is_const_eq "Common.Sll_ml.sll_" fname ||
+                                         Utils.is_const_eq "Common.Verify_stack.stack" fname ||
+                                         Utils.is_const_eq "Common.Verify_queue.queue" fname ->
     let fname, _ = Constr.destConst fname in
     let fname = Names.Label.to_string (Names.Constant.label fname) in
     let fname = if String.suffix ~suf:"_" fname then String.sub fname 0 (String.length fname - 1) else fname in
@@ -338,9 +340,33 @@ let rec extract_expr ?env ?rel (c: Constr.t) : Lang.Expr.t =
     let fname = match modl_name with None -> fname | Some modl -> modl ^ "." ^ fname in
     let args = Array.to_list args |> List.drop 1 |> List.map (extract_expr ?env ?rel) in
     `Constructor (fname, args)
+  | Constr.Lambda (_, _, _), _ -> extract_and_eta_expand_lambda ?env ?rel c
   | _ ->
     Format.ksprintf ~f:failwith "found unhandled Coq term (%s)[%s] in %s that could not be converted to a expr"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
+(** [extract_and_eta_expand_lambda ?env ?rel c] when given a coq term
+   [c] of the form [fun (x: 'a) => istrue (f x)] returns the
+   expression obtained by extracting [f] (i.e performs the eta
+   expansion and then extracts f). This function is required because
+   sometimes the coq context contains lambdas that we don't support in
+   general, but can support after eta-expansion. *)
+and extract_and_eta_expand_lambda ?env ?rel c =
+  let failwith fmt = Format.ksprintf ~f:failwith fmt in
+  let asserts cond = if not cond then failwith "unexpected form for lambda %s" (Proof_debug.constr_to_string_pretty c) in
+  asserts (Constr.isLambda c);
+  let binder, ty, body = Constr.destLambda c in
+  asserts (Constr.isApp body);
+  let (is_true, is_true_args) = Constr.destApp body in
+  asserts (Utils.is_const_eq "TLC.LibReflect.istrue" is_true && Array.length is_true_args = 1);
+  let is_true_arg = is_true_args.(0) in
+  asserts (Constr.isApp is_true_arg);
+  let (applied_fun, applied_args) = Constr.destApp is_true_arg in
+  asserts (Array.length applied_args = 1);
+  let rel = match rel with
+    | None -> None              (* update rel to account for the binding  *)
+    | Some f -> Some (fun ind -> f (ind - 1)) in
+  extract_expr ?env ?rel applied_fun
+
 
 (** [extract_heap c] when given a coq term [c] representing a heap,
     returns a list of its constituent heaplets. *)
