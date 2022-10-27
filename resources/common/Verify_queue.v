@@ -126,11 +126,11 @@ Proof.
              SPEC (loop r)
                PRE (I t)
                POSTUNIT (I ls)). {
-    intros t; remember (length t) as len; gen t.
-    induction_wf IH: (upto (length ls)) len; intros t Hlen r' Htr.
+    intros t r0; remember (length t) as len; gen r0 t.
+    induction_wf IH: (upto (length ls)) len; intros r' t Hlen Htr.
     apply Hloop; clear Hloop.
     case_eq r'; [intros Hnil | intros rh rt Hrht].
-    - xmatch. xvals*. subst; rew_list; xsimpl*; rew_list in Htr; subst; xsimpl*.
+    - xmatch. xvals*; subst; rew_list; xsimpl*; rew_list in Htr; subst; xsimpl*.
     - xmatch.
       xapp (H rh t rt); try (subst; rew_list; auto; math).
       xapp (IH (len + 1)); try apply upto_intro; try (subst; rew_list; auto; math).
