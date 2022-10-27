@@ -14,6 +14,11 @@ let fold_right1 f args =
   | [] -> None
   | h :: t -> Some (List.fold_right f t h)
 
+let lid v =
+  let default = Longident.Lident v in
+  if String.contains v '.'
+  then Option.value ~default (Longident.unflatten (String.split_on_char '.' v))
+  else default
 
 (* [type_ ty] converts a reified internal type [ty] into an AST
    expression encoding the corresponding type.
@@ -128,8 +133,7 @@ let build_enc_fun v =
           Nolabel, ty_enc_fun;
           Nolabel, (apply
                       (ident
-                         (str @@ Option.get_exn_or "invalid conv" @@
-                          Longident.unflatten (String.split_on_char '.' conv))) [
+                         (str @@ lid conv)) [
                       Nolabel, v
                     ])
         ]
@@ -294,7 +298,8 @@ let rec encode_expr (expr: Lang.Expr.t) =
       AH.Exp.fun_ Nolabel None pat body  in
     List.fold_right encode_fun args (encode_expr body)
 
-let annotate ?(deep=false) ({ prelude; name; args; body; opaque_encoders; _ }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
+let annotate ?(deep=false) ({ prelude; name; args; body; opaque_encoders;
+                              input_sanitizer; _ }: Lang.Expr.t Lang.Program.t) : Parsetree.structure =
   let str str = Location.{ txt=str; loc= !AH.default_loc } in
   let add_param (param: Lang.Expr.typed_param) env =
     match param with
@@ -396,9 +401,22 @@ let annotate ?(deep=false) ({ prelude; name; args; body; opaque_encoders; _ }: L
            ]) in
         let rest = (encode_stmt ~observe env body) in
         AH.Exp.sequence set_exp rest
-      )
-  in
+      ) in
   let body = encode_stmt ~observe:true args body in
+  let body = match input_sanitizer with
+    | None -> body
+    | Some input_sanitizer ->
+      let pat, args_expr = match args with
+        | [v, _] -> AH.Pat.var (str v), AH.Exp.(ident (str (lid v)))
+        | args ->
+          AH.Pat.tuple (List.map (fun (v, _) -> AH.Pat.var (str v)) args),
+          AH.Exp.tuple (List.map (fun (v, _) -> AH.Exp.ident (str (lid v))) args)
+      in
+      let expr =
+        AH.Exp.(apply (ident (str (lid input_sanitizer))) [ Nolabel, args_expr ]) in
+      AH.Exp.let_ Nonrecursive [
+        AH.Vb.mk pat expr
+      ] body in
   let def =
     AH.Str.value
       AT.Nonrecursive [

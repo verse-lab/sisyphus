@@ -28,6 +28,7 @@ type 'a t = {
   prelude: structure_item list;
   logical_mappings: (string * string) list;
   opaque_encoders: (string * (string * string)) list;
+  input_sanitizer: string option;
   name: string;
   args: (string * Type.t) list;
   body: 'a stmt

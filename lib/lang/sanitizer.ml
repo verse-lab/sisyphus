@@ -348,9 +348,21 @@ let convert : Parsetree.structure -> 'a Program.t = function
           Some elts
         | _ -> failwith "invalid structure for opaque encoders mappings"
       end |> Option.value ~default:[] in
+    let input_sanitizer =
+      begin
+        let open Option in
+        let* mapping = List.find_opt (fun attr ->
+          String.equal "with_sanitizer" attr.Parsetree.attr_name.txt 
+        ) pvb_attributes in
+        match mapping.attr_payload with
+        | Parsetree.PStr [{ pstr_desc=Pstr_eval (expr, _); pstr_loc }] ->
+          let sanitizer = convert_string_expr expr in
+          Some sanitizer
+        | _ -> failwith "invalid structure for opaque encoders mappings"
+      end in
 
 
-    {prelude; opaque_encoders; logical_mappings;name;args;body}
+    {prelude; opaque_encoders; logical_mappings;name;args;body; input_sanitizer}
 
 let parse_lambda_str str = raw_parse_expr_str str |> convert_lambda StringSet.empty
 let parse_expr_str str = raw_parse_expr_str str |> convert_expr
