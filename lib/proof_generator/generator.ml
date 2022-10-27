@@ -1131,8 +1131,8 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
   | `LetExp (pat, rewrite_hint, body, rest) ->
     t.current_program_id <- Lang.Id.incr t.current_program_id;
     begin match body with
-    | `App ("Array.make", [_; _]) ->
-      symexec_alloc t env pat rest
+    | `App ("Array.make", [_; vl]) ->
+      symexec_alloc t env pat vl rest
     | `App ("ref", [_]) ->
       symexec_ref_alloc t env pat rest
     | `App ("Array.get", [_; _]) ->
@@ -1156,7 +1156,11 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
     symexec_match t env prog_expr cases
   | `EmptyArray ->
     t.current_program_id <- Lang.Id.incr t.current_program_id;
-    Proof_context.append t "xvalemptyarr."
+    Proof_context.append t "xvalemptyarr.";
+    while (Proof_context.current_subproof t).goals |> List.length > 0 do
+      Proof_context.append t "{ admit. }";
+    done
+
   | `IfThenElse (cond, l, r) ->
     t.current_program_id <- Lang.Id.incr t.current_program_id;
     symexec_if_then_else t env cond l r
@@ -1181,10 +1185,14 @@ and symexec_lambda t env name body rest =
   let env = Proof_env.add_lambda_def t env name body in
   (* update_program_id_over_lambda t body; *)
   symexec t env rest
-and symexec_alloc t env pat rest =
+and symexec_alloc t env pat vl rest =
   Log.debug (fun f -> f "[%s] symexec_alloc %a"
                         (t.Proof_context.current_program_id |>  Lang.Id.show)
                         Lang.Expr.pp_typed_param pat);
+  (* if, the value we're storing is a non-trivial function, then add an xapp.   *)
+  if not (is_simple_expression vl) then
+      Proof_context.append t "xapp.";
+
   let prog_arr, arr_ty = match pat with
     | `Tuple _ -> failwith "found tuple pattern in result of array.make"
     | `Var (var, ty) -> var, ty in
@@ -1215,7 +1223,12 @@ and symexec_array_get t env pat rest =
   Log.debug (fun f -> f "[%s] symexec_array_get %a"
                         (t.Proof_context.current_program_id |>  Lang.Id.show)
                         Lang.Expr.pp_typed_param pat);
-  Proof_context.append t "xinhab.";
+  begin match pat with
+  | `Var (_, (Lang.Type.Var _ as ty)) ->
+    let var = Lang.Type.to_coq_form ty |> function[@warning "-8"] Lang.Type.Var v -> v in
+    Proof_context.append t "xinhab_inner %s." var;
+  | _ -> ()
+  end;
   Proof_context.append t "xapp.";
   Proof_context.append t "{";
   Proof_context.append t "try sis_handle_int_index_prove.";
@@ -1258,13 +1271,13 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
     if Proof_context.(current_subproof t).goals |> List.length > 1 then
       failwith "symbolic execution of %a lead to multiple non-trivial subgoals"
         Lang.Expr.pp body;
+    (* while Proof_context.(current_subproof t).goals |> List.length > 1 do
+     *   Proof_context.append t "{ admit. }";
+     * done; *)
     begin match prog_ty with
     | Lang.Type.Unit -> Proof_context.append t "xmatch."
     | _ -> ()
     end;
-    (* while Proof_context.(current_subproof t).goals |> List.length > 1 do
-     *   Proof_context.append t "{ admit. }";
-     * done; *)
     let env = begin match Proof_context.(current_subproof t).goals with
       | goal :: _ when Constr.isProd goal.ty ->
         let intro_var = Proof_context.fresh ~base:prog_var t in
