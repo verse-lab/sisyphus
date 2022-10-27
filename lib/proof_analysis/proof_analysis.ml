@@ -694,6 +694,29 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       fun_pre=fun_pre;
       proof=reify_proof_term coq_env env proof;
     }
+  | Constr.App (trm, [| _a; _ea; _post; _pre; _p; _f; _l; proof |]) when PCFML.is_xapp_record_Get trm ->
+    debug (fun f -> f "reify proof term on xapp_record_Get");
+    reify_proof_term coq_env env proof
+  | Constr.App (trm, [| ty; _enc_ty; vl; _post; pre; refr; field; _rfs; proof |]) when PCFML.is_xapp_record_Set trm ->
+    debug (fun f -> f "reify proof term on xapp_record_Set");
+    (* reify_proof_term coq_env env proof *)
+    let pre = extract_sym_heap coq_env env pre in
+    let vl = PCFML.extract_expr ~env:coq_env ~rel:(rel_expr env) vl in
+    let reference = PCFML.extract_expr ~env:coq_env ~rel:(rel_expr env) refr |> function
+    | `Var v -> v
+    | expr -> Format.ksprintf ~f:failwith "invalid type of reference to record set (%a)"
+                Lang.Expr.pp expr in
+    let field = PCFML.extract_expr ~env:coq_env ~rel:(rel_expr env) refr |> function
+    | `Var v -> v
+    | expr -> Format.ksprintf ~f:failwith "invalid type of field for record set (%a)"
+                Lang.Expr.pp expr in
+    XRecordSet {
+      pre;
+      vl;
+      reference;
+      field;
+      rest=reify_proof_term coq_env env proof
+    }
   | Constr.App (trm, [|
     ret_ty; enc_ret_ty;
     fun_post;
