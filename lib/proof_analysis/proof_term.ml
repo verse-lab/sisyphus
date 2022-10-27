@@ -90,6 +90,13 @@ type t =
       vl: expr;
       args: spec_arg list;
     }
+  | XRecordSet of {
+      pre: sym_heap;
+      vl: expr;
+      reference: string;
+      field: string;
+      rest: t
+    }
   | XChange of { first: t; second: t; }
   | ReflOfEq of { proof: t }
   | CustomFold of { lemma: string; no_existentials: int; reference: string; args: expr list }
@@ -127,3 +134,4 @@ let tag = function
   | CaseADT _ -> "CaseADT"
   | CaseFalse -> "CaseFalse"
   | CustomFold _ -> "CustomFold"
+  | XRecordSet _ -> "XRecordSet"

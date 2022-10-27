@@ -130,6 +130,7 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.CharacteristicFormulae { args; pre; proof } -> contains_symexec proof
   | Proof_term.AccRect { proof={ proof; _ }; _ } -> contains_symexec proof
   | Proof_term.Refl -> false
+  | Proof_term.XRecordSet _
   | Proof_term.XIfVal _
   | Proof_term.XLetFun _
   | Proof_term.XLetVal _ 
