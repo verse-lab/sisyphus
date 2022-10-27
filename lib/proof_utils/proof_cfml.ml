@@ -838,7 +838,7 @@ let count_no_existentials_in_unfold ty =
     | _ -> ty in
   let rec count_existentials acc ty = match Constr.kind_nocast ty with
     | Constr.Prod (_, _, ty) -> count_existentials acc ty
-    | Constr.Lambda (_, _, ty) -> acc
+    | Constr.Lambda (_, _, ty) -> count_existentials acc ty
     | Constr.App (trm, [| _; ty |]) when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hexists" trm ->
       count_existentials (acc + 1) ty
     | _ -> acc in
