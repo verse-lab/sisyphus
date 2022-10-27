@@ -461,6 +461,14 @@ let rec extract ?replacing (trm: Proof_term.t) =
     end 
   | Proof_term.XChange { first; second } when not (contains_symexec first) && contains_symexec second ->
     extract second    
+  | Proof_term.XRecordSet { pre; vl; reference; field; rest } ->
+    let operation_fun = Proof_utils.CFML.embedded_field_name_to_function ~operation:"set_field" field in
+    wrap_with_invariant_check pre ~then_:begin fun () ->
+      AH.Exp.sequence
+        (AH.Exp.apply (var operation_fun)
+           [Nolabel, encode_expr (`Var reference); Nolabel, encode_expr vl])
+        (extract rest)
+    end
   | _ ->
     Format.ksprintf ~f:failwith "found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm))
 and extract_recursive_function
