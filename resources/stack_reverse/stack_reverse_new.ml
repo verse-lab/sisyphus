@@ -11,3 +11,4 @@ let stack_reverse (s: 'a stack) =
     Stack.stack_push s elt
   ) buf in
   ()
+[@@with_opaque_encoding ["stack", ("Stack.stack_of_list", "Stack.stack_to_list"); "queue", ("Queue.queue_of_list", "Queue.queue_to_list")]]
