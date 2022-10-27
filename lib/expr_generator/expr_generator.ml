@@ -138,9 +138,10 @@ let get_fuels ctx fuel fname arg_tys =
 
   let get_fuel i arg =
     match arg with
+    (* when generating make arguments, we don't need to decrease the fuel, because make always returns a list, so can only be applied a finite number of times *)
+    | _ when String.equal fname "make" -> arg, fuel
     | _ when i = priority_arg_idx -> arg, fuel
-    | _ -> arg, fuel - 1
-  in
+    | _ -> arg, fuel - 1 in
 
   List.mapi get_fuel arg_tys
 
