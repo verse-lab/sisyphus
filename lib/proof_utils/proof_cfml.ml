@@ -60,6 +60,7 @@ let is_xsimpl_lr_cancel_same const = is_const_named "xsimpl_lr_cancel_same" cons
 let is_xsimpl_r_keep const = is_const_named "xsimpl_r_keep" const
 let is_xsimpl_lr_qwand const = is_const_named "xsimpl_lr_qwand" const
 let is_xsimpl_lr_hwand const = is_const_named "xsimpl_lr_hwand" const
+let is_xsimpl_r_hexists const = is_const_named "xsimpl_r_hexists" const
 let is_xsimpl_flip_acc_l const = is_const_named "xsimpl_flip_acc_l" const
 let is_xsimpl_flip_acc_r const = is_const_named "xsimpl_flip_acc_r" const
 let is_xsimpl_r_hgc_or_htop const = is_const_named "xsimpl_r_hgc_or_htop" const
