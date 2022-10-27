@@ -8,7 +8,8 @@ let stack_reverse (s: 'a stack) =
     ()
   ) s in
   let (_: unit) = Queue.queue_iter (fun (elt: 'a) ->
-    Stack.stack_push s elt
+    let (_: unit) = Stack.stack_push s elt in
+    ()
   ) buf in
   ()
 [@@with_opaque_encoding ["stack", ("Stack.stack_of_list", "Stack.stack_to_list"); "queue", ("Queue.queue_of_list", "Queue.queue_to_list")]]
