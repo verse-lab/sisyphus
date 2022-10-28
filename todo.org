@@ -8,3 +8,19 @@ lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks
 ** DONE remove proof validator
 CLOSED: [2022-10-28 Fri 06:31]
+** TODO Prove goals using new tactics
+*** DONE [1] seq to array
+CLOSED: [2022-10-28 Fri 15:40]
+*** TODO [2] make rev list
+*** TODO [3] array exists
+*** TODO [4] array findi
+*** TODO [5] array find map
+*** TODO [6] array is sorted
+*** TODO [7] array of rev list
+*** TODO [8] array partition
+*** TODO [9] array foldi
+*** TODO [10] sll of array
+*** TODO [11] sll partition
+*** TODO [12] stack reverse
+*** TODO [13] stack filter
+*** TODO [14] tree to array
