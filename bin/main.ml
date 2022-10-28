@@ -1,9 +1,7 @@
-[@@@warning "-33"]
 open Containers
 
 let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose print_extraction_steps
       dump_generated_invariants
-      disable_z3_validation z3_default_timeout z3_challenging_timeout max_z3_calls
       deps coq_deps old_program new_program
       coq_dir coq_lib_name
       old_proof new_proof_base new_proof_name =
@@ -14,10 +12,7 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose prin
     ?log_level ?log_dir ?dump_dir
     ~print_proof_extraction:print_extraction_steps
     ~dump_generated_invariants
-    ?filter_logs:log_filter
-    ?default_timeout:z3_default_timeout
-    ?challenging_timeout:z3_challenging_timeout ?max_calls:max_z3_calls
-    ~should_validate_with_z3:(not disable_z3_validation) ();
+    ?filter_logs:log_filter ();
 
   let old_program = Bos.OS.File.read old_program |> Result.get_exn in
   let new_program = Bos.OS.File.read new_program |> Result.get_exn in
@@ -317,10 +312,6 @@ let () =
                  $ coq_verbose
                  $ print_extraction_steps
                  $ dump_generated_invariants
-                 $ disable_z3_validation
-                 $ z3_default_timeout
-                 $ z3_challenging_timeout
-                 $ max_z3_calls
                  $ deps
                  $ coq_deps
                  $ old_program

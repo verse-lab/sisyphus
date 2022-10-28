@@ -1037,66 +1037,6 @@ let expr_to_subst_arr t inv_ty exprs =
     let lookup name = StringMap.find_opt name binding in
     Array.map (Lang.Expr.subst lookup) exprs
 
-
-let find_first_valid_candidate_with_z3 t inv_ty vc ~heap ~pure =
-  let (let+) x f = Option.bind x f in
-  let no_pure = Seq.is_empty pure in
-  let heap_gen = Gen.of_seq heap in
-  let pure_gen, reset_pure =
-    let get_pure () =
-      (* if no pure, then just repeatedly return true as the pure *)
-      if no_pure
-      then (Gen.repeat (`Constructor ("true", [])))
-      else (Gen.of_seq pure) in
-    let pure_ref = ref (get_pure ()) in
-    let pure_gen () = !pure_ref () in
-    let reset_pure () = pure_ref := get_pure () in
-    pure_gen, reset_pure in
-
-  let should_stop_iteration =
-    match Configuration.max_z3_calls () with
-    | None -> fun _ -> false
-    | Some max_calls -> fun i -> i > max_calls in
-
-  let rec loop i ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) =
-    Log.info (fun f ->
-      f "[%d] testing@.\tPURE:%s@.\tHEAP:%s@." i
-        (Format.to_string Lang.Expr.pp (pure_candidate) |> String.replace ~sub:"\n" ~by:" ")
-        (Format.to_string (List.pp Lang.Expr.pp) (heap_candidate)  |> String.replace ~sub:"\n" ~by:" "));
-    match vc (pure_candidate_vc, heap_candidate_vc) with
-    | `InvalidPure ->
-      let+ pure_candidate = pure_gen () in
-      let pure_candidate_vc = expr_to_subst t inv_ty pure_candidate in
-      loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
-    | `InvalidSpatial ->
-      (* restart the pure generator *)
-      reset_pure ();
-      let+ pure_candidate = pure_gen () in
-      let pure_candidate_vc = expr_to_subst t inv_ty pure_candidate in
-      let+ heap_candidate = heap_gen () in
-      let heap_candidate_vc = expr_to_subst_arr t inv_ty (Array.of_list heap_candidate) in
-      if should_stop_iteration i
-      then (
-        Log.warn (fun f -> f "failed to find a solution after %d candidates; giving up, assuming that it is correct" i);
-        Some (i, (pure_candidate, heap_candidate))
-      )
-      else loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
-    | `Valid -> Some (i, (pure_candidate, heap_candidate)) in
-  let+ pure_candidate = pure_gen () in
-  let+ heap_candidate = heap_gen () in
-  let pure_candidate_vc = expr_to_subst t inv_ty pure_candidate in
-  let heap_candidate_vc = expr_to_subst_arr t inv_ty (Array.of_list heap_candidate) in
-  let start_time = Ptime_clock.now () in
-  let res = loop 0 ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) in
-  let end_time = Ptime_clock.now () in
-  let no_candidates =
-    Option.map fst res
-    |> Option.map_or ~default:"NONE" string_of_int in
-  Log.info (fun f ->
-    f "found a valid candidate in %a (checked %s candidates)@."
-      Ptime.Span.pp Ptime.(diff end_time start_time) no_candidates);
-  Option.map snd res
-
 (** [is_simple_expression expr] returns [true] if [expr] is a simple
     expression that CFML will not require an xapp to evaluate - i.e
     things like expressions with only arithmetic, equalities or
