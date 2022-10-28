@@ -44,6 +44,41 @@ Create HintDb iff_lemmas.
 #[export] Hint Rewrite If_r : iff_lemmas.
 #[export] Hint Rewrite If_l : iff_lemmas.
 
+Ltac intros_then_apply H :=
+  lazymatch goal with
+  | [ |- forall (x: _), _] => let x := fresh x in intro x; intros_then_apply H; gen x
+  | _ => H
+  end.
+
+Ltac sis_simplify_math_goal :=
+  rew_list;
+  repeat lazymatch goal with
+    | [ |- context[?x - 0] ] => math_rewrite (x - 0 = x)
+    | [ |- context[?x - ?x] ] => math_rewrite (x - x = 0)
+    | [ |- context[0 + ?x]] => math_rewrite (0 + x = x)
+    | [ |- context[?x + 1 - 1]] => math_rewrite (x + 1 - 1 = x)
+    | [ |- context[?x + 1 - 2 + 1]] => math_rewrite (x + 1 - 2 + 1 = x)
+    | [ |- context [ (1 + ?x) ]] =>
+        math_rewrite (1 + x = x + 1)
+    | [ |- context [ ?x + (?y + 1) ]] =>
+        math_rewrite (x + (y + 1) = (x + y) + 1)
+    | [ |- context[(?z + ?x + ?y) - (?x + ?y)] ] =>
+        math_rewrite (z + x + y - (x + y) = z)
+    | [ |- context[ (?t + ?r - ?t)]] =>
+        math_rewrite ((t + r - t) = r)
+    | [ |- context[ (?t + ?r + ?z - ?t)]] =>
+        math_rewrite ((t + r + z - t) = r + z)
+    | [ |- context [(?x + 1 + 1 - 2)]] =>
+        math_rewrite (x + 1 + 1 - 2 = x)
+    | [ |- context[?r + 1 - (?t + 1)]] =>
+        math_rewrite (r + 1 - (t + 1) = r - t)
+    | [ |- context[?r - 1 + ?z + 1]] =>
+        math_rewrite (r - 1 + z + 1 = r + z)
+    | [ |- context[?b + ?x + ?y - ?x]] =>
+        math_rewrite (b + x + y - x = b + y)
+    | [ |- context[?x + 1 - 2 - ?z + 1] ] => math_rewrite (x + 1 - 2 - z + 1 = x - z)
+    end.
+
 Ltac sis_solve_start :=
   repeat lazymatch goal with
   | [ |- forall (Heq: _ = _), _] => let x := fresh Heq in intro x
@@ -60,17 +95,6 @@ Ltac sis_handle_if :=
     | _ => idtac
     end.  
 
-Ltac sis_list_solver :=
-  lazymatch goal with
-  | [ H : 0 = length _ |- _ ] =>
-      symmetry in H; apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
-  | [ H : length _ = 0  |- _ ] =>
-      apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
-  | [ |- context[ take 0 _ ] ] =>
-      rewrite take_zero in *; rew_list; simpl
-  | [ |- context[ take (length ?l) ?l ] ] =>
-      rewrite take_full_length; rew_list; simpl
-  end.  
 
 Ltac sis_expand_rewrites :=
   repeat lazymatch goal with
@@ -91,8 +115,56 @@ Ltac sis_normalize_length :=
       rewrite length_drop_nonneg; sis_normalize_length; rew_list; try math
   | [ |- context [length (make _ _)] ] =>
       rewrite length_make; sis_normalize_length; rew_list; try math
+  | [ H : _ = rev ?rest |- context[length ?rest] ] =>
+      apply (f_equal (@rev _)) in H; rewrite rev_rev in H; rewrite <- H; rew_list;
+      sis_normalize_length; rew_list; try math
   | _ => idtac
   end.
+
+Ltac sis_list_solver :=
+  repeat lazymatch goal with
+  | [ H : 0 = length _ |- _ ] =>
+      symmetry in H; apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
+  | [ H : length _ = 0  |- _ ] =>
+      apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
+  | [ |- context[ take 0 _ ] ] =>
+      rewrite take_zero in *; rew_list; simpl
+  | [ |- context[ take (length ?l) ?l ] ] =>
+      rewrite take_full_length; rew_list; simpl
+  | [ |- context[drop _ (make _ _)]] =>
+      rewrite drop_make_eq; [|subst;rew_list;math]
+  | [ |- context[drop 1 (?hd :: _)]] =>
+      rewrite (drop_cons_pos hd); [math_rewrite (1 - 1 = 0)| math];
+      rewrite drop_zero
+  | [ |- context[drop 1 (?hd :: _ ++ _)]] =>
+      rewrite (drop_cons_pos hd); [math_rewrite (1 - 1 = 0)| math];
+      rewrite drop_zero
+  | [ |- context[drop 0 _]] =>
+       rewrite drop_zero
+  | [ |- context[make 0 _]] =>
+       rewrite make_zero
+  end.
+
+Ltac sis_list_deep_solver :=
+  repeat match goal with 
+  | [ |- context[drop ?x (make ?z _ ++ _)]] =>
+      let H := fresh "Hvalid" in
+      assert (H: x >= z) by (subst; rew_list; sis_normalize_length; math); rewrite drop_app_r; [clear H|sis_normalize_length; math]
+  | [ |- context[drop ?d (rev ?r ++ _)]] =>
+      let H := fresh "Hlen" in
+      assert (H: length (rev r) <= d) by (rew_list; math);
+      rewrite drop_app_r; [clear H; rew_list| rew_list; math]
+  | [ H: nil = rev ?x |- _ ] =>
+      apply nil_eq_rev_inv in H; try (subst; rew_list; auto; fail)
+  | [ |- context [(make (?i + 1) _ ++ _)[?i := _]]] =>
+      rewrite make_succ_r; [ | math]; rew_list; rewrite update_middle; [|sis_normalize_length]
+  | [ |- make (?i + 1) ?vl = make ?i ?vl & ?vl] =>
+      rewrite make_succ_r; [ | math]; rew_list; auto
+  | [ H: _ :: ?rest = ?ls |- context [length ?rest] ] =>
+      let H_len := fresh "Hlen" in
+      assert (H_len: length rest = length ls - 1) by (rewrite <- H; rew_list; math);
+      rewrite H_len; clear H_len; rew_list
+  end.  
 
 Ltac sis_dispatch_filter_goal :=
   match goal with
@@ -161,4 +233,17 @@ Ltac sis_handle_take_drop_full_length :=
       assert (H: length x = length (make (length x) vl))
         by (rewrite length_make; math);
       rewrite H at 1; rewrite drop_at_length
+  end.
+
+
+Ltac sis_solve :=
+  lazymatch goal with
+  | [ |- context[@Triple _]] =>
+      intros_then_apply sis_simplify_math_goal; sis_solve_start; sis_solve
+  | [ |- index _ _] => sis_handle_int_index_prove; sis_solve
+  | _ => subst;
+         repeat (sis_normalize_length;
+                 sis_list_solver;
+                 sis_list_deep_solver;
+                 sis_simplify_math_goal; auto)
   end.
