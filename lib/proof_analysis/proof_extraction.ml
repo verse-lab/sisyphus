@@ -44,6 +44,7 @@ let lowercase s =
 let normalize = function
   | "TLC.LibList.app" -> "@"
   | "TLC.LibListZ.length" -> "List.length"
+  | "TLC.LibList.rev" -> "List.rev"
   | "TLC.LibContainer.read" -> "List.nth"
   | "TLC.LibListZ.drop" -> "Lst.list_drop"
   | "TLC.LibOrder.gt" -> ">"
@@ -130,6 +131,7 @@ let rec contains_symexec (trm: Proof_term.t) : bool =
   | Proof_term.CharacteristicFormulae { args; pre; proof } -> contains_symexec proof
   | Proof_term.AccRect { proof={ proof; _ }; _ } -> contains_symexec proof
   | Proof_term.Refl -> false
+  | Proof_term.XRecordSet _
   | Proof_term.XIfVal _
   | Proof_term.XLetFun _
   | Proof_term.XLetVal _ 
@@ -243,7 +245,8 @@ let find_next_n_bindings no_existentials proof =
 let unfold_lemma_to_unfold_function lemma =
   match List.rev @@ String.split_on_char '.' lemma with
   | name :: modl :: _ when String.prefix ~pre:"Verify_" modl ->
-    let unfold_name = String.lowercase_ascii name ^ "_unfold" in
+    let name = String.lowercase_ascii name in
+    let unfold_name = if String.suffix ~suf:"_unfold" name then name else name ^ "_unfold" in
     let module_name = String.drop (String.length "Verify_") modl in
     String.capitalize_ascii module_name ^ "." ^ unfold_name
   | _ ->
@@ -321,6 +324,19 @@ let rec extract ?replacing (trm: Proof_term.t) =
     | exception _ -> (extract proof)
     end
 
+  | Proof_term.XLetTrmCont {
+    pre; binding_ty; value_code;
+    proof
+  } ->
+    begin match find_next_program_binding_name proof with
+    | var ->
+      wrap_with_invariant_check pre ~then_:begin fun () ->
+        AH.Exp.let_ AT.Nonrecursive [
+          AH.Vb.mk (pvar var) (encode_expr value_code)
+        ] (extract proof)
+      end
+    | exception _ -> (extract proof)
+    end
   | Proof_term.XApp { application; pre; fun_pre; proof_fun=AccRect { prop_type; proof=proof_fun; vl; args }; proof } ->
     if contains_symexec proof then
       wrap_with_invariant_check pre ~then_:begin fun () ->
@@ -445,6 +461,14 @@ let rec extract ?replacing (trm: Proof_term.t) =
     end 
   | Proof_term.XChange { first; second } when not (contains_symexec first) && contains_symexec second ->
     extract second    
+  | Proof_term.XRecordSet { pre; vl; reference; field; rest } ->
+    let operation_fun = Proof_utils.CFML.embedded_field_name_to_function ~operation:"set_field" field in
+    wrap_with_invariant_check pre ~then_:begin fun () ->
+      AH.Exp.sequence
+        (AH.Exp.apply (var operation_fun)
+           [Nolabel, encode_expr (`Var reference); Nolabel, encode_expr vl])
+        (extract rest)
+    end
   | _ ->
     Format.ksprintf ~f:failwith "found unsupported proof term %s" (String.take 1000 ([%show: Proof_term.t] trm))
 and extract_recursive_function

@@ -478,6 +478,10 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
   | Constr.App (trm, [| pre; pre'; post; proof_pre_eq_pre'; proof |]) when PCFML.is_hstars_simpl_pick_lemma trm ->
     debug (fun f -> f "reify proof term on hstars_simpl_pick_lemma");
     reify_proof_term coq_env env proof
+  | Constr.App (trm, [| _a; _p; _e1; _e2; _nc; _hla; _hlw; _hlt; _hra; _hrg; _hrt; _eq; proof |])
+    when PCFML.is_xsimpl_lr_cancel_eq_repr trm ->
+    debug (fun f -> f "reify proof term on xsimpl_lr_cancel_eq_repr");
+    reify_proof_term coq_env env proof
   | Constr.App (trm, [| _hla1; _hla2; _nc; _hlw; _hlt; _hr; _heq; proof |])
     when PCFML.is_xsimpl_pick_lemma trm ->
     debug (fun f -> f "reify proof term on xsimpl_pick_lemma");
@@ -694,6 +698,29 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       fun_pre=fun_pre;
       proof=reify_proof_term coq_env env proof;
     }
+  | Constr.App (trm, [| _a; _ea; _post; _pre; _p; _f; _l; proof |]) when PCFML.is_xapp_record_Get trm ->
+    debug (fun f -> f "reify proof term on xapp_record_Get");
+    reify_proof_term coq_env env proof
+  | Constr.App (trm, [| ty; _enc_ty; vl; _post; pre; refr; field; _rfs; proof |]) when PCFML.is_xapp_record_Set trm ->
+    debug (fun f -> f "reify proof term on xapp_record_Set");
+    (* reify_proof_term coq_env env proof *)
+    let pre = extract_sym_heap coq_env env pre in
+    let vl = PCFML.extract_expr ~env:coq_env ~rel:(rel_expr env) vl in
+    let reference = PCFML.extract_expr ~env:coq_env ~rel:(rel_expr env) refr |> function
+    | `Var v -> v
+    | expr -> Format.ksprintf ~f:failwith "invalid type of reference to record set (%a)"
+                Lang.Expr.pp expr in
+    let field = PCFML.extract_expr ~env:coq_env ~rel:(rel_expr env) field |> function
+    | `Var v -> v
+    | expr -> Format.ksprintf ~f:failwith "invalid type of field for record set (%a)"
+                Lang.Expr.pp expr in
+    XRecordSet {
+      pre;
+      vl;
+      reference;
+      field;
+      rest=reify_proof_term coq_env env proof
+    }
   | Constr.App (trm, [|
     ret_ty; enc_ret_ty;
     fun_post;
@@ -750,9 +777,15 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
                 (kont, v, env), `Stop
            ) ((fun x -> x), body, env) in
     kont (reify_proof_term coq_env env proof)
+  | Constr.App (trm, [| _p; _hra; _hrg; _hrt; _hl; _prop; proof |]) when PCFML.is_xsimpl_r_hpure trm ->
+    debug (fun f -> f "reify proof term on case xsimpl_r_hpure");
+    reify_proof_term coq_env env proof
   | Constr.App (trm, [| ty |]) when PCFML.is_xsimpl_lr_refl_nocredits trm ->
     debug (fun f -> f "reify proof term on case xsimpl_lr_refl_nocredits");
     Refl
+  | Constr.App (trm, [| _a; _x; _j; _hra; _hrg; _hrt; _hl; proof |]) when PCFML.is_xsimpl_r_hexists trm ->
+    debug (fun f -> f "reify proof term on case xsimpl_r_hexists");
+    reify_proof_term coq_env env proof
   | Constr.App (trm, [| ret_ty; enc_ret_ty; post; heaplet |]) when PCFML.is_xdone_lemma trm ->
     debug (fun f -> f "reify proof term on case xdone_lemma");
     let heaplet = extract_sym_heap coq_env env heaplet in
@@ -774,6 +807,17 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
       value_ty=Option.get_exn_or "found invalid type" ty;
       value=vl
     }
+  | Constr.App (trm, [| _pre; _ty; _enc_ty; _post; _vl; proof |]) when PCFML.is_xval'_lemma trm ->
+    (* debug (fun f -> f "reify proof term on case xval'_lemma");
+     * let pre = extract_sym_heap coq_env env pre in
+     * let ty, proof_ty = extract_proof_value coq_env env ty |> extract_typ_from_proof_value in
+     * let vl = PCFML.extract_expr ~env:coq_env ~rel:(rel_expr env) vl in
+     * XVal {
+     *   pre=pre;
+     *   value_ty=Option.get_exn_or "found invalid type" ty;
+     *   value=vl
+     * } *)
+    reify_proof_term coq_env env proof
   | Constr.App (trm, [| ty; _enc_ty; cond; pre; post; _code_tr; _code_fl; proof_tr; proof_fl |])
     when PCFML.is_xifval_lemma trm ->
     debug (fun f -> f "reify proof term on case xifval_lemma");
@@ -874,7 +918,12 @@ let rec reify_proof_term (coq_env: Environ.env) (env: env) (trm: Constr.t) : Pro
     let args = Proof_utils.drop_implicits name args in
     let args = List.map (PCFML.extract_expr ~env:coq_env ~rel:(rel_expr env)) args in
     let refr,args = List.hd_tl args in
-    let reference = match refr with `Var v -> v | _ -> assert false in
+    let reference =
+      match refr with
+        `Var v -> v
+      | expr ->
+        Format.ksprintf ~f:failwith "unexpected form of reference (%a) to unfold lemma %s"
+          Lang.Expr.pp expr (Names.Constant.to_string name) in
     let unfold_ty =
       let cb = Environ.lookup_constant name coq_env in
       cb.Declarations.const_type in

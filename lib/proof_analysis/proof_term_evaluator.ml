@@ -177,6 +177,8 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (Tree.tree_head (unwrap (eval ctx tree)))
   | `App ("Stack.stack_to_list", [ls]) ->
     wrap (Stack.stack_to_list (unwrap (eval ctx ls)))
+  | `App ("Queue.queue_to_list", [ls]) ->
+    wrap (Queue.queue_to_list (unwrap (eval ctx ls)))
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr

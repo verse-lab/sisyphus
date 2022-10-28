@@ -26,7 +26,10 @@ let is_xchange_lemma const = is_const_named "xchange_lemma" const
 let is_xmatch_lemma const = is_const_named "xmatch_lemma" const
 let is_xapp_lemma const = is_const_named "xapp_lemma" const
 let is_xapps_lemma const = is_const_named "xapps_lemma" const
+let is_xapp_record_Get const = is_const_named "xapp_record_Get" const
+let is_xapp_record_Set const = is_const_named "xapp_record_Set" const
 let is_xval_lemma const = is_const_named "xval_lemma" const
+let is_xval'_lemma const = is_const_named "xval'_lemma" const
 let is_xifval_lemma const = is_const_named "xifval_lemma" const
 let is_xifval_lemma_isTrue const = is_const_named "xifval_lemma_isTrue" const
 let is_xdone_lemma const = is_const_named "xdone_lemma" const
@@ -47,16 +50,19 @@ let is_hstars_simpl_cancel const = is_const_named "hstars_simpl_cancel" const
 let is_hstars_simpl_pick_lemma const = is_const_named "hstars_simpl_pick_lemma" const
 let is_himpl_refl const = is_const_named "himpl_refl" const
 let is_himpl_of_eq const = is_const_named "himpl_of_eq" const
+let is_xsimpl_lr_cancel_eq_repr const = is_const_named "xsimpl_lr_cancel_eq_repr" const
 let is_xsimpl_lr_exit_nogc_nocredits const = is_const_named "xsimpl_lr_exit_nogc_nocredits" const
 let is_xsimpl_lr_exit_nocredits const = is_const_named "xsimpl_lr_exit_nocredits" const
 let is_himpl_hforall_r const = is_const_named "himpl_hforall_r" const
 let is_hwand_hpure_r_intro const = is_const_named "hwand_hpure_r_intro" const
 let is_xpull_protect const = is_const_named "xpull_protect" const
+let is_xsimpl_r_hpure const = is_const_named "xsimpl_r_hpure" const
 let is_xsimpl_l_acc_other const = is_const_named "xsimpl_l_acc_other" const
 let is_xsimpl_lr_cancel_same const = is_const_named "xsimpl_lr_cancel_same" const
 let is_xsimpl_r_keep const = is_const_named "xsimpl_r_keep" const
 let is_xsimpl_lr_qwand const = is_const_named "xsimpl_lr_qwand" const
 let is_xsimpl_lr_hwand const = is_const_named "xsimpl_lr_hwand" const
+let is_xsimpl_r_hexists const = is_const_named "xsimpl_r_hexists" const
 let is_xsimpl_flip_acc_l const = is_const_named "xsimpl_flip_acc_l" const
 let is_xsimpl_flip_acc_r const = is_const_named "xsimpl_flip_acc_r" const
 let is_xsimpl_r_hgc_or_htop const = is_const_named "xsimpl_r_hgc_or_htop" const
@@ -705,6 +711,32 @@ let unwrap_eq ?env ?rel (c: Constr.t) =
       "found unexpected Coq term (%s)[%s] ==> %s, when expecting an equality"
       (Proof_debug.constr_to_string c) (Proof_debug.tag c) (Proof_debug.constr_to_string_pretty c)
 
+(** [embedded_field_name_to_function ~operation fld] converts an
+   embedded CFML field name [fld] of the form
+   [Common.<module-name>_ml.<field-name>'] to a function that can be
+   called to perform [operation] on said field. *)
+let embedded_field_name_to_function ~operation fld =
+    (* CFML encodes field accesses in the form (CFML.WPRecord.val_get_field Common.<module-name>_ml.<field-name>') *)
+    let components = String.split_on_char '.' fld |> List.rev in
+    (* extract the components *)
+    let field_name, components = List.hd_tl components in
+    let modl, _ = List.hd_tl components in
+    (* drop the last apostrophe in the field name *)
+    let field_name = String.take (String.length field_name - 1) field_name in
+    (* drop the _ml in the module name *)
+    let modl = String.take (String.length modl - 3) modl in
+    modl ^ "." ^ operation ^ "_" ^ field_name
+
+(** [extract_embedded_function_name expr] extracts a function name
+   from an [expr] expression representing an embedded CFML program AST. *)
+let extract_embedded_function_name expr =
+  match expr with 
+  | `Var v -> v
+  | `App ("CFML.WPRecord.val_get_field", [`Var fld]) ->
+    embedded_field_name_to_function ~operation:"get_field" fld
+  | expr -> Format.ksprintf ~f:failwith "found application to non-constant function (%a)"
+              Lang.Expr.pp expr  
+
 (** [extract_embedded_expr ?rel c] extracts a deeply embedded CFML
     expression from a Coq term [c]. [rel] is a function that maps Coq's
     de-bruijin indices to the corresponding terms in the wider typing
@@ -714,7 +746,7 @@ let rec extract_embedded_expr ?rel (c: Constr.t) : Lang.Expr.t =
   | Constr.App (fn, [| f |]), _ when Utils.is_const_eq "CFML.WPLifted.Wptag" fn ->
     extract_embedded_expr ?rel f
   | Constr.App (fn, [| ty; enc_ty; f; args |]), _ when Utils.is_const_eq "CFML.WPLifted.Wpgen_app" fn ->
-    let fn = extract_expr ?rel f |> function `Var v -> v | _ -> failwith "found application to non-constant function" in
+    let fn = extract_expr ?rel f |> extract_embedded_function_name in
     let args = 
       Utils.unwrap_inductive_list args
       |> List.map (extract_dyn_var ?rel) in
@@ -816,7 +848,7 @@ let count_no_existentials_in_unfold ty =
     | _ -> ty in
   let rec count_existentials acc ty = match Constr.kind_nocast ty with
     | Constr.Prod (_, _, ty) -> count_existentials acc ty
-    | Constr.Lambda (_, _, ty) -> acc
+    | Constr.Lambda (_, _, ty) -> count_existentials acc ty
     | Constr.App (trm, [| _; ty |]) when Utils.is_const_eq "CFML.SepBase.SepBasicSetup.SepSimplArgsCredits.hexists" trm ->
       count_existentials (acc + 1) ty
     | _ -> acc in
