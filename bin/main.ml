@@ -2,6 +2,7 @@ open Containers
 
 let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose print_extraction_steps
       dump_generated_invariants
+      disable_tactic_validation solver_tactic max_solve_calls
       deps coq_deps old_program new_program
       coq_dir coq_lib_name
       old_proof new_proof_base new_proof_name =
@@ -12,7 +13,11 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose prin
     ?log_level ?log_dir ?dump_dir
     ~print_proof_extraction:print_extraction_steps
     ~dump_generated_invariants
-    ?filter_logs:log_filter ();
+    ?filter_logs:log_filter
+    ~dispatch_goals_with_tactic:(not disable_tactic_validation)
+    ?solver_tactic:solver_tactic
+    ?max_dispatch_attempts:max_solve_calls
+    ();
 
   let old_program = Bos.OS.File.read old_program |> Result.get_exn in
   let new_program = Bos.OS.File.read new_program |> Result.get_exn in
@@ -163,44 +168,41 @@ let dump_generated_invariants =
   )
 
 
-let disable_z3_validation =
+let disable_tactic_validation =
   Arg.(
     value @@
     flag
       (info ~doc:"$(opt) indicates whether sisyphus should disable its \
-                  validate candidate invariants using Z3. Can also be \
-                  provided through the $(env) ENV variable (as 1 to \
-                  disable Z3 and 0 to enable it (default))."
-         ~env:(env_var "SIS_DISABLE_Z3") ["disable-z3"])
+                  validation of candidate invariants using its solver \
+                  tactic. Can also be provided through the $(env) ENV \
+                  variable (as 1 to disable Z3 and 0 to enable it \
+                  (default))."
+         ~env:(env_var "SIS_DISABLE_SOLVER") ["disable-solver"])
   )
 
-let max_z3_calls =
+let max_solve_calls =
   Arg.(value @@
        opt
          (some int)
          None
          (info
-            ~doc:"$(docv) specifies the maximum number of calls to Z3 \
-                  that Sisyphus will perform while generating \
-                  invariants. If this option is combined with the \
-                  DISABLE_Z3_VALDIATION flag, then Z3 validation will \
-                  still be performed, but only $(docv) calls will be \
-                  made before assuming that the next candidate is \
-                  true. Can also be specified by the $(env) ENV \
-                  variable."
-            ~env:(env_var "SIS_MAX_Z3_CALLS")
-            ~docv:"MAX_Z3_CALLS"
-            ["m"; "max-z3-calls"]))
+            ~doc:"$(docv) specifies the maximum number of attempts \
+                  that Sisyphus will do to find a solvable invariant \
+                  before using admits. Defaults to 3."
+            ~env:(env_var "SIS_MAX_SOLVER_CALLS")
+            ~docv:"MAX_SOLVER_CALLS"
+            ["m"; "max-solver-calls"]))
 
-let z3_default_timeout =
+let solver_tactic =
   Arg.(
     value @@
-    opt (some int) None
-      (info ~docv:"Z3_BASE_TIMEOUT"
-         ~doc:"$(docv) defines the timeout used for Z3 on simple \
-               instances. Can also be provided through the $(env) ENV \
-               variable."
-         ~env:(env_var "SIS_Z3_BASE_TIMEOUT") ["z3-base-timeout"])
+    opt (some string) None
+      (info ~docv:"SOLVER_TACTIC"
+         ~doc:"$(docv) defines the tactic used by Sisyphus to dispatch \
+               generated subgoals (and thereby validate \
+               candidates). Can also be provided through the $(env) \
+               ENV variable. Defaults to \"sis_generic_solver\"."
+         ~env:(env_var "SIS_SOLVER_TACTIC") ["solver-tactic"])
   )
 
 let z3_challenging_timeout =
@@ -312,6 +314,9 @@ let () =
                  $ coq_verbose
                  $ print_extraction_steps
                  $ dump_generated_invariants
+                 $ disable_tactic_validation
+                 $ solver_tactic
+                 $ max_solve_calls
                  $ deps
                  $ coq_deps
                  $ old_program

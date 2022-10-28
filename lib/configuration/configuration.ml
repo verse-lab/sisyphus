@@ -6,6 +6,9 @@ module Log = (val Logs.src_log (Logs.Src.create ~doc:"Configuration module for S
 let update_opt opt vl =
   opt := (Option.value ~default:!opt vl)
 
+let sisyphus_solver_tactic = ref "sis_generic_solver"
+let enable_tactic_based_goal_dispatch = ref true
+let max_tactic_dispatch_attempts = ref 3
 
 let inner_dump_dir = ref None
 let should_print_proof_extraction = ref false
@@ -114,9 +117,13 @@ let combine r1 r2 =
     r2.Logs.report src level ~over (fun () -> v) msgf in
   { Logs.report }
 
-let initialize  ?filter_logs ?print_proof_extraction ?dump_generated_invariants  ?log_level ?log_dir ?dump_dir () =
+let initialize  ?filter_logs ?print_proof_extraction ?dump_generated_invariants ?log_level ?log_dir ?dump_dir
+      ?dispatch_goals_with_tactic ?solver_tactic ?max_dispatch_attempts  () =
   update_opt should_print_proof_extraction print_proof_extraction;
   update_opt should_dump_generated_invariants dump_generated_invariants;
+  update_opt sisyphus_solver_tactic solver_tactic;
+  update_opt enable_tactic_based_goal_dispatch dispatch_goals_with_tactic;
+  update_opt max_tactic_dispatch_attempts max_dispatch_attempts;
 
   Logs.set_level ~all:true log_level;
 
@@ -174,6 +181,9 @@ let dump_output name f =
     | Error (`Msg m) ->
       Log.err (fun f -> f "failed to dump output with name %s with error %s" name m)
       
+let dispatch_goals_with_solver_tactic () = !enable_tactic_based_goal_dispatch
 
+let solver_tactic () = !sisyphus_solver_tactic
 
-  
+let max_goal_dispatch_attempts () = !max_tactic_dispatch_attempts
+
