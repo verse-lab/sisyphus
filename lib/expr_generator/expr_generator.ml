@@ -194,11 +194,10 @@ let rec generate_expression ?(fuel=3) ~blacklisted_vars (ctx: ctx)  (ty: Lang.Ty
 
     (* add negation of bools for free *)
     let res =
-      let res = Seq.append funcs consts in
+      let res = Seq.append consts funcs in
       let is_bool = function Lang.Type.Bool -> true | _ -> false in
       let negs =
-        if is_bool ty then
-          Seq.map (fun e -> `App ("not", [e])) res
+        if is_bool ty then Seq.map (fun e -> `App ("not", [e])) res
         else Seq.nil in
       Seq.append res negs in
     res ()
