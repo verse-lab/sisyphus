@@ -131,6 +131,12 @@ Ltac sis_list_solver :=
       rewrite take_zero in *; rew_list; simpl
   | [ |- context[ take (length ?l) ?l ] ] =>
       rewrite take_full_length; rew_list; simpl
+  | [ H: context[ take (length ?l) ?l ] |- _ ] =>
+      rewrite take_full_length in H; rew_list in H; simpl in H
+  | [ |- context[ drop (length ?l) ?l ] ] =>
+      rewrite drop_at_length; rew_list; simpl
+  | [ H: context[ drop (length ?l) ?l ] |- _ ] =>
+      rewrite drop_at_length in H; rew_list in H; simpl in H
   | [ |- context[drop _ (make _ _)]] =>
       rewrite drop_make_eq; [|subst;rew_list;math]
   | [ |- context[drop 1 (?hd :: _)]] =>
@@ -173,11 +179,35 @@ Ltac sis_list_deep_solver :=
         unfold existsb in *; rewrite (take_pos_last _); [|apply int_index_prove; math];
         math_rewrite (i + 1 - 1 = i); 
         rewrite list_existsb_app, !or_orb_eq, H; simpl
+  | [ H: List.existsb ?fp (take ?i ?l) = false |-
+         context[List.existsb ?fp (take (?i + 1) ?l)] ] =>
+        rewrite (take_pos_last _); [|apply int_index_prove; math];
+        math_rewrite (i + 1 - 1 = i); 
+        rewrite list_existsb_app, !or_orb_eq, H; simpl
   | [H: existsb ?f (take ?i ?l) = true, Hi: ?i <= length ?l |- context Hctx[existsb ?f ?l]] =>
           let Hleq := fresh "Hleq" in
           pose proof (Hleq := @list_eq_take_app_drop _ i l Hi);
           apply (f_equal (existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
           unfold existsb in *; rewrite list_existsb_app, H
+  | [H: existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |- context Hctx[existsb ?f ?l]] =>
+          let Hleq := fresh "Hleq" in
+          let Hlen := fresh "Hlen" in
+          assert (Hlen: i <= length l) by math;
+          pose proof (Hleq := @list_eq_take_app_drop _ i l Hlen);
+          apply (f_equal (existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
+          unfold existsb in *; rewrite list_existsb_app, H
+  | [H: List.existsb ?f (take ?i ?l) = true, Hi: ?i <= length ?l |- context Hctx[List.existsb ?f ?l]] =>
+          let Hleq := fresh "Hleq" in
+          pose proof (Hleq := @list_eq_take_app_drop _ i l Hi);
+          apply (f_equal (List.existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
+          rewrite list_existsb_app, H
+  | [H: List.existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |- context Hctx[List.existsb ?f ?l]] =>
+          let Hleq := fresh "Hleq" in
+          let Hlen := fresh "Hlen" in
+          assert (Hlen: i <= length l) by math;
+          pose proof (Hleq := @list_eq_take_app_drop _ i l Hlen);
+          apply (f_equal (List.existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
+          rewrite list_existsb_app, H
   end.  
 
 Ltac sis_dispatch_filter_goal :=
@@ -230,6 +260,12 @@ Ltac sis_normalize_boolean_goals :=
         rewrite (Bool.negb_involutive_reverse false); apply f_equal; simpl negb
     | [ |- negb _ = true ] =>
         rewrite (Bool.negb_involutive_reverse true); apply f_equal; simpl negb
+    | [  |- true = true ] => auto
+    | [  |- false = false ] => auto
+    | [  |- true = false ] => fail
+    | [  |- false = true ] => fail
+    | [  |- true = _ ] => symmetry
+    | [  |- false = _ ] => symmetry
     | [ |- context[negb (_ || _)%bool] ] => rewrite Bool.negb_orb
     | [ |- context[negb false] ] => simpl negb
     | [ |- context[negb true] ] => simpl negb
@@ -244,6 +280,7 @@ Ltac sis_normalize_boolean_goals :=
         let H_eq := fresh H in
         assert (H_eq: l = r) by (apply Z.eqb_eq; auto);
         clear H; rename H_eq into H
+    | [H: ~ (istrue ?f) |- ?f = false] => destruct f; simpl; auto; contradiction H; auto
     | [ |- context[! _] ] => rewrite <- negb_eq_neg
     | [ H: context[! _] |- _ ] => rewrite <- negb_eq_neg in H
     end.  
@@ -285,9 +322,10 @@ Ltac sis_generic_solver :=
   | [ |- context[@Triple _]] =>
       intros_then_apply sis_simplify_math_goal; sis_solve_start; sis_generic_solver
   | [ |- index _ _] => sis_handle_int_index_prove; sis_generic_solver
-  | _ => sis_normalize_boolean_goals; subst; try math;
+  | _ => sis_normalize_boolean_goals; sis_normalize_opt_of_bool; subst; try math;
          repeat (sis_normalize_length;
                  sis_normalize_boolean_goals;
+                 sis_normalize_opt_of_bool;
                  sis_list_solver;
                  sis_list_deep_solver;
                  sis_simplify_math_goal; auto)

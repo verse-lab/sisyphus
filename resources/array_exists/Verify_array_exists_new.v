@@ -26,28 +26,14 @@ Proof using (All).
              \[b = opt_of_bool (List.existsb fp (take i l))] \*
                a ~> Array l)
        ). {
-    sis_solve_start.
-    apply opt_of_bool_some_intro; apply opt_of_bool_none in H0.
-    rewrite (take_pos_last IA); [|apply int_index_prove; rewrite <- ?length_eq; math].
-    math_rewrite ((i + 1 - 1) = i).
-    rewrite list_existsb_app; simpl; rewrite H1; simpl; rewrite H0; simpl; auto. 
-    apply opt_of_bool_none_intro; apply opt_of_bool_none in H0.
-    rewrite (take_pos_last IA); [|apply int_index_prove; rewrite <- ?length_eq; math].
-    math_rewrite ((i + 1 - 1) = i).
-    rewrite list_existsb_app; simpl; rewrite H0; destruct (fp l[i]); simpl; auto;
-      contradiction H1; auto.
+    sis_generic_solver.
   }
-  { math. }
-  { rewrite take_zero; simpl; auto. }
+  { sis_generic_solver. }
+  { sis_generic_solver. }
   intros fin i_b Hres Hexists.
-  xapp (opt_is_some_spec).
+  xapp.
   xvals*. {
-    destruct fin; destruct Hres as [Hlen Himpl]; simpl in *; try destruct u.
-    - apply opt_of_bool_some in Hexists.
-      rewrite <- (@list_eq_take_app_drop _ i_b l) at 1; try math.
-      rewrite list_existsb_app; rewrite  Hexists; simpl; auto.
-    - assert (Heq: i_b = length l) by (apply Z.eqb_eq; auto).
-      rewrite Heq, take_full_length in Hexists; auto.
-      apply opt_of_bool_none in Hexists; subst; auto.
+    destruct fin; destruct Hres as [Hlen Himpl]; simpl in *; try destruct u;
+    sis_generic_solver.
   }
 Qed.
