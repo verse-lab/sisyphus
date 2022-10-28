@@ -171,6 +171,10 @@ let rec eval ctx : Lang.Expr.t -> Sisyphus_tracing.Wrap.t =
     wrap (is_sorted (unwrap (eval ctx ls)))
   | `App ("Sll.sll_to_list", [ls]) ->
     wrap (Sll.sll_to_list (unwrap (eval ctx ls)))
+  | `App ("tol", [tree]) ->
+    wrap (Tree.tree_to_list (unwrap (eval ctx tree)))
+  | `App ("thead", [tree]) ->
+    wrap (Tree.tree_head (unwrap (eval ctx tree)))
   | expr ->
     Format.ksprintf ~f:failwith "proof_analysis/proof_term_evaluator.ml:%d: unsupported expression %a" __LINE__
       Lang.Expr.pp expr

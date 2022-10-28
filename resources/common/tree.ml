@@ -2,7 +2,7 @@ type 'a tree =
   | Leaf of 'a
   | Node of 'a * 'a tree * 'a tree
 
-let to_list (t: 'a tree) : 'a list =
+let tree_to_list (t: 'a tree) : 'a list =
   let rec loop acc t =
     match t with
     | Leaf vl ->  vl :: acc
@@ -12,23 +12,35 @@ let to_list (t: 'a tree) : 'a list =
   in
   List.rev (loop [] t)
 
-let rec of_list (ls: 'a list) : 'a tree =
-  match ls with
-  | [] -> assert false
-  | h :: [] | h :: _ :: []-> Leaf h
-  | h :: h' :: h'' :: t ->
-    begin match (List.length t mod 3) with
-    | 0 | 1 -> Node (h, of_list (h' :: t), Leaf h'')
-    | 2 -> Node (h, Leaf h', of_list (h'' :: t))
-    | _ -> assert false
-    end
+let rec build_tree acc (ls: 'a list) =
+  match acc with
+  | None -> begin match ls with
+    | [] -> None
+    | h :: [] -> Some (Leaf h, [])
+    | h :: m :: t :: [] -> Some (Node (m, Leaf h, Leaf t), [])
+    | h :: t -> build_tree (Some (Leaf h)) t
+  end
+  | Some tree -> begin match ls with
+    | [] -> Some (tree, [])
+    | h :: t ->
+      begin match build_tree None t with
+      | None -> Some (tree, h :: t)
+      | Some (new_tree, rest) ->
+        build_tree (Some (Node (h, tree, new_tree))) rest
+      end
+  end
 
-let rec size t =
+let tree_of_list ls =
+  match build_tree None ls with
+  | Some (tree, _) -> tree
+  | _ -> failwith "invalid argument"
+
+let rec tree_size t =
   match t with
   | Leaf _ -> 1
-  | Node (_, t1, t2) -> 1 + size t1 + size t2
+  | Node (_, t1, t2) -> 1 + tree_size t1 + tree_size t2
 
-let head t =
+let tree_head t =
   match t with
   | Leaf v -> v
   | Node (v, _, _) -> v

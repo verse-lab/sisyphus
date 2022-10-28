@@ -3,32 +3,21 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
-From Common Require Import Tactics Utils.
+From Common Require Import Utils Tactics.
 From Common Require Import Tree_ml.
 
-(* logical tree *)
-Inductive ltree A :=
-| Lleaf : A -> ltree A
-| Lnode : A -> ltree A -> ltree A -> ltree A.
-
-Fixpoint Tree A `{EA: Enc A} (lt : ltree A)  (t: tree_ A) :=
-  match lt with
-  | Lleaf vl => t = Leaf vl
-  | Lnode vl lt1 lt2 => exists t1 t2, (t = Node vl t1 t2) /\ Tree lt1 t1 /\ Tree lt2 t2
-  end.
-
 (* used for reasoning about tree combinators: [tree_iter] and [tree_fold] *)
-Fixpoint tree_to_list {A} (lt: ltree A) :=
+Fixpoint tol (A: Type) (lt: tree_ A) :=
   match lt with
-  | Lleaf vl => (vl :: nil)
-  | Lnode vl t1 t2 => tree_to_list t1 ++ (vl :: nil) ++ tree_to_list t2
+  | Leaf vl => (vl :: nil)
+  | Node vl t1 t2 => tol t1 ++ (vl :: nil) ++ tol t2
   end.
 
-Inductive tree_sub A : ltree A -> ltree A -> Prop :=
+Inductive tree_sub A : tree_ A -> tree_ A -> Prop :=
   | tree_sub_1 : forall x T1 T2,
-      tree_sub T1 (Lnode x T1 T2)
+      tree_sub T1 (Node x T1 T2)
   | tree_sub_2 : forall x T1 T2,
-      tree_sub T2 (Lnode x T1 T2).
+      tree_sub T2 (Node x T1 T2).
 
 Lemma tree_sub_wf : forall A, wf (@tree_sub A).
 Proof using.
@@ -36,15 +25,14 @@ Proof using.
 Qed.
 
 (* size *)
-
-Fixpoint lsize {A} (lt: ltree A) :=
+Fixpoint tsize (A: Type) (lt: tree_ A) :=
   match lt with
-  | Lleaf _ => 1
-  | Lnode _ lt1 lt2 => 1 + lsize lt1 + lsize lt2
+  | Leaf _ => 1
+  | Node _ lt1 lt2 => 1 + tsize lt1 + tsize lt2
   end.
 
-Lemma lsize_eq (A: Type) (t: ltree A):
-  lsize t = length (tree_to_list t).
+Lemma tree_size_eq (A: Type) (t: tree_ A):
+  tsize t = length (tol t).
 Proof.
   induction_wf IH: (tree_sub) t; [apply tree_sub_wf|].
   case t as [v|v l r] eqn: Ht.
@@ -55,130 +43,109 @@ Proof.
    math.
 Qed.
 
-Lemma lsize_gt0 : forall A (lt : ltree A), 0 < lsize lt.
+Lemma tree_size_ge0 : forall A (lt : tree_ A), 0 <= tsize lt.
 Proof. intros. induction lt; simpl; intros; try math. Qed.
 
-Lemma size_spec: forall  A `{EA: Enc A} (lt: ltree A) (t: tree_ A),
-  SPEC (size t)
-       PRE (\[Tree lt t])
-       POST (fun (s : int) => \[s = lsize lt]).
+Lemma tree_size_gt0 : forall A (lt : tree_ A), 0 < tsize lt.
+Proof. intros. induction lt; simpl; intros; try math. Qed.
+
+#[export] Hint Resolve tree_size_ge0: size_lemmas.
+#[export] Hint Resolve tree_size_gt0: size_lemmas.
+
+Lemma tree_size_spec: forall {A} `{EA: Enc A} (t: tree_ A),
+  SPEC_PURE (tree_size t)
+  POST (fun (s : int) => \[s = tsize t]).
 Proof.
-  intros; gen t. induction lt; xcf; try auto.
-  - intros; simpl; auto. xpullpure Hleaf. rewrite Hleaf.
-    xmatch.
+  intros; gen t. induction t; xcf; try auto.
+  - xmatch.
     xvals*.
-  - intros; simpl. xpullpure H. destruct H as [t1 [t2 [Hnode [Ht1 Ht2]]]].
-    rewrite Hnode; xmatch.
-    xapp (IHlt2). apply Ht2.
-    xapp (IHlt1). apply Ht1.
+  - xmatch.
+    xapp.
+    xapp (IHt1).
     xvals; auto.
 Qed.
-
-Arguments size_spec {A} {EA} lt t : rename.
-
-Hint Extern 1 (RegisterSpec size) => Provide size_spec.
+(* Arguments tree_size_spec {A} {EA} t : rename. *)
+Hint Extern 1 (RegisterSpec tree_size) => Provide tree_size_spec.
 
 (* head *)
-Fixpoint lhead {A} (lt: ltree A) :=
-  match lt with
-  | Lleaf vl => vl
-  | Lnode vl _ _ => vl
+Definition thead A (t: tree_ A) :=
+  match t with
+  | Leaf vl => vl
+  | Node vl _ _ => vl
   end.
+Arguments thead A t : rename.
 
-Lemma head_spec : forall A `{EA: Enc A} (lt: ltree A) (t: tree_ A),
-    SPEC (head t )
-         PRE (\[Tree lt t])
-         POST (fun (x : A) => \[x = lhead lt]).
+Lemma tree_head_spec : forall {A} `{EA: Enc A} (t: tree_ A),
+    SPEC_PURE (tree_head t)
+    POST (fun (x : A) => \[x = thead t]).
 Proof.
-  intros; gen t. case lt; xcf; try auto.
-  - intros; simpl; auto. xpullpure Hleaf. rewrite Hleaf. xmatch. xvals*.
-  - simpl. xpullpure H. destruct H as [t1 [t2 [Hnode [Ht1 Ht2]]]].
-    rewrite Hnode.
-    xmatch.
-    xvals*.
+  intros. case t; xcf; xmatch; xvals*.
 Qed.
+Arguments tree_head_spec {A} {EA} t : rename.
+Hint Extern 1 (RegisterSpec tree_head) => Provide tree_head_spec.
 
-Arguments head_spec {A} {EA} lt t : rename.
-
-Hint Extern 1 (RegisterSpec head) => Provide head_spec.
-
-(* Definition poptree A (x : A) (lt: ltree A) (ls: list (ltree A)) := *)
-(*   match lt, ls with *)
-(*   | Lleaf _, ls => Lleaf x :: ls *)
-(*   | Lnode _ lt1 lt2, [lt2 :: lt1 :: ls] => Lnode x lt1 lt2 :: ls *)
-(*   | _ => [] *)
-(*   end *)
-
-
-Lemma tree_iter_spec : forall A `{EA: Enc A},
-  forall (f: func) (t: tree_ A)  (gt: ltree A)
+Lemma tree_iter_spec : forall A `{EA: Enc A} (f: func) (gt: tree_ A)
     (* invariant *)
     (I : list A -> hprop),
     (* invariant condition *)
     (forall t v r,
-        (tree_to_list gt = t ++ v :: r) ->
+        (tol gt = t ++ v :: r) ->
         SPEC (f v)
         PRE (I t)
         POSTUNIT (I (t & v)))
     ->
-      SPEC (tree_iter f t)
-           PRE (\[Tree gt t] \* I nil)
-           POSTUNIT (I (tree_to_list gt)).
+      SPEC (tree_iter f gt)
+           PRE (I nil)
+           POSTUNIT (I (tol gt)).
 Proof.
-  intros A EA.
-  intros f t gt I Hf; gen t.
-
-  cut (forall (l: list A) (r: list A) (lt: ltree A) (t: tree_ A),
-        tree_to_list gt = l ++ tree_to_list lt ++ r ->
-    SPEC (tree_iter f t)
-           PRE (\[Tree lt t] \* I l)
-           POSTUNIT (I (l ++ (tree_to_list lt)))).
-  { intros Base_Spec t.
-    pose proof (Base_Spec nil nil gt t) as Spec.
+  intros A EA f gt I Hf.
+  cut (forall (t: list A) (r: list A) (lt: tree_ A),
+        tol gt = t ++ tol lt ++ r ->
+    SPEC (tree_iter f lt)
+           PRE (I t)
+           POSTUNIT (I (t ++ (tol lt)))).
+  { intros Base_Spec.
+    pose proof (Base_Spec nil nil gt) as Spec.
     rew_list in Spec.
     apply Spec; auto. }
-  intros l r lt t; gen l r t.
+  intros t r lt; gen t r.
   induction_wf IH: tree_sub lt; try (apply tree_sub_wf); intros.
   xcf.
   case lt as [vl | vl lt1 lt2] eqn: Hlt; simpl.
-  - xpullpure Hleaf.
-    xmatch. inversion TEMP as [Heq]; rewrite Heq in *.
-    simpl in H; rew_list in H.
-    xapp Hf; [exact H |].
+  - xmatch.
+    xapp (Hf t vl r). { rewrite H; simpl; rew_list; auto. }
     xsimpl*.
-  - xpullpure Ht.
-    destruct Ht as [t1 [t2 [Hnode [Ht1 Ht2]]]]; rewrite Hnode.
-    xmatch.
-    xapp (IH lt1). { apply tree_sub_1. } { rewrite H; simpl. f_equal. rew_list. f_equal. } { auto. }
+  - xmatch.
+    xapp (IH lt1). { apply tree_sub_1. } { rewrite H; simpl. f_equal. rew_list. f_equal. }
     xapp (Hf). { rewrite H; simpl; rew_list; f_equal. }
-    xapp (IH lt2). { apply tree_sub_2. } { rewrite H; simpl; rew_list; f_equal. } { auto. }
+    xapp (IH lt2). { apply tree_sub_2. } { rewrite H; simpl; rew_list; f_equal. }
     rew_list.
     xsimpl*.
 Qed.
 Arguments tree_iter_spec {A} {EA} f lt t : rename.
-
 Hint Extern 1 (RegisterSpec tree_iter) => Provide tree_iter_spec.
 
-Lemma tree_fold_spec :  forall `{A: Type} `{Enc A} `{B: Type} `{Enc B} (f: val) (init : B) (lt: ltree A) (t: tree_ A) (fp: B -> A -> B),
+Lemma tree_fold_spec :  forall {A: Type} `{Enc A} {B: Type} `{Enc B}
+                               (f: val) (init : B) (t: tree_ A) (fp: B -> A -> B),
      (forall acc v,
         SPEC_PURE (f acc v)
                   POST \[= fp acc v]) ->
-      SPEC (tree_fold f init t)
-           PRE \[Tree lt t]
-           POST \[= List.fold_left fp (tree_to_list lt) init].
+      SPEC_PURE (tree_fold f init t)
+        POST \[= List.fold_left fp (tol t) init].
 Proof.
-  intros. gen t init.
-  induction_wf IH: tree_sub lt; try (apply tree_sub_wf); intros.
+  intros. gen init.
+  induction_wf IH: tree_sub t; try (apply tree_sub_wf); intros.
   xcf.
-  case lt as [vl | vl lt1 lt2]; simpl.
-  - xpullpure Hleaf;  rewrite Hleaf.
-    xmatch. xapp; simpl; xsimpl*.
-  - xpullpure Hnode.
-    destruct Hnode as [t1 [t2 [Hnode [Ht1 Ht2]]]]; rewrite Hnode.
-    xmatch.
-    xapp (IH lt1); (apply tree_sub_1 || auto).
+  case t as [vl | vl lt1 lt2]; simpl.
+  - xmatch.
     xapp.
-    xapp (IH lt2); (apply tree_sub_2 || auto).
+    xsimpl*.
+  - xmatch.
+    xapp (IH lt1); [apply tree_sub_1 | auto].
+    xapp.
+    xapp (IH lt2); [apply tree_sub_2 | auto].
     xvals*.
     rewrite !fold_left_eq; rewrite !fold_left_app; auto.
 Qed.
+Arguments tree_fold_spec {A} {EA} {B} {EB} f init t fp : rename.
+Hint Extern 1 (RegisterSpec tree_fold) => Provide tree_fold_spec.

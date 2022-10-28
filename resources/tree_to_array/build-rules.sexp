@@ -32,14 +32,14 @@
 
 
 (rule
-     (target array_exists_new.sisyphus.ml)
-     (deps array_exists_new.ml)
-     (action (with-stdout-to array_exists_new.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" array_exists_new.ml))))
+     (target tree_to_array_new.sisyphus.ml)
+     (deps tree_to_array_new.ml)
+     (action (with-stdout-to tree_to_array_new.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" tree_to_array_new.ml))))
 
 (rule
- (target Array_exists_new_ml.v)
- (deps array_exists_new.sisyphus.ml ../common/Arr_ml.v
+ (target Tree_to_array_new_ml.v)
+ (deps tree_to_array_new.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Hashtbl_ml.v
 ../common/Lst_ml.v
@@ -73,17 +73,17 @@
 ../common/stack.cmj
 ../common/tree.cmj
 ../common/vec.cmj)
- (action (run cfmlc -I ../common -o ./Array_exists_new_ml.v array_exists_new.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Tree_to_array_new_ml.v tree_to_array_new.sisyphus.ml)))
 
 (rule
-     (target array_exists_old.sisyphus.ml)
-     (deps array_exists_old.ml)
-     (action (with-stdout-to array_exists_old.sisyphus.ml
-          (run sed -E "s/\\[@.*\\]//" array_exists_old.ml))))
+     (target tree_to_array_old.sisyphus.ml)
+     (deps tree_to_array_old.ml)
+     (action (with-stdout-to tree_to_array_old.sisyphus.ml
+          (run sed -E "s/\\[@.*\\]//" tree_to_array_old.ml))))
 
 (rule
- (target Array_exists_old_ml.v)
- (deps array_exists_old.sisyphus.ml ../common/Arr_ml.v
+ (target Tree_to_array_old_ml.v)
+ (deps tree_to_array_old.sisyphus.ml ../common/Arr_ml.v
 ../common/Combinators_ml.v
 ../common/Hashtbl_ml.v
 ../common/Lst_ml.v
@@ -117,4 +117,4 @@
 ../common/stack.cmj
 ../common/tree.cmj
 ../common/vec.cmj)
- (action (run cfmlc -I ../common -o ./Array_exists_old_ml.v array_exists_old.sisyphus.ml)))
+ (action (run cfmlc -I ../common -o ./Tree_to_array_old_ml.v tree_to_array_old.sisyphus.ml)))

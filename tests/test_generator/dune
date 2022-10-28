@@ -3,6 +3,7 @@
               test_array_is_sorted
               test_array_foldi
               test_sll_partition
+              test_tree_to_array
               test_array_findi test_array_find_mapi test_array_of_rev_list)
  (preprocess (pps ppx_deriving.show))
  (flags -rectypes)

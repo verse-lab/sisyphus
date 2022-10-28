@@ -10,6 +10,7 @@
 ../common/Set_ml.vo
 ../common/Sll_ml.vo
 ../common/Sseq_ml.vo
+../common/Stack_ml.vo
 ../common/Tree_ml.vo
 ../common/Vec_ml.vo ../common/Solver.vo
 ../common/Tactics.vo
@@ -47,6 +48,7 @@
 ../common/Set_ml.v
 ../common/Sll_ml.v
 ../common/Sseq_ml.v
+../common/Stack_ml.v
 ../common/Tree_ml.v
 ../common/Vec_ml.v ../common/arr.ml
 ../common/combinators.ml
@@ -57,6 +59,7 @@
 ../common/set.ml
 ../common/sll.ml
 ../common/sseq.ml
+../common/stack.ml
 ../common/tree.ml
 ../common/vec.ml ../common/arr.cmj
 ../common/combinators.cmj
@@ -67,6 +70,7 @@
 ../common/set.cmj
 ../common/sll.cmj
 ../common/sseq.cmj
+../common/stack.cmj
 ../common/tree.cmj
 ../common/vec.cmj)
  (action (run cfmlc -I ../common -o ./Array_findi_new_ml.v array_findi_new.sisyphus.ml)))
@@ -88,6 +92,7 @@
 ../common/Set_ml.v
 ../common/Sll_ml.v
 ../common/Sseq_ml.v
+../common/Stack_ml.v
 ../common/Tree_ml.v
 ../common/Vec_ml.v ../common/arr.ml
 ../common/combinators.ml
@@ -98,6 +103,7 @@
 ../common/set.ml
 ../common/sll.ml
 ../common/sseq.ml
+../common/stack.ml
 ../common/tree.ml
 ../common/vec.ml ../common/arr.cmj
 ../common/combinators.cmj
@@ -108,6 +114,7 @@
 ../common/set.cmj
 ../common/sll.cmj
 ../common/sseq.cmj
+../common/stack.cmj
 ../common/tree.cmj
 ../common/vec.cmj)
  (action (run cfmlc -I ../common -o ./Array_findi_old_ml.v array_findi_old.sisyphus.ml)))

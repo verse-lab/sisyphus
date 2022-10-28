@@ -3,6 +3,7 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
+Create HintDb size_lemmas.
 
 Ltac sep_solve_int := lazymatch goal with
   | [|- forall Y, ?X] => let y := fresh in intros y; sep_solve_int
@@ -67,6 +68,8 @@ Ltac xinhab_inner A :=
   Tactic Notation "by" tactic(t) := t; done.
   Tactic Notation "first" tactic(t) := only 1 : t.
 
+  Tactic Notation "xapp+" := xapp; match goal with | [ |- Enc _] => auto | _ => idtac end.
+
   Tactic Notation "xdestruct" := xmatch Xcase_as.
   Tactic Notation "xdestruct" simple_intropattern(p1) := xmatch Xcase_as; intros p1.
   Tactic Notation "xdestruct"
@@ -86,11 +89,11 @@ Ltac xinhab_inner A :=
     simple_intropattern(arr)
     simple_intropattern(data)
     simple_intropattern(Hdata) :=
-    xapp; try math; intros arr data Hdata.
+    xapp+; try math; intros arr data Hdata.
 
   Tactic Notation "xref"
     simple_intropattern(r) :=
-    xapp; intros r.
+    xapp+; intros r.
 
   Tactic Notation "xpurefun"
     simple_intropattern(f)
@@ -102,7 +105,7 @@ Ltac xinhab_inner A :=
     simple_intropattern(arr)
     simple_intropattern(data)
     simple_intropattern(Hdata) :=
-    xapp; try math; intros arr data Hdata.
+    xapp+; auto with size_lemmas; try math; intros arr data Hdata.
 
   Tactic Notation "xpullpure"
     simple_intropattern(H1) :=
@@ -170,9 +173,8 @@ Ltac xinhab_inner A :=
     :=
     xmatch Xcase_as; (first sep_solve); intros _ h1 h2 h3 h4.
 
-
   Tactic Notation "xunit" :=
-    xmatch; [xapp || xval].
+    xmatch; [xapp+ || xval].
 
   Tactic Notation "xletopaque"
     simple_intropattern(idx)
@@ -180,7 +182,7 @@ Ltac xinhab_inner A :=
     xlet as;=> idx Hidx.
 
   Tactic Notation "xvalemptyarr" :=
-    xapp; xsimpl.
+    xapp+; xsimpl.
 
   Tactic Notation "xif" "as" simple_intropattern(Hcond)  :=
     let cond_var := fresh Hcond in
