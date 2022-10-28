@@ -7,7 +7,7 @@ From TLC Require Import LibListZ.
 (* About Sseq_ml. *)
 
 Require Import Sseq_ml.
-From Common Require Import Utils.
+From Common Require Import Utils Solver.
 From Common Require Import Tactics.
 
 (** Lazy values: a lazy value of type [a] is represented at type [unit->'a].
@@ -133,4 +133,18 @@ Qed.
 Arguments iteri_spec {A} {HA} f s l I Hf : rename.
 
 Hint Extern 1 (RegisterSpec iteri) => Provide iteri_spec.
+
+
+Ltac sis_seq_solver :=
+  lazymatch goal with
+  | [H: LSeq_node _ ?l Sseq_ml.Nil |- _] =>
+      let lh := fresh "lh" in
+      let lt := fresh "lt" in
+      let e_v := fresh "e_v" in
+      let H1 := fresh "H1" in
+      let H2 := fresh "H2" in
+      let H3 := fresh "H3" in
+      destruct l as [| lh lt]; simpl in H;
+      [auto| destruct H as [H1 [H2 H3]]; inversion H2]
+  end.
 

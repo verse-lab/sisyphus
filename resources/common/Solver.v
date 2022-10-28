@@ -143,6 +143,10 @@ Ltac sis_list_solver :=
        rewrite drop_zero
   | [ |- context[make 0 _]] =>
        rewrite make_zero
+  | [ |- context[(?t ++ ?r)[length ?t := _]]] =>
+    rewrite (@update_app_r _ r 0 t (length t)); [ | auto | math | math ]
+  | [ |- context[(make (?l + 1) ?vl)[0:=?nvl]]] =>
+    rewrite make_succ_l, update_zero; [| math]
   end.
 
 Ltac sis_list_deep_solver :=
@@ -235,8 +239,16 @@ Ltac sis_handle_take_drop_full_length :=
       rewrite H at 1; rewrite drop_at_length
   end.
 
+Ltac sis_solver_hook := fail.
+
+Ltac sis_pre_solver_steps :=
+  match goal with
+  | _ => sis_solver_hook
+  | _ => idtac
+  end.
 
 Ltac sis_generic_solver :=
+  sis_pre_solver_steps;
   lazymatch goal with
   | [ |- context[@Triple _]] =>
       intros_then_apply sis_simplify_math_goal; sis_solve_start; sis_generic_solver
