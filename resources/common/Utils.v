@@ -12,6 +12,12 @@ Proof.
   case b; simpl; auto.
 Qed.
 
+Lemma or_orb_eq (a b: bool) : or a b = orb a b.
+Proof. case a; case b; simpl; auto. Qed.
+
+Lemma and_andb_eq (a b: bool) : and a b = andb a b.
+Proof. case a; case b; simpl; auto. Qed.
+
 Lemma negb_iff (b: bool) :
   b = false <-> ~ b.
 Proof.

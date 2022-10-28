@@ -168,6 +168,16 @@ Ltac sis_list_deep_solver :=
       let H_len := fresh "Hlen" in
       assert (H_len: length rest = length ls - 1) by (rewrite <- H; rew_list; math);
       rewrite H_len; clear H_len; rew_list
+  | [  H: existsb ?fp (take ?i ?l) = false |-
+         context[existsb ?fp (take (?i + 1) ?l)] ] =>
+        unfold existsb in *; rewrite (take_pos_last _); [|apply int_index_prove; math];
+        math_rewrite (i + 1 - 1 = i); 
+        rewrite list_existsb_app, !or_orb_eq, H; simpl
+  | [H: existsb ?f (take ?i ?l) = true, Hi: ?i <= length ?l |- context Hctx[existsb ?f ?l]] =>
+          let Hleq := fresh "Hleq" in
+          pose proof (Hleq := @list_eq_take_app_drop _ i l Hi);
+          apply (f_equal (existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
+          unfold existsb in *; rewrite list_existsb_app, H
   end.  
 
 Ltac sis_dispatch_filter_goal :=
@@ -206,6 +216,12 @@ Ltac sis_normalize_opt_of_bool :=
 
 Ltac sis_normalize_boolean_goals :=
   repeat lazymatch goal with
+    | [ H : true = false |- _ ] => inversion H
+    | [ H : false = true |- _ ] => inversion H
+    | [ H : true = true |- _ ] => clear H
+    | [ H : false = false |- _ ] => clear H
+    | [ H : false = _ |- _ ] => symmetry in H
+    | [ H : true = _ |- _ ] => symmetry in H
     | [ H : negb _ = false |- _ ] =>
         apply (f_equal negb) in H; rewrite Bool.negb_involutive in H; simpl negb in H
     | [ H : negb _ = true |- _ ] =>
@@ -214,6 +230,22 @@ Ltac sis_normalize_boolean_goals :=
         rewrite (Bool.negb_involutive_reverse false); apply f_equal; simpl negb
     | [ |- negb _ = true ] =>
         rewrite (Bool.negb_involutive_reverse true); apply f_equal; simpl negb
+    | [ |- context[negb (_ || _)%bool] ] => rewrite Bool.negb_orb
+    | [ |- context[negb false] ] => simpl negb
+    | [ |- context[negb true] ] => simpl negb
+    | [ |- context[(_ && true)%bool] ] => rewrite Bool.andb_true_r
+    | [ |- context[(_ || false)%bool] ] => rewrite Bool.orb_false_r
+    | [ |- context[(true && _)%bool] ] => simpl andb
+    | [ |- context[(false || _)%bool] ] => simpl orb
+    | [ |- context[(false && _)%bool] ] => simpl andb
+    | [ |- context[(true || _)%bool] ] => simpl orb
+    | [ H: context[implb true _] |- _ ] => simpl in H
+    | [ H: istrue (Z.eqb ?l ?r) |- _] =>
+        let H_eq := fresh H in
+        assert (H_eq: l = r) by (apply Z.eqb_eq; auto);
+        clear H; rename H_eq into H
+    | [ |- context[! _] ] => rewrite <- negb_eq_neg
+    | [ H: context[! _] |- _ ] => rewrite <- negb_eq_neg in H
     end.  
 
 Ltac sis_handle_take_splitting_goals :=
@@ -253,8 +285,9 @@ Ltac sis_generic_solver :=
   | [ |- context[@Triple _]] =>
       intros_then_apply sis_simplify_math_goal; sis_solve_start; sis_generic_solver
   | [ |- index _ _] => sis_handle_int_index_prove; sis_generic_solver
-  | _ => subst;
+  | _ => sis_normalize_boolean_goals; subst; try math;
          repeat (sis_normalize_length;
+                 sis_normalize_boolean_goals;
                  sis_list_solver;
                  sis_list_deep_solver;
                  sis_simplify_math_goal; auto)

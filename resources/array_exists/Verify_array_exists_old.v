@@ -26,36 +26,14 @@ Proof using (All).
            (fun (i: int) (b: bool) => \[b = negb (existsb fp (take i l))] \*
                          result ~~> (existsb fp (take i l)) \*
                          a ~> Array l)
-       ). {
-    sis_solve_start. {
-      unfold existsb in *.
-      rewrite (take_pos_last IA); [|apply int_index_prove; rewrite <- ?length_eq; math].
-      math_rewrite ((i + 1 - 1) = i).
-      apply (f_equal negb) in H0; rewrite Bool.negb_involutive in H0; simpl in H0.
-      rewrite list_existsb_app, <- H0; simpl;  case (fp l[i]); simpl; auto.
-    } {
-      unfold existsb in *.
-      rewrite (take_pos_last IA); [|apply int_index_prove; rewrite <- ?length_eq; math].
-      math_rewrite ((i + 1 - 1) = i).
-      apply (f_equal negb) in H0; rewrite Bool.negb_involutive in H0; simpl in H0.
-      rewrite list_existsb_app, <- H0; simpl;  case (fp l[i]); simpl; auto.
-    }
-  }
-  { math.  }
-  { rewrite take_zero; simpl; auto. }
+       ). { sis_generic_solver. }
+  { sis_generic_solver. }
+  { sis_generic_solver. }
   intros fin i_b Hind Hexists.
   xmatch.
   xapp.
   xvals*. {
-    destruct fin; destruct Hind as [Hlen Himpl].
-    - rewrite Bool.implb_true_l in Himpl.
-      assert (Heq: i_b = length l) by (apply Z.eqb_eq; auto).
-      rewrite Heq, take_full_length; auto.
-    - simpl in Hexists.
-      apply (f_equal negb) in Hexists; rewrite Bool.negb_involutive in Hexists; simpl in Hexists.
-      rewrite <- Hexists.
-      rewrite <- (@list_eq_take_app_drop _ i_b l) at 1.
-      unfold existsb in *; rewrite list_existsb_app; rewrite <- Hexists; simpl; auto.
-      math.
+    destruct fin; destruct Hind as [Hlen Himpl];
+      sis_generic_solver.
   }
 Qed.
