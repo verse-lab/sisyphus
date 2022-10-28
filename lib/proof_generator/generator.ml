@@ -31,9 +31,9 @@ let combine_rem xz yz =
 let seq_force ls =
   let rec loop i acc ls =
     match ls () with
-    | Seq.Cons (h, t) when i < 100 ->
+    | Seq.Cons (h, t) when i < 0 ->
       loop (i + 1) (h :: acc) t
-    | Seq.Cons (h, t) -> i, Seq.append (Seq.of_list (List.rev (h :: acc))) t
+    | Seq.Cons (h, t) -> i + 1, Seq.append (Seq.of_list (List.rev (h :: acc))) t
     | Seq.Nil -> i, Seq.of_list (List.rev acc) in
   let (sz, ls) = loop 0 [] ls in
   sz, ls
