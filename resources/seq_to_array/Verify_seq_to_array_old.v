@@ -2,10 +2,13 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
+From Common Require Import Tactics.
+From Common Require Import Solver.
+From Common Require Import Utils.
+
 From Common Require Import Verify_sseq.
 
-From Common Require Import Tactics.
-From Common Require Import Utils.
+Ltac sis_solver_hook ::= sis_seq_solver.
 
 From Proofs Require Import Seq_to_array_old_ml.
 
@@ -22,7 +25,7 @@ Proof using (All).
   intros nxt Hnxt.
   case nxt as [ | x nxt2] eqn: H.
   - xmatch_case_0.
-    xvalemptyarr. { admit. }
+    xvalemptyarr. { sis_generic_solver. }
   - xmatch.
     xapp (length_spec s l); auto.
     (* unification point 1 *)
@@ -30,7 +33,7 @@ Proof using (All).
     xletopaque f Hf.
     xapp (iteri_spec f s l
                      (fun (ls: list A) => arr ~> Array (ls ++ drop (length ls) (make (length l) x)))
-         ). { admit. } { admit. } { admit. }
+         ). { sis_generic_solver. } { sis_generic_solver. } { sis_generic_solver. }
     (* unification point 2 *)
-    xmatch. xvals. { admit. }
-Admitted.
+    xmatch. xvals. { sis_generic_solver. }
+Qed.
