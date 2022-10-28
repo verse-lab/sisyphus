@@ -206,30 +206,30 @@ let extract_step_id (step: step) =
   | (`Xinhab _ | `Xsimpl _ | `SepSplitTuple _ |`Xmatchcase _ | `Intros _ |`Xpurefun _
     |`Xdestruct _ | `Apply _ |`Xseq _ | `Rewrite _  | `Xcf _ |`Xpullpure _) -> None
 
-let rec fold_proof_script f acc ~start ~stop (steps: step list) =
+let rec fold_proof_script f acc ?start ?stop (steps: step list) =
   match steps with
   | [] -> acc
   | step :: steps ->
-    if extract_step_id step |> Option.exists (fun id -> stop < id)
+    if extract_step_id step |> Option.exists (fun id -> Option.exists (fun stop -> stop < id) stop)
     then acc
     else
       let acc = 
         match extract_step_id step with
-        | Some id when start <= id -> (f acc step)
+        | Some id when Option.for_all (fun start -> start <= id) start -> (f acc step)
         | Some _ -> acc
         | None -> acc in
       match step with
       | `Case (_, _, _, sub_proofs) ->
         let acc =
           List.fold_left (fun acc (_, steps) ->
-            fold_proof_script f acc ~start ~stop steps)
+            fold_proof_script f acc ?start ?stop steps)
             acc sub_proofs in
-        fold_proof_script f acc ~start ~stop steps        
+        fold_proof_script f acc ?start ?stop steps
       | `Xif (_, _, l, r) ->
         let acc =
           List.fold_left (fun acc steps ->
-            fold_proof_script f acc ~start ~stop steps)
+            fold_proof_script f acc ?start ?stop steps)
             acc [l;r] in
-        fold_proof_script f acc ~start ~stop steps        
+        fold_proof_script f acc ?start ?stop steps
 
-      | _ -> fold_proof_script f acc ~start ~stop steps
+      | _ -> fold_proof_script f acc ?start ?stop steps

@@ -19,10 +19,9 @@ Lemma stack_filter_spec
     SPEC (stack_filter f s)
     PRE(s ~> Stack ls)
     POSTUNIT(s ~> Stack (filter fp ls)).
-Proof.
+Proof using (All).
   xcf.
-  xapp.
-  intros keep.
+  xapp.  intros keep.
   xletopaque tmp Htmp.
   xapp (stack_drain_spec tmp s
           (fun (ls: list A) =>

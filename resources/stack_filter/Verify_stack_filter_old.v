@@ -19,7 +19,7 @@ Lemma stack_filter_spec
     SPEC (stack_filter f s)
     PRE(s ~> Stack ls)
     POSTUNIT(s ~> Stack (filter fp ls)).
-Proof.
+Proof using (All).
   xcf.
   xref acc.
   xletopaque tmp Htmp.

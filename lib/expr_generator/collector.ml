@@ -36,7 +36,7 @@ let collect_spec_arg cs =
 
   | `Hole -> failwith "holes not supported"
 
-let collect_constants from_id to_id (steps: Proof_spec.Script.step list) =
+let collect_constants ?from_id ?to_id (steps: Proof_spec.Script.step list) =
   let collect_step cs : PS.Script.step -> _ = function
     | `Xapp (_, _, spec_args) ->
       List.fold_left collect_spec_arg cs spec_args
@@ -45,7 +45,7 @@ let collect_constants from_id to_id (steps: Proof_spec.Script.step list) =
     | `Xvalemptyarr _ |`Case _ |`Xletopaque _ |`Xdestruct _ |`Xalloc _
     | `Xref _ | `Xunit _ | `Xsimpl _ | `XappOpaque _
     |`Apply _ |`Xseq _ |`Rewrite _ |`Xcf _ |`Xpullpure _ -> cs in
-  PS.Script.fold_proof_script ~start:from_id ~stop:to_id
+  PS.Script.fold_proof_script ?start:from_id ?stop:to_id
     collect_step ConstantSet.empty steps
   |> ConstantSet.to_list
 
@@ -53,10 +53,10 @@ let collect_constants from_id to_id (steps: Proof_spec.Script.step list) =
 (** [get_consts_and_funcs ~from_id ~to_id ~env script] when given a
     proof script [script], retrieves constants and functions used
     between proof points [from_id] and [to_id]. *)
-let collect_consts_and_funcs ~from_id ~to_id ~(env: Types.env) steps =
+let collect_consts_and_funcs ?from_id ?to_id ~(env: Types.env) steps =
   let open Lang.Type in
   (* collect constants used in script *)
-  let consts_in_script = collect_constants from_id to_id steps in
+  let consts_in_script = collect_constants ?from_id ?to_id steps in
   (* collect a typemap of constants (ints + variables) *)
   let consts =
     List.to_iter consts_in_script
@@ -125,13 +125,13 @@ let collect_at_spec_arg env ps = function
     List.fold_left collect_at_heaplet ps (Proof_spec.Heap.Assertion.sigma asn)
   | `Hole -> failwith "holes not supported"
 
-let collect_pats ~from_id ~to_id ~env steps =
+let collect_pats ?from_id ?to_id ~env steps =
   let collect_pats_at_step env ps = function
     | `Xapp (_, _, args) ->
       List.fold_left (collect_at_spec_arg env) ps args
     | _ -> ps in
   steps
-  |> Proof_spec.Script.fold_proof_script ~start:from_id ~stop:to_id
+  |> Proof_spec.Script.fold_proof_script ?start:from_id ?stop:to_id
        (collect_pats_at_step env) PatternSet.empty 
   |> PatternSet.to_list
   |> List.fold_left (fun env (ty,vl) ->

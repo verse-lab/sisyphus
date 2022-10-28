@@ -1,5 +1,9 @@
 type 'a stack
 
+val stack_of_list: 'a list -> 'a stack
+
+val stack_to_list: 'a stack -> 'a list
+
 val stack_init : unit -> 'a stack
 
 val stack_size : 'a stack -> int
