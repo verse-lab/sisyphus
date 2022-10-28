@@ -43,6 +43,10 @@ To update the build rules (for example, when you update resources/common, or add
 dune build @gen-build-rules --auto-promote
 ```
 
+Note: when running the benchmarks, you may also want to enable the
+`SIS_FAST_BENCHMARK=1` in your environment, to avoid the benchmarks
+building the common directory repeatedly on each test.
+
 ## Project structure
 ```
 .
