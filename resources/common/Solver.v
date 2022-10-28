@@ -236,11 +236,11 @@ Ltac sis_handle_take_drop_full_length :=
   end.
 
 
-Ltac sis_solve :=
+Ltac sis_generic_solver :=
   lazymatch goal with
   | [ |- context[@Triple _]] =>
-      intros_then_apply sis_simplify_math_goal; sis_solve_start; sis_solve
-  | [ |- index _ _] => sis_handle_int_index_prove; sis_solve
+      intros_then_apply sis_simplify_math_goal; sis_solve_start; sis_generic_solver
+  | [ |- index _ _] => sis_handle_int_index_prove; sis_generic_solver
   | _ => subst;
          repeat (sis_normalize_length;
                  sis_list_solver;
