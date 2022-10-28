@@ -1,5 +1,7 @@
 open Containers
 
+module Log = (val Logs.src_log (Logs.Src.create ~doc:"Main runner for Sisyphus" "runner"))
+
 let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose print_extraction_steps
       dump_generated_invariants
       disable_tactic_validation solver_tactic max_solve_calls
@@ -51,6 +53,7 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose prin
     (new_proof_base ^ "\n" ^ Proof_generator.Generator.generate
        ~logical_mappings:old_program.logical_mappings ctx
        new_program) in
+  Log.info (fun f -> f "%s\n%s\n%s" (String.make 20 '=') new_proof (String.make 20 '='));
   Bos.OS.File.write Fpath.(coq_dir / new_proof_name)
     new_proof
   |> Result.get_exn
