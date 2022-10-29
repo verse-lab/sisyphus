@@ -32,6 +32,7 @@ Ltac xinhab_inner A :=
 
   Ltac xinhab :=
     lazymatch goal with
+    | [ l : list int |- _ ] => idtac
     | [ l : list ?A |- _ ] =>
         let IA := fresh "IA" in
         (assert (IA: Inhab A); [

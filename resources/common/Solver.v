@@ -54,6 +54,7 @@ Ltac sis_simplify_math_goal :=
   rew_list;
   repeat lazymatch goal with
     | [ |- context[?x - 0] ] => math_rewrite (x - 0 = x)
+    | [ |- context[?x + 0] ] => math_rewrite (x + 0 = x)
     | [ |- context[?x - ?x] ] => math_rewrite (x - x = 0)
     | [ |- context[0 + ?x]] => math_rewrite (0 + x = x)
     | [ |- context[?x + 1 - 1]] => math_rewrite (x + 1 - 1 = x)
@@ -77,6 +78,38 @@ Ltac sis_simplify_math_goal :=
     | [ |- context[?b + ?x + ?y - ?x]] =>
         math_rewrite (b + x + y - x = b + y)
     | [ |- context[?x + 1 - 2 - ?z + 1] ] => math_rewrite (x + 1 - 2 - z + 1 = x - z)
+    end.
+
+Ltac sis_symexec :=
+  repeat lazymatch goal with
+    | [ |- @himpl (hpure _ ) _ ] =>
+        let H := fresh "H" in
+        xpullpure H
+    | [ |- @himpl (hstar (hpure _) _) _ ] =>
+        let H := fresh "H" in
+        xpullpure H
+    | [ |- @himpl ?pre
+             (@Wptag
+                (@Wpgen_let_trm
+                   (@Wptag (@Wpgen_app Z Enc_int Array_ml.get _))
+                   ?ty ?enc_ty
+                   ?rest) _ _ _) ] =>
+        xapp; [ apply int_index_prove; try math | ]
+    | [ |- @himpl _
+             (@Wptag
+                (@Wpgen_seq (@Wptag (@Wpgen_if _ _ _)) _) _ _ _) ] =>
+        let Hcond := fresh "Hcond" in
+        xif as Hcond
+    | [ |- @himpl ?pre
+             (@Wptag (@Wpgen_app _ _ infix_colon_eq__ _) _ _ _) ] =>
+        xapp
+    | [ |- @himpl ?pre
+             (@Wptag (@Wpgen_app _ _ infix_emark__ _) _ _ _) ] =>
+        xapp
+    | [ |- @himpl ?pre
+             (@Wptag (@Wpgen_val _ _ _) _ _ _) ] =>
+        xvals*
+    | [ |- himpl (hstar _ _) (hstar _ _)] => xsimpl*
     end.
 
 Ltac sis_solve_start :=
@@ -219,9 +252,9 @@ Ltac sis_list_deep_solver :=
         math_rewrite (i + 1 - 1 = i); 
         rewrite !findi_unfold in *; rewrite findi_app_r
     | [  H: istrue (?fp ?i ?vl) |-  context[list_findi_internal ?i ?fp (?vl :: _)] ] =>
-          simpl list_findi_internal; rewrite H
+        simpl list_findi_internal; rewrite H
     | [  H: ~ istrue (?fp ?i ?vl) |-  context[list_findi_internal ?i ?fp (?vl :: _)] ] =>
-          simpl list_findi_internal;  apply not_is_false in H; rewrite H
+        simpl list_findi_internal;  apply not_is_false in H; rewrite H
     | [ H: is_some (list_findi ?fp (take ?i ?l)) = true |-
           context H [list_findi ?fp ?l]
       ] =>
@@ -265,6 +298,46 @@ Ltac sis_list_deep_solver :=
         let _ :=
           lazymatch goal with[|-context[list_foldi (t & v) init f]] => true end in
         rewrite (@foldi_rcons _ _ f init t v (t & v)); auto
+    | [ H : context [drop ?i ?l] |- context[drop (?i - 1) ?l] ] =>
+        rewrite (@drop_cons_unfold _ _ l (i - 1)); [| math];
+        math_rewrite (i - 1 + 1 = i)
+    | [ H: ?vl <= ?gvl |- context[is_sorted (?vl :: ?tl)] ] =>
+        rewrite (@is_sorted_gen vl tl); [ auto | auto; sis_normalize_length | auto | auto ]
+    | [ H: ~ (?vl > ?gvl) |- istrue (is_sorted (?vl :: ?tl))] =>
+        apply (@is_sorted_gen vl tl); [
+          sis_normalize_length | auto
+        | rewrite read_drop; [ sis_simplify_math_goal; math
+                             | math
+                             | apply int_index_prove; math] ]
+    | [ |- context [(drop ?i ?l)[0]]] =>
+        rewrite read_drop, Z.add_0_r;
+        [ | math | apply int_index_prove; math ];
+        auto
+    | [ H: ~ (?vl <= ?gvl) |- is_sorted (?vl :: ?tl) = false] =>
+        apply not_is_false; apply (@not_is_sorted_gen (vl :: tl) 1); [
+          rew_list; sis_normalize_length; math
+        | rew_list; sis_normalize_length; math
+        | math_rewrite (1 - 1 = 0); rewrite read_zero, read_cons_pos; [ | math] ]
+    | [ H: ?vl > ?gvl |- ~ istrue (is_sorted (?vl :: ?tl))] =>
+        apply (@not_is_sorted_gen (vl :: tl) 1); [
+          rew_list; sis_normalize_length; math
+        | rew_list; sis_normalize_length; math
+        |  ];
+        math_rewrite (1 - 1 = 0); rewrite read_zero, read_cons_pos; [ | math];
+        math_rewrite (1 - 1 = 0); rewrite read_drop; [
+          sis_simplify_math_goal; math
+        | math
+        | apply int_index_prove; math ]          
+
+    | [ |- context[is_sorted (drop (length ?l - 1) ?l)]] =>
+        rewrite (is_sorted_last_elt l); [ auto | math ]
+    | [H: is_sorted (drop ?i ?l) = false |- is_sorted ?l = false] =>
+        let v := fresh "v" in
+        let Hv := fresh "Hv" in
+        remember (is_sorted l) as v eqn:Hv;
+        rewrite <- (@list_eq_take_app_drop _ i l) in Hv; [| math];
+        rewrite Hv; clear v Hv;
+        apply is_sorted_app_r; auto
     end.  
 
 Ltac sis_dispatch_filter_goal :=
@@ -318,8 +391,16 @@ Ltac sis_normalize_opt_of_bool :=
         rewrite <- H; simpl is_some
     | [ H : context[is_some (Some _)] |- _ ] =>
         simpl is_some in H
+    | [ |- context[is_some (Some _)] ] =>
+        simpl is_some
     | [ H : context[is_some None] |- _ ] =>
         simpl is_some in H
+    | [ |- context[is_some None] ] =>
+        simpl is_some 
+    | [ H: context[opt_of_bool false] |- _ ] =>
+        simpl opt_of_bool in H
+    | [ H: context[opt_of_bool true] |- _ ] =>
+        simpl opt_of_bool in H
     end.
 
 Ltac sis_normalize_boolean_goals :=
@@ -354,6 +435,10 @@ Ltac sis_normalize_boolean_goals :=
     | [ |- context[(false && _)%bool] ] => simpl andb
     | [ |- context[(true || _)%bool] ] => simpl orb
     | [ H: context[implb true _] |- _ ] => simpl in H
+    | [ H : context [negb (negb _)] |- _ ] =>
+        rewrite Bool.negb_involutive in H
+    | [ |- context [negb (negb _)] ] =>
+        rewrite Bool.negb_involutive 
     | [H: istrue ?exp |- context[if ?exp then _ else _] ] => rewrite H
     | [ H: istrue (Z.eqb ?l ?r) |- _] =>
         let H_eq := fresh H in
@@ -365,9 +450,9 @@ Ltac sis_normalize_boolean_goals :=
     | [ |- context[! _] ] => rewrite <- negb_eq_neg
     | [ H: context[! _] |- _ ] => rewrite <- negb_eq_neg in H
     | [H: _ /\ _ |- _] =>
-       let H1 := fresh "H1" in
-       let H2 := fresh "H2" in
-       destruct H as [H1 H2]
+        let H1 := fresh "H1" in
+        let H2 := fresh "H2" in
+        destruct H as [H1 H2]
     | [H: context[negb true] |- _ ] => simpl negb in H
     | [H: context[negb false] |- _ ] => simpl negb in H
     end.  
