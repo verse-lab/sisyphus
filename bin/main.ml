@@ -4,7 +4,7 @@ module Log = (val Logs.src_log (Logs.Src.create ~doc:"Main runner for Sisyphus" 
 
 let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose print_extraction_steps
       dump_generated_invariants
-      disable_tactic_validation solver_tactic max_solve_calls
+      disable_tactic_validation solver_tactic max_solve_calls admit_all_sub_goals
       deps coq_deps old_program new_program
       coq_dir coq_lib_name
       old_proof new_proof_base new_proof_name =
@@ -19,6 +19,7 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose prin
     ~dispatch_goals_with_tactic:(not disable_tactic_validation)
     ?solver_tactic:solver_tactic
     ?max_dispatch_attempts:max_solve_calls
+    ~admit_all_sub_goals
     ();
 
   let old_program = Bos.OS.File.read old_program |> Result.get_exn in
@@ -178,7 +179,7 @@ let disable_tactic_validation =
       (info ~doc:"$(opt) indicates whether sisyphus should disable its \
                   validation of candidate invariants using its solver \
                   tactic. Can also be provided through the $(env) ENV \
-                  variable (as 1 to disable Z3 and 0 to enable it \
+                  variable (as 1 to disable the validation and 0 to enable it \
                   (default))."
          ~env:(env_var "SIS_DISABLE_SOLVER") ["disable-solver"])
   )
@@ -207,6 +208,20 @@ let solver_tactic =
                ENV variable. Defaults to \"sis_generic_solver\"."
          ~env:(env_var "SIS_SOLVER_TACTIC") ["solver-tactic"])
   )
+
+let admit_all_sub_goals =
+  Arg.(
+    value @@
+    flag
+      (info ~doc:"$(opt) indicates whether sisyphus will not try to \
+                  optimistically use the solver tactic to dispatch \
+                  intermediate sub-goals found during the repair. Can \
+                  also be provided through the $(env) ENV variable (as \
+                  1 to admit sub goals and 0 to try to dispatch them (default))."
+         ~env:(env_var "SIS_ADMIT_SUB_GOALS") ["admit-sub-goals"])
+  )
+
+
 
 let z3_challenging_timeout =
   Arg.(
@@ -320,6 +335,7 @@ let () =
                  $ disable_tactic_validation
                  $ solver_tactic
                  $ max_solve_calls
+                 $ admit_all_sub_goals
                  $ deps
                  $ coq_deps
                  $ old_program

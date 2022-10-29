@@ -1107,11 +1107,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
     Proof_context.append t "xvals.";
 
     while (Proof_context.current_subproof t).goals |> List.length > 0 do
-      Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
-      if Option.is_none (Proof_context.current_subproof_opt t) then begin
-        Proof_context.cancel_last t;
-        Proof_context.append t "{ admit. }";
-      end
+      Proof_context.try_auto_or_admit t;
     done
   | t ->
     failwith
@@ -1162,11 +1158,7 @@ and symexec_array_get t env pat rest =
   Proof_context.append t "xinhab.";
   Proof_context.append t "xapp.";
   while List.length (Proof_context.current_subproof t).goals > 1 do 
-    Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
-    if Option.is_none (Proof_context.current_subproof_opt t) then begin
-      Proof_context.cancel_last t;
-      Proof_context.append t "{ admit. }";
-    end
+    Proof_context.try_auto_or_admit t;
   done;
   Proof_context.append t "}";
   symexec t env rest
@@ -1577,12 +1569,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
           (* yes, it did!, this is the candidate we want: *)
           found_acceptable_invariant := true;
           (* dispatch any remaining goals *)
-          while List.length (Proof_context.current_subproof t).goals > 1 do 
-            Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
-            if Option.is_none (Proof_context.current_subproof_opt t) then begin
-              Proof_context.cancel_last t;
-              Proof_context.append t "{ admit. }";
-            end
+          while List.length (Proof_context.current_subproof t).goals > 1 do
+            Proof_context.try_auto_or_admit t;
           done;
           (* we're done son. *)
         end else begin
@@ -1609,12 +1597,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   ));
 
   (* dispatch remaining subgoals by the best method: *)
-  while List.length (Proof_context.current_subproof t).goals > 1 do 
-    Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
-    if Option.is_none (Proof_context.current_subproof_opt t) then begin
-      Proof_context.cancel_last t;
-      Proof_context.append t "{ admit. }";
-    end
+  while List.length (Proof_context.current_subproof t).goals > 1 do
+    Proof_context.try_auto_or_admit t;
   done;
 
   Log.debug (fun f ->

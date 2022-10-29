@@ -1,30 +1,35 @@
 
 val dispatch_goals_with_solver_tactic : unit -> bool
 (** [dispatch_goals_with_solver_tactic] specifies whether the runtime
-   system should check generated candidates using Sispyhus' solver
-   tactic. Defaults to true.  *)
+    system should check generated candidates using Sispyhus' solver
+    tactic. Defaults to true.  *)
 
 val max_goal_dispatch_attempts : unit -> int
 (** [max_goal_dispatch_attempts ()] indicates the maximum number of
-   attempts to dispatch subgoals from an invariant that Sisyphus will
-   make. Defaults to 3. *)
+    attempts to dispatch subgoals from an invariant that Sisyphus will
+    make. Defaults to 3. *)
 
 val solver_tactic : unit -> string
 (** [solver_tactic ()] returns the tactic that Sisyphus will attempt
-   to use to dispatch generated subgoals. *)
+    to use to dispatch generated subgoals. *)
 
 val print_proof_extraction: unit -> bool
 (** [print_proof_extraction ()] returns a boolean indicating whether
-   Sisyphus should dump detailed information about reifying proof
-   terms.
+    Sisyphus should dump detailed information about reifying proof
+    terms.
 
     Warning: Significantly increases run time. *)
 
 val dump_generated_invariants: unit -> bool
 (** [dump_generated_invariants ()] returns a boolean indicating whether
-   Sisyphus should dump out all the invariants that it finds.
+    Sisyphus should dump out all the invariants that it finds.
 
     Warning: Dumped invariant lists can be very large (~gbs in size). *)
+
+val admit_all_sub_goals: unit -> bool
+(** [admit_all_sub_goals ()] returns a boolean indicating whether
+    Sisyphus should admit all sub-goals that it runs into. *)
+
 
 val initialize :
   ?filter_logs:string ->
@@ -36,6 +41,7 @@ val initialize :
   ?dispatch_goals_with_tactic:bool ->
   ?solver_tactic:string ->
   ?max_dispatch_attempts:int ->
+  ?admit_all_sub_goals:bool ->
   unit -> unit
 (** [initialise args...] initialises the Sisyphus configuration
    parameters that are used by the rest of the runtime.
@@ -72,7 +78,8 @@ val initialize :
    Sisyphus should make to find a invariant that the solver can
    dispatch before giving up and using admits. Defaults to 3.
 
-*)
+    - [admit_all_sub_goals ()] indicates whether Sisyphus should admit
+   all sub-goals that it runs into.  *)
 
 
 val dump_output: string -> ((('a, Format.formatter, unit, unit) format4 -> 'a) -> unit) -> unit

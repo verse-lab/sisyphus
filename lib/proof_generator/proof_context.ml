@@ -293,6 +293,19 @@ and eval_tracing_list t ty elts =
       Some (`Constructor ("::", [h; tl])) in
   loop elts
 
+(** [try_auto_or_admit t] dispatch the current subgoal with the
+   solver tactic or admits if it fails to work.  *)
+let try_auto_or_admit t =
+  if not (Configuration.admit_all_sub_goals ()) then begin
+    append t "{ %s. }" (Configuration.solver_tactic ());
+    if Option.is_none (current_subproof_opt t) then begin
+      cancel_last t;
+      append t "{ admit. }";
+    end
+  end else begin
+    append t "{ admit. }"
+  end
+
 let init ~compilation_context ~old_proof ~new_proof_base ~alignment ~concrete ~ctx =
   let module Ctx = (val ctx : Coq.Proof.PROOF) in
   Ctx.reset ();

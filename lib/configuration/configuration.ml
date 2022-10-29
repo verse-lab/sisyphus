@@ -8,6 +8,7 @@ let update_opt opt vl =
 
 let sisyphus_solver_tactic = ref "sis_generic_solver"
 let enable_tactic_based_goal_dispatch = ref true
+let should_admit_all_sub_goals = ref false
 let max_tactic_dispatch_attempts = ref 3
 
 let inner_dump_dir = ref None
@@ -118,12 +119,13 @@ let combine r1 r2 =
   { Logs.report }
 
 let initialize  ?filter_logs ?print_proof_extraction ?dump_generated_invariants ?log_level ?log_dir ?dump_dir
-      ?dispatch_goals_with_tactic ?solver_tactic ?max_dispatch_attempts  () =
+      ?dispatch_goals_with_tactic ?solver_tactic ?max_dispatch_attempts ?admit_all_sub_goals () =
   update_opt should_print_proof_extraction print_proof_extraction;
   update_opt should_dump_generated_invariants dump_generated_invariants;
   update_opt sisyphus_solver_tactic solver_tactic;
   update_opt enable_tactic_based_goal_dispatch dispatch_goals_with_tactic;
   update_opt max_tactic_dispatch_attempts max_dispatch_attempts;
+  update_opt should_admit_all_sub_goals admit_all_sub_goals;
 
   Logs.set_level ~all:true log_level;
 
@@ -187,3 +189,4 @@ let solver_tactic () = !sisyphus_solver_tactic
 
 let max_goal_dispatch_attempts () = !max_tactic_dispatch_attempts
 
+let admit_all_sub_goals () = !should_admit_all_sub_goals
