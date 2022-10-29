@@ -390,6 +390,59 @@ Proof.
 Qed.
 
 
+Lemma list_cons_unfold (A: Type) `{IA: Inhab A} (ls : list A):
+  0 < length ls ->
+  ls = ls[0] :: drop 1 ls.
+Proof.
+  case ls as [| h ls]; rew_list; try math; intros.
+  rewrite drop_cons_pos; try math; math_rewrite (1 - 1 = 0);
+    rewrite drop_zero; auto.
+Qed.
+
+Lemma take_ge (A: Type) (ls :list A) (i: int) :
+  length ls <= i ->
+  take i ls = ls.
+Proof.
+  gen i; induction ls.
+  - intros i; rew_list; rewrite take_nil; auto.
+  - intros i; rew_list; intros Hi.
+    rewrite take_cons_pos; [| math]; f_equal; apply IHls; math.
+Qed.
+
+Lemma drop_ge (A: Type) (ls :list A) (i: int) :
+  length ls <= i ->
+  drop i ls = @nil A.
+Proof.
+  gen i; induction ls.
+  - intros i; rew_list; rewrite drop_nil; auto.
+  - intros i; rew_list; intros Hi.
+    rewrite drop_cons_pos; [| math]; f_equal; apply IHls; math.
+Qed.
+
+Lemma length_take_le (A: Type) (ls :list A) (i: int) :
+  0 <= i ->
+  length (take i ls) <= i.
+Proof.
+  gen i; induction ls.
+  - intros i; rew_list; rewrite take_nil; auto.
+  - intros i; rew_list; intros Hi.
+    case (Z.eqb_spec i 0);=> Heq.
+    + rewrite Heq, take_zero; rew_list; math.
+    + rewrite take_cons_pos; [| math]; rew_list.
+      assert (Higt: 0 <= i - 1) by math.
+      pose proof (IHls (i - 1) Higt).
+      math.
+Qed.
+
+Lemma make_write_zero {A: Type} (i: int) (ovl vl: A) :
+  i > 0 -> (make i ovl)[0:=vl] = vl :: (make (i - 1) ovl).
+Proof.
+  intros Hi.
+  math_rewrite (i = i - 1 + 1);
+    rewrite make_succ_l, update_zero; [| math]; do 2 f_equal;
+  math.
+Qed.
+
 Lemma case_rev_split : forall A (xs: list A) v l r,
     rev xs = l ++ v :: r ->
     xs = rev r ++ v :: rev l.
@@ -447,6 +500,48 @@ Proof.
   f_equal.
   math.
 Qed.
+
+Lemma rev_cons_unfold (A: Type) `{IA: Inhab A} (ls : list A):
+  0 < length ls ->
+  rev ls = ls[length ls - 1] :: drop 1 (rev ls).
+Proof.
+  intros; rewrite (list_cons_unfold _); rew_list; try math.
+  rewrite read_rev; try math.
+  rewrite drop_cons_pos; try math; math_rewrite (1 - 1 = 0);
+  rewrite drop_zero; f_equal; f_equal; math.
+Qed.
+
+Lemma rev_take_drop_unfold (A: Type) `{IA: Inhab A} (ls : list A) (i j: int):
+  0 <= j -> 0 <= i <= length ls  ->
+  rev (take (i - j) ls) = drop j (rev (take i ls)).
+Proof.
+  intros Hj Hilen.
+  case (Z.leb_spec i j); intros Hiltj.
+  + rewrite take_neg; try math.
+    rewrite drop_ge; rew_list; auto.
+      assert (Hi: 0 <= i) by math.
+      pose proof (length_take_le ls Hi); math.
+  + apply (eq_of_extens_range _).
+    * rew_list; rewrite length_take_nonneg; [| rew_list; math].
+      rewrite length_drop_nonneg; [| rew_list; rewrite length_take_nonneg;
+                                     [math| rew_list; math]].
+      rew_list; rewrite length_take_nonneg; [| rew_list; math].
+      math.
+    * intros ind Hind.
+      generalize (Hind); intros He; rew_list in He;
+        rewrite length_take_nonneg in He; [|math].
+      rewrite read_rev; [|rew_list in Hind; math].
+      rewrite read_take;
+        [| math | apply int_index_prove; rewrite length_take_nonneg; math].
+      rewrite read_drop;
+        [| rew_list | apply int_index_prove; rew_list];
+        rewrite ?length_take_nonneg; try math.
+      rewrite read_rev; [|rew_list in Hind; rewrite length_take_nonneg; math].
+      rewrite read_take;
+        [| math | apply int_index_prove ];
+        rewrite ?length_take_nonneg; try math.
+      f_equal; math.
+Qed.      
 
 Lemma make_rev_update: forall (A: Type) (x v: A) (t r: list A),
     (make (length r + 1) x ++ take (length t) (rev t))[length r:=v] =

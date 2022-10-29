@@ -57,8 +57,17 @@ Ltac sis_simplify_math_goal :=
     | [ |- context[?x + 0] ] => math_rewrite (x + 0 = x)
     | [ |- context[?x - ?x] ] => math_rewrite (x - x = 0)
     | [ |- context[0 + ?x]] => math_rewrite (0 + x = x)
+    | [ |- context[?x - 1 + 1]] => math_rewrite (x - 1 + 1 = x)
     | [ |- context[?x + 1 - 1]] => math_rewrite (x + 1 - 1 = x)
     | [ |- context[?x + 1 - 2 + 1]] => math_rewrite (x + 1 - 2 + 1 = x)
+    | [ |- context [ (?x + 1 - ?y - 1) ]] =>
+        math_rewrite (x + 1 - y - 1 = x - y)
+    | [ |- context [ (?x + 1 + ?y - 1) ]] =>
+        math_rewrite (x + 1 + y - 1 = x + y)
+    | [ |- context [ (?x - 1 - ?y + 1) ]] =>
+        math_rewrite (x - 1 - y + 1 = x - y)
+    | [ |- context [ (?x - 1 + ?y + 1) ]] =>
+        math_rewrite (x - 1 + y + 1 = x + y)
     | [ |- context [ (1 + ?x) ]] =>
         math_rewrite (1 + x = x + 1)
     | [ |- context [ ?x + (?y + 1) ]] =>
@@ -82,35 +91,61 @@ Ltac sis_simplify_math_goal :=
 
 Ltac sis_symexec :=
   repeat lazymatch goal with
-    | [ |- @himpl (hpure _ ) _ ] =>
-        let H := fresh "H" in
-        xpullpure H
-    | [ |- @himpl (hstar (hpure _) _) _ ] =>
-        let H := fresh "H" in
-        xpullpure H
-    | [ |- @himpl ?pre
-             (@Wptag
-                (@Wpgen_let_trm
-                   (@Wptag (@Wpgen_app Z Enc_int Array_ml.get _))
-                   ?ty ?enc_ty
-                   ?rest) _ _ _) ] =>
-        xapp; [ apply int_index_prove; try math | ]
-    | [ |- @himpl _
-             (@Wptag
-                (@Wpgen_seq (@Wptag (@Wpgen_if _ _ _)) _) _ _ _) ] =>
-        let Hcond := fresh "Hcond" in
-        xif as Hcond
-    | [ |- @himpl ?pre
-             (@Wptag (@Wpgen_app _ _ infix_colon_eq__ _) _ _ _) ] =>
-        xapp
-    | [ |- @himpl ?pre
-             (@Wptag (@Wpgen_app _ _ infix_emark__ _) _ _ _) ] =>
-        xapp
-    | [ |- @himpl ?pre
-             (@Wptag (@Wpgen_val _ _ _) _ _ _) ] =>
-        xvals*
-    | [ |- himpl (hstar _ _) (hstar _ _)] => xsimpl*
-    end.
+      | [ |- @himpl (hpure _ ) _ ] =>
+          let H := fresh "H" in
+          xpullpure H
+      | [ |- @himpl (hstar (hpure _) _) _ ] =>
+          let H := fresh "H" in
+          xpullpure H
+      | [ |- @himpl ?pre
+               (@Wptag
+                  (@Wpgen_let_trm
+                     (@Wptag (@Wpgen_app Z Enc_int Array_ml.get _))
+                     ?ty ?enc_ty
+                     ?rest) _ _ _) ] =>
+          xapp; [ apply int_index_prove; try math | ]
+      | [ IA: Inhab ?A |- @himpl ?pre
+                            (@Wptag
+                               (@Wpgen_let_trm
+                                  (@Wptag (@Wpgen_app ?A _ Array_ml.get _))
+                                  ?ty ?enc_ty
+                                  ?rest) _ _ _) ] =>
+          xapp; [ apply int_index_prove; try math | ]
+      | [ |- @himpl ?pre
+                            (@Wptag
+                               (@Wpgen_let_trm
+                                  (@Wptag (@Wpgen_app ?A _ Array_ml.get _))
+                                  ?ty ?enc_ty
+                                  ?rest) _ _ _) ] =>
+          xinhab_inner A; xapp; [ apply int_index_prove; try math | ]
+      | [ |- @himpl ?pre
+               (@Wptag
+                  (@Wpgen_let_trm
+                     (@Wptag (@Wpgen_app _ _ _ _))
+                     ?ty ?enc_ty
+                     ?rest) _ _ _) ] =>
+          xapp
+      | [ |- @himpl _
+               (@Wptag
+                  (@Wpgen_seq (@Wptag (@Wpgen_if _ _ _)) _) _ _ _) ] =>
+          let Hcond := fresh "Hcond" in
+          xif as Hcond
+      | [ |- @himpl _
+               (@Wptag
+                  (@Wpgen_let_val _ _
+                     (fun binding => _)) _ _ _) ] =>
+          xlet
+      | [ |- @himpl ?pre
+               (@Wptag (@Wpgen_app _ _ infix_colon_eq__ _) _ _ _) ] =>
+          xapp
+      | [ |- @himpl ?pre
+               (@Wptag (@Wpgen_app _ _ infix_emark__ _) _ _ _) ] =>
+          xapp
+      | [ |- @himpl ?pre
+               (@Wptag (@Wpgen_val _ _ _) _ _ _) ] =>
+          xvals*
+      | [ |- himpl (hstar _ _) (hstar _ _)] => xsimpl*
+      end.
 
 Ltac sis_solve_start :=
   repeat lazymatch goal with
@@ -151,42 +186,99 @@ Ltac sis_normalize_length :=
   | [ H : _ = rev ?rest |- context[length ?rest] ] =>
       apply (f_equal (@rev _)) in H; rewrite rev_rev in H; rewrite <- H; rew_list;
       sis_normalize_length; rew_list; try math
+  | [H: context[length (_ :: _)] |- _] => rew_list in H
+  | [ H: length (filter_not ?f ?t) <= _ |- context[length (filter_not ?f ?t)] ] => idtac
+  | [ |- context[length (filter_not ?f ?t)] ] => 
+      pose proof (Hft:= length_filter_not t f); try math; sis_normalize_length 
+  | [ H: length (filter ?f ?t) <= _ |- context[length (filter ?f ?t)] ] => idtac
+  | [ |- context[length (filter ?f ?t)] ] => 
+      pose proof (Hft:= length_filter t f); try math; sis_normalize_length 
   | _ => idtac
   end.
 
 Ltac sis_list_solver :=
   repeat lazymatch goal with
-  | [ H : 0 = length _ |- _ ] =>
-      symmetry in H; apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
-  | [ H : length _ = 0  |- _ ] =>
-      apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
-  | [ |- context[ take 0 _ ] ] =>
-      rewrite take_zero in *; rew_list; simpl
-  | [ |- context[ take (length ?l) ?l ] ] =>
-      rewrite take_full_length; rew_list; simpl
-  | [ H: context[ take (length ?l) ?l ] |- _ ] =>
-      rewrite take_full_length in H; rew_list in H; simpl in H
-  | [ |- context[ drop (length ?l) ?l ] ] =>
-      rewrite drop_at_length; rew_list; simpl
-  | [ H: context[ drop (length ?l) ?l ] |- _ ] =>
-      rewrite drop_at_length in H; rew_list in H; simpl in H
-  | [ |- context[drop _ (make _ _)]] =>
-      rewrite drop_make_eq; [|subst;rew_list;math]
-  | [ |- context[drop 1 (?hd :: _)]] =>
-      rewrite (drop_cons_pos hd); [math_rewrite (1 - 1 = 0)| math];
-      rewrite drop_zero
-  | [ |- context[drop 1 (?hd :: _ ++ _)]] =>
-      rewrite (drop_cons_pos hd); [math_rewrite (1 - 1 = 0)| math];
-      rewrite drop_zero
-  | [ |- context[drop 0 _]] =>
-       rewrite drop_zero
-  | [ |- context[make 0 _]] =>
-       rewrite make_zero
-  | [ |- context[(?t ++ ?r)[length ?t := _]]] =>
-    rewrite (@update_app_r _ r 0 t (length t)); [ | auto | math | math ]
-  | [ |- context[(make (?l + 1) ?vl)[0:=?nvl]]] =>
-    rewrite make_succ_l, update_zero; [| math]
-  end.
+    | [ H : 0 = length _ |- _ ] =>
+        symmetry in H; apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
+    | [ H : length _ = 0  |- _ ] =>
+        apply length_zero_inv in H; try rewrite H in *; rew_list in *; auto
+    | [ H: istrue (?f ?v) |-
+          context[filter (fun x: _ => istrue (?f x)) (?t & ?v)]] =>
+        rewrite filter_last, If_l; [| solve [auto]]; rew_list; try math
+    | [ H: istrue (?f ?v) |-
+          context[filter_not (fun x: _ => istrue (?f x)) (?t & ?v)]] =>
+        rewrite filter_not_last, If_l; [| solve [auto]]; rew_list; try math
+    | [ H: ~ (istrue (?f ?v)) |-
+          context[filter (fun x: _ => istrue (?f x)) (?t & ?v)]] =>
+        rewrite filter_last, If_r; [| solve [auto]]; rew_list; try math
+    | [ H: ~ (istrue (?f ?v)) |-
+          context[filter_not (fun x: _ => istrue (?f x)) (?t & ?v)]] =>
+        rewrite filter_not_last, If_r; [| solve [auto]]; rew_list; try math
+    | [ H: istrue (?f ?v) |-
+          context[filter (fun x: _ => istrue (?f x)) (?v :: ?t)]] =>
+        rewrite filter_cons, If_l; [| solve [auto]]; rew_list; try math
+    | [ H: istrue (?f ?v) |-
+          context[filter_not (fun x: _ => istrue (?f x)) (?v :: ?t)]] =>
+        rewrite filter_not_cons, If_l; [| solve [auto]]; rew_list; try math
+    | [ H: ~ (istrue (?f ?v)) |-
+          context[filter (fun x: _ => istrue (?f x)) (?v :: ?t)]] =>
+        rewrite filter_cons, If_r; [| solve [auto]]; rew_list; try math
+    | [ H: ~ (istrue (?f ?v)) |-
+          context[filter_not (fun x: _ => istrue (?f x)) (?v :: ?t)]] =>
+        rewrite filter_not_cons, If_r; [| solve [auto]]; rew_list; try math
+    | [ |- context [rev (filter ?f (rev ?ls))]] =>
+        rewrite filter_rev, rev_rev
+    | [ |- context [rev (filter_not ?f (rev ?ls))]] =>
+        rewrite filter_not_rev, rev_rev
+    | [|- context [take (length ?l) (?l ++ _)] ] =>
+          rewrite take_prefix_length
+    | [ |- context[ take 0 _ ] ] =>
+        rewrite take_zero in *; rew_list; simpl
+    | [ |- context[ take (length ?l) ?l ] ] =>
+        rewrite take_full_length; rew_list; simpl
+    | [ H: context[ take (length ?l) ?l ] |- _ ] =>
+        rewrite take_full_length in H; rew_list in H; simpl in H
+    | [ |- context[ drop (length ?l) ?l ] ] =>
+        rewrite drop_at_length; rew_list; simpl
+    | [ H: context[ drop (length ?l) ?l ] |- _ ] =>
+        rewrite drop_at_length in H; rew_list in H; simpl in H
+    | [ |- context[drop 1 (?hd :: _)]] =>
+        rewrite (drop_cons_pos hd); [math_rewrite (1 - 1 = 0)| math];
+        rewrite drop_zero
+    | [ |- context[drop 1 (?hd :: _ ++ _)]] =>
+        rewrite (drop_cons_pos hd); [math_rewrite (1 - 1 = 0)| math];
+        rewrite drop_zero
+    | [ |- context[drop 0 _]] =>
+        rewrite drop_zero
+    | [ |- context[make 0 _]] =>
+        rewrite make_zero
+    | [ |- context[(?l ++ ?r)[length ?l := _]]] =>
+        rewrite (@update_app_r _ r 0 l (length l) (length l));
+        [  | math | math | math ]
+    | [ |- context[(?t ++ ?r)[length ?t := _]]] =>
+        rewrite (@update_app_r _ r 0 t (length t)); [ | auto | math | math ]
+    | [ |- context[(make (?l + 1) ?vl)[0:=?nvl]]] =>
+        rewrite make_succ_l, update_zero; [| math]
+    | [ |- ?vl :: _ = take (_ + 1) (?vl :: _)] =>
+        rewrite take_cons; [| math]; f_equal
+    | [ |- context[take (length ?l) (rev ?l)]] =>
+        let H := fresh "H" in
+        let Heqn := fresh "Heqn" in
+        remember (length l) as H eqn:Heqn;
+        rewrite <- length_rev in Heqn;
+        rewrite Heqn; clear H Heqn;
+        rewrite take_full_length
+    | [ |- context[take (length ?l + 1) (rev ?l & ?v)]] =>
+        let Heqn := fresh "Heqn" in
+        assert (Heqn: length l + 1 = length (rev l & v)) by (rew_list; math);
+        rewrite Heqn; clear Heqn; rewrite take_full_length
+    | [ |- make ?oi ?v = make ?ni ?v ] => f_equal; try math
+    | [ |- filter ?f ?ls ++ _ = filter ?f ?ls ++ _] => f_equal; try math
+    | [ |- filter_not ?f ?ls ++ _ = filter_not ?f ?ls ++ _] => f_equal; try math
+    | [ |- drop ?len ?ls = drop ?olen ?ls] => f_equal; try math
+    | [ |- make ?i ?v ++ _ = make ?i ?v ++ _ ] => f_equal
+    | [ |- _ :: _ & ?v = _ & ?v ] => rewrite <- last_cons; f_equal
+    end.
 
 Ltac sis_list_deep_solver :=
   repeat match goal with 
@@ -195,6 +287,8 @@ Ltac sis_list_deep_solver :=
         assert (H: x >= z)
           by (subst; rew_list; sis_normalize_length; math);
         rewrite drop_app_r; [clear H|sis_normalize_length; math]
+    | [ |- context[drop _ (make _ _)]] =>
+        rewrite drop_make_eq; [|subst;rew_list; sis_normalize_length; math]
     | [ |- context[drop ?d (rev ?r ++ _)]] =>
         let H := fresh "Hlen" in
         assert (H: length (rev r) <= d) by (rew_list; math);
@@ -338,6 +432,102 @@ Ltac sis_list_deep_solver :=
         rewrite <- (@list_eq_take_app_drop _ i l) in Hv; [| math];
         rewrite Hv; clear v Hv;
         apply is_sorted_app_r; auto
+    | [ H: None = (list_find_mapi ?fp (take ?i ?l)) |-
+          context [list_find_mapi ?fp (take (?i + 1) ?l)] ] =>
+        rewrite !find_mapi_unfold in *;
+        rewrite (take_pos_last _ (i + 1));
+        [| apply int_index_prove; sis_normalize_length; math];
+        math_rewrite (i + 1 - 1 = i);
+        rewrite find_mapi_app_r; [ | auto];
+        sis_simplify_math_goal;
+        rewrite length_take_nonneg; [| rew_list; sis_normalize_length; math];
+        rewrite find_mapi_singleton; auto; math
+    | [ Hv: Some _ = (list_find_mapi ?fp (take ?i ?l)) |-
+          context [list_find_mapi ?fp ?l] ] =>
+        let H := fresh "H" in
+        let Heq := fresh "Heq" in
+        rewrite !find_mapi_unfold in *;
+        remember (list_find_mapi_internal 0 fp l) as H eqn:Heq;
+        rewrite <- (@list_eq_take_app_drop _ i l) in Heq;
+        [| rew_list; sis_normalize_length; math];
+        rewrite find_mapi_app_l in Heq; [| subst; rewrite <- Hv; auto; math];
+        rewrite Heq; clear H Heq; auto; math
+    | [ H: is_some (list_find_mapi ?f (take ?i ?l)) = false,
+          Hvl: istrue (is_some (?f ?i ?l[?i])) |-
+          context[list_find_mapi ?f (take (?i + 1) ?l)] ] =>
+        rewrite !find_mapi_unfold in *;
+        rewrite (take_pos_last _ (i + 1));
+        [| apply int_index_prove; sis_normalize_length; math];
+        rewrite find_mapi_app_r; math_rewrite (i + 1 - 1 = i);
+        sis_simplify_math_goal;
+        [ rewrite find_mapi_singleton; rew_list; sis_normalize_length | ];
+        auto
+    | [ H: is_some (list_find_mapi ?f (take ?i ?l)) = false,
+          Hvl: ~ istrue (is_some (?f ?i ?l[?i])) |-
+          context[list_find_mapi ?f (take (?i + 1) ?l)] ] =>
+        rewrite !find_mapi_unfold in *;
+        rewrite (take_pos_last _ (i + 1));
+        [| apply int_index_prove; sis_normalize_length; math];
+        rewrite find_mapi_app_r; math_rewrite (i + 1 - 1 = i);
+        sis_simplify_math_goal;
+        [ rewrite find_mapi_singleton; rew_list; sis_normalize_length | ];
+        auto
+    | [ H: is_some (list_find_mapi ?f (take ?i ?l)) = true |-
+            context[list_find_mapi ?f ?l] ] =>
+          let H := fresh "H" in
+          let Heqn := fresh "Heqn" in
+          rewrite !find_mapi_unfold in *;
+          remember (list_find_mapi_internal 0 f l) as H eqn:Heqn;
+          rewrite <- (@list_eq_take_app_drop _ i l) in Heqn;
+          [| rew_list; sis_normalize_length; math ];
+          rewrite find_mapi_app_l in Heqn; [| auto];
+          rewrite Heqn; clear H Heqn; auto
+    | [ |- context [drop ?i (drop ?j ?ls)]] =>
+        rewrite (@drop_drop _ ls i j); [ | rew_list in *; math | rew_list in *; math ]
+    | [ |- context[take ?i (make ?j ?v)]] =>
+        let Hv := fresh "Hv" in
+        assert (Hv: 0 <= i <= j) by math;
+        rewrite (@take_make_eq _ i j v Hv);
+        clear Hv
+    | [ |- context[(drop ?i ?l)[?ind]]] =>
+        let Hv := fresh "Hv" in
+        assert (Hv: 0 <= i <= length l) by (rew_list; sis_normalize_length; math);
+        rewrite (read_drop _ l Hv);
+        [ | apply int_index_prove; rew_list; sis_normalize_length; math ]
+    | [ |- context [rev (take ?i (?h :: ?t))]] =>
+        rewrite (@take_cons_pos _ h t); [ | math ];
+        rewrite rev_cons
+    | [ |- (?h :: ?l)[_ - ?i] :: rev (take (?j - (?i + 1)) ?l) =
+             rev (take (?j - ?i) ?l) ] =>
+        rewrite (read_cons_pos _ h l); [ | math ];
+        rewrite (@rev_cons_unfold _ _ (take (j - i) l));
+        sis_normalize_length;
+        rewrite read_take; [ | math | apply int_index_prove; math ];
+        f_equal;
+        math_rewrite (j - (i + 1) = (j - i) - 1);
+        rewrite (@rev_take_drop_unfold _ _ l (j - i) 1);
+        try math; auto
+    | [ |- length (filter ?f ?t) < _ ] =>
+        pose proof (Hft:= length_filter t f);
+        math
+    | [ |- length (filter ?f ?t) <= _ ] =>
+        pose proof (Hft:= length_filter t f);
+        math
+    | [ |- _ <= length (filter ?f ?t) <= _ ] =>
+        pose proof (Hft:= length_filter t f);
+        math
+    | [ |- length (filter_not ?f ?t) < _ ] =>
+        pose proof (Hft:= length_filter_not t f);
+        math
+    | [ |- length (filter_not ?f ?t) <= _ ] =>
+        pose proof (Hft:= length_filter_not t f);
+        math
+    | [ |- _ <= length (filter_not ?f ?t) <= _ ] =>
+        pose proof (Hft:= length_filter_not t f);
+        math
+    | [|- (make ?i ?vl)[0:= ?nvl] = (?nvl :: _)] =>
+        rewrite (@make_write_zero _ i vl);
+        [f_equal | rew_list; sis_normalize_length; math]
     end.  
 
 Ltac sis_dispatch_filter_goal :=
@@ -380,6 +570,9 @@ Ltac sis_normalize_opt_of_bool :=
         apply not_is_some_eq; auto
     | [ H: is_some (?ls) = false |- None = ?ls ] =>
         symmetry; apply not_is_some_eq; auto
+    | [ H: ~ (istrue (is_some ?vl)) |- _ = ?vl ] =>
+        apply not_is_false in H; apply not_is_some_eq in H;
+        rewrite H; auto
     | [ |- Some (option_value_fst _ ?exp, option_value_snd _ ?exp) = ?exp] =>
         let p1 := fresh "p1" in
         let p2 := fresh "p2" in
@@ -389,6 +582,8 @@ Ltac sis_normalize_opt_of_bool :=
             simpl in H; inversion H; auto
     | [H: None = ?exp |- is_some ?exp = false ] =>
         rewrite <- H; simpl is_some
+    | [H: istrue (is_some (?v)) |- context[negb (is_some ?v)]] =>
+        rewrite H; simpl negb
     | [ H : context[is_some (Some _)] |- _ ] =>
         simpl is_some in H
     | [ |- context[is_some (Some _)] ] =>
@@ -401,6 +596,8 @@ Ltac sis_normalize_opt_of_bool :=
         simpl opt_of_bool in H
     | [ H: context[opt_of_bool true] |- _ ] =>
         simpl opt_of_bool in H
+    | [ H: is_some ?o = false |- ?o = None ] =>
+          apply not_is_some_eq; auto
     end.
 
 Ltac sis_normalize_boolean_goals :=
@@ -425,6 +622,7 @@ Ltac sis_normalize_boolean_goals :=
     | [  |- false = true ] => fail
     | [  |- true = _ ] => symmetry
     | [  |- false = _ ] => symmetry
+    | [ |- negb _ = negb _ ] => f_equal
     | [ |- context[negb (_ || _)%bool] ] => rewrite Bool.negb_orb
     | [ |- context[negb false] ] => simpl negb
     | [ |- context[negb true] ] => simpl negb

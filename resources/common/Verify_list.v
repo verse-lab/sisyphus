@@ -98,6 +98,8 @@ Proof.
   - rew_list in Hls; math.
   - xvals. rew_list; auto.
 Qed.    
+Hint Extern 1 (RegisterSpec hd) => Provide hd_spec.
+
 
 Lemma tl_spec: forall (A: Type) `{EA: Enc A} (ls: list A),
     length ls > 0 ->
@@ -110,6 +112,7 @@ Proof.
   - rew_list in Hls; math.
   - xvals. rew_list; auto.
 Qed.    
+Hint Extern 1 (RegisterSpec tl) => Provide tl_spec.
 
 Lemma list_combine_spec :
   forall (A: Type) `{EA: Enc A} (B: Type) `{EB: Enc B} (l1: list A) (l2: list B),
@@ -132,3 +135,4 @@ Proof.
     + math.
     + xvals*.
 Qed.
+Hint Extern 1 (RegisterSpec List_ml.combine) => Provide list_combine_spec.
