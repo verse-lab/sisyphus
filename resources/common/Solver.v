@@ -157,58 +157,66 @@ Ltac sis_list_solver :=
 
 Ltac sis_list_deep_solver :=
   repeat match goal with 
-  | [ |- context[drop ?x (make ?z _ ++ _)]] =>
-      let H := fresh "Hvalid" in
-      assert (H: x >= z) by (subst; rew_list; sis_normalize_length; math); rewrite drop_app_r; [clear H|sis_normalize_length; math]
-  | [ |- context[drop ?d (rev ?r ++ _)]] =>
-      let H := fresh "Hlen" in
-      assert (H: length (rev r) <= d) by (rew_list; math);
-      rewrite drop_app_r; [clear H; rew_list| rew_list; math]
-  | [ H: nil = rev ?x |- _ ] =>
-      apply nil_eq_rev_inv in H; try (subst; rew_list; auto; fail)
-  | [ |- context [(make (?i + 1) _ ++ _)[?i := _]]] =>
-      rewrite make_succ_r; [ | math]; rew_list; rewrite update_middle; [|sis_normalize_length]
-  | [ |- make (?i + 1) ?vl = make ?i ?vl & ?vl] =>
-      rewrite make_succ_r; [ | math]; rew_list; auto
-  | [ H: _ :: ?rest = ?ls |- context [length ?rest] ] =>
-      let H_len := fresh "Hlen" in
-      assert (H_len: length rest = length ls - 1) by (rewrite <- H; rew_list; math);
-      rewrite H_len; clear H_len; rew_list
-  | [  H: existsb ?fp (take ?i ?l) = false |-
-         context[existsb ?fp (take (?i + 1) ?l)] ] =>
+    | [ |- context[drop ?x (make ?z _ ++ _)]] =>
+        let H := fresh "Hvalid" in
+        assert (H: x >= z) by (subst; rew_list; sis_normalize_length; math); rewrite drop_app_r; [clear H|sis_normalize_length; math]
+    | [ |- context[drop ?d (rev ?r ++ _)]] =>
+        let H := fresh "Hlen" in
+        assert (H: length (rev r) <= d) by (rew_list; math);
+        rewrite drop_app_r; [clear H; rew_list| rew_list; math]
+    | [ H: nil = rev ?x |- _ ] =>
+        apply nil_eq_rev_inv in H; try (subst; rew_list; auto; fail)
+    | [ |- context [(make (?i + 1) _ ++ _)[?i := _]]] =>
+        rewrite make_succ_r; [ | math]; rew_list; rewrite update_middle; [|sis_normalize_length]
+    | [ |- make (?i + 1) ?vl = make ?i ?vl & ?vl] =>
+        rewrite make_succ_r; [ | math]; rew_list; auto
+    | [ H: _ :: ?rest = ?ls |- context [length ?rest] ] =>
+        let H_len := fresh "Hlen" in
+        assert (H_len: length rest = length ls - 1) by (rewrite <- H; rew_list; math);
+        rewrite H_len; clear H_len; rew_list
+    | [  H: existsb ?fp (take ?i ?l) = false |-
+           context[existsb ?fp (take (?i + 1) ?l)] ] =>
         unfold existsb in *; rewrite (take_pos_last _); [|apply int_index_prove; math];
         math_rewrite (i + 1 - 1 = i); 
         rewrite list_existsb_app, !or_orb_eq, H; simpl
-  | [ H: List.existsb ?fp (take ?i ?l) = false |-
-         context[List.existsb ?fp (take (?i + 1) ?l)] ] =>
+    | [ H: List.existsb ?fp (take ?i ?l) = false |-
+          context[List.existsb ?fp (take (?i + 1) ?l)] ] =>
         rewrite (take_pos_last _); [|apply int_index_prove; math];
         math_rewrite (i + 1 - 1 = i); 
         rewrite list_existsb_app, !or_orb_eq, H; simpl
-  | [H: existsb ?f (take ?i ?l) = true, Hi: ?i <= length ?l |- context Hctx[existsb ?f ?l]] =>
-          let Hleq := fresh "Hleq" in
-          pose proof (Hleq := @list_eq_take_app_drop _ i l Hi);
-          apply (f_equal (existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
-          unfold existsb in *; rewrite list_existsb_app, H
-  | [H: existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |- context Hctx[existsb ?f ?l]] =>
-          let Hleq := fresh "Hleq" in
-          let Hlen := fresh "Hlen" in
-          assert (Hlen: i <= length l) by math;
-          pose proof (Hleq := @list_eq_take_app_drop _ i l Hlen);
-          apply (f_equal (existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
-          unfold existsb in *; rewrite list_existsb_app, H
-  | [H: List.existsb ?f (take ?i ?l) = true, Hi: ?i <= length ?l |- context Hctx[List.existsb ?f ?l]] =>
-          let Hleq := fresh "Hleq" in
-          pose proof (Hleq := @list_eq_take_app_drop _ i l Hi);
-          apply (f_equal (List.existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
-          rewrite list_existsb_app, H
-  | [H: List.existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |- context Hctx[List.existsb ?f ?l]] =>
-          let Hleq := fresh "Hleq" in
-          let Hlen := fresh "Hlen" in
-          assert (Hlen: i <= length l) by math;
-          pose proof (Hleq := @list_eq_take_app_drop _ i l Hlen);
-          apply (f_equal (List.existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
-          rewrite list_existsb_app, H
-  end.  
+    | [H: existsb ?f (take ?i ?l) = true, Hi: ?i <= length ?l |- context Hctx[existsb ?f ?l]] =>
+        let Hleq := fresh "Hleq" in
+        pose proof (Hleq := @list_eq_take_app_drop _ i l Hi);
+        apply (f_equal (existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
+        unfold existsb in *; rewrite list_existsb_app, H
+    | [H: existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |- context Hctx[existsb ?f ?l]] =>
+        let Hleq := fresh "Hleq" in
+        let Hlen := fresh "Hlen" in
+        assert (Hlen: i <= length l) by math;
+        pose proof (Hleq := @list_eq_take_app_drop _ i l Hlen);
+        apply (f_equal (existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
+        unfold existsb in *; rewrite list_existsb_app, H
+    | [H: List.existsb ?f (take ?i ?l) = true, Hi: ?i <= length ?l |- context Hctx[List.existsb ?f ?l]] =>
+        let Hleq := fresh "Hleq" in
+        pose proof (Hleq := @list_eq_take_app_drop _ i l Hi);
+        apply (f_equal (List.existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
+        rewrite list_existsb_app, H
+    | [H: List.existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |- context Hctx[List.existsb ?f ?l]] =>
+        let Hleq := fresh "Hleq" in
+        let Hlen := fresh "Hlen" in
+        assert (Hlen: i <= length l) by math;
+        pose proof (Hleq := @list_eq_take_app_drop _ i l Hlen);
+        apply (f_equal (List.existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
+        rewrite list_existsb_app, H
+    | [ H: is_some (list_findi ?fp (take ?i ?l)) = false |-  context[list_findi ?fp (take (?i + 1) ?l)] ] =>
+        rewrite (take_pos_last _ (i + 1)); [|apply int_index_prove; math];
+        math_rewrite (i + 1 - 1 = i); 
+        rewrite !findi_unfold in *; rewrite findi_app_r
+    | [  H: istrue (?fp ?i ?vl) |-  context[list_findi_internal ?i ?fp (?vl :: _)] ] =>
+          simpl list_findi_internal; rewrite H
+    | [  H: ~ istrue (?fp ?i ?vl) |-  context[list_findi_internal ?i ?fp (?vl :: _)] ] =>
+          simpl list_findi_internal;  apply not_is_false in H; rewrite H
+    end.  
 
 Ltac sis_dispatch_filter_goal :=
   match goal with
@@ -242,6 +250,14 @@ Ltac sis_normalize_opt_of_bool :=
         apply opt_of_bool_none_intro
     | [ |- context [is_some (opt_of_bool _)]] =>
         rewrite is_some_opt_of_bool_eq
+    | [ |- option_value_snd ?vl ?ls = option_value_snd ?vl ?ols ] =>
+          f_equal
+    | [ |- option_value_fst ?vl ?ls = option_value_fst ?vl ?ols ] =>
+          f_equal
+    | [ H: is_some (?ls) = false |- ?ls = None ] =>
+          apply not_is_some_eq; auto
+    | [ H: is_some (?ls) = false |- None = ?ls ] =>
+          symmetry; apply not_is_some_eq; auto
     end.
 
 Ltac sis_normalize_boolean_goals :=

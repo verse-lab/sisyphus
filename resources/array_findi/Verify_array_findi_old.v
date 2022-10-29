@@ -46,17 +46,15 @@ Proof using (All).
       contradiction H1; auto.
     }
   }
-  { math.  }
-  { sis_list_solver; simpl; auto. }
+  { sis_generic_solver.  }
+  { sis_generic_solver. }
   intros res i_b Hres Hexists.
   xvals*. {
     destruct Hres as [Hlen Himpl].
-    case res as [[i_nd i_vl]|]; simpl in Himpl.
-    - simpl in Hexists.
-      rewrite <- (@list_eq_take_app_drop _ i_b l) at 1; try math.
+    case res as [[i_nd i_vl]|]; simpl in Himpl;
+    sis_generic_solver.
+    - rewrite <- (@list_eq_take_app_drop _ i_b l) at 1; try math.
       rewrite findi_unfold, findi_app_l in *; auto; simpl.
       rewrite <- Hexists; simpl; auto.
-    - assert (Heq: i_b = length l) by (apply Z.eqb_eq; auto).
-      rewrite Heq,take_full_length in Hexists; auto. 
   }
 Qed.

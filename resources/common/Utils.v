@@ -18,6 +18,9 @@ Proof. case a; case b; simpl; auto. Qed.
 Lemma and_andb_eq (a b: bool) : and a b = andb a b.
 Proof. case a; case b; simpl; auto. Qed.
 
+Lemma not_is_false (b: bool) : (~ b) -> (b = false).
+Proof. destruct b; simpl; intros H; auto; contradiction H; auto. Qed.
+
 Lemma negb_iff (b: bool) :
   b = false <-> ~ b.
 Proof.
@@ -44,6 +47,39 @@ Proof. intros ->; simpl; auto. Qed.
 Lemma is_some_opt_of_bool_eq (b: bool) :
   is_some (opt_of_bool b) = b.
 Proof. case b; simpl; auto. Qed.
+
+Lemma not_is_some_eq (A: Type) (x: option A):
+  is_some x = false -> x = None.
+Proof.
+  case x as [vl|]; simpl; intros; auto.
+  inversion H.
+Qed.
+
+Lemma is_some_ex (A: Type) (x: option A):
+  is_some x = true -> exists (vl: A), x = Some vl.
+Proof.
+  case x as [vl|]; simpl; intros H; auto; try inversion H.
+  exists vl; auto.
+Qed.
+
+Definition option_value (A: Type) (default: A) (vl: option A) : A :=
+  match vl with
+  | None => default
+  | Some vl => vl
+  end.
+
+Definition option_value_fst (A B: Type) (default: A) (vl: option (A * B)) : A :=
+  match vl with
+  | None => default
+  | Some (vl, _) => vl
+  end.
+
+Definition option_value_snd (A B: Type) (default: B) (vl: option (A * B)) : B :=
+  match vl with
+  | None => default
+  | Some (_, vl) => vl
+  end.
+
 
 Fixpoint list_foldi_internal (A: Type) (B: Type)
   (i: int) (ls: list A) (init: B) (fp: int -> A -> B -> B) :=
@@ -94,8 +130,8 @@ Lemma findi_unfold (A: Type) (f: int -> A -> bool) (ls: list A) :
   list_findi f ls = list_findi_internal 0 f ls.
 Proof. auto. Qed.
 
-Lemma findi_app_r (A: Type) (B: Type) i (f: int -> A -> bool) l1 l2:
-  list_findi_internal i f l1 = None ->
+Lemma findi_app_r (A: Type) i (f: int -> A -> bool) l1 l2:
+  is_some (list_findi_internal i f l1) = false ->
   (list_findi_internal i f (l1 ++ l2)) = list_findi_internal (i + length l1) f l2.
 Proof.
   gen i l2; induction l1.
@@ -107,7 +143,7 @@ Proof.
 Qed.
 
 Lemma findi_app_l (A: Type) i (f: int -> A -> bool) l1 l2:
-  is_some (list_findi_internal i f l1) ->
+  is_some (list_findi_internal i f l1) = true ->
   (list_findi_internal i f (l1 ++ l2)) = list_findi_internal i f l1.
 Proof.
   gen i l2; induction l1.
@@ -135,7 +171,7 @@ Lemma findi_map_unfold (A: Type) (B: Type) (f: A -> option B) (ls: list A) :
 Proof. auto. Qed.
 
 Lemma findi_map_app_r (A: Type) (B: Type) i (f: A -> option B) l1 l2:
-  list_findi_map_internal i f l1 = None ->
+  is_some (list_findi_map_internal i f l1) = false ->
   (list_findi_map_internal i f (l1 ++ l2)) = list_findi_map_internal (i + length l1) f l2.
 Proof.
   gen i l2; induction l1.
@@ -147,7 +183,7 @@ Proof.
 Qed.
 
 Lemma findi_map_app_l (A: Type) (B: Type) i (f: A -> option B) l1 l2:
-  is_some (list_findi_map_internal i f l1) ->
+  is_some (list_findi_map_internal i f l1) = true ->
   (list_findi_map_internal i f (l1 ++ l2)) = list_findi_map_internal i f l1.
 Proof.
   gen i l2; induction l1.
