@@ -8,19 +8,33 @@ lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks
 ** DONE remove proof validator
 CLOSED: [2022-10-28 Fri 06:31]
-** TODO Prove goals using new tactics
+** DONE Prove goals using new tactics
+CLOSED: [2022-10-29 Sat 14:39]
 *** DONE [1] seq to array
 CLOSED: [2022-10-28 Fri 15:40]
-*** TODO [2] make rev list
-*** TODO [3] array exists
-*** TODO [4] array findi
-*** TODO [5] array find map
-*** TODO [6] array is sorted
-*** TODO [7] array of rev list
-*** TODO [8] array partition
-*** TODO [9] array foldi
-*** TODO [10] sll of array
-*** TODO [11] sll partition
-*** TODO [12] stack reverse
-*** TODO [13] stack filter
-*** TODO [14] tree to array
+*** DONE [2] make rev list
+CLOSED: [2022-10-29 Sat 13:07]
+*** DONE [3] array exists
+CLOSED: [2022-10-29 Sat 06:57]
+*** DONE [4] array findi
+CLOSED: [2022-10-29 Sat 06:57]
+*** DONE [5] array find map
+CLOSED: [2022-10-29 Sat 13:06]
+*** DONE [6] array is sorted
+CLOSED: [2022-10-29 Sat 09:08]
+*** DONE [7] array of rev list
+CLOSED: [2022-10-29 Sat 11:02]
+*** DONE [8] array partition
+CLOSED: [2022-10-29 Sat 12:07]
+*** DONE [9] array foldi
+CLOSED: [2022-10-29 Sat 07:32]
+*** DONE [10] sll of array
+CLOSED: [2022-10-29 Sat 13:45]
+*** DONE [11] sll partition
+CLOSED: [2022-10-29 Sat 13:53]
+*** DONE [12] stack reverse
+CLOSED: [2022-10-29 Sat 13:59]
+*** DONE [13] stack filter
+CLOSED: [2022-10-29 Sat 14:00]
+*** DONE [14] tree to array
+CLOSED: [2022-10-29 Sat 14:38]

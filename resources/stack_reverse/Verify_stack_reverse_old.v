@@ -20,9 +20,7 @@ Proof using (All).
   xapp (stack_drain_spec tmp s
           (fun (ls: list A) =>
              buf ~~> rev ls
-       )). {
-    sis_solve_start; rew_list; auto.
-  }
+       )). { sis_generic_solver. }
   xmatch.
   xapp.
   xletopaque revls Hrevls.
@@ -30,9 +28,7 @@ Proof using (All).
   xapp (list_iter_spec tmp2 revls
           (fun (ls: list A) =>
              s ~> Stack (rev ls)
-       )). {
-    sis_solve_start; rew_list; auto.
-  }
+       )). { sis_generic_solver. }
   xmatch.
-  xvals*. { subst; rewrite rev_rev; auto. }
+  xvals*. { sis_generic_solver. }
 Qed.

@@ -91,6 +91,7 @@ Ltac sis_simplify_math_goal :=
 
 Ltac sis_symexec :=
   repeat lazymatch goal with
+      | [ |- forall _, _ ] => intros
       | [ |- @himpl (hpure _ ) _ ] =>
           let H := fresh "H" in
           xpullpure H
@@ -130,6 +131,14 @@ Ltac sis_symexec :=
                   (@Wpgen_seq (@Wptag (@Wpgen_if _ _ _)) _) _ _ _) ] =>
           let Hcond := fresh "Hcond" in
           xif as Hcond
+    | [ |- @himpl _ (@Wptag
+                       (@Wpgen_seq
+                          (@Wptag (@Wpgen_app unit Enc_unit _ _)) _)
+                       _ _ _)] =>
+        xapp
+      | [ |- @himpl ?pre (@Wptag (@Wpgen_if _ _ _) _ _ _) ] =>
+          let Hcond := fresh "Hcond" in
+          xif as Hcond
       | [ |- @himpl _
                (@Wptag
                   (@Wpgen_let_val _ _
@@ -141,6 +150,7 @@ Ltac sis_symexec :=
       | [ |- @himpl ?pre
                (@Wptag (@Wpgen_app _ _ infix_emark__ _) _ _ _) ] =>
           xapp
+    | [ |- @himpl ?pre (@Wptag (@Wpgen_match _) _ _ _) ] => xmatch
       | [ |- @himpl ?pre
                (@Wptag (@Wpgen_val _ _ _) _ _ _) ] =>
           xvals*
@@ -272,6 +282,8 @@ Ltac sis_list_solver :=
         let Heqn := fresh "Heqn" in
         assert (Heqn: length l + 1 = length (rev l & v)) by (rew_list; math);
         rewrite Heqn; clear Heqn; rewrite take_full_length
+    | [ |- ?ls[?i] :: drop (?i + 1) ?ls = drop ?i ?ls] =>
+        symmetry; apply drop_cons_unfold; rew_list; sis_normalize_length; math
     | [ |- make ?oi ?v = make ?ni ?v ] => f_equal; try math
     | [ |- filter ?f ?ls ++ _ = filter ?f ?ls ++ _] => f_equal; try math
     | [ |- filter_not ?f ?ls ++ _ = filter_not ?f ?ls ++ _] => f_equal; try math
@@ -528,6 +540,10 @@ Ltac sis_list_deep_solver :=
     | [|- (make ?i ?vl)[0:= ?nvl] = (?nvl :: _)] =>
         rewrite (@make_write_zero _ i vl);
         [f_equal | rew_list; sis_normalize_length; math]
+    | [ |- context[(make (?l + 1) ?v)[?l := ?nvl]] ] =>
+        rewrite make_succ_r; [|sis_normalize_length; math];
+        rewrite update_middle; [|sis_normalize_length; math];
+        rew_list; auto
     end.  
 
 Ltac sis_dispatch_filter_goal :=

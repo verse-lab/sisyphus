@@ -32,16 +32,7 @@ Proof using (All).
   xapp (sll_iter_drain_spec tmp s (fun (ls : list A) =>
                                s_t ~> SLL (filter pp (rev ls)) \*
                                s_f ~> SLL (filter_not pp (rev ls))
-       )). {
-    sis_solve_start;
-      rew_list; rewrite ?filter_cons, ?filter_not_cons;
-      try (rewrite If_l; auto; math);
-      try (rewrite If_r; auto; math).
-  }
+       )). { sis_generic_solver. }
   xmatch.
-  xvals*. {
-    rewrite rev_rev; auto.
-  } {
-    rewrite rev_rev; auto.
-  }
+  xvals*. { sis_generic_solver. } { sis_generic_solver. }
 Qed.

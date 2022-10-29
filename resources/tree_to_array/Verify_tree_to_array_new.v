@@ -30,27 +30,9 @@ Proof using (All).
                (i: int) =>
              \[ (i = len - length ls - 1) ]
                \* arr ~> Array ((make (i + 1) (thead t)) ++ rev ls))). {
-    sis_solve_start; rew_list; auto. 
-    + apply int_index_prove; try math;
-        rewrite <- ?length_eq, H, Hlen, <- (length_rev (tol t)), <- Hls, Heq;
-        rew_list; try math;
-        rewrite ?length_make; rew_list; math.
-    + math.
-    + assert (acc >= 0). {
-        rewrite H, Hlen, <- (length_rev (tol t)), <- Hls, Heq; rew_list; math.
-      }
-      rewrite update_app_l; rewrite ?length_make; try math.
-      rewrite make_succ_r; try math.
-      erewrite (@update_app_r _ _ 0); eauto; rewrite ?length_make; try math.
-      rewrite update_zero; rew_list; auto.
-      do 2 f_equal; math.
-      }
-      { rew_list; math. } { rewrite Hidx, Hdata; rew_list; f_equal; math. } 
+    sis_generic_solver; sis_tree_solver.
+    } { sis_generic_solver. } { sis_generic_solver. } 
   intros unused Hunused.
   xmatch.
-  xvals. {
-    rewrite Hunused, Hlen, Hls, length_rev.
-    math_rewrite ((length (tol t) - length (tol t) - 1 + 1) = 0);
-    rewrite make_zero, rev_rev; rew_list; auto.
-  }
+  xvals. { sis_generic_solver. }
 Qed.

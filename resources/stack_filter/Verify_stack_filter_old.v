@@ -25,10 +25,7 @@ Proof using (All).
   xletopaque tmp Htmp.
   xapp (stack_iter_spec tmp s (fun (ls: list A) => acc ~~> filter fp (rev ls))). {
     intros v t r Hvtr; apply Htmp; clear Htmp.
-    xapp.
-    xif;=> cond; xgo*;
-    rew_list; rewrite filter_cons; try (rewrite If_l; auto; math);
-                                     try (rewrite If_r; auto; math).
+    sis_symexec; sis_generic_solver.
   }
   xmatch.
   xapp.
@@ -37,10 +34,8 @@ Proof using (All).
   xletopaque tmp2 Htmp2.
   xapp (list_iter_spec tmp2 (filter fp (rev ls))
           (fun (ls: list A) => s ~> Stack (rev ls))). {
-    sis_solve_start; rew_list; auto.
+    sis_generic_solver.
   }
   xmatch.
-  xvals*. {
-    rewrite filter_rev, rev_rev; auto.
-  }
+  xvals*. { sis_generic_solver. }
 Qed.
