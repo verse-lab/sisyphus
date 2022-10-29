@@ -1107,7 +1107,11 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
     Proof_context.append t "xvals.";
 
     while (Proof_context.current_subproof t).goals |> List.length > 0 do
-      Proof_context.append t "{ admit. }";
+      Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
+      if Option.is_none (Proof_context.current_subproof_opt t) then begin
+        Proof_context.cancel_last t;
+        Proof_context.append t "{ admit. }";
+      end
     done
   | t ->
     failwith
@@ -1157,10 +1161,12 @@ and symexec_array_get t env pat rest =
                         Lang.Expr.pp_typed_param pat);
   Proof_context.append t "xinhab.";
   Proof_context.append t "xapp.";
-  Proof_context.append t "{";
-  Proof_context.append t "try sis_handle_int_index_prove.";
-  while List.length (Proof_context.current_subproof t).goals > 0 do 
-    Proof_context.append t "admit.";
+  while List.length (Proof_context.current_subproof t).goals > 1 do 
+    Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
+    if Option.is_none (Proof_context.current_subproof_opt t) then begin
+      Proof_context.cancel_last t;
+      Proof_context.append t "{ admit. }";
+    end
   done;
   Proof_context.append t "}";
   symexec t env rest
@@ -1254,8 +1260,12 @@ and symexec_match t env prog_expr cases =
     (* now emit the rest *)
     symexec t env rest;
     (* dispatch remaining subgoals by the best method: *)
-    while (Proof_context.current_subproof t).goals |> List.length > 0 do
-      Proof_context.append t "{ admit. }";
+    while List.length (Proof_context.current_subproof t).goals > 0 do 
+      Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
+      if Option.is_none (Proof_context.current_subproof_opt t) then begin
+        Proof_context.cancel_last t;
+        Proof_context.append t "{ admit. }";
+      end
     done;
   ) (List.combine cases sub_proof_vars)
 and symexec_if_then_else t env cond l r =
@@ -1521,7 +1531,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     |> Seq.to_gen in
 
   let found_acceptable_invariant = ref false in
-
+  let no_invariants_tried = ref 0 in
   let best_invariant_so_far = ref @@ Option.get_exn_or "Failed to find suitable candidate" (candidates ()) in
 
   while not !found_acceptable_invariant do 
@@ -1555,21 +1565,56 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
          pure_state
          heap_state)
     end;
+    (* first, check if the current invariant can be elaborated by coq  *)
     if Proof_context.current_subproof_opt t |> Option.is_some then begin
-      found_acceptable_invariant := true;
+      (* yes! the invariant is accepted by the proof context, now let's see if we can prove it's correctness *)
+      if Configuration.dispatch_goals_with_solver_tactic ()
+      && !no_invariants_tried < Configuration.max_goal_dispatch_attempts () then begin
+        if List.length (Proof_context.current_subproof t).goals > 1 then
+          Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
+        (* now check if this tactic was able to dispatch the goal: *)
+        if Option.is_some (Proof_context.current_subproof_opt t) then begin
+          (* yes, it did!, this is the candidate we want: *)
+          found_acceptable_invariant := true;
+          (* dispatch any remaining goals *)
+          while List.length (Proof_context.current_subproof t).goals > 1 do 
+            Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
+            if Option.is_none (Proof_context.current_subproof_opt t) then begin
+              Proof_context.cancel_last t;
+              Proof_context.append t "{ admit. }";
+            end
+          done;
+          (* we're done son. *)
+        end else begin
+          (* nope, we weren't able to prove the currectness of this invariant *)
+          Proof_context.cancel_last t;
+        end
+      end else begin
+        (* user has requested we don't try to check validity of
+           candidates, or we've run out of attempts, so we're assuming
+           its correct *)
+        found_acceptable_invariant := true;
+      end
     end else begin
-      (* for whatever reason, invariant failed to work (maybe evars or soemthing). anyway, try  *)
+      (* for whatever reason, invariant failed to be elaborated, cancel the last app, and retry  *)
       Proof_context.cancel_last t;
       best_invariant_so_far := Option.get_exn_or "Failed to find suitable candidate" (candidates ());
-    end
+    end;
+
+    (* increment the number of invariants we have tried *)
+    incr no_invariants_tried;
   done;
   Log.info (fun f -> f "FOUND INVARIANT: %s@." (
     [%show: Lang.Expr.t * ((enc_fun * test_fun) * Lang.Expr.t) Containers.List.t] !best_invariant_so_far
   ));
 
   (* dispatch remaining subgoals by the best method: *)
-  while (Proof_context.current_subproof t).goals |> List.length > 1 do
-    Proof_context.append t "{ admit. }";
+  while List.length (Proof_context.current_subproof t).goals > 1 do 
+    Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
+    if Option.is_none (Proof_context.current_subproof_opt t) then begin
+      Proof_context.cancel_last t;
+      Proof_context.append t "{ admit. }";
+    end
   done;
 
   Log.debug (fun f ->
