@@ -1521,6 +1521,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   let found_acceptable_invariant = ref false in
   let no_invariants_tried = ref 0 in
   let best_invariant_so_far = ref @@ Option.get_exn_or "Failed to find suitable candidate" (candidates ()) in
+  (* we'll use this variable to track the last invariant we saw that parses by coq *)
+  let last_invariant_that_parses = ref None in
 
   while not !found_acceptable_invariant do 
     Log.info (fun f -> f "considering invariant: %s@." (
@@ -1581,10 +1583,25 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       end
     end;
 
-    if not !found_acceptable_invariant then begin
-      (* for whatever reason, invariant failed to work out, cancel it and try again  *)
+    if Proof_context.current_subproof_opt t |> Option.is_none then begin
+      (* for whatever reason, invariant failed to elaborate (missing evars?), cancel it and try next  *)
       Proof_context.cancel_last t;
-      best_invariant_so_far := Option.get_exn_or "Failed to find suitable candidate" (candidates ());
+      (* best invariant so far is the next invariant, orrr the last
+         invariant we saw that parses if we're desparate. *)
+      best_invariant_so_far :=
+        Option.get_exn_or "Failed to find suitable candidate" @@
+        Option.or_ ~else_:!last_invariant_that_parses (candidates ());
+    end else begin
+      (* invariant parsed, but, we weren't able to dispatch it *)
+      last_invariant_that_parses := Some !best_invariant_so_far;
+      if not !found_acceptable_invariant then 
+        match candidates () with
+        | None ->
+          (* ran out of candidates, let's just accept this one *)
+          found_acceptable_invariant := true
+        | Some next_candidate ->
+          Proof_context.cancel_last t;
+          best_invariant_so_far := next_candidate
     end;
 
     (* increment the number of invariants we have tried *)
