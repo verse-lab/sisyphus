@@ -56,10 +56,12 @@ CLOSED: [2022-10-29 Sat 16:34]
 CLOSED: [2022-10-29 Sat 16:35]
 *** DONE [8] array partition
 CLOSED: [2022-10-29 Sat 16:37]
-*** TODO [9] array foldi
+*** DONE [9] array foldi
+CLOSED: [2022-10-29 Sat 17:02]
 *** DONE [10] sll of array
 CLOSED: [2022-10-29 Sat 16:40]
-*** TODO [11] sll partition
+*** DONE [11] sll partition
+CLOSED: [2022-10-29 Sat 17:00]
 *** DONE [12] stack reverse
 CLOSED: [2022-10-29 Sat 16:47]
 *** DONE [13] stack filter
