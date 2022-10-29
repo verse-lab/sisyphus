@@ -1160,7 +1160,6 @@ and symexec_array_get t env pat rest =
   while List.length (Proof_context.current_subproof t).goals > 1 do 
     Proof_context.try_auto_or_admit t;
   done;
-  Proof_context.append t "}";
   symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
   Log.debug (fun f -> f "[%s] symexec_opaque_let %a = %a"
