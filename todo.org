@@ -38,3 +38,31 @@ CLOSED: [2022-10-29 Sat 13:59]
 CLOSED: [2022-10-29 Sat 14:00]
 *** DONE [14] tree to array
 CLOSED: [2022-10-29 Sat 14:38]
+
+** Check the proofs go through with the latest changes
+*** DONE [1] seq to array
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [2] make rev list
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [3] array exists
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [4] array findi
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [5] array find map
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [6] array is sorted
+CLOSED: [2022-10-29 Sat 16:34]
+*** DONE [7] array of rev list
+CLOSED: [2022-10-29 Sat 16:35]
+*** DONE [8] array partition
+CLOSED: [2022-10-29 Sat 16:37]
+*** TODO [9] array foldi
+*** DONE [10] sll of array
+CLOSED: [2022-10-29 Sat 16:40]
+*** TODO [11] sll partition
+*** DONE [12] stack reverse
+CLOSED: [2022-10-29 Sat 16:47]
+*** DONE [13] stack filter
+CLOSED: [2022-10-29 Sat 16:44]
+*** DONE [14] tree to array
+CLOSED: [2022-10-29 Sat 16:40]
