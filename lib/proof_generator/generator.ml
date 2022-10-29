@@ -1252,12 +1252,8 @@ and symexec_match t env prog_expr cases =
     (* now emit the rest *)
     symexec t env rest;
     (* dispatch remaining subgoals by the best method: *)
-    while List.length (Proof_context.current_subproof t).goals > 0 do 
-      Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
-      if Option.is_none (Proof_context.current_subproof_opt t) then begin
-        Proof_context.cancel_last t;
-        Proof_context.append t "{ admit. }";
-      end
+    while List.length (Proof_context.current_subproof t).goals > 0 do
+      Proof_context.try_auto_or_admit t
     done;
   ) (List.combine cases sub_proof_vars)
 and symexec_if_then_else t env cond l r =
@@ -1562,20 +1558,20 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       (* yes! the invariant is accepted by the proof context, now let's see if we can prove it's correctness *)
       if Configuration.dispatch_goals_with_solver_tactic ()
       && !no_invariants_tried < Configuration.max_goal_dispatch_attempts () then begin
-        if List.length (Proof_context.current_subproof t).goals > 1 then
-          Proof_context.append t "{ %s. }" (Configuration.solver_tactic ());
-        (* now check if this tactic was able to dispatch the goal: *)
-        if Option.is_some (Proof_context.current_subproof_opt t) then begin
-          (* yes, it did!, this is the candidate we want: *)
-          found_acceptable_invariant := true;
-          (* dispatch any remaining goals *)
-          while List.length (Proof_context.current_subproof t).goals > 1 do
-            Proof_context.try_auto_or_admit t;
-          done;
-          (* we're done son. *)
+        if List.length (Proof_context.current_subproof t).goals > 1 then begin
+          (* now check if this tactic was able to dispatch the goal: *)
+          if Proof_context.try_dispatch_current_subgoal t ~op:(Configuration.solver_tactic ()) then begin
+            (* yes, it did!, this is the candidate we want: *)
+            found_acceptable_invariant := true;
+            (* dispatch any remaining goals *)
+            while List.length (Proof_context.current_subproof t).goals > 1 do
+              Proof_context.try_auto_or_admit t;
+            done;
+            (* we're done son. *)
+          end
         end else begin
-          (* nope, we weren't able to prove the currectness of this invariant *)
-          Proof_context.cancel_last t;
+          (* found no subgoals, this invariant solved itself? strange, but I'll take it *)
+          found_acceptable_invariant := true;
         end
       end else begin
         (* user has requested we don't try to check validity of
@@ -1583,8 +1579,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
            its correct *)
         found_acceptable_invariant := true;
       end
-    end else begin
-      (* for whatever reason, invariant failed to be elaborated, cancel the last app, and retry  *)
+    end;
+
+    if not !found_acceptable_invariant then begin
+      (* for whatever reason, invariant failed to work out, cancel it and try again  *)
       Proof_context.cancel_last t;
       best_invariant_so_far := Option.get_exn_or "Failed to find suitable candidate" (candidates ());
     end;
