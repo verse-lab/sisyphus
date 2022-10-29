@@ -84,7 +84,7 @@ Ltac sis_solve_start :=
   | [ |- forall (Heq: _ = _), _] => let x := fresh Heq in intro x
   | [ |- forall (x: _), _] => let x := fresh x in intro x
   | [ |- _ -> _ ] => let v := fresh "Hv" in intros v
-  | [ H : Wpgen_body _ |- @Triple ?f ?r ?r2 ?P ?Q ] => apply H; clear H; xinhab; xgo*
+  | [ H : Wpgen_body _ |- @Triple ?f ?r ?r2 ?P ?Q ] => apply H; clear H; xinhab; xgo*; try math
   end.
 
 Ltac sis_handle_if :=
@@ -159,7 +159,9 @@ Ltac sis_list_deep_solver :=
   repeat match goal with 
     | [ |- context[drop ?x (make ?z _ ++ _)]] =>
         let H := fresh "Hvalid" in
-        assert (H: x >= z) by (subst; rew_list; sis_normalize_length; math); rewrite drop_app_r; [clear H|sis_normalize_length; math]
+        assert (H: x >= z)
+          by (subst; rew_list; sis_normalize_length; math);
+        rewrite drop_app_r; [clear H|sis_normalize_length; math]
     | [ |- context[drop ?d (rev ?r ++ _)]] =>
         let H := fresh "Hlen" in
         assert (H: length (rev r) <= d) by (rew_list; math);
@@ -189,26 +191,30 @@ Ltac sis_list_deep_solver :=
         pose proof (Hleq := @list_eq_take_app_drop _ i l Hi);
         apply (f_equal (existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
         unfold existsb in *; rewrite list_existsb_app, H
-    | [H: existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |- context Hctx[existsb ?f ?l]] =>
+    | [H: existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |-
+         context Hctx[existsb ?f ?l]] =>
         let Hleq := fresh "Hleq" in
         let Hlen := fresh "Hlen" in
         assert (Hlen: i <= length l) by math;
         pose proof (Hleq := @list_eq_take_app_drop _ i l Hlen);
         apply (f_equal (existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
         unfold existsb in *; rewrite list_existsb_app, H
-    | [H: List.existsb ?f (take ?i ?l) = true, Hi: ?i <= length ?l |- context Hctx[List.existsb ?f ?l]] =>
+    | [H: List.existsb ?f (take ?i ?l) = true, Hi: ?i <= length ?l |-
+         context Hctx[List.existsb ?f ?l]] =>
         let Hleq := fresh "Hleq" in
         pose proof (Hleq := @list_eq_take_app_drop _ i l Hi);
         apply (f_equal (List.existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
         rewrite list_existsb_app, H
-    | [H: List.existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |- context Hctx[List.existsb ?f ?l]] =>
+    | [H: List.existsb ?f (take ?i ?l) = true, Hi: _ <= ?i <= length ?l |-
+         context Hctx[List.existsb ?f ?l]] =>
         let Hleq := fresh "Hleq" in
         let Hlen := fresh "Hlen" in
         assert (Hlen: i <= length l) by math;
         pose proof (Hleq := @list_eq_take_app_drop _ i l Hlen);
         apply (f_equal (List.existsb f)) in Hleq; rewrite <- Hleq; clear Hleq;
         rewrite list_existsb_app, H
-    | [ H: is_some (list_findi ?fp (take ?i ?l)) = false |-  context[list_findi ?fp (take (?i + 1) ?l)] ] =>
+    | [ H: is_some (list_findi ?fp (take ?i ?l)) = false |-
+          context[list_findi ?fp (take (?i + 1) ?l)] ] =>
         rewrite (take_pos_last _ (i + 1)); [|apply int_index_prove; math];
         math_rewrite (i + 1 - 1 = i); 
         rewrite !findi_unfold in *; rewrite findi_app_r
@@ -216,6 +222,49 @@ Ltac sis_list_deep_solver :=
           simpl list_findi_internal; rewrite H
     | [  H: ~ istrue (?fp ?i ?vl) |-  context[list_findi_internal ?i ?fp (?vl :: _)] ] =>
           simpl list_findi_internal;  apply not_is_false in H; rewrite H
+    | [ H: is_some (list_findi ?fp (take ?i ?l)) = true |-
+          context H [list_findi ?fp ?l]
+      ] =>
+        let Hv := fresh "Hv" in
+        let Hveq := fresh "Hveq" in
+        remember (list_findi fp l) as Hv eqn:Hveq;
+        rewrite <- (@list_eq_take_app_drop _ i l) in Hveq; [| math];
+        rewrite Hveq; clear Hv Hveq;
+        rewrite !findi_unfold, findi_app_l in *; auto; simpl
+    | [ H: None = (list_findi ?fp (take ?i ?l)) |-
+          context H [list_findi ?fp (take (?i + 1) ?l)]
+      ] =>
+        rewrite (take_pos_last _ (i + 1));
+        [|apply int_index_prove; math];
+        math_rewrite (i + 1 - 1 = i);
+        rewrite !findi_unfold in *; rewrite findi_app_r;
+        simpl list_findi_internal
+    | [ H: Some (?vl, ?vr) = (list_findi ?fp (take ?i ?l)) |-
+          context [list_findi ?fp ?l]
+      ] =>
+        let Hv := fresh "Hv" in
+        let Hveq := fresh "Hveq" in
+        remember (list_findi fp l) as Hv eqn:Hveq;
+        rewrite <- (@list_eq_take_app_drop _ i l) in Hveq; [| math];
+        rewrite Hveq; clear Hv Hveq;
+        rewrite !findi_unfold in *; rewrite findi_app_l; [auto| rewrite <- H]
+    | [ H: None = (list_findi ?fp (take ?i ?l)) |- context [list_findi ?fp ?l] ] =>
+        let Hv := fresh "Hv" in
+        let Hveq := fresh "Hveq" in
+        remember (list_findi fp l) as Hv eqn:Hveq;
+        rewrite <- (@list_eq_take_app_drop _ i l) in Hveq; [| math];
+        rewrite Hveq; clear Hv Hveq;
+        rewrite !findi_unfold in *; rewrite findi_app_r; [ | rewrite <- H; auto]
+    | [ |- context[?f ?i ?vl (list_foldi (take ?i ?l) ?init ?f)]] =>
+        let _ :=
+          lazymatch goal with[|-context[list_foldi(take(i + 1)l)init f]] => true end in
+        rewrite (@foldi_rcons _ _ f init (take i l) (l[i]) (take (i + 1) l));
+        [| rewrite (take_pos_last _ (i + 1)); [| apply int_index_prove; math];
+           do 3 f_equal; math ]
+    | [ |- context[?f (length ?t) ?v (list_foldi ?t ?init ?f)]] =>
+        let _ :=
+          lazymatch goal with[|-context[list_foldi (t & v) init f]] => true end in
+        rewrite (@foldi_rcons _ _ f init t v (t & v)); auto
     end.  
 
 Ltac sis_dispatch_filter_goal :=
@@ -239,7 +288,7 @@ Ltac sis_normalize_succs :=
     end.
 
 Ltac sis_normalize_opt_of_bool :=
-      repeat lazymatch goal with
+  repeat lazymatch goal with
     | [ H:  None = opt_of_bool _ |- _ ] =>
         apply opt_of_bool_none in H
     | [ H:  Some tt = opt_of_bool _ |- _ ] =>
@@ -251,13 +300,26 @@ Ltac sis_normalize_opt_of_bool :=
     | [ |- context [is_some (opt_of_bool _)]] =>
         rewrite is_some_opt_of_bool_eq
     | [ |- option_value_snd ?vl ?ls = option_value_snd ?vl ?ols ] =>
-          f_equal
+        f_equal
     | [ |- option_value_fst ?vl ?ls = option_value_fst ?vl ?ols ] =>
-          f_equal
+        f_equal
     | [ H: is_some (?ls) = false |- ?ls = None ] =>
-          apply not_is_some_eq; auto
+        apply not_is_some_eq; auto
     | [ H: is_some (?ls) = false |- None = ?ls ] =>
-          symmetry; apply not_is_some_eq; auto
+        symmetry; apply not_is_some_eq; auto
+    | [ |- Some (option_value_fst _ ?exp, option_value_snd _ ?exp) = ?exp] =>
+        let p1 := fresh "p1" in
+        let p2 := fresh "p2" in
+        case (exp) as [[p1 p2] | ];
+        simpl option_value_snd; simpl option_value_fst; auto
+    | [ H: is_some None = true |- _ ] =>
+            simpl in H; inversion H; auto
+    | [H: None = ?exp |- is_some ?exp = false ] =>
+        rewrite <- H; simpl is_some
+    | [ H : context[is_some (Some _)] |- _ ] =>
+        simpl is_some in H
+    | [ H : context[is_some None] |- _ ] =>
+        simpl is_some in H
     end.
 
 Ltac sis_normalize_boolean_goals :=
@@ -292,13 +354,22 @@ Ltac sis_normalize_boolean_goals :=
     | [ |- context[(false && _)%bool] ] => simpl andb
     | [ |- context[(true || _)%bool] ] => simpl orb
     | [ H: context[implb true _] |- _ ] => simpl in H
+    | [H: istrue ?exp |- context[if ?exp then _ else _] ] => rewrite H
     | [ H: istrue (Z.eqb ?l ?r) |- _] =>
         let H_eq := fresh H in
         assert (H_eq: l = r) by (apply Z.eqb_eq; auto);
-        clear H; rename H_eq into H
+        clear H; rename H_eq into H; rewrite H in *
+    | [H: ~ (istrue ?exp) |- context[if ?exp then _  else _]] =>
+        apply negb_iff in H; rewrite H
     | [H: ~ (istrue ?f) |- ?f = false] => destruct f; simpl; auto; contradiction H; auto
     | [ |- context[! _] ] => rewrite <- negb_eq_neg
     | [ H: context[! _] |- _ ] => rewrite <- negb_eq_neg in H
+    | [H: _ /\ _ |- _] =>
+       let H1 := fresh "H1" in
+       let H2 := fresh "H2" in
+       destruct H as [H1 H2]
+    | [H: context[negb true] |- _ ] => simpl negb in H
+    | [H: context[negb false] |- _ ] => simpl negb in H
     end.  
 
 Ltac sis_handle_take_splitting_goals :=
@@ -338,7 +409,7 @@ Ltac sis_generic_solver :=
   | [ |- context[@Triple _]] =>
       intros_then_apply sis_simplify_math_goal; sis_solve_start; sis_generic_solver
   | [ |- index _ _] => sis_handle_int_index_prove; sis_generic_solver
-  | _ => sis_normalize_boolean_goals; sis_normalize_opt_of_bool; subst; try math;
+  | _ => sis_normalize_boolean_goals; sis_normalize_opt_of_bool; subst; rew_list; try math;
          repeat (sis_normalize_length;
                  sis_normalize_boolean_goals;
                  sis_normalize_opt_of_bool;

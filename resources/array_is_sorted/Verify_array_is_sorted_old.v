@@ -23,7 +23,7 @@ Proof using (All).
             (fun (i: int) (b: option unit) =>
                \[b = opt_of_bool (negb (is_sorted (drop i l)))] \*
                  a ~> Array l)
-         ). {
+         ). { sis_generic_solver.
     intros i Hi.
     apply Htmp; clear Htmp.
     xpull;=>Hopt.

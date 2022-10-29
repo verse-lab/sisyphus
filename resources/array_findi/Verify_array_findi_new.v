@@ -49,11 +49,6 @@ Proof using (All).
       xvals*. {
         destruct Hres as [Hlen Himpl].
         sis_generic_solver.
-        rewrite <- (@list_eq_take_app_drop _ i_b l) at 4; try math.
-        rewrite !findi_unfold, findi_app_l in *; auto; simpl.
-        gen Hexists.
-        case (list_findi_internal 0 fp (take i_b l)) as [[p1 p2] |]; simpl; intros; auto.
-        inversion Hexists.
       }
     + xvals*. {
         destruct Hres as [Hlen Himpl].
