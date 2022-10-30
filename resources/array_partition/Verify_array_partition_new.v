@@ -30,9 +30,7 @@ Proof using (All).
   xapp (array_iter_spec tmp a (fun (ls: list A) =>
                                    a_t ~~> filter pp (rev ls) \*
                                    a_f ~~> filter_not pp (rev ls)
-       )). {
-    sis_solve_start; autorewrite with rew_list filter_lemmas; sis_handle_if.
-  }
+       )). { sis_generic_solver. }
   xmatch.
   xapp.
   xlet.
@@ -40,6 +38,6 @@ Proof using (All).
   xlet.
   xapp. intros Ht.
   xapp. intros Hf.
-  xvals*. { rewrite Pleft_l; autorewrite with rew_list filter_lemmas; auto. }
-  { rewrite Pright_l; autorewrite with rew_list filter_lemmas; auto. }
+  xvals*. { sis_generic_solver. }
+  { sis_generic_solver. }
 Qed.

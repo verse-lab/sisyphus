@@ -24,11 +24,8 @@ Proof using (All).
              s ~> SLL ((drop (i + 1) ls)) \*
                a ~> Array ls
        )). { math. } {
-    sis_solve_start.
-    symmetry; erewrite drop_cons_unfold; try math; f_equal.
-    f_equal; math.
-    f_equal; math.
-  } { math_rewrite ((length ls - 1 + 1) = length ls); rewrite drop_at_length; auto. }
+    sis_generic_solver.
+  } { sis_generic_solver.  }
   xmatch.
   xvals.
 Qed.

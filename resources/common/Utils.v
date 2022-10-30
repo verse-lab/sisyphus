@@ -12,6 +12,15 @@ Proof.
   case b; simpl; auto.
 Qed.
 
+Lemma or_orb_eq (a b: bool) : or a b = orb a b.
+Proof. case a; case b; simpl; auto. Qed.
+
+Lemma and_andb_eq (a b: bool) : and a b = andb a b.
+Proof. case a; case b; simpl; auto. Qed.
+
+Lemma not_is_false (b: bool) : (~ b) -> (b = false).
+Proof. destruct b; simpl; intros H; auto; contradiction H; auto. Qed.
+
 Lemma negb_iff (b: bool) :
   b = false <-> ~ b.
 Proof.
@@ -38,6 +47,39 @@ Proof. intros ->; simpl; auto. Qed.
 Lemma is_some_opt_of_bool_eq (b: bool) :
   is_some (opt_of_bool b) = b.
 Proof. case b; simpl; auto. Qed.
+
+Lemma not_is_some_eq (A: Type) (x: option A):
+  is_some x = false -> x = None.
+Proof.
+  case x as [vl|]; simpl; intros; auto.
+  inversion H.
+Qed.
+
+Lemma is_some_ex (A: Type) (x: option A):
+  is_some x = true -> exists (vl: A), x = Some vl.
+Proof.
+  case x as [vl|]; simpl; intros H; auto; try inversion H.
+  exists vl; auto.
+Qed.
+
+Definition option_value (A: Type) (default: A) (vl: option A) : A :=
+  match vl with
+  | None => default
+  | Some vl => vl
+  end.
+
+Definition option_value_fst (A B: Type) (default: A) (vl: option (A * B)) : A :=
+  match vl with
+  | None => default
+  | Some (vl, _) => vl
+  end.
+
+Definition option_value_snd (A B: Type) (default: B) (vl: option (A * B)) : B :=
+  match vl with
+  | None => default
+  | Some (_, vl) => vl
+  end.
+
 
 Fixpoint list_foldi_internal (A: Type) (B: Type)
   (i: int) (ls: list A) (init: B) (fp: int -> A -> B -> B) :=
@@ -88,8 +130,8 @@ Lemma findi_unfold (A: Type) (f: int -> A -> bool) (ls: list A) :
   list_findi f ls = list_findi_internal 0 f ls.
 Proof. auto. Qed.
 
-Lemma findi_app_r (A: Type) (B: Type) i (f: int -> A -> bool) l1 l2:
-  list_findi_internal i f l1 = None ->
+Lemma findi_app_r (A: Type) i (f: int -> A -> bool) l1 l2:
+  is_some (list_findi_internal i f l1) = false ->
   (list_findi_internal i f (l1 ++ l2)) = list_findi_internal (i + length l1) f l2.
 Proof.
   gen i l2; induction l1.
@@ -101,7 +143,7 @@ Proof.
 Qed.
 
 Lemma findi_app_l (A: Type) i (f: int -> A -> bool) l1 l2:
-  is_some (list_findi_internal i f l1) ->
+  is_some (list_findi_internal i f l1) = true ->
   (list_findi_internal i f (l1 ++ l2)) = list_findi_internal i f l1.
 Proof.
   gen i l2; induction l1.
@@ -129,7 +171,7 @@ Lemma findi_map_unfold (A: Type) (B: Type) (f: A -> option B) (ls: list A) :
 Proof. auto. Qed.
 
 Lemma findi_map_app_r (A: Type) (B: Type) i (f: A -> option B) l1 l2:
-  list_findi_map_internal i f l1 = None ->
+  is_some (list_findi_map_internal i f l1) = false ->
   (list_findi_map_internal i f (l1 ++ l2)) = list_findi_map_internal (i + length l1) f l2.
 Proof.
   gen i l2; induction l1.
@@ -141,7 +183,7 @@ Proof.
 Qed.
 
 Lemma findi_map_app_l (A: Type) (B: Type) i (f: A -> option B) l1 l2:
-  is_some (list_findi_map_internal i f l1) ->
+  is_some (list_findi_map_internal i f l1) = true ->
   (list_findi_map_internal i f (l1 ++ l2)) = list_findi_map_internal i f l1.
 Proof.
   gen i l2; induction l1.
@@ -348,6 +390,59 @@ Proof.
 Qed.
 
 
+Lemma list_cons_unfold (A: Type) `{IA: Inhab A} (ls : list A):
+  0 < length ls ->
+  ls = ls[0] :: drop 1 ls.
+Proof.
+  case ls as [| h ls]; rew_list; try math; intros.
+  rewrite drop_cons_pos; try math; math_rewrite (1 - 1 = 0);
+    rewrite drop_zero; auto.
+Qed.
+
+Lemma take_ge (A: Type) (ls :list A) (i: int) :
+  length ls <= i ->
+  take i ls = ls.
+Proof.
+  gen i; induction ls.
+  - intros i; rew_list; rewrite take_nil; auto.
+  - intros i; rew_list; intros Hi.
+    rewrite take_cons_pos; [| math]; f_equal; apply IHls; math.
+Qed.
+
+Lemma drop_ge (A: Type) (ls :list A) (i: int) :
+  length ls <= i ->
+  drop i ls = @nil A.
+Proof.
+  gen i; induction ls.
+  - intros i; rew_list; rewrite drop_nil; auto.
+  - intros i; rew_list; intros Hi.
+    rewrite drop_cons_pos; [| math]; f_equal; apply IHls; math.
+Qed.
+
+Lemma length_take_le (A: Type) (ls :list A) (i: int) :
+  0 <= i ->
+  length (take i ls) <= i.
+Proof.
+  gen i; induction ls.
+  - intros i; rew_list; rewrite take_nil; auto.
+  - intros i; rew_list; intros Hi.
+    case (Z.eqb_spec i 0);=> Heq.
+    + rewrite Heq, take_zero; rew_list; math.
+    + rewrite take_cons_pos; [| math]; rew_list.
+      assert (Higt: 0 <= i - 1) by math.
+      pose proof (IHls (i - 1) Higt).
+      math.
+Qed.
+
+Lemma make_write_zero {A: Type} (i: int) (ovl vl: A) :
+  i > 0 -> (make i ovl)[0:=vl] = vl :: (make (i - 1) ovl).
+Proof.
+  intros Hi.
+  math_rewrite (i = i - 1 + 1);
+    rewrite make_succ_l, update_zero; [| math]; do 2 f_equal;
+  math.
+Qed.
+
 Lemma case_rev_split : forall A (xs: list A) v l r,
     rev xs = l ++ v :: r ->
     xs = rev r ++ v :: rev l.
@@ -405,6 +500,48 @@ Proof.
   f_equal.
   math.
 Qed.
+
+Lemma rev_cons_unfold (A: Type) `{IA: Inhab A} (ls : list A):
+  0 < length ls ->
+  rev ls = ls[length ls - 1] :: drop 1 (rev ls).
+Proof.
+  intros; rewrite (list_cons_unfold _); rew_list; try math.
+  rewrite read_rev; try math.
+  rewrite drop_cons_pos; try math; math_rewrite (1 - 1 = 0);
+  rewrite drop_zero; f_equal; f_equal; math.
+Qed.
+
+Lemma rev_take_drop_unfold (A: Type) `{IA: Inhab A} (ls : list A) (i j: int):
+  0 <= j -> 0 <= i <= length ls  ->
+  rev (take (i - j) ls) = drop j (rev (take i ls)).
+Proof.
+  intros Hj Hilen.
+  case (Z.leb_spec i j); intros Hiltj.
+  + rewrite take_neg; try math.
+    rewrite drop_ge; rew_list; auto.
+      assert (Hi: 0 <= i) by math.
+      pose proof (length_take_le ls Hi); math.
+  + apply (eq_of_extens_range _).
+    * rew_list; rewrite length_take_nonneg; [| rew_list; math].
+      rewrite length_drop_nonneg; [| rew_list; rewrite length_take_nonneg;
+                                     [math| rew_list; math]].
+      rew_list; rewrite length_take_nonneg; [| rew_list; math].
+      math.
+    * intros ind Hind.
+      generalize (Hind); intros He; rew_list in He;
+        rewrite length_take_nonneg in He; [|math].
+      rewrite read_rev; [|rew_list in Hind; math].
+      rewrite read_take;
+        [| math | apply int_index_prove; rewrite length_take_nonneg; math].
+      rewrite read_drop;
+        [| rew_list | apply int_index_prove; rew_list];
+        rewrite ?length_take_nonneg; try math.
+      rewrite read_rev; [|rew_list in Hind; rewrite length_take_nonneg; math].
+      rewrite read_take;
+        [| math | apply int_index_prove ];
+        rewrite ?length_take_nonneg; try math.
+      f_equal; math.
+Qed.      
 
 Lemma make_rev_update: forall (A: Type) (x v: A) (t r: list A),
     (make (length r + 1) x ++ take (length t) (rev t))[length r:=v] =

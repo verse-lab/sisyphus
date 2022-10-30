@@ -28,13 +28,9 @@ Proof using (All).
           (fun (i: int) (res: B) =>
              \[res = list_foldi (take i l) init fp] \*
                a ~> Array l)
-       ). {
-    sis_solve_start.
-    subst; symmetry; erewrite foldi_rcons; auto; f_equal; auto; sis_normalize_length.
-    rewrite (take_pos_last IA); sis_handle_int_index_prove; try math.
-    repeat f_equal; try math.
-  }
-  { math. }
-  { sis_list_solver; unfold list_foldi; auto.  }
-  xvals*. { sis_list_solver; auto. }
+       ). { sis_generic_solver. }
+  { sis_generic_solver. }
+  { sis_generic_solver. }
+  xvals*. { sis_generic_solver. }
 Qed.
+

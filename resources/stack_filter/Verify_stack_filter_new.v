@@ -28,24 +28,14 @@ Proof using (All).
              keep ~> Stack (filter fp (rev ls))
        )). {
     intros v t r Hvtr; apply Htmp; clear Htmp.
-    xapp.
-    xif;=> cond; xgo*;
-    try xapp (stack_push_spec keep v); xgo*;
-    rew_list; rewrite filter_cons; try (rewrite If_l; auto; math);
-                                     try (rewrite If_r; auto; math).
+    sis_symexec; sis_generic_solver.
   }
   xmatch.
   xletopaque tmp2 Htmp2.
   xapp (stack_drain_spec tmp2 keep
           (fun (ls: list A) =>
              s ~> Stack (rev ls)
-       )). {
-    sis_solve_start; rew_list; auto.
-  }
+       )). { sis_generic_solver. }
   xmatch.
-  xvals*. {
-    rewrite filter_rev, rev_rev; auto.
-  } {
-    unfold Stack; rewrite repr_eq. apply haffine_Record.
-  }
+  xvals*. { sis_generic_solver. } { apply stack_affine. }
 Qed.

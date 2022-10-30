@@ -3,7 +3,7 @@ Set Implicit Arguments.
 From CFML Require Import WPLib Stdlib.
 From TLC Require Import LibListZ.
 
-From Common Require Import Utils Tactics.
+From Common Require Import Utils Solver Tactics.
 From Common Require Import Tree_ml.
 
 (* used for reasoning about tree combinators: [tree_iter] and [tree_fold] *)
@@ -149,3 +149,37 @@ Proof.
 Qed.
 Arguments tree_fold_spec {A} {EA} {B} {EB} f init t fp : rename.
 Hint Extern 1 (RegisterSpec tree_fold) => Provide tree_fold_spec.
+
+Ltac sis_tree_solver :=
+  repeat match goal with
+    | [ |- tsize ?t >= 0 ] => pose proof (tree_size_ge0 t); math
+    | [ H: tol ?t = _ |- _ <= _ <= tsize ?t ] =>
+        rewrite !tree_size_eq, H; rew_list; math
+    | [ H: tol ?l = ?t ++ ?r |- context[length ?t] ] =>
+        let Hv := fresh "Hv" in
+        assert (Hv: length t = length (tol l) - length r) by
+          (rewrite H; rew_list; math);
+        rewrite ?tree_size_eq, Hv; rew_list; math
+    | [ H: tol ?t = _ |- context[drop _ (make (tsize ?t) _)]] =>
+        rewrite tree_size_eq, drop_make_eq; [ | rewrite H; rew_list; math];
+        rewrite make_write_zero; [| rewrite H; rew_list; math]
+    | [ H: tol ?t = _ |- context[drop _ (make (length (tol ?t)) _)]] =>
+        rewrite drop_make_eq; [ | rewrite H; rew_list; math]
+    | [ H: rev (tol ?t) = _ |- context[length (tol ?t)] ] =>
+        rewrite <- (@length_rev _ (tol t)), H; rew_list; math
+    | [ |- ?v ++ _ = ?v ++ _ ] => f_equal
+    | [ |- ?v :: _ = ?v :: _ ] => f_equal
+    | [ |- make ?i ?vl = make ?oi ?ovl ] => f_equal; try math
+    | [ |- context[drop (length (tol ?t)) (make (tsize ?t) _)]] =>
+        rewrite tree_size_eq, drop_make_eq, Z.sub_diag, make_zero;
+        [| math]; rew_list; auto
+    | [ H: rev (tol ?t) = _ |-
+          context[(make ?l ?v ++ _)[?l - 1:= ?nvl] ] ] =>
+        rewrite  <- (@length_rev _ (tol t)), H, update_app_l;
+        [| rew_list; sis_normalize_length; math]; rew_list;
+        sis_simplify_math_goal
+    | [  |- context[(make (?l + 1) ?v)[?l := ?nvl]] ] =>
+        rewrite make_succ_r; [|math];
+        rewrite update_middle; [|sis_normalize_length];
+        rew_list; auto
+  end.

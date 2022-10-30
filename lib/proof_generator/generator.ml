@@ -28,17 +28,6 @@ let combine_rem xz yz =
     | x :: xz, y :: yz -> loop ((x, y) :: acc) xz yz in
   loop [] xz yz
 
-let seq_force ls =
-  let rec loop i acc ls =
-    match ls () with
-    | Seq.Cons (h, t) when i < 100 ->
-      loop (i + 1) (h :: acc) t
-    | Seq.Cons (h, t) -> i, Seq.append (Seq.of_list (List.rev (h :: acc))) t
-    | Seq.Nil -> i, Seq.of_list (List.rev acc) in
-  let (sz, ls) = loop 0 [] ls in
-  sz, ls
-
-
 let reduce pure =
   let no_pure_original = List.length pure in
   let pure = ExprSet.of_list pure |> ExprSet.to_list in
@@ -974,9 +963,9 @@ let prune_candidates_using_testf test_f (pure, heap) =
       else None
     )) heap in
   let start_time = Ptime_clock.now () in
-  let (no_pure, pure) = List.map seq_force pure |> List.split in
+  let (no_pure, pure) = List.map Utils.seq_force pure |> List.split in
   Gc.full_major (); 
-  let (no_heap, heap) = List.map seq_force heap |> List.split in
+  let (no_heap, heap) = List.map Utils.seq_force heap |> List.split in
   Gc.full_major (); 
   let end_time = Ptime_clock.now () in
   Log.info (fun f -> f "Pruned down to [%a] <= pure and [%a] <= heap in %a"
@@ -1036,66 +1025,6 @@ let expr_to_subst_arr t inv_ty exprs =
     let binding = StringMap.of_list (List.combine inv_args args) in
     let lookup name = StringMap.find_opt name binding in
     Array.map (Lang.Expr.subst lookup) exprs
-
-
-let find_first_valid_candidate_with_z3 t inv_ty vc ~heap ~pure =
-  let (let+) x f = Option.bind x f in
-  let no_pure = Seq.is_empty pure in
-  let heap_gen = Gen.of_seq heap in
-  let pure_gen, reset_pure =
-    let get_pure () =
-      (* if no pure, then just repeatedly return true as the pure *)
-      if no_pure
-      then (Gen.repeat (`Constructor ("true", [])))
-      else (Gen.of_seq pure) in
-    let pure_ref = ref (get_pure ()) in
-    let pure_gen () = !pure_ref () in
-    let reset_pure () = pure_ref := get_pure () in
-    pure_gen, reset_pure in
-
-  let should_stop_iteration =
-    match Configuration.max_z3_calls () with
-    | None -> fun _ -> false
-    | Some max_calls -> fun i -> i > max_calls in
-
-  let rec loop i ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) =
-    Log.info (fun f ->
-      f "[%d] testing@.\tPURE:%s@.\tHEAP:%s@." i
-        (Format.to_string Lang.Expr.pp (pure_candidate) |> String.replace ~sub:"\n" ~by:" ")
-        (Format.to_string (List.pp Lang.Expr.pp) (heap_candidate)  |> String.replace ~sub:"\n" ~by:" "));
-    match vc (pure_candidate_vc, heap_candidate_vc) with
-    | `InvalidPure ->
-      let+ pure_candidate = pure_gen () in
-      let pure_candidate_vc = expr_to_subst t inv_ty pure_candidate in
-      loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
-    | `InvalidSpatial ->
-      (* restart the pure generator *)
-      reset_pure ();
-      let+ pure_candidate = pure_gen () in
-      let pure_candidate_vc = expr_to_subst t inv_ty pure_candidate in
-      let+ heap_candidate = heap_gen () in
-      let heap_candidate_vc = expr_to_subst_arr t inv_ty (Array.of_list heap_candidate) in
-      if should_stop_iteration i
-      then (
-        Log.warn (fun f -> f "failed to find a solution after %d candidates; giving up, assuming that it is correct" i);
-        Some (i, (pure_candidate, heap_candidate))
-      )
-      else loop (i + 1) ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc))
-    | `Valid -> Some (i, (pure_candidate, heap_candidate)) in
-  let+ pure_candidate = pure_gen () in
-  let+ heap_candidate = heap_gen () in
-  let pure_candidate_vc = expr_to_subst t inv_ty pure_candidate in
-  let heap_candidate_vc = expr_to_subst_arr t inv_ty (Array.of_list heap_candidate) in
-  let start_time = Ptime_clock.now () in
-  let res = loop 0 ((pure_candidate, pure_candidate_vc), (heap_candidate, heap_candidate_vc)) in
-  let end_time = Ptime_clock.now () in
-  let no_candidates =
-    Option.map fst res
-    |> Option.map_or ~default:"NONE" string_of_int in
-  Log.info (fun f ->
-    f "found a valid candidate in %a (checked %s candidates)@."
-      Ptime.Span.pp Ptime.(diff end_time start_time) no_candidates);
-  Option.map snd res
 
 (** [is_simple_expression expr] returns [true] if [expr] is a simple
     expression that CFML will not require an xapp to evaluate - i.e
@@ -1167,7 +1096,7 @@ let rec symexec (t: Proof_context.t) env (body: Lang.Expr.t Lang.Program.stmt) =
     Proof_context.append t "xvals.";
 
     while (Proof_context.current_subproof t).goals |> List.length > 0 do
-      Proof_context.append t "{ admit. }";
+      Proof_context.try_auto_or_admit t;
     done
   | t ->
     failwith
@@ -1217,12 +1146,9 @@ and symexec_array_get t env pat rest =
                         Lang.Expr.pp_typed_param pat);
   Proof_context.append t "xinhab.";
   Proof_context.append t "xapp.";
-  Proof_context.append t "{";
-  Proof_context.append t "try sis_handle_int_index_prove.";
-  while List.length (Proof_context.current_subproof t).goals > 0 do 
-    Proof_context.append t "admit.";
+  while List.length (Proof_context.current_subproof t).goals > 1 do 
+    Proof_context.try_auto_or_admit t;
   done;
-  Proof_context.append t "}";
   symexec t env rest
 and symexec_opaque_let t env pat _rewrite_hint body rest =
   Log.debug (fun f -> f "[%s] symexec_opaque_let %a = %a"
@@ -1314,8 +1240,8 @@ and symexec_match t env prog_expr cases =
     (* now emit the rest *)
     symexec t env rest;
     (* dispatch remaining subgoals by the best method: *)
-    while (Proof_context.current_subproof t).goals |> List.length > 0 do
-      Proof_context.append t "{ admit. }";
+    while List.length (Proof_context.current_subproof t).goals > 0 do
+      Proof_context.try_auto_or_admit t
     done;
   ) (List.combine cases sub_proof_vars)
 and symexec_if_then_else t env cond l r =
@@ -1581,8 +1507,10 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     |> Seq.to_gen in
 
   let found_acceptable_invariant = ref false in
-
+  let no_invariants_tried = ref 0 in
   let best_invariant_so_far = ref @@ Option.get_exn_or "Failed to find suitable candidate" (candidates ()) in
+  (* we'll use this variable to track the last invariant we saw that parses by coq *)
+  let last_invariant_that_parses = ref None in
 
   while not !found_acceptable_invariant do 
     Log.info (fun f -> f "considering invariant: %s@." (
@@ -1615,21 +1543,65 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
          pure_state
          heap_state)
     end;
+    (* first, check if the current invariant can be elaborated by coq  *)
     if Proof_context.current_subproof_opt t |> Option.is_some then begin
-      found_acceptable_invariant := true;
-    end else begin
-      (* for whatever reason, invariant failed to work (maybe evars or soemthing). anyway, try  *)
+      (* yes! the invariant is accepted by the proof context, now let's see if we can prove it's correctness *)
+      if Configuration.dispatch_goals_with_solver_tactic ()
+      && !no_invariants_tried < Configuration.max_goal_dispatch_attempts () then begin
+        if List.length (Proof_context.current_subproof t).goals > 1 then begin
+          (* now check if this tactic was able to dispatch the goal: *)
+          if Proof_context.try_dispatch_current_subgoal t ~op:(Configuration.solver_tactic ()) then begin
+            (* yes, it did!, this is the candidate we want: *)
+            found_acceptable_invariant := true;
+            (* dispatch any remaining goals *)
+            while List.length (Proof_context.current_subproof t).goals > 1 do
+              Proof_context.try_auto_or_admit t;
+            done;
+            (* we're done son. *)
+          end
+        end else begin
+          (* found no subgoals, this invariant solved itself? strange, but I'll take it *)
+          found_acceptable_invariant := true;
+        end
+      end else begin
+        (* user has requested we don't try to check validity of
+           candidates, or we've run out of attempts, so we're assuming
+           its correct *)
+        found_acceptable_invariant := true;
+      end
+    end;
+
+    if Proof_context.current_subproof_opt t |> Option.is_none then begin
+      (* for whatever reason, invariant failed to elaborate (missing evars?), cancel it and try next  *)
       Proof_context.cancel_last t;
-      best_invariant_so_far := Option.get_exn_or "Failed to find suitable candidate" (candidates ());
-    end
+      (* best invariant so far is the next invariant, orrr the last
+         invariant we saw that parses if we're desparate. *)
+      best_invariant_so_far :=
+        Option.get_exn_or "Failed to find suitable candidate" @@
+        Option.or_ ~else_:!last_invariant_that_parses (candidates ());
+    end else begin
+      (* invariant parsed, but, we weren't able to dispatch it *)
+      last_invariant_that_parses := Some !best_invariant_so_far;
+      if not !found_acceptable_invariant then 
+        match candidates () with
+        | None ->
+          (* ran out of candidates, let's just accept this one *)
+          found_acceptable_invariant := true
+        | Some next_candidate ->
+          Proof_context.cancel_last t;
+          best_invariant_so_far := next_candidate
+    end;
+
+    (* increment the number of invariants we have tried *)
+    incr no_invariants_tried;
   done;
   Log.info (fun f -> f "FOUND INVARIANT: %s@." (
     [%show: Lang.Expr.t * ((enc_fun * test_fun) * Lang.Expr.t) Containers.List.t] !best_invariant_so_far
   ));
 
   (* dispatch remaining subgoals by the best method: *)
-  while (Proof_context.current_subproof t).goals |> List.length > 1 do
-    Proof_context.append t "{ admit. }";
+  while List.length (Proof_context.current_subproof t).goals > 1 do
+    Proof_context.try_auto_or_admit t;
   done;
 
   Log.debug (fun f ->

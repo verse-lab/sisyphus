@@ -43,6 +43,10 @@ To update the build rules (for example, when you update resources/common, or add
 dune build @gen-build-rules --auto-promote
 ```
 
+Note: when running the benchmarks, you may also want to enable the
+`SIS_FAST_BENCHMARK=1` in your environment, to avoid the benchmarks
+building the common directory repeatedly on each test.
+
 ## Project structure
 ```
 .
@@ -65,7 +69,8 @@ dune build @gen-build-rules --auto-promote
 |   |-- proof_reduction
 |   |-- proof_spec
 |   |-- proof_utils
-|   `-- proof_validator
+|   |-- configuration
+|   `-- utils
 |-- scripts
 `-- sisyphus.opam
 ```
@@ -85,8 +90,9 @@ Most of the magic happens in the `./lib` directory:
 | proof_reduction | Vendored copy of Coq reduction code extended to do Ultimate-reduction |
 | proof_spec      | Simplified encoding of CFML specifications                            |
 | proof_utils     | Collection of utilities for manipulating Coq objects from OCaml       |
-| proof_validator | Z3-based validator of proof specifications/invariant candidates       |
 | configuration   | Generic configuration, preferences and logging options for the tool   |
+| utils           | Generic utilities used throughout the project                         |
+
 
 ## Requirements
 

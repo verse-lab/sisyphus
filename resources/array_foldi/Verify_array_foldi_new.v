@@ -26,12 +26,7 @@ Proof using (All).
   xletopaque tmp Htmp.
   xapp (array_iteri_spec tmp a
           (fun (ls: list A) => acc ~~> list_foldi ls init fp)
-       ). {
-    sis_solve_start.
-    subst; rew_list; math.
-    symmetry; erewrite foldi_rcons; auto.
-    f_equal; auto.
-  }
+       ). { sis_generic_solver. }
   xmatch.
   xapp.
   xvals*.

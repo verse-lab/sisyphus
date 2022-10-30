@@ -18,3 +18,13 @@ let seq_map_product_l (type a b) (f: a -> b Seq.t) (l: a Seq.t) : b list Seq.t =
         prod_rec (l1_elt::left) tail
       ) l1 () in
   prod_rec [] l
+
+let seq_force ?(limit=100) ls =
+  let rec loop i acc ls =
+    match ls () with
+    | Seq.Cons (h, t) when i < limit ->
+      loop (i + 1) (h :: acc) t
+    | Seq.Cons (h, t) -> i, Seq.append (Seq.of_list (List.rev (h :: acc))) t
+    | Seq.Nil -> i, Seq.of_list (List.rev acc) in
+  let (sz, ls) = loop 0 [] ls in
+  sz, ls

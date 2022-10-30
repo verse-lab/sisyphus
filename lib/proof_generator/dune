@@ -7,7 +7,6 @@
    coq
    utils
    lang
-   proof_validator
    proof_utils
    expr_generator
    proof_parser

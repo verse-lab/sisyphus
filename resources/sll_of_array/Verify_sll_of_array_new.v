@@ -21,12 +21,9 @@ Proof using (All).
   xapp (array_iter_spec tmp a
           (fun (ls: list A) =>
              s ~> SLL (rev ls)
-       )). {
-    sis_solve_start.
-    rew_list; auto.
-  }
+       )). { sis_generic_solver. }
   xmatch.
   xapp.
   xmatch.
-  xvals*. { rew_list; auto. }
+  xvals*. { sis_generic_solver. }
 Qed.

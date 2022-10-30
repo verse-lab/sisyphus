@@ -6,8 +6,65 @@ style that first reifies an OCaml computation with a Gallina model,
 and uses their equivalence as an invariant. Then once evaluating the
 lemma, the proof calls out to an external lemma to reduce the proof.
 * Tasks
-** DONE iterate through functions, find the naem
-CLOSED: [2022-10-23 Sun 07:57]
-** DONE Leave out heaplets that are consumed by the higher order combinator
-CLOSED: [2022-10-23 Sun 08:02]
-** TODO Test if true candidate is accepted by generated test fun
+** DONE remove proof validator
+CLOSED: [2022-10-28 Fri 06:31]
+** DONE Prove goals using new tactics
+CLOSED: [2022-10-29 Sat 14:39]
+*** DONE [1] seq to array
+CLOSED: [2022-10-28 Fri 15:40]
+*** DONE [2] make rev list
+CLOSED: [2022-10-29 Sat 13:07]
+*** DONE [3] array exists
+CLOSED: [2022-10-29 Sat 06:57]
+*** DONE [4] array findi
+CLOSED: [2022-10-29 Sat 06:57]
+*** DONE [5] array find map
+CLOSED: [2022-10-29 Sat 13:06]
+*** DONE [6] array is sorted
+CLOSED: [2022-10-29 Sat 09:08]
+*** DONE [7] array of rev list
+CLOSED: [2022-10-29 Sat 11:02]
+*** DONE [8] array partition
+CLOSED: [2022-10-29 Sat 12:07]
+*** DONE [9] array foldi
+CLOSED: [2022-10-29 Sat 07:32]
+*** DONE [10] sll of array
+CLOSED: [2022-10-29 Sat 13:45]
+*** DONE [11] sll partition
+CLOSED: [2022-10-29 Sat 13:53]
+*** DONE [12] stack reverse
+CLOSED: [2022-10-29 Sat 13:59]
+*** DONE [13] stack filter
+CLOSED: [2022-10-29 Sat 14:00]
+*** DONE [14] tree to array
+CLOSED: [2022-10-29 Sat 14:38]
+
+** Check the proofs go through with the latest changes
+*** DONE [1] seq to array
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [2] make rev list
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [3] array exists
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [4] array findi
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [5] array find map
+CLOSED: [2022-10-29 Sat 16:33]
+*** DONE [6] array is sorted
+CLOSED: [2022-10-29 Sat 16:34]
+*** DONE [7] array of rev list
+CLOSED: [2022-10-29 Sat 16:35]
+*** DONE [8] array partition
+CLOSED: [2022-10-29 Sat 16:37]
+*** DONE [9] array foldi
+CLOSED: [2022-10-29 Sat 17:02]
+*** DONE [10] sll of array
+CLOSED: [2022-10-29 Sat 16:40]
+*** DONE [11] sll partition
+CLOSED: [2022-10-29 Sat 17:00]
+*** DONE [12] stack reverse
+CLOSED: [2022-10-29 Sat 16:47]
+*** DONE [13] stack filter
+CLOSED: [2022-10-29 Sat 16:44]
+*** DONE [14] tree to array
+CLOSED: [2022-10-29 Sat 16:40]

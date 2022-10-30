@@ -2,5 +2,5 @@
  (public_name sisyphus.proof_utils)
  (flags  -rectypes)
  (preprocess (pps ppx_deriving.std))
- (libraries coq lang proof_validator proof_reduction proof_spec dynamic containers)
+ (libraries coq lang proof_reduction proof_spec dynamic containers)
 )
