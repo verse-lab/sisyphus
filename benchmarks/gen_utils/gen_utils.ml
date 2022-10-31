@@ -94,9 +94,43 @@ let build_coq_project ~working_dir path coq_lib_name common_path common_coq_lib_
     )) ()
   |> Result.flat_map Fun.id
 
+let run_sisyphus ~test_dir ~coq_name ~common_dir ~common_coq_name ~deps ~old_program ~new_program ~old_proof_name ~stub_file_name ~output_name =
+  let open Result in
+  let* _ =
+    let sisyphus_cmd =
+      let binary =
+        List.fold_left
+          (fun b ml_file -> Cmd.(b % "--dep" % p ml_file))
+          sisyphus deps in
+      let binary =
+        Cmd.(binary % "-c" % (Format.sprintf "%s:%a" common_coq_name Fpath.pp common_dir)) in
+      Cmd.(binary % p old_program % p new_program
+           % p test_dir % coq_name
+           % old_proof_name % stub_file_name % output_name) in
 
-(* TODO: refactor to use Ctx.t instead *)
-let run_test ~working_dir ~test_dir ~common_dir ~path ~coq_lib_name ~common_path common_coq_lib_name deps =
+    let err = OS.Cmd.err_stderr in
+    OS.Cmd.run ~err sisyphus_cmd
+    |> Result.map_err (fun (`Msg err) -> `Msg ("Running Sisyphus failed with error: " ^ err)) in
+  Ok ()
+
+let build_res ~working_dir ~test_dir ~path ~coq_name ~common_path ~common_coq_name ~output_name =
+  let open Result in
+  let* () =
+    OS.Dir.with_current working_dir (fun () ->
+        let base_name = Fpath.basename path in
+        let common_base_name = Fpath.basename common_path in
+
+        let coq_dep_cmd = Cmd.(coqc
+                               % "-R" % ("./" ^ common_base_name) % common_coq_name
+                               % "-R" % ("./" ^ base_name) % coq_name
+                               % p Fpath.(test_dir / output_name)) in
+
+        OS.Cmd.run coq_dep_cmd
+      ) () |> Result.flat_map Fun.id
+    |> Result.map_err (fun (`Msg err) -> `Msg ("Output from sisyphus failed to build with error: " ^ err)) in
+  Ok ()
+
+let build_init ~working_dir ~test_dir ~path ~coq_name ~common_path ~common_coq_name ~deps =
   let open Result in
   let old_program, new_program, old_proof, new_proof, deps = ref None, ref None, ref None, ref None, ref deps in
   let cfml_output_path = Fpath.(path / "_output") in
@@ -154,41 +188,33 @@ let run_test ~working_dir ~test_dir ~common_dir ~path ~coq_lib_name ~common_path
     OS.File.write Fpath.(test_dir / stub_file_name) stub in
 
   (* build coq project *)
-  let* () = build_coq_project ~working_dir path coq_lib_name common_path common_coq_lib_name
+  let* () = build_coq_project ~working_dir path coq_name common_path common_coq_name
             |> Result.map_err (fun (`Msg err) -> `Msg ("Initial project failed to build with error: " ^ err)) in
 
-  (* let _ = OS.Cmd.run Cmd.(copy % "-R" % p temp_dir % "/tmp/test-dir") in *)
+  Ok (deps, old_program, new_program, old_proof_name, output_name, stub_file_name)
 
-  (*  run sisyphus *)
-  let* _ =
-    let sisyphus_cmd =
-      let binary =
-        List.fold_left
-          (fun b ml_file -> Cmd.(b % "--dep" % p ml_file))
-          sisyphus deps in
-      let binary =
-        Cmd.(binary % "-c" % (Format.sprintf "%s:%a" common_coq_lib_name Fpath.pp common_dir)) in
-      Cmd.(binary % p old_program % p new_program
-           % p test_dir % coq_lib_name
-           % old_proof_name % stub_file_name % output_name) in
+let run_full_test ~working_dir ~test_dir ~common_dir ~path ~coq_name ~common_path ~common_coq_name ~deps =
+  let open Result in
 
-    let err = OS.Cmd.err_stderr in
-    OS.Cmd.run ~err sisyphus_cmd
-    |> Result.map_err (fun (`Msg err) -> `Msg ("Running Sisyphus failed with error: " ^ err)) in
+  let* (deps, old_program, new_program, old_proof_name, output_name, stub_file_name) =
+    build_init ~working_dir ~test_dir ~path ~coq_name ~common_path ~common_coq_name ~deps in
 
-  (* build result file *)
-  let* () =
-    OS.Dir.with_current working_dir (fun () ->
-      let base_name = Fpath.basename path in
-      let common_base_name = Fpath.basename common_path in
+  let* () = run_sisyphus ~test_dir ~coq_name ~common_dir ~common_coq_name ~deps ~old_program ~new_program ~old_proof_name ~stub_file_name ~output_name in
 
-      let coq_dep_cmd = Cmd.(coqc
-                             % "-R" % ("./" ^ common_base_name) % common_coq_lib_name
-                             % "-R" % ("./" ^ base_name) % coq_lib_name
-                             % p Fpath.(test_dir / output_name)) in
-
-      OS.Cmd.run coq_dep_cmd
-    ) () |> Result.flat_map Fun.id
-    |> Result.map_err (fun (`Msg err) -> `Msg ("Output from sisyphus failed to build with error: " ^ err)) in
-
+  let* () = build_res ~working_dir ~test_dir ~path ~coq_name ~common_path ~common_coq_name ~output_name in
   Ok ()
+
+type test_config = {
+  name: string;
+  path: string;
+  coq_name: string;
+  common_path: string;
+  common_coq_name: string;
+} [@@deriving show]
+
+let test_list : test_config list ref = ref []
+
+let add_test name ~path ~coq_name ~common_path ~common_coq_name =
+  test_list := { name; path; coq_name; common_path; common_coq_name } :: !test_list
+
+let get_test_list () = !test_list

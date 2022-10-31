@@ -1,7 +1,3 @@
-(library (name gen_utils)
- (modules gen_utils)
- (libraries bos containers))
-
 (library (name benchmark_utils)
  (modules benchmark_utils)
  (libraries alcotest bos containers gen_utils))

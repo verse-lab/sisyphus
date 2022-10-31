@@ -2,7 +2,7 @@ open Containers
 open Bos
 
 
-let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
+let run_sisyphus path coq_name common_path common_coq_name =
   let open Result in
   let (basename : string) = Fpath.basename path in
 
@@ -17,7 +17,7 @@ let run_sisyphus path coq_lib_name common_path common_coq_lib_name =
 
   let common_deps = Gen_utils.copy_dep_files ~common_dir common_path in
 
-  let* _ = Gen_utils.run_test ~working_dir:temp_dir ~test_dir ~common_dir ~path ~coq_lib_name ~common_path common_coq_lib_name common_deps in
+  let* _ = Gen_utils.run_full_test ~working_dir:temp_dir ~test_dir ~common_dir ~path ~coq_name ~common_path ~common_coq_name ~deps:common_deps in
 
   Ok ()
 
@@ -32,12 +32,7 @@ let result =
 
 let test_config = ref ("", "", "", "")
 
-let sisyphus_runs_on ~path ~coq_name ~common_path ~common_coq_name =
-  if Gen_utils.is_table_mode then
-    test_config := (path, coq_name, common_path, common_coq_name);
-
-
-  fun () ->
+let sisyphus_runs_on ~path ~coq_name ~common_path ~common_coq_name () =
   let path = Fpath.of_string path |> Result.get_exn in
   let common_path = Fpath.of_string common_path |> Result.get_exn in
   Format.printf "%a \n %a \n" Fpath.pp path Fpath.pp common_path;
@@ -48,12 +43,8 @@ let tests = ref []
 let h = Hashtbl.create 10
 
 let run name =
-  if not Gen_utils.is_table_mode
-  then
   Alcotest.run ~verbose:true name
     (List.map (fun f -> f ()) @@ List.rev !tests)
-  else
-      Format.printf "%s\n" name;
 
 module Make (S: sig val name: string end) = struct
 
