@@ -8,10 +8,34 @@ type stats = {
 }
 
 let count_admits ~test_dir ~output_name =
+  let count_substring str sub =
+    let sub_len = String.length sub in
+    let len_diff = (String.length str) - sub_len
+    and reg = Str.regexp_string sub in
+    let rec aux i n =
+      if i > len_diff then n else
+        try
+          let pos = Str.search_forward reg str i in
+          aux (pos + sub_len) (succ n)
+        with Not_found -> n
+    in
+    aux 0 0 in
   let output_path = Fpath.add_seg test_dir output_name in
-  let proof_str = IO.with_in (Fpath.to_string output_path)  IO.read_all in
-  Format.printf "PROOF SCRIPT %s\n" proof_str;
-  0
+  let proof_str = IO.with_in (Fpath.to_string output_path) IO.read_all in
+  let count = count_substring proof_str "admit." in
+  count
+
+let write_to_tex ~table_dir stats =
+  let prelude = IO.with_in "./template.tex" IO.read_all in
+  let postlude = "\\bottomrule\n\\end{tabular}\n\\end{center}" in
+  let stats = Hashtbl.to_list stats
+            |> List.map (fun (name, { runtime; num_admits }) ->
+                  let name = Str.(global_replace (regexp "_") "\_" name) in
+                  Format.sprintf "%s & %s & %s \\\\\n" name runtime (string_of_int num_admits)
+                ) in
+  let stats = List.fold_left ( ^ ) "" stats in
+
+  OS.File.write Fpath.(table_dir / "table.tex") (prelude ^ stats ^ postlude)
 
 let build_common ~table_dir common_path common_coq_lib_name =
   let open Result in
@@ -86,6 +110,8 @@ let run_table table_dir common_path common_coq_name (tests: Gen_utils.test_confi
       Ok ()
     ) |> Result.get_exn) tests;
 
+  let* () = write_to_tex ~table_dir stats in
+
   Ok ()
 
 let () =
@@ -107,7 +133,5 @@ let () =
 
   let tests = Test_list.test_list in
   Format.printf "NUM_TESTS = %s\n" (string_of_int @@ List.length tests);
-
-  let tests = List.take 1 tests in
 
   run_table !table_dir common_path common_coq_lib_name tests |> Result.get_exn
