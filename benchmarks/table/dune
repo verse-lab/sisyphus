@@ -1,6 +1,6 @@
 (executable
  (name table)
- (libraries alcotest bos containers ptime ptime.clock.os str gen_utils)
+ (libraries alcotest bos containers ptime ptime.clock.os str iter gen_utils)
  (preprocess (pps ppx_deriving.std)))
 
 (rule
