@@ -5,6 +5,7 @@ module Log = (val Logs.src_log (Logs.Src.create ~doc:"Main runner for Sisyphus" 
 let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose print_extraction_steps
       dump_generated_invariants
       disable_tactic_validation solver_tactic max_solve_calls admit_all_sub_goals
+      stats_out_file
       deps coq_deps old_program new_program
       coq_dir coq_lib_name
       old_proof new_proof_base new_proof_name =
@@ -20,6 +21,7 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose prin
     ?solver_tactic:solver_tactic
     ?max_dispatch_attempts:max_solve_calls
     ~admit_all_sub_goals
+    ?stats_out_file
     ();
 
   let old_program = Bos.OS.File.read old_program |> Result.get_exn in
@@ -55,6 +57,7 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose prin
        ~logical_mappings:old_program.logical_mappings ctx
        new_program) in
   Log.info (fun f -> f "%s\n%s\n%s" (String.make 20 '=') new_proof (String.make 20 '='));
+  Configuration.dump_stats ();
   Bos.OS.File.write Fpath.(coq_dir / new_proof_name)
     new_proof
   |> Result.get_exn
@@ -68,6 +71,11 @@ let fpath =
     match parser s with
     | `Error e -> Error (`Msg e)
     | `Ok s -> Fpath.of_string s in
+  let printer fmt vl = Fpath.pp fmt vl in
+  Arg.conv (parser, printer)
+
+let fpath_fresh =
+  let parser s = Fpath.of_string s in
   let printer fmt vl = Fpath.pp fmt vl in
   Arg.conv (parser, printer)
 
@@ -140,6 +148,19 @@ let dump_dir =
             ~env:(env_var "SIS_DUMP_DIR")
             ~docv:"DUMP_DIR"
             ["dump-dir"]))
+
+let stats_out_file  =
+  Arg.(value @@
+       opt
+         (some fpath_fresh)
+         None
+         (info
+            ~doc:"$(docv) specifies a directory to which Sisyphus \
+                  should write stats. Can also be \
+                  specified by the $(env) ENV variable."
+            ~env:(env_var "SIS_STATS_OUT_FILE")
+            ~docv:"STATS_OUT_FILE"
+            ["stats-out-file"]))
 
 
 let coq_verbose =
@@ -241,6 +262,7 @@ let enable_debug =
                            ~docv:"DEBUG"
                            ["cv"; "coq-verbose"])
 
+
 let coq_deps =
   Arg.(value @@
        opt_all (t2 ~sep:':' string fpath) []
@@ -320,6 +342,7 @@ let output_file =
          ))
 
 
+
 let () =
   let sisyphus_info = Term.info "sisyphus" in
   Term.(exit (eval
@@ -336,6 +359,7 @@ let () =
                  $ solver_tactic
                  $ max_solve_calls
                  $ admit_all_sub_goals
+                 $ stats_out_file
                  $ deps
                  $ coq_deps
                  $ old_program
