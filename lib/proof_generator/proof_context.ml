@@ -309,10 +309,13 @@ let try_dispatch_current_subgoal t ~op =
 (** [try_auto_or_admit t] dispatch the current subgoal with the
    solver tactic or admits if it fails to work.  *)
 let try_auto_or_admit t =
+  Configuration.stats_incr_count "proof-obligations";
   if not (Configuration.admit_all_sub_goals ()) then begin
-    if not @@ try_dispatch_current_subgoal t ~op:(Configuration.solver_tactic ()) then
-      append t "{ admit. }";
+    if Configuration.stats_time "solver-time" @@ fun () -> not @@ try_dispatch_current_subgoal t ~op:(Configuration.solver_tactic ()) then
+      (Configuration.stats_incr_count "no-admits";
+       append t "{ admit. }")
   end else begin
+    Configuration.stats_incr_count "no-admits";
     append t "{ admit. }"
   end
 

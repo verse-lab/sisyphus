@@ -114,7 +114,7 @@ let pp_param =
        ~pp_stop:(fun fmt () -> Format.pp_print_string fmt ")")
        ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ": ")
        Format.pp_print_string
-       Proof_utils.Printer.pp_ty) 
+       Proof_utils.Printer.pp_ty)
 
 (* [is_typed_combinator lemma_name] determines if [lemma_name] refers
    to one of Sisyphus' specialised fold combinators which takes an
@@ -196,7 +196,7 @@ let instantiate_expr t env (ctx, heap_ctx) (vl,ty) =
         ~else_:(fun () ->
           List.Assoc.get ~eq:String.equal v heap_ctx
           |> Option.flat_map (function
-            | `Array ls -> 
+            | `Array ls ->
               begin match ty with
               | Lang.Type.List ty -> Proof_context.eval_tracing_list t ty ls
               | _ -> None
@@ -429,7 +429,7 @@ let typeof ?(product_types=[]) t env (s: string) : (Lang.Type.t list * Lang.Type
                               (Proof_utils.Debug.constr_to_string ty));
         let Lang.Type.Forall (poly, args) = Proof_utils.CFML.extract_fun_typ ~name:s ty in
         let instantiations =
-          match env.Proof_env.poly_vars with 
+          match env.Proof_env.poly_vars with
           | (_ :: _) as poly_vars ->
             List.map_product_l (fun pv -> List.map (fun var -> Lang.Type.(pv, var)) poly_vars) poly
             |> List.map (fun subst ->
@@ -481,9 +481,9 @@ let renormalise_name t (s: string) : string option =
    required in order to symbolically execute lemma [f] on arguments
    [args] *)
 let calculate_inv_ty t ~f:lemma_name ~args:f_args =
-  let combinator_ty = 
+  let combinator_ty =
     if is_typed_combinator lemma_name
-    then 
+    then
       let ty = Proof_utils.CFML.extract_xapp_type (Proof_context.current_goal t).ty in
       let ty =
         if is_option_combinator lemma_name
@@ -499,7 +499,7 @@ let calculate_inv_ty t ~f:lemma_name ~args:f_args =
   let instantiated_spec = (Proof_context.typeof t instantiated_spec) in
   let (Context.{binder_name; _}, ty, rest) = Constr.destProd instantiated_spec in
 
-  let framed_heaplets = 
+  let framed_heaplets =
     let (_, _, body) = Proof_utils.CFML.extract_spec rest in
     let _, args = Constr.destApp body in
     let heaplets = match Proof_utils.CFML.extract_heap args.(3) with
@@ -698,7 +698,7 @@ let build_testing_function t env ?combinator_ty
 
         let lambda_env = env.Proof_env.lambda in
         (* partially evaluate/reduce the proof term *)
-        let reduced = reduce_term t trm in
+        let reduced = Configuration.stats_time "proof-reduction" @@ fun () -> reduce_term t trm in
         Log.info (fun f -> f "reduction complete!@.");
         (* construct a evaluatable test specification for the invariant *)
         let testf =
@@ -713,7 +713,7 @@ let build_testing_function t env ?combinator_ty
 
 let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args ~ret:ret_ty observations =
   let uses_options =
-    (StringMap.values env.Proof_env.gamma) 
+    (StringMap.values env.Proof_env.gamma)
     |> (match ret_ty with None -> Fun.id | Some ty -> Iter.cons ty)
     |> Iter.cons (env.Proof_env.ret_ty)
     |> Iter.exists (Lang.Type.exists (function Lang.Type.ADT ("option", _, _) -> true | _ -> false)) in
@@ -949,7 +949,9 @@ let prune_candidates_using_testf test_f (pure, heap) =
   let pure =
     List.map
       (Seq.filter_map (fun pure ->
-         match test_f (pure, [ ]) with
+
+         Configuration.stats_incr_count "pure-candidates";
+         match Configuration.stats_time "pruning" @@ fun () -> test_f (pure, [ ]) with
          | false -> None
          | true ->
            match pure with
@@ -958,15 +960,16 @@ let prune_candidates_using_testf test_f (pure, heap) =
        )) pure in
   let heap =
     List.map (Seq.filter_map (fun heap ->
-      if test_f (`Constructor ("true", []), [heap])
+      Configuration.stats_incr_count "heap-candidates";
+      if Configuration.stats_time "pruning" @@ fun () -> test_f (`Constructor ("true", []), [heap])
       then Some heap
       else None
     )) heap in
   let start_time = Ptime_clock.now () in
   let (no_pure, pure) = List.map Utils.seq_force pure |> List.split in
-  Gc.full_major (); 
+  Gc.full_major ();
   let (no_heap, heap) = List.map Utils.seq_force heap |> List.split in
-  Gc.full_major (); 
+  Gc.full_major ();
   let end_time = Ptime_clock.now () in
   Log.info (fun f -> f "Pruned down to [%a] <= pure and [%a] <= heap in %a"
                        (List.pp Int.pp) no_pure
@@ -1146,7 +1149,7 @@ and symexec_array_get t env pat rest =
                         Lang.Expr.pp_typed_param pat);
   Proof_context.append t "xinhab.";
   Proof_context.append t "xapp.";
-  while List.length (Proof_context.current_subproof t).goals > 1 do 
+  while List.length (Proof_context.current_subproof t).goals > 1 do
     Proof_context.try_auto_or_admit t;
   done;
   symexec t env rest
@@ -1175,7 +1178,7 @@ and symexec_opaque_let t env pat _rewrite_hint body rest =
      *   let f_app = Proof_utils.CFML.extract_x_app_fun post in
      *   (\* use Coq's searching functionality to work out the spec for the function *\)
      *   find_spec t f_app in *)
-    (* TODO: do something smart here (i.e use the type of lemma full type to work out whether to intro any variables ) *)    
+    (* TODO: do something smart here (i.e use the type of lemma full type to work out whether to intro any variables ) *)
     Proof_context.append t "xapp.";
     if Option.is_none (Proof_context.current_subproof_opt t) then begin
       Proof_context.cancel_last t;
@@ -1512,7 +1515,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
   (* we'll use this variable to track the last invariant we saw that parses by coq *)
   let last_invariant_that_parses = ref None in
 
-  while not !found_acceptable_invariant do 
+  while not !found_acceptable_invariant do
     Log.info (fun f -> f "considering invariant: %s@." (
       [%show: Lang.Expr.t * ((enc_fun * test_fun) * Lang.Expr.t) Containers.List.t] !best_invariant_so_far
     ));
@@ -1582,7 +1585,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     end else begin
       (* invariant parsed, but, we weren't able to dispatch it *)
       last_invariant_that_parses := Some !best_invariant_so_far;
-      if not !found_acceptable_invariant then 
+      if not !found_acceptable_invariant then
         match candidates () with
         | None ->
           (* ran out of candidates, let's just accept this one *)
