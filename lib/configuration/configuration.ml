@@ -12,10 +12,26 @@ let should_admit_all_sub_goals = ref false
 let max_tactic_dispatch_attempts = ref 3
 
 let inner_dump_dir = ref None
+let inner_stats_out_file = ref None
 let should_print_proof_extraction = ref false
 let should_dump_generated_invariants = ref false
 
-let pretty_reporter formatter = 
+type stats =
+  | Counter of int
+  | TimerRunning of { cumulative_time: Ptime.Span.t; current_start: Ptime.t }
+  | TimerStopped of Ptime.Span.t
+
+let show_stat name = function
+  | Counter i -> string_of_int i
+  | TimerStopped t ->
+    Ptime.Span.to_float_s t
+    |> Format.sprintf "%.6f"
+  | _ ->
+    Format.ksprintf ~f:failwith "found invalid stat, perhaps you forgot to close! %s " name
+
+let hstats : (string, stats) Hashtbl.t = Hashtbl.create 10
+
+let pretty_reporter formatter =
   let report src level ~over k user's_callback =
     let level_style, level =
       match level with
@@ -67,7 +83,7 @@ let filter_reporter cond r =
     then r.Logs.report src level ~over k msgf
     else k ()
   in
-  { Logs.report } 
+  { Logs.report }
 
 let ensure_exists_dir path =
   let open Result in
@@ -119,7 +135,7 @@ let combine r1 r2 =
   { Logs.report }
 
 let initialize  ?filter_logs ?print_proof_extraction ?dump_generated_invariants ?log_level ?log_dir ?dump_dir
-      ?dispatch_goals_with_tactic ?solver_tactic ?max_dispatch_attempts ?admit_all_sub_goals () =
+      ?dispatch_goals_with_tactic ?solver_tactic ?max_dispatch_attempts ?admit_all_sub_goals ?stats_out_file () =
   update_opt should_print_proof_extraction print_proof_extraction;
   update_opt should_dump_generated_invariants dump_generated_invariants;
   update_opt sisyphus_solver_tactic solver_tactic;
@@ -134,6 +150,13 @@ let initialize  ?filter_logs ?print_proof_extraction ?dump_generated_invariants 
     | Some path ->
       ensure_exists_dir path;
       inner_dump_dir := Some path
+  in
+
+  let () = match stats_out_file with
+    | None -> ()
+    | Some path ->
+      (* TODO: check if file path exists *)
+      inner_stats_out_file := Some path
   in
 
   let reporter = Logs_fmt.reporter () in
@@ -168,7 +191,7 @@ let dump_output name f =
   | Some base_path ->
     (*  *)
     match begin
-      let open Result in 
+      let open Result in
       let* path = with_name_file base_path name in
       let output = ref "NO-OUTPUT" in
       let fmt fmt =
@@ -182,7 +205,23 @@ let dump_output name f =
     | Ok _ -> ()
     | Error (`Msg m) ->
       Log.err (fun f -> f "failed to dump output with name %s with error %s" name m)
-      
+
+let dump_stats () =
+  match !inner_stats_out_file with
+  | None -> ()
+  | Some base_path ->
+    (*  *)
+    match begin
+      let output = Hashtbl.to_list hstats
+                   |> List.map (fun (name, stat) -> Format.sprintf "%s: %s" name (show_stat name stat))
+                   |> String.concat "\n" in
+      OS.File.write base_path output
+    end
+    with
+    | Ok _ -> ()
+    | Error (`Msg m) ->
+      Log.err (fun f -> f "failed to dump stats with with error %s" m)
+
 let dispatch_goals_with_solver_tactic () = !enable_tactic_based_goal_dispatch
 
 let solver_tactic () = !sisyphus_solver_tactic
@@ -190,3 +229,39 @@ let solver_tactic () = !sisyphus_solver_tactic
 let max_goal_dispatch_attempts () = !max_tactic_dispatch_attempts
 
 let admit_all_sub_goals () = !should_admit_all_sub_goals
+
+let stats_incr_count name =
+  let f _  = function
+    | None -> Some (Counter 1)
+    | Some (Counter v) -> Some (Counter (v + 1))
+    | _ -> Format.ksprintf ~f:failwith "tried to increment non-counter statistic %s" name in
+
+  Hashtbl.update hstats ~f ~k:name
+
+let stats_start_timer name =
+  let start ct =
+    Some (TimerRunning { cumulative_time = ct; current_start = Ptime_clock.now ()}) in
+  let f _  = function
+    | None -> start Ptime.Span.zero
+    | Some (TimerStopped ct) -> start ct
+    | _ -> Format.ksprintf ~f:failwith "tried to restart running timer %s" name in
+
+  Hashtbl.update hstats ~f ~k:name
+
+let stats_stop_timer name =
+  let f _  = function
+    | Some (TimerRunning { cumulative_time; current_start }) ->
+      let end_time = Ptime_clock.now () in
+      let diff = Ptime.diff end_time current_start in
+      let cumulative_time = Ptime.Span.add cumulative_time diff in
+      Some (TimerStopped cumulative_time)
+    | _ -> Format.ksprintf ~f:failwith "tried to restart running timer %s" name in
+
+  Hashtbl.update hstats ~f ~k:name
+
+
+let stats_time name f =
+  stats_start_timer name;
+  let res = f () in
+  stats_stop_timer name;
+  res

@@ -1,0 +1,4 @@
+(library (name gen_utils)
+ (modules gen_utils)
+ (preprocess (pps ppx_deriving.std))
+ (libraries bos containers))
