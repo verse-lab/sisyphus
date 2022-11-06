@@ -123,6 +123,8 @@ let run_table table_dir common_path common_coq_name (tests: Gen_utils.test_confi
         let runtime = Ptime.diff end_time start_time |>  Ptime.Span.to_float_s |> Format.sprintf "%f"  in
 
         (* _CoqProject file *)
+        let coq_proj = Format.sprintf "-R ../common Common\n-R . %s" coq_name in
+        let* _ = OS.File.write Fpath.(test_dir / "_CoqProject") (coq_proj) in
 
         let* _ = build_res ~working_dir:table_dir ~test_dir ~path ~coq_name ~common_path ~common_coq_name ~output_name in
 
@@ -171,6 +173,7 @@ let () =
   let common_coq_lib_name = "Common" in
 
   let tests = Test_list.test_list in
+  let tests = List.take 1 tests in
   Format.printf "NUM_TESTS = %s\n" (string_of_int @@ List.length tests);
 
   run_table !table_dir common_path common_coq_lib_name tests |> Result.get_exn

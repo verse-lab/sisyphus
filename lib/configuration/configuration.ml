@@ -27,7 +27,7 @@ let show_stat name = function
   | TimerStopped t ->
     Ptime.Span.to_float_s t
     |> Format.sprintf "%.6f"
-  | MultiCounter cs -> List.map string_of_int cs |> String.concat ","
+  | MultiCounter cs -> List.map string_of_int cs |> String.concat "-"
   | _ ->
     Format.ksprintf ~f:failwith "found invalid stat, perhaps you forgot to close! %s " name
 
