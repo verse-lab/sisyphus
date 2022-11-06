@@ -945,7 +945,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
   let heap = (List.map (fun (efs, ty) -> Seq.map (fun expr -> (efs, expr)) @@ gen ~fuel:heap_fuel ty) gen_heap_spec)  in
   pure, heap, !hof_rev_map, expected_empty_pure
 
-let prune_candidates_using_testf test_f (pure, heap) =
+let prune_candidates_using_testf ~i test_f (pure, heap) =
   let pure =
     List.map
       (Seq.filter_map (fun pure ->
@@ -975,6 +975,8 @@ let prune_candidates_using_testf test_f (pure, heap) =
                        (List.pp Int.pp) no_pure
                        (List.pp Int.pp) no_heap
                        Ptime.Span.pp (Ptime.diff end_time start_time));
+  Configuration.stats_set_count (Format.sprintf "no-pure-%d" i) (List.fold_left (+) 0 no_pure);
+  Configuration.stats_set_count (Format.sprintf "no-heap-%d" i) (List.fold_left (+) 0 no_pure);
   if Option.value ~default:0 (List.reduce ( max ) no_heap) < 10 then begin
     List.iter (fun heap_candidates ->
       let first = ref true in
@@ -1451,7 +1453,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
    * end; *)
 
   (* prune the candidates using the testing function *)
-  let (pure,heap) = prune_candidates_using_testf test_f (pure,heap) in
+  let (pure,heap) = prune_candidates_using_testf 0 test_f (pure,heap) in
 
   (* do it again *)
   let (pure,heap) =
@@ -1461,7 +1463,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       let concrete_args = Dynamic.Concrete.args cp in
       build_testing_function t env ?combinator_ty ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args ~logic_args:logical_params
         (concrete_args, observations) in
-    prune_candidates_using_testf test_f (pure,heap) in
+    prune_candidates_using_testf 1 test_f (pure,heap) in
 
   (* and again (50 ms) *)
   let (pure,heap) =
@@ -1471,7 +1473,7 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
       let concrete_args = Dynamic.Concrete.args cp in
       build_testing_function t env ?combinator_ty  ~inv:inv_ty ~pre:pre_heap ~f:lemma_name ~args:f_args
         ~logic_args:logical_params (concrete_args, observations) in
-    prune_candidates_using_testf test_f (pure,heap) in
+    prune_candidates_using_testf 2 test_f (pure,heap) in
 
 
   List.iteri (fun i expr ->
