@@ -120,7 +120,7 @@ let run_table table_dir common_path common_coq_name (tests: Gen_utils.test_confi
         let* _ = OS.Env.set_var "SIS_STATS_OUT_FILE" Cmd.(Some (p stats_file)) in
         let* _ = run_sisyphus ~test_dir ~coq_name ~common_dir ~common_coq_name ~deps ~old_program ~new_program ~old_proof_name ~stub_file_name ~output_name in
         let end_time = Ptime_clock.now () in
-        let runtime = Ptime.diff end_time start_time |> Format.sprintf "%a" Ptime.Span.pp in
+        let runtime = Ptime.diff end_time start_time |>  Ptime.Span.to_float_s |> Format.sprintf "%f"  in
 
         (* _CoqProject file *)
 
