@@ -1,0 +1,29 @@
+* Times
+seq_to_array 17m
+sll_partition NA
+stack_filter 11m
+array_exists 12m
+stack_reverse 
+array_find_mapi
+array_is_sorted
+array_findi
+sll_of_array
+array_foldi
+array_partition
+tree_to_array
+make_rev_list
+array_of_rev_list
+
+* Improvements
+** seq_to_array
+***  drop (length rest + 1 - 2 - length rest + length rest + 1) (rest ++ rev rest & init) = rev rest & init
+**** Or, drop (length rest) (rest ++ rev rest & init) = rev rest & init
+**** However the following gets dispatched: v0 :: drop (length r + 1) (rev r + v0 :: rev t & init) =   drop (length r) (rev r ++ v0 :: rev t & init)
+*** drop (length rest + length rest) (rest ++ rev rest & init) = init
+*** v0 :: drop (length r + 1) (rev r + v0 :: rev t & init) = drop (1 + length r + length r - (1 + length r)) (rev r ++ v0 :: rev t & init)
+** stack_filter
+First subgoal can be dispatched if the existential variable trick (intros; sis_symexec; sis_generic_solver) is applied
+
+Handle: rev (filter (fun x : A => fp x) (filter (fun x : A => fp x) (rev ls))) = filter (fun x : A => fp x) ls
+Had to define filter_filter lemma
+Applied stack_affine (incorrectly named lmao)

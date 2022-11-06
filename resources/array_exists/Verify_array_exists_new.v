@@ -18,22 +18,29 @@ Lemma array_exists_spec :
   PRE (a ~> Array l)
   POST (fun (b : bool) => \[b = List.existsb fp l] \* a ~> Array l).
 Proof using (All).
-  xcf.
-  xapp.
-  xletopaque tmp Htmp.
-  xapp (until_upto_spec unit 0 (length l) tmp
-          (fun (i: int) (b: option unit) =>
-             \[b = opt_of_bool (List.existsb fp (take i l))] \*
-               a ~> Array l)
-       ). {
-    sis_generic_solver.
-  }
-  { sis_generic_solver. }
-  { sis_generic_solver. }
-  intros fin i_b Hres Hexists.
-  xapp.
-  xvals*. {
-    destruct fin; destruct Hres as [Hlen Himpl]; simpl in *; try destruct u;
-    sis_generic_solver.
-  }
+xcf.
+xapp.
+xletopaque tmp Htmp.
+xapp (Common.Verify_combinators.until_upto_spec (unit) (0) ((TLC.LibListZ.length (l))) (tmp)
+        (fun (i: int) (res: (option (unit))) => \[ (res = (opt_of_bool ((existsb (fp) ((take (i) (l))))))) ]
+    (* NOTE: ADDED a ~> Array l MANUALLY *)
+    \* a ~> Array l )).
+{
+  sis_generic_solver.
+}
+{
+sis_generic_solver.
+}
+{
+sis_generic_solver.
+}
+intros result Hresult.
+intros.
+xapp.
+xvals.
+{
+  sis_generic_solver.
+  unfold existsb in *.
+  destruct (List.existsb fp (take Hresult l)) eqn:Hb; sis_generic_solver.
+}
 Qed.

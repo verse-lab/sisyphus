@@ -23,16 +23,24 @@ Lemma sll_partition_spec :
             r ~> SLL (filter_not pp ls)
   ).
 Proof using (All).
-  xcf.
-  xapp.
-  xmatch.
-  xapp. intros s_t.
-  xapp.  intros s_f.
-  xletopaque tmp Htmp.
-  xapp (sll_iter_drain_spec tmp s (fun (ls : list A) =>
-                               s_t ~> SLL (filter pp (rev ls)) \*
-                               s_f ~> SLL (filter_not pp (rev ls))
-       )). { sis_generic_solver. }
-  xmatch.
-  xvals*. { sis_generic_solver. } { sis_generic_solver. }
+xcf.
+xapp.
+xmatch.
+xapp.
+intro sll_yes.
+xapp.
+intro sll_no.
+xletopaque tmp Htmp.
+xapp (Common.Verify_sll.sll_iter_drain_spec (tmp) (s) (fun (arg0: list (A)) =>  sll_no ~> Common.Verify_sll.SLL ((filter_not (pp) ((rev (arg0))))) \* sll_yes ~> Common.Verify_sll.SLL ((filter (pp) ((rev (arg0))))))).
+{
+sis_generic_solver.
+}
+xmatch.
+xvals.
+{
+sis_generic_solver.
+}
+{
+sis_generic_solver.
+}
 Qed.

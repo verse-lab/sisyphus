@@ -31,20 +31,51 @@ rewrite list_fold_length_rev in Hlenls.
 injection Hlenls; intros Hls Hlen.
 case ls as [ | init rest] eqn:H_eqn.
 - xmatch.
-xvalemptyarr. { sis_generic_solver. }
+xvalemptyarr.
+{
+sis_generic_solver.
+}
 - xmatch.
 xalloc a data Hdata.
 xletopaque idx Hidx.
 xletopaque tmp0 Htmp0.
 xapp (Common.Verify_list.list_fold_spec (tmp0) (idx) (rest)
-        (fun (arg0: list (A)) (arg1: int) =>
-           \[ (arg1 = ((idx - idx) + (idx - (length (arg0))))) ]  \*
-             a ~> CFML.WPArray.Array (
-               (drop ((length (arg0))) ((make ((length (rest))) (init)))) ++
-                 (drop ((arg1 + len)) (((make ((length (rest))) (init)) ++ l)))))). {
+        (fun (t: list (A)) (i: int) =>
+           \[ (i = ((idx - idx) + (idx - (length (t))))) ]
+             \* a ~> CFML.WPArray.Array (((drop ((length (t))) ((make ((length (rest))) (init)))) ++ (drop ((i + len)) ((rest ++ (rev (ls))))))))).
+{
+
+  sis_generic_solver; rew_list; auto.
+
+   math_rewrite (length r + (length t + length r) + 1 = length t + 1 + length r + length r).
+  repeat (rewrite drop_app_r; try math).
+  math_rewrite (length t  + 1 + length r + length r + 1 - length t = length t  + 1 + length r + length r - length t + 1).
+  math_rewrite (length t  + 1 + length r + length r - length t = 1 + length r + length r).
+  rewrite! (drop_app_r (v0 :: r) (rev r ++ v0 :: rev t & init)); try (rewrite length_cons; math).
+  rewrite length_cons.
+  math_rewrite (1 + length r + length r + 1 - (1 + length r) = length r + 1).
+  math_rewrite (1 + length r + length r - (1 + length r) = length r).
+  rewrite !drop_app_r; rew_list; try math.
+  sis_simplify_math_goal.
+  sis_list_solver; auto.
+
+
+}
+{
+sis_generic_solver.
+}
+{ sis_generic_solver; rew_list; auto.
+  subst; sis_list_solver.
+  math_rewrite (length rest + 1 -2 + length rest + 1 = length rest + length rest).
+  rewrite !drop_app_r; rew_list; try math.
   sis_generic_solver.
-} { sis_generic_solver. } { sis_generic_solver. }
-intros.
+}
+intros unused Hunused.
 try xdestruct.
-xvals*. { sis_generic_solver. }
+xvals.
+{
+  sis_generic_solver.
+  math_rewrite (length rest + 1 - 2 - length rest + length rest + 1 = length rest).
+  rewrite drop_app_r; try math; sis_generic_solver.
+}
 Qed.
