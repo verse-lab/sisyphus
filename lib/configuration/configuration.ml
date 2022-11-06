@@ -19,6 +19,7 @@ let should_dump_generated_invariants = ref false
 type stats =
   | Counter of int
   | MultiCounter of int list
+  | MultiFloatCounter of float list
   | TimerRunning of { cumulative_time: Ptime.Span.t; current_start: Ptime.t }
   | TimerStopped of Ptime.Span.t
 
@@ -237,6 +238,7 @@ let stats_incr_count name =
     | None -> Some (Counter 1)
     | Some (Counter v) -> Some (Counter (v + 1))
     | Some (MultiCounter (c :: counts)) -> Some (MultiCounter (c + 1 :: counts))
+    | Some (MultiFloatCounter (c :: counts)) -> Some (MultiFloatCounter (c +. 1.0 :: counts))
     | _ -> Format.ksprintf ~f:failwith "tried to increment non-counter statistic %s" name in
 
   Hashtbl.update hstats ~f ~k:name
@@ -246,6 +248,16 @@ let stats_set_count name count =
     | None -> Some (MultiCounter [count])
     | Some (Counter counts) -> Some (MultiCounter ([count; counts]))
     | Some (MultiCounter counts) -> Some (MultiCounter (count :: counts))
+    | Some (MultiFloatCounter counts) -> Some (MultiFloatCounter (float_of_int count :: counts))
+    | _ -> Format.ksprintf ~f:failwith "tried to increment non-multi-counter statistic %s" name in
+  Hashtbl.update hstats ~f ~k:name
+
+let stats_set_countf name count =
+  let f _  = function
+    | None -> Some (MultiFloatCounter [count])
+    | Some (Counter counts) -> Some (MultiFloatCounter ([count; float_of_int counts]))
+    | Some (MultiCounter counts) -> Some (MultiFloatCounter (count :: List.map float_of_int counts))
+    | Some (MultiFloatCounter counts) -> Some (MultiFloatCounter (count :: counts))
     | _ -> Format.ksprintf ~f:failwith "tried to increment non-multi-counter statistic %s" name in
   Hashtbl.update hstats ~f ~k:name
 

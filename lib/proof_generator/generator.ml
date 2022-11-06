@@ -976,7 +976,7 @@ let prune_candidates_using_testf ~i test_f (pure, heap) =
                        (List.pp Int.pp) no_heap
                        Ptime.Span.pp (Ptime.diff end_time start_time));
   Configuration.stats_set_count (Format.sprintf "no-pure-%d" i) (List.fold_left (+) 0 no_pure);
-  Configuration.stats_set_count (Format.sprintf "no-heap-%d" i) (List.fold_left (+) 0 no_pure);
+  Configuration.stats_set_count (Format.sprintf "no-heap-%d" i) (List.fold_left (+) 0 no_heap);
   if Option.value ~default:0 (List.reduce ( max ) no_heap) < 10 then begin
     List.iter (fun heap_candidates ->
       let first = ref true in
@@ -1609,6 +1609,8 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
                                   (snd !best_invariant_so_far)
                                 |> List.reduce (+)
                                 |> Option.value ~default:0 in
+  let new_invariant_no_heap = List.length (snd !best_invariant_so_far) in
+  Configuration.stats_set_count "new-invariant-no-heap" new_invariant_no_heap;
   Configuration.stats_set_count "new-invariant-size-pure" new_invariant_size_pure;
   Configuration.stats_set_count "new-invariant-size-heap" new_invariant_size_heap;
   Configuration.stats_set_count "new-invariant-size" (new_invariant_size_pure + new_invariant_size_heap);

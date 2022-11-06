@@ -107,6 +107,9 @@ val stats_set_count: string -> int -> unit
 (** [stats_set_count name c] given an arbitrary statistic [name] sets
     its counter value to [c] *)
 
+val stats_set_countf: string -> float -> unit
+(** [stats_set_countf name c] given an arbitrary statistic [name] sets its
+    counter value to [c] *)
 
 val stats_start_timer: string -> unit
 (** [stats_start_counter name] records the starting time for a counter [name],

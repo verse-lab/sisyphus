@@ -173,7 +173,6 @@ let () =
   let common_coq_lib_name = "Common" in
 
   let tests = Test_list.test_list in
-  let tests = List.take 1 tests in
   Format.printf "NUM_TESTS = %s\n" (string_of_int @@ List.length tests);
 
   run_table !table_dir common_path common_coq_lib_name tests |> Result.get_exn

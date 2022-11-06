@@ -133,6 +133,8 @@ let collect_at_spec_arg env ps = function
       |> List.map (fun (PointsTo (_, _, e): Proof_spec.Heap.Heaplet.t) -> Lang.Expr.size e)
       |> List.reduce (+)
       |> Option.value ~default:0 in
+    let old_invariant_no_heap = Proof_spec.Heap.Assertion.sigma asn |> List.length in
+    Configuration.stats_set_count "old-invariant-no-heap" old_invariant_no_heap;
     Configuration.stats_set_count "old-invariant-size-pure" old_invariant_size_pure;
     Configuration.stats_set_count "old-invariant-size-heap" old_invariant_size_heap;
     Configuration.stats_set_count "old-invariant-size" (old_invariant_size_pure + old_invariant_size_heap);
@@ -161,7 +163,7 @@ let collect_pats ?from_id ?to_id ~env steps =
     | _ -> ps in
   steps
   |> Proof_spec.Script.fold_proof_script ?start:from_id ?stop:to_id
-       (collect_pats_at_step env) PatternSet.empty 
+       (collect_pats_at_step env) PatternSet.empty
   |> PatternSet.to_list
   |> List.fold_left (fun env (ty,vl) ->
     Types.update_binding env ty vl
