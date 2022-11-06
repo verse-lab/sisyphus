@@ -18,6 +18,7 @@ let should_dump_generated_invariants = ref false
 
 type stats =
   | Counter of int
+  | MultiCounter of int list
   | TimerRunning of { cumulative_time: Ptime.Span.t; current_start: Ptime.t }
   | TimerStopped of Ptime.Span.t
 
@@ -26,6 +27,7 @@ let show_stat name = function
   | TimerStopped t ->
     Ptime.Span.to_float_s t
     |> Format.sprintf "%.6f"
+  | MultiCounter cs -> List.map string_of_int cs |> String.concat ","
   | _ ->
     Format.ksprintf ~f:failwith "found invalid stat, perhaps you forgot to close! %s " name
 
@@ -234,8 +236,17 @@ let stats_incr_count name =
   let f _  = function
     | None -> Some (Counter 1)
     | Some (Counter v) -> Some (Counter (v + 1))
+    | Some (MultiCounter (c :: counts)) -> Some (MultiCounter (c + 1 :: counts))
     | _ -> Format.ksprintf ~f:failwith "tried to increment non-counter statistic %s" name in
 
+  Hashtbl.update hstats ~f ~k:name
+
+let stats_set_count name count =
+  let f _  = function
+    | None -> Some (MultiCounter [count])
+    | Some (Counter counts) -> Some (MultiCounter ([count; counts]))
+    | Some (MultiCounter counts) -> Some (MultiCounter (count :: counts))
+    | _ -> Format.ksprintf ~f:failwith "tried to increment non-multi-counter statistic %s" name in
   Hashtbl.update hstats ~f ~k:name
 
 let stats_start_timer name =
