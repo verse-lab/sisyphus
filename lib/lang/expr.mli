@@ -95,3 +95,6 @@ val subst_functions: (string -> string option) -> t -> t
 
 val fold: ('a -> t -> 'a) -> 'a -> t -> 'a
 val andb : t list -> t
+
+val size: t -> int
+val depth: t -> int

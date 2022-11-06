@@ -284,3 +284,22 @@ let andb =
       List.fold_left
         (fun acc vl -> `App ("&&", [vl; acc])) h t
   )
+
+let rec size : t -> int = function
+  | `Var _
+  | `Int _ -> 1
+  | `App (_, elts)
+  | `Constructor (_, elts)
+  | `Tuple elts ->
+    List.fold_left (fun acc expr -> acc + size expr)
+      1 elts
+  | `Lambda (_, body) -> 1 + size body
+
+let rec depth : t -> int = function
+  | `Var _
+  | `Int _ -> 1
+  | `App (_, elts)
+  | `Constructor (_, elts)
+  | `Tuple elts ->
+    1 + List.fold_left (fun acc expr -> Int.max acc (depth expr)) 0 elts
+  | `Lambda (_, body) -> 1 + depth body
