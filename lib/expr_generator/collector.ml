@@ -122,6 +122,35 @@ let collect_at_spec_arg env ps = function
   | `Spec (_, asn) ->
     let collect_at_heaplet ps (PointsTo (_, _, e) : Proof_spec.Heap.Heaplet.t) =
       collect_at_expr env ps e in
+
+    let old_invariant_size_pure =
+      Proof_spec.Heap.Assertion.phi asn
+      |> List.map Lang.Expr.size
+      |> List.reduce (+)
+      |> Option.value ~default:0 in
+    let old_invariant_size_heap =
+      Proof_spec.Heap.Assertion.sigma asn
+      |> List.map (fun (PointsTo (_, _, e): Proof_spec.Heap.Heaplet.t) -> Lang.Expr.size e)
+      |> List.reduce (+)
+      |> Option.value ~default:0 in
+    Configuration.stats_set_count "old-invariant-size-pure" old_invariant_size_pure;
+    Configuration.stats_set_count "old-invariant-size-heap" old_invariant_size_heap;
+    Configuration.stats_set_count "old-invariant-size" (old_invariant_size_pure + old_invariant_size_heap);
+    let old_invariant_depth_pure =
+      Proof_spec.Heap.Assertion.phi asn
+      |> List.map Lang.Expr.depth
+      |> List.reduce (+)
+      |> Option.value ~default:0 in
+    let old_invariant_depth_heap =
+      Proof_spec.Heap.Assertion.sigma asn
+      |> List.map (fun (PointsTo (_, _, e): Proof_spec.Heap.Heaplet.t) -> Lang.Expr.depth e)
+      |> List.reduce (+)
+      |> Option.value ~default:0 in
+
+    Configuration.stats_set_count "old-invariant-depth-pure" old_invariant_depth_pure;
+    Configuration.stats_set_count "old-invariant-depth-heap" old_invariant_depth_heap;
+    Configuration.stats_set_count "old-invariant-depth" (Int.max old_invariant_depth_pure old_invariant_depth_heap);
+
     List.fold_left collect_at_heaplet ps (Proof_spec.Heap.Assertion.sigma asn)
   | `Hole -> failwith "holes not supported"
 

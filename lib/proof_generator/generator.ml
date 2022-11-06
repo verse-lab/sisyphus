@@ -1602,6 +1602,24 @@ and symexec_higher_order_fun t env pat rewrite_hint prog_args body rest =
     [%show: Lang.Expr.t * ((enc_fun * test_fun) * Lang.Expr.t) Containers.List.t] !best_invariant_so_far
   ));
 
+  let new_invariant_size_pure = Lang.Expr.size (fst !best_invariant_so_far) in
+  let new_invariant_size_heap = List.map (Pair.snd_map Lang.Expr.size)
+                                  (snd !best_invariant_so_far)
+                                |> List.reduce (+)
+                                |> Option.value ~default:0 in
+  Configuration.stats_set_count "new-invariant-size-pure" new_invariant_size_pure;
+  Configuration.stats_set_count "new-invariant-size-heap" new_invariant_size_heap;
+  Configuration.stats_set_count "new-invariant-size" (new_invariant_size_pure + new_invariant_size_heap);
+  let new_invariant_depth_pure = Lang.Expr.depth (fst !best_invariant_so_far) in
+  let new_invariant_depth_heap = List.map (Pair.snd_map Lang.Expr.depth)
+                                   (snd !best_invariant_so_far)
+                                 |> List.reduce (+)
+                                 |> Option.value ~default:0 in
+  Configuration.stats_set_count "new-invariant-depth-pure" new_invariant_depth_pure;
+  Configuration.stats_set_count "new-invariant-depth-heap" new_invariant_depth_heap;
+  Configuration.stats_set_count "new-invariant-depth" (Int.max new_invariant_depth_pure new_invariant_depth_heap);
+
+
   (* dispatch remaining subgoals by the best method: *)
   while List.length (Proof_context.current_subproof t).goals > 1 do
     Proof_context.try_auto_or_admit t;
