@@ -4,7 +4,7 @@
  (preprocess (pps ppx_deriving.std)))
 
 (rule
-  (target foo.txt)
-  (deps ./template.tex ../../bin/main.exe (glob_files_rec ../../resources/*.{ml,v}) (glob_files_rec ../../resources/_CoqProject))
-  (action (run touch foo.txt))
+  (target dummy.txt)
+  (deps  ../../bin/main.exe (glob_files_rec ../../resources/*.{ml,v}) (glob_files_rec ../../resources/_CoqProject))
+  (action (run touch dummy.txt))
 )
