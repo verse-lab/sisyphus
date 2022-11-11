@@ -22,7 +22,7 @@ let seq_map_product_l (type a b) (f: a -> b Seq.t) (l: a Seq.t) : b list Seq.t =
 
 let seq_force ?(limit=100) ls =
   let rec loop i acc ls =
-    match ls () with
+    match Configuration.stats_time "gen_cand" @@ fun () -> ls () with
     | Seq.Cons (h, t) when i < limit ->
       loop (i + 1) (h :: acc) t
     | Seq.Cons (h, t) -> i + 1, Seq.append (Seq.of_list (List.rev (h :: acc))) t

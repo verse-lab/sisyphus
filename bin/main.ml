@@ -12,6 +12,7 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose prin
 
   Random.init 2;
 
+  let start_time = Ptime_clock.now () in
   Configuration.initialize
     ?log_level ?log_dir ?dump_dir
     ~print_proof_extraction:print_extraction_steps
@@ -24,38 +25,52 @@ let generate_proof_script log_level log_dir log_filter dump_dir coq_verbose prin
     ?stats_out_file
     ();
 
-  let old_program = Bos.OS.File.read old_program |> Result.get_exn in
-  let new_program = Bos.OS.File.read new_program |> Result.get_exn in
+
+
+  let old_program = Configuration.stats_time "io" @@ fun () ->   Bos.OS.File.read old_program |> Result.get_exn in
+  let new_program = Configuration.stats_time "io" @@ fun () -> Bos.OS.File.read new_program |> Result.get_exn in
 
 
   let env = Dynamic.CompilationContext.init () in
-  let old_program = Lang.Sanitizer.parse_str old_program in
-  let new_program = Lang.Sanitizer.parse_str new_program in
+  let old_program = Configuration.stats_time "io" @@ fun () -> Lang.Sanitizer.parse_str old_program in
+  let new_program = Configuration.stats_time "io" @@ fun () -> Lang.Sanitizer.parse_str new_program in
+
   let alignment =
+    Configuration.stats_time "align" @@ fun () ->
     Dynamic.build_alignment ~compilation_env:env
       ~deps ~old_program ~new_program () in
   let concrete =
+    Configuration.stats_time "align" @@ fun () ->
     Dynamic.build_concrete_trace ~compilation_env:env
       ~deps new_program in
-  let ctx = (Coq.Proof.make ~verbose:coq_verbose (
+  let ctx =
+    Configuration.stats_time "coq" @@ fun () ->
+    (Coq.Proof.make ~verbose:coq_verbose (
       List.map (fun (lib_name, lib_dir) -> Coq.Coqlib.make ~path:(lib_dir) lib_name)
         ((coq_lib_name, coq_dir) :: coq_deps)
     )) in
   let old_proof =
+    Configuration.stats_time "io" @@ fun () ->
     Bos.OS.File.read Fpath.(coq_dir / old_proof)
     |> Result.get_exn
     |> Proof_parser.Parser.parse ctx in
   let new_proof_base =
+    Configuration.stats_time "io" @@ fun () ->
     Bos.OS.File.read Fpath.(coq_dir / new_proof_base)
     |> Result.get_exn in
   let ctx =
+    Configuration.stats_time "coq" @@ fun () ->
     Proof_generator.Proof_context.init
       ~compilation_context:env ~old_proof ~new_proof_base
       ~alignment ~concrete ~ctx in
   let new_proof =
+    Configuration.stats_time "sisyphus" @@ fun () ->
     (new_proof_base ^ "\n" ^ Proof_generator.Generator.generate
        ~logical_mappings:old_program.logical_mappings ctx
        new_program) in
+
+  let end_time = Ptime_clock.now () in
+  Configuration.stats_set_countf "total-time" Ptime.Span.(to_float_s @@ Ptime.diff end_time start_time);
   Log.info (fun f -> f "%s\n%s\n%s" (String.make 20 '=') new_proof (String.make 20 '='));
   Configuration.dump_stats ();
   Bos.OS.File.write Fpath.(coq_dir / new_proof_name)

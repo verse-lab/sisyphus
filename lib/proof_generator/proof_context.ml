@@ -21,6 +21,7 @@ type t = {
 (** [cancel_last t] reverts the proof context [t] to the state it was
    before the most recently executed command.  *)
 let cancel_last ({ctx;_} as prf) =
+  Configuration.stats_time "coq" @@ fun () ->
   let module Ctx = (val ctx) in
   prf.generated_proof_script <- List.tl prf.generated_proof_script;
   Ctx.cancel_last ()
@@ -28,6 +29,7 @@ let cancel_last ({ctx;_} as prf) =
 (** [cancel t ~count] reverts the proof context [t] to the state it
    was before the [count] most recently executed commands.  *)
 let cancel ({ctx;_} as prf) ~count =
+  Configuration.stats_time "coq" @@ fun () ->
   let module Ctx = (val ctx) in
   prf.generated_proof_script <- List.drop count prf.generated_proof_script;
   Ctx.cancel ~count
@@ -42,6 +44,7 @@ let next_program_id t =
 let append ({ctx; _} as prf) =
   let module Ctx = (val ctx) in
   Format.ksprintf ~f:(fun res ->
+      Configuration.stats_time "coq" @@ fun () ->
     prf.generated_proof_script <- res :: prf.generated_proof_script;
     Ctx.add res;
     Ctx.exec ()

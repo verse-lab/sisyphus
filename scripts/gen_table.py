@@ -60,6 +60,7 @@ schema = [
    ('Pure', lambda row: format_int(row['pure-candidates'])),
    ('Total', lambda row: format_int(get_total(row['heap-candidates'], row['pure-candidates']))),
    ('# Admits (# Obligations)', lambda row: f"{row['no-admits'] or '0'} ({row['proof-obligations']})"),
+   ('Synthesis', lambda row: format_float(row['gen_cand'])),
    ('Reduction', lambda row: format_float(row['proof-reduction'])),
    ('Pruning', lambda row: format_float(row['pruning'])),
    ('Solver', lambda row: format_float(row['solver-time'])),
