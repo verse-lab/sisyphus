@@ -23,21 +23,28 @@ Lemma array_partition_spec :
             a_f ~> Array (filter_not pp l)
   ).
 Proof using (All).
-  xcf.
-  xref a_t.
-  xref a_f.
-  xletopaque tmp Htmp.
-  xapp (array_iter_spec tmp a (fun (ls: list A) =>
-                                   a_t ~~> filter pp (rev ls) \*
-                                   a_f ~~> filter_not pp (rev ls)
-       )). { sis_generic_solver. }
-  xmatch.
-  xapp.
-  xlet.
-  xapp.
-  xlet.
-  xapp. intros Ht.
-  xapp. intros Hf.
-  xvals*. { sis_generic_solver. }
-  { sis_generic_solver. }
+xcf.
+xref left_ptr.
+xref right_ptr.
+xletopaque tmp Htmp.
+xapp (Common.Verify_arr.array_iter_spec (tmp) (a) (fun (t: list (A)) =>  right_ptr ~~> ((filter (pp) (nil)) ++ (drop ((1 + ((length (t)) - 1))) ((t ++ (filter_not (pp) ((rev (t)))))))) \* left_ptr ~~> ((filter (pp) (nil)) ++ (drop ((1 + ((length (t)) - 1))) (((t ++ nil) ++ (filter (pp) ((rev (t))))))))
+
+)).
+{
+  sis_generic_solver; rewrite !drop_app_r; sis_generic_solver.
+}
+xmatch.
+xapp.
+xlet.
+xapp.
+xlet.
+xapp.
+intro left.
+xapp.
+intro right.
+xvals.
+{
+  subst; rewrite !drop_app_r; sis_generic_solver.
+}
+{ subst; rewrite !drop_app_r; sis_generic_solver. }
 Qed.

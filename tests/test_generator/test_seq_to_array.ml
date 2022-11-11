@@ -1,6 +1,6 @@
 module T = Testing_utils.Make (struct let name = "seq_to_array" end)
 
-let ctx = 
+let ctx =
   Expr_generator.make_raw_ctx
     ~consts:Lang.Type.[
       ((Var "A"), [`Var ("init")]);

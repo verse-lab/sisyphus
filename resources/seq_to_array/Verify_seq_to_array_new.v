@@ -22,6 +22,8 @@ xpullpure H1.
 xletopaque tmp Htmp.
 evar (ty_ls: Type).
 evar (ls: ty_ls).
+Check (Common.Verify_sseq.fold_spec).
+Check (Common.Verify_sseq.fold_spec tmp (0, nil) s ?ls (fun '((i, acc): (int * list (A))) (x: A) => ((i + 1), x :: acc))).
 xapp (Common.Verify_sseq.fold_spec tmp (0, nil) s ?ls (fun '((i, acc): (int * list (A))) (x: A) => ((i + 1), x :: acc))).
 sep_solve.
 eauto.

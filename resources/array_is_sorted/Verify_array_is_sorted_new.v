@@ -15,23 +15,35 @@ Lemma array_is_sorted_spec :
   PRE (a ~> Array l)
   POST (fun (b : bool) => \[b = is_sorted l] \* a ~> Array l).
 Proof using (All).
-  xcf.
-  xapp.
-  xif as cond.
-  - xvals*. { sis_generic_solver. }
-  - xref result.
-    xletopaque tmp Htmp.
-    xapp (while_downto_spec (length l - 1) 0 tmp
-            (fun (i: int) (b: bool) =>
-               \[ b = is_sorted (drop i l) ] \*
-                 result ~~> b \*
-                 a ~> Array l)
-         ). {
-      intros i Hi; apply Htmp; clear Htmp.
-      sis_symexec; sis_generic_solver.
-    } { sis_generic_solver. } { sis_generic_solver. }
-    intros term i Hcond Heq.
-    xmatch.
-    xapp.
-    xvals*. { destruct term; sis_generic_solver. }
+xcf.
+xapp.
+xif as H_cond.
+-
+xvals.
+{
+sis_generic_solver.
+}
+-
+xref result.
+xletopaque tmp Htmp.
+xapp (Common.Verify_combinators.while_downto_spec (((TLC.LibListZ.length (l)) - 1)) (0) (tmp) (fun (i: int) (res: bool) => \[ (res = (is_sorted ((drop (i) (l))))) ]  \* result ~~> (negb ((negb res)))
+                                                                                                 \* a ~> Array l
+     )).
+{
+  introv Hl. apply Htmp; clear Htmp.
+  sis_symexec; sis_generic_solver.
+}
+{
+sis_generic_solver.
+}
+{
+sis_generic_solver.
+}
+intros.
+xmatch.
+xapp.
+xvals.
+{
+  destruct x eqn:Heq; sis_generic_solver.
+}
 Qed.

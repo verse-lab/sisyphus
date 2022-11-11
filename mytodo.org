@@ -1,0 +1,52 @@
+** DONE Write DPA Pseudocode
+CLOSED: [2022-11-08 Tue 15:46]
+
+
+** TODO Write enumerative synthesis
+
+Include details about
+(i) vocabulary of enumerative synthesis
+(ii) loop invariant heuristic
+(iii) equalities
+(iv)
+
+*** How are holes created?
+*** Pure (no sketch) vs Heap (use sketch)
+** TODO Write up evaluation
+Example of simpler implementation:
+- tree_to_array
+- array_partition
+
+- Note; different combinators were used
+
+Experiment-setup: provenance, combinators, new/old versions [custom refactoring, alt version]
+- Are ALL the generated invariants equivalent?
+- Applying QuickChick
+
+*** Benchmark setup
+
+taxonomy of changes in the table [add subsection for each]
+
+- unsafe_get and unsafe_set have no impact
+- taxonomy of changes
+  - justified from JS commit
+- proof migration IS proof repair (Batteries / Ocaml Variants / Base / StdLib)
+- refactoring for readability and maintenance
+
+  JS commit: https://github.com/janestreet/base/commit/858e62248216d5338c3d8de447ffc8b196b386c5
+- another unsafe_get: https://github.com/janestreet/base/commit/ae169dc8097b3da8e99d1baf11ebe5eb8da01dc7 (removes the whole stdlib)
+- read Tree0
+*** Experiment setup
+*** RQ1
+*** RQ2
+*** RQ3
+Crazy idea: run QuickChick on the generated invariants?
+
+** Points to add
+*** Pure functions dont need invariant inference
+*** Loop variables don't need to be present in invariants
+*** Add an example of an invariant!
+** Interesting Observations
+*** Proof Migration
+*** Invariant Fault Localization (since we run tests) --> better than Z3
+*** Language Migration

@@ -20,27 +20,41 @@ Lemma find_mapi_spec :
   PRE (a ~> Array l)
   POST (fun (b : option B) => \[ b = list_find_mapi fp l] \* a ~> Array l).
 Proof using (All).
-  xcf.
-  xapp Array_proof.length_spec.
-  xif as Hcond.
-  - xvals*. { sis_generic_solver. }
-  - xref value_found.
-    xletopaque tmp Htmp.
-    xapp (while_upto_spec 0 (length l) tmp (fun (i: credits) (res: bool) =>
-               \[res = negb (is_some (list_find_mapi fp (take i l)))] \*
-                 a ~> Array l \*
-                 value_found ~~> list_find_mapi fp (take i l) 
-          )
-         ). {
-      intros i Hi; apply Htmp; clear Htmp.
-      sis_symexec; sis_generic_solver.
-  } { sis_generic_solver. } { sis_generic_solver. }
-  intros res i [Hi Himpl] Heq.
-    xmatch.
-    xapp.
-    xvals*. {
-      destruct res;
-        sis_generic_solver.
-  }
+xcf.
+xapp.
+xif as H_cond.
+-
+xvals.
+{
+sis_generic_solver.
+}
+-
+xref value_found.
+xletopaque tmp Htmp.
+xapp (Common.Verify_combinators.while_upto_spec (0) ((TLC.LibListZ.length (l))) (tmp) (fun (i: int) (res: bool) => \[ (res = (negb (is_some ((list_find_mapi (fp) ((take (i) (l)))))))) ]  \* value_found ~~> (list_find_mapi (fp) ((take (i) (l))))
+     \* a ~> Array l
+     )).
+{
+  introv Hl. apply Htmp; clear Htmp.
+  sis_symexec; sis_generic_solver.
+}
+{
+sis_generic_solver.
+}
+{
+sis_generic_solver.
+}
+intros unused Hunused.
+intros.
+try xdestruct.
+xapp.
+xvals.
+{ sis_generic_solver.
+  destruct H0 as [Hlen Himpl]; unfold list_find_mapi in *.
+  destruct (list_find_mapi_internal 0 fp (take Hunused l)) eqn:Heq.
+  - rewrite <- (@list_eq_take_app_drop A Hunused l); try math.
+    rewrite find_mapi_app_l; rewrite Heq; sis_generic_solver.
+  - sis_normalize_opt_of_bool; simpl in Himpl.
+    sis_generic_solver.
+}
 Qed.
-

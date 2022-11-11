@@ -8,35 +8,27 @@ From Common Require Import Tactics Utils Solver.
 
 From ProofsStackReverse Require Import Stack_reverse_new_ml.
 
-Lemma stack_reverse_spec 
+Lemma stack_reverse_spec
   {A: Type} `{EA: Enc A} (s: stack A) (ls: list A) :
     SPEC (stack_reverse s)
     PRE(s ~> Stack ls)
     POSTUNIT(s ~> Stack (rev ls)).
 Proof using (All).
-  xcf.
-  xapp. intros buf.
-  xletopaque tmp Htmp.
-  xapp (stack_drain_spec tmp s
-          (fun (ls: list A) =>
-             buf ~> Queue ls
-       )). {
-    sis_solve_start.
-  }
-  xmatch.
-  xletopaque tmp2 Htmp2.
-  xapp (queue_iter_spec tmp2 buf
-          (fun (ls: list A) =>
-             s ~> Stack (rev ls)
-       )). {
-    sis_solve_start; rew_list; auto.
-  }
-  xmatch.
-  xvals*. {
-    unfold Queue; rewrite repr_eq.
-    apply haffine_hexists; unfold haffine_post;intros.
-    apply haffine_hexists; unfold haffine_post;intros.
-    apply haffine_hstar. apply haffine_hpure.
-    apply haffine_Record.
-  }
+xcf.
+xapp.
+intro buf.
+xletopaque tmp Htmp.
+xapp (Common.Verify_stack.stack_drain_spec (tmp) (s) (fun (arg0: list (A)) =>  buf ~> Common.Verify_queue.Queue (arg0))).
+{
+sis_generic_solver.
+}
+xmatch.
+xletopaque tmp0 Htmp0.
+xapp (Common.Verify_queue.queue_iter_spec (tmp0) (buf) (fun (arg0: list (A)) =>  s ~> Common.Verify_stack.Stack ((rev (arg0))))).
+{
+sis_generic_solver.
+}
+xmatch.
+xvals.
+{ apply queue_affine. }
 Qed.

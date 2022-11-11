@@ -20,38 +20,52 @@ Lemma array_findi_spec :
   POST (fun (b : option (int * A)) =>
           \[b = list_findi fp l] \* a ~> Array l).
 Proof using (All).
-  xcf.
-  xapp.
-  xif as Hcond.
-  - xvals. { sis_generic_solver. }
-  - xinhab.
-    xref found.
-    xref idx.
-    xapp. { sis_generic_solver. }
-    xref value.
-    xletopaque tmp Htmp.
-    xapp (while_upto_spec 0 (length l) tmp
-            (fun (i: int) (b: bool) =>
-               \[b = negb (is_some (list_findi fp (take i l)))] \*
-               a ~> Array l \*
-               value ~~> option_value_snd l[0] (list_findi fp (take i l)) \*
-               idx ~~> option_value_fst 0 (list_findi fp (take i l)) \*
-               found ~~> negb b
-         )). { sis_generic_solver. } 
-      { sis_generic_solver.  }
-      { sis_generic_solver. }
-    intros res i_b Hres Hexists.
-    xmatch.
-    xapp.
-    xif as Hlcond.
-    + xapp.
-      xapp.
-      xvals*. {
-        destruct Hres as [Hlen Himpl].
-        sis_generic_solver.
-      }
-    + xvals*. {
-        destruct Hres as [Hlen Himpl].
-        sis_generic_solver.
-      }
+xcf.
+xapp.
+xif as H_cond.
+-
+xvals.
+{
+sis_generic_solver.
+}
+-
+xref found.
+xref idx.
+xinhab.
+xapp.
+{
+sis_generic_solver.
+}
+xref value.
+xletopaque tmp Htmp.
+xapp (Common.Verify_combinators.while_upto_spec (0) ((TLC.LibListZ.length (l))) (tmp) (fun (i: int) (res: bool) => \[ (res = (negb (is_some ((list_findi (fp) ((take (i) (l)))))))) ]  \* value ~~> (option_value_snd ((TLC.LibContainer.read (l) (0))) ((list_findi (fp) ((take (i) (l)))))) \* idx ~~> (option_value_fst (0) ((list_findi (fp) ((take (i) (l)))))) \* found ~~> (negb (negb (negb res)))
+   \* a ~> Array l
+)).
+{ sis_generic_solver. }
+{
+sis_generic_solver.
+}
+{
+sis_generic_solver.
+}
+intros.
+xmatch.
+xif as H_cond0.
++
+xapp.
+xapp.
+xvals.
+{ unfold list_findi in *.
+  destruct (list_findi_internal 0 fp (take x0 l)) as [ | p ] eqn:Heq; sis_generic_solver.
+  - rewrite <- (@list_eq_take_app_drop A x0 l); try math; sis_list_deep_solver.
+    rewrite findi_app_l; rewrite Heq.
+    -- simpl. destruct p; auto.
+    -- sis_generic_solver.
+  - contradiction Hcond; auto.
+}
++
+xvals.
+{
+  destruct x; sis_generic_solver; discriminate Hcond.
+}
 Qed.

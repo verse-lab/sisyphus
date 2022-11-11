@@ -1,18 +1,20 @@
 * Times
-seq_to_array 17m
-sll_partition NA
-stack_filter 11m
-array_exists 12m
-stack_reverse 
-array_find_mapi
-array_is_sorted
-array_findi
-sll_of_array
-array_foldi
-array_partition
-tree_to_array
-make_rev_list
-array_of_rev_list
+| Name              | time (spec) | time (proof) | time (old) | time (new) |
+|-------------------+-------------+--------------+------------+------------|
+| make_rev_list     | ~5 mins     | ~5 mins      | ~10 mins   | NA         |
+| array_foldi       | ~10 mins    | ~5 mins      | ~15 mins   | NA         |
+| array_exists      | ~10 mins    | ~20 mins     | ~30 mins   | 12m        |
+| array_of_rev_list | ~5 mins     | ~1 hour      | ~1 hour    | 3m         |
+| array_find_mapi   | ~30 mins    | ~1 hour      | ~1.5 hours | 12m        |
+| array_findi       | ~30 mins    | ~1 hour      | ~1.5 hours | 9m         |
+| stack_filter      | ~1 hour     | ~30mins      | ~1.5 hours | 11m        |
+| seq_to_array      | ~1 hours    | ~1 hour      | ~2 hours   | 17m        |
+| sll_partition     | ~1 hour     | ~1 hour      | ~2 hours   | NA         |
+| stack_reverse     | ~1.5 hours  | ~30mins      | ~2 hours   | 30s        |
+| sll_of_array      | 1.5 hours   | ~30mins      | ~2 hours   | NA         |
+| array_partition   | ~30min      | ~2 hours     | ~2.5 hours | 5m         |
+| array_is_sorted   | ~1 hour     | ~3 hours     | ~4 hours   | 2m         |
+| tree_to_array     | ~4 hours    | ~1 hour      | ~5 hours   | 18m        |
 
 * Improvements
 ** seq_to_array
@@ -27,3 +29,51 @@ First subgoal can be dispatched if the existential variable trick (intros; sis_s
 Handle: rev (filter (fun x : A => fp x) (filter (fun x : A => fp x) (rev ls))) = filter (fun x : A => fp x) ls
 Had to define filter_filter lemma
 Applied stack_affine (incorrectly named lmao)
+** array_exists
+Had to unfold existsb, and then destruct
+** stack_reverse
+Had to apply queue_affine
+** find_mapi
+ Heq : list_find_mapi fp (take Hunused l) = Some b
+  ============================
+  list_find_mapi_internal 0 fp (take Hunused l) =
+  list_find_mapi_internal 0 fp (take Hunused l ++ drop Hunused l)
+
+
+Unable to reduce (negb false) to true
+Heq : list_find_mapi_internal 0 fp (take Hunused l) = None
+Himpl : implb (negb false) (Hunused =?== length l)
+===========================
+ None = list_find_mapi_internal 0 fp l
+** array_is_sorted
+If implb x P is in context, destruct x and run sis_generic_solver recursively
+
+  H : 0 <= x0 <= length l - 1 /\ implb x (x0 =? 0)
+  H0 : x = is_sorted (drop x0 l)
+  ============================
+  negb (negb x) = is_sorted l
+** array_findi
+ Heq : list_findi_internal 0 fp (take x0 l) = Some p
+  Hcond : ~ false
+  ============================
+  Some (option_value_fst 0 (Some p), option_value_snd l[0] (Some p)) =
+  list_findi_internal 0 fp lp
+
+  sis_generic_solver can lead to CONTRADICTION??
+  Heq : list_findi_internal 0 fp (take x0 l) = None
+  Hcond : ~ false
+  ============================
+  Some (0, (take x0 l ++ drop x0 l)[0]) = None
+
+If (Hcond: ~true) or (Hcond: false = true) in context, not handled (try contradiction!)
+** array_partition
+Adding "a ~> Array l" to the invariant will CAUSE A BUG (XAPP_FAILED_TO_MATCH_PRECONDITION), since the array_iter_spec already contains it in the post condition
+** tree_to_array
+*** Add drop_app_l; sis_normalize_length to sis_generic_solver
+  x : rev (tol t) = t0 ++ v :: r
+  IA : Inhab A
+  ============================
+  (drop (length t0 + length r - length r)
+  (make (length t0 + length r + 1) (thead t) ++ rev t0))[length r:=v] =
+*** Do complex math
+ math_rewrite ((length (tol t) - 1 - (length (tol t) - 1 - length (tol t)) - length (tol t)) = 0).
