@@ -1,14 +1,14 @@
 opam-version: "2.0"
 name: "sisyphus"
 version: "~dev"
-synopsis: "Sisyphus is an automated tool for proof repair"
-description: "Sisyphus is an automated tool for proof repair."
-maintainer: "kirang@comp.nus.edu.sg"
+synopsis: ""
+description: ""
+maintainer: ""
 authors: ".."
 license: "AGPL-3.0+"
-homepage: "https://github.com/verse-lab/proof-repair"
+homepage: ""
 doc: "sisyphus"
-bug-reports: "https://github.com/verse-lab/proof-repair/issues"
+bug-reports: ""
 depends: [
   "alcotest" {= "1.5.0"}
   "astring" {= "0.8.5"}
@@ -99,4 +99,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/verse-lab/proof-repair.git"
+dev-repo: ""

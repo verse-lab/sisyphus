@@ -2,12 +2,12 @@
 opam-version: "2.0"
 synopsis: "Sisyphus is an automated tool for proof repair"
 description: "Sisyphus is an automated tool for proof repair."
-maintainer: ["kirang@comp.nus.edu.sg"]
+maintainer: [""]
 authors: [".."]
 license: "AGPL-3.0+"
-homepage: "https://github.com/verse-lab/proof-repair"
+homepage: ""
 doc: "sisyphus"
-bug-reports: "https://github.com/verse-lab/proof-repair/issues"
+bug-reports: ""
 depends: [
   "dune" {>= "3.0"}
   "ocaml" {>= "4.12.0"}
@@ -45,4 +45,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/verse-lab/proof-repair.git"
+dev-repo: ""
