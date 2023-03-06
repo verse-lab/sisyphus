@@ -1,4 +1,22 @@
 # Sisyphus
+
+- [Sisyphus](#sisyphus)
+  - [Artefact Instructions](#artefact-instructions)
+    - [Setting up (Docker)](#setting-up-docker)
+    - [Running Sisyphus and individual benchmarks (kick-the-tires)](#running-sisyphus-and-individual-benchmarks-kick-the-tires)
+    - [Running all benchmarks and viewing repaired proofs](#running-all-benchmarks-and-viewing-repaired-proofs)
+    - [Viewing the results table](#viewing-the-results-table)
+    - [Calculating source code stats](#calculating-source-code-stats)
+  - [Extending Sisyphus](#extending-sisyphus)
+    - [Documentation](#documentation)
+    - [Adding new benchmarks](#adding-new-benchmarks)
+    - [Navigating the project](#navigating-the-project)
+- [Old README](#old-readme)
+  - [Setup](#setup)
+  - [Building and Running Benchmarks](#building-and-running-benchmarks)
+  - [Project structure](#project-structure)
+  - [Requirements](#requirements)
+
 ## Artefact Instructions
 
 Sisyphus is a functional, reusable and modular project for automated
@@ -140,6 +158,16 @@ The file `stats.csv` contains a single table with the aggregation of
 all results of all benchmarks, and contains the data that corresponds
 to the results in the table.
 
+The `common` directory contains the common OCaml files and Coq library that is used by all the benchmarks. Utility functions for each datastructure are defined in dedicated OCaml files (e.g. `arr.ml`, `lst.ml`) along with their Coq proofs (e.g. `Verify_arr.v`, `Verify_lst.v`). The directory also includes the `Tactics.v` library that wraps CFML tactics into more convenient forms, and `Solver.v` which provides user-supplied tactics to dispatch left-over obligations. Note that `Solver.v` can be customized to provide more powerful tactics to solve __all__ obligations. 
+
+Each of the directories contains old and repaired versions of the program and proofs, along with some compiled object files. For example, the `array_exists` example consists of the old OCaml program (`array_exists_old.ml`) and its corresponding proof (`Verify_array_exists_old.v`), along the new program (`array_exists_new.ml`) and its Sisyphus-generated proof (`Verify_array_exists_new.v`). A `_CoqProject` file is also provided to allow easier use with ProofGeneral.
+
+```bash
+opam@c3afcc4630be:~$ ls /tmp/repaired/array_exists
+array_exists_old.ml  array_exists_new.ml Verify_array_exists_old.v Verify_array_exists_new.v _CoqProject
+...
+```
+
 ### Viewing the results table
 
 We provide a helper script under `scripts/gen_table.py` that pretty
@@ -161,7 +189,7 @@ variation between machines and on multiple runs, but the overall
 trends and orders of magnitude between the different components of
 Sisyphus will remain the same.
 
-### Calculating Source code stats
+### Calculating source code stats
 
 Near section 5, we present a table of the rounded sizes in terms of
 LoC of each component of Sisyphus.
@@ -239,6 +267,45 @@ on their usage. For example, have a look at:
 - The documentation for the abstraction over Coq's API `Coq.Proof.PROOF`
 - The documentation for our expression generator `Expr_generator`
 - The documentation for `Proof_reduction`
+
+
+### Adding new benchmarks
+
+To add a new benchmark named `my_benchmark`, do the following:
+
+1. Add a new directory under `resources` with the following files:
+   - `my_benchmark_old.ml` -- the old version of the program
+   - `my_benchmark_new.ml` -- the new version of the program
+   - `Verify_my_benchmark_old.v` -- the old version of the proof
+   - `Verify_my_benchmark_new.v` -- the new proof stub, which contains only the specification copied from the old proof
+   - `dune` -- a dune file that specifies the dependencies of the example (see `resources/array_exists/dune` for an example)
+   - NOTE the folowing:
+     - the name of the directory should be the same as the name of the example
+     - all OCaml programs must annotate all types explicitly and should be written in SSA-style
+  
+2. Run `dune build @gen-build-rules --auto-promote` to ensure the new example is built correctly with the common dependencies.
+  
+3. Add a new directory named `benchmarks/my_benchmark`.
+
+4. Add a new file `benchmarks/my_benchmark/test_my_benchmark.ml` with the following
+   contents (see `benchmarks/array_exists/test_array_exists.ml` for another example)):
+
+    ```ocaml
+    module T = Benchmark_utils.Make (struct let name = "my_benchmark" end)
+
+    let () =
+    T.add_test "my_benchmark"
+      (Benchmark_utils.sisyphus_runs_on
+          ~path:"../../resources/my_benchmark"
+          ~coq_name:"ProofsMyBenchmark"
+          ~common_path:"../../resources/common"
+          ~common_coq_name:"Common")
+
+    let () =
+    Benchmark_utils.run "my_benchmark_test"
+    ```   
+
+5. Run `dune runtest benchmarks/my_benchmark` to assert that Sisyphus generates a proof for the new benchmark.
 
 ### Navigating the project
 
