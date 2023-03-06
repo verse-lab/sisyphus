@@ -27,7 +27,8 @@ Successfully tagged sisyphus:latest
 
 This command will build a new docker image for Sisyphus, downloading
 any required system dependencies and OCaml packages, and building
-Sisyphus.
+Sisyphus. This process will take approximately 10 minutes on a 
+commodity laptop.
 
 Once the image has been built, you can launch a container using the
 image:
