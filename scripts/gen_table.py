@@ -50,22 +50,43 @@ def format_float(vl, no_precision=False):
    else:
       return "{:.2f}".format(vl_f) if not no_precision else "{:.0f}".format(vl_f)
 
+def get_remaining(row):
+   gen, extr, test, total = float(row['gen_cand']), float(row['proof-reduction']), float(row['pruning']), float(row['runtime'])
+   return total - (gen + extr + test)
+
 schema = [
    ('Example', lambda row : row['name'] ),
-   ('Data Structures', lambda row: data[row['name']][0]),
-   ('Refactoring', lambda row: data[row['name']][3]),
-   ('For/While', lambda row: to_check(data[row['name']][1])),
-   ('HOF', lambda row: to_check(data[row['name']][2])),
+   # ('Data Structures', lambda row: data[row['name']][0]),
+   # ('Refactoring', lambda row: data[row['name']][3]),
+   # ('For/While', lambda row: to_check(data[row['name']][1])),
+   # ('HOF', lambda row: to_check(data[row['name']][2])),
    ('Heap', lambda row: format_int(row['heap-candidates'])),
    ('Pure', lambda row: format_int(row['pure-candidates'])),
    ('Total', lambda row: format_int(get_total(row['heap-candidates'], row['pure-candidates']))),
-   ('# Admits (# Obligations)', lambda row: f"{row['no-admits'] or '0'} ({row['proof-obligations']})"),
-   ('Synthesis', lambda row: format_float(row['gen_cand'])),
-   ('Reduction', lambda row: format_float(row['proof-reduction'])),
-   ('Pruning', lambda row: format_float(row['pruning'])),
-   ('Solver', lambda row: format_float(row['solver-time'])),
+   # ('# Admits (# Obligations)', lambda row: f"{row['no-admits'] or '0'} ({row['proof-obligations']})"),
+   ('Generation', lambda row: format_float(row['gen_cand'])),
+   ('Extraction', lambda row: format_float(row['proof-reduction'])),
+   ('Testing', lambda row: format_float(row['pruning'])),
+   ('Remaining', lambda row: format_float(get_remaining(row))),
    ('Total', lambda row: format_float(row['runtime'], no_precision=True))
 ]
+
+order = {
+   'seq_to_array': 1,
+   'make_rev_list': 2,
+   'tree_to_array': 3,
+   'array_exists': 4,
+   'array_find_mapi': 5,
+   'array_is_sorted': 6,
+   'array_findi': 7,
+   'array_of_rev_list': 8,
+   'array_foldi': 9,
+   'array_partition': 10,
+   'stack_filter': 11,
+   'stack_reverse': 12,
+   'sll_partition': 13,
+   'sll_of_array': 14
+}
 
 def normalize(s):
     return s.replace('_', '\\_') if s else '-'
@@ -80,27 +101,29 @@ def gen_table(path):
         stats = list(reader)
         headers = [col[0] for col in schema]
 
-
     col_spec = '{' +  'l' + 'c' * (len(headers) -1) + '}'
 
     col_headers = ' & '.join(headers)
 
     prelude = f"""
-    \\begin{{center}}
-     \\begin{{tabular}}[t]{col_spec}
+
+    \\begin{{tabular}}[t]{{lcccccccccc}}
        \\toprule
-      {col_headers} \\\\
+       \\multirow{{Example}} & \\multicolumn{{3}}{{c}}{{Candidates}} &
+                                                                    \\multicolumn{{4}}{{c}}{{Time (s)}} & \\multirow{{Total (s)}} \\\\
+       \\cmidrule(lr){{2-4}} \\cmidrule(lr){{5-8}}
+              & Heap & Pure & Total & Generation & Extraction & Testing & Remaining &  \\\\
       \\midrule
     """
 
     postlude = """
     \\bottomrule
     \\end{tabular}
-    \\end{center}
     """
 
     print(prelude)
 
+    stats.sort(key=lambda row: order[row['name']])
     for row in stats:
         print(f"{to_row(row)} \\\\")
 
