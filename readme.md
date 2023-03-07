@@ -473,30 +473,30 @@ To add `my_benchmark` to Sisyphus, do the following (run all commands from the p
    library representing the `my_benchmark` library and how to compile
    the resulting proofs:
 
-  ```
-  (* file: dune *)
-  (library (name my_benchmark)
-    (libraries common))
+   ```
+   (* file: dune *)
+   (library (name my_benchmark)
+     (libraries common))
 
-  (coq.theory
-   (name ProofsMyBenchmark)
-   (modules
-     My_benchmark_old_ml Verify_my_benchmark_old
-     My_benchmark_new_ml Verify_my_benchmark_new
-     Dummy)
-   (libraries sisyphus.plugin)
-   (flags -R resources/common Common)
-  )
+   (coq.theory
+    (name ProofsMyBenchmark)
+    (modules
+      My_benchmark_old_ml Verify_my_benchmark_old
+      My_benchmark_new_ml Verify_my_benchmark_new
+      Dummy)
+    (libraries sisyphus.plugin)
+    (flags -R resources/common Common)
+   )
 
-  (include build-rules.sexp)
-  (rule (with-stdout-to build-rules.sexp.gen (run ../../scripts/gen_build_rules.sh)))
-  (rule (alias gen-build-rules) (action (diff build-rules.sexp build-rules.sexp.gen)))
+   (include build-rules.sexp)
+   (rule (with-stdout-to build-rules.sexp.gen (run ../../scripts/gen_build_rules.sh)))
+   (rule (alias gen-build-rules) (action (diff build-rules.sexp build-rules.sexp.gen)))
 
 
-  (env
-    (dev
-      (flags (:standard -w -32 -w -27))))
-  ```
+   (env
+     (dev
+       (flags (:standard -w -32 -w -27))))
+   ```
    - The structure of the dune file follows a standard form and can
      easily be adapted from the other benchmarks (see
      `resources/array_exists/dune` as an example).
@@ -508,9 +508,9 @@ To add `my_benchmark` to Sisyphus, do the following (run all commands from the p
 3. Add an empty file `resources/my_benchmark/build-rules.sexp` which
    will be populated by the next step:
 
-  ```bash
-  $ touch resources/my_benchmark/build-rules.sexp
-  ```
+   ```bash
+   $ touch resources/my_benchmark/build-rules.sexp
+   ```
   
 4. Run `dune build @gen-build-rules --auto-promote` to populate the
    `build-rules.sexp` file with appropriate information.
@@ -522,20 +522,20 @@ To add `my_benchmark` to Sisyphus, do the following (run all commands from the p
 7. Add a new file `benchmarks/my_benchmark/test_my_benchmark.ml` with the following
    contents (see `benchmarks/array_exists/test_array_exists.ml` for another example)):
 
-    ```ocaml
-    module T = Benchmark_utils.Make (struct let name = "my_benchmark" end)
+   ```ocaml
+   module T = Benchmark_utils.Make (struct let name = "my_benchmark" end)
 
-    let () =
-    T.add_test "my_benchmark"
-      (Benchmark_utils.sisyphus_runs_on
-          ~path:"../../resources/my_benchmark"
-          ~coq_name:"ProofsMyBenchmark"
-          ~common_path:"../../resources/common"
-          ~common_coq_name:"Common")
+   let () =
+   T.add_test "my_benchmark"
+     (Benchmark_utils.sisyphus_runs_on
+         ~path:"../../resources/my_benchmark"
+         ~coq_name:"ProofsMyBenchmark"
+         ~common_path:"../../resources/common"
+         ~common_coq_name:"Common")
 
-    let () =
-    Benchmark_utils.run "my_benchmark_test"
-    ```
+   let () =
+   Benchmark_utils.run "my_benchmark_test"
+   ```
 8. Add a dune file `benchmarks/my_benchmark/dune` to inform dune of the new test:
 
    ```dune
@@ -549,16 +549,16 @@ To add `my_benchmark` to Sisyphus, do the following (run all commands from the p
 9. Run `dune runtest benchmarks/my_benchmark` to assert that Sisyphus
    generates a proof for the new benchmark.
 
-  ```bash
-  $ dune runtest ./benchmarks/my_benchmark
+   ```bash
+   $ dune runtest ./benchmarks/my_benchmark
 
-  ...
+   ...
 
-  ASSERT Sisyphus builds project
-    [OK]          my_benchmark          0   my_benchmark.
+   ASSERT Sisyphus builds project
+     [OK]          my_benchmark          0   my_benchmark.
 
-  Test Successful in 91.235s. 1 test run.
-  ```
+   Test Successful in 91.235s. 1 test run.
+   ```
 (Even though our program was fairly simple, running the benchmark through the harness 
 takes a bit of time as it requires Coq to re-compile all the common libraries).
 
