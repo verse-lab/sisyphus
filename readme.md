@@ -19,8 +19,8 @@
 
 ## Artefact Instructions
 
-Sisyphus is a functional, reusable and modular project for automated
-repair of Coq proofs. 
+Sisyphus is a functional, reusable, and extensible framework for
+automated repair of Coq proofs.
 
 We have taken care to make sure that Sisyphus' results are fully
 reproducible, providing a self-contained Docker file to automate
