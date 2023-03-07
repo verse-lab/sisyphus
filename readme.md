@@ -206,7 +206,7 @@ may want to look at.
   As an example, look at the `array_exists` folder:
 
 ```bash
-$ ls -1 ./array_exists | grep -v -G '\(.*vo.*\|.*_stub\|.*glob\)'
+$ ls -1 /tmp/repaired/array_exists | grep -v -G '\(.*vo.*\|.*_stub\|.*glob\)'
 Array_exists_new_ml.v
 Array_exists_old_ml.v
 Dummy.v
