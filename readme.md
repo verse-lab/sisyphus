@@ -146,27 +146,114 @@ populated with both the repaired projects (under each directory), and
 stats for each benchmark (in `<benchmark-name>.csv`).
 
 ```bash
-opam@c3afcc4630be:~$ ls /tmp/repaired/
-array_exists               array_foldi                array_of_rev_list_stats.txt  make_rev_list            sll_of_array_stats.txt   stack_reverse
-array_exists_stats.txt     array_foldi_stats.txt      array_partition              make_rev_list_stats.txt  sll_partition            stack_reverse_stats.txt
-array_find_mapi_stats.txt  array_is_sorted            array_partition_stats.txt    seq_to_array             sll_partition_stats.txt  stats.csv
-array_findi                array_is_sorted_stats.txt  common                       seq_to_array_stats.txt   stack_filter             tree_to_array
-array_findi_stats.txt      array_of_rev_list          find_mapi                    sll_of_array             stack_filter_stats.txt   tree_to_array_stats.txt
+$ ls --group-directories-first -1 /tmp/repaired/
+
+array_exists/
+array_findi/
+array_foldi/
+array_is_sorted/
+array_of_rev_list/
+array_partition/
+common/
+find_mapi/
+make_rev_list/
+seq_to_array/
+sll_of_array/
+sll_partition/
+stack_filter/
+stack_reverse/
+tree_to_array/
+array_exists_stats.txt
+array_find_mapi_stats.txt
+array_findi_stats.txt
+array_foldi_stats.txt
+array_is_sorted_stats.txt
+array_of_rev_list_stats.txt
+array_partition_stats.txt
+make_rev_list_stats.txt
+seq_to_array_stats.txt
+sll_of_array_stats.txt
+sll_partition_stats.txt
+stack_filter_stats.txt
+stack_reverse_stats.txt
+stats.csv
+tree_to_array_stats.txt
 ```
 
 The file `stats.csv` contains a single table with the aggregation of
 all results of all benchmarks, and contains the data that corresponds
 to the results in the table.
 
-The `common` directory contains the common OCaml files and Coq library that is used by all the benchmarks. Utility functions for each datastructure are defined in dedicated OCaml files (e.g. `arr.ml`, `lst.ml`) along with their Coq proofs (e.g. `Verify_arr.v`, `Verify_lst.v`). The directory also includes the `Tactics.v` library that wraps CFML tactics into more convenient forms, and `Solver.v` which provides user-supplied tactics to dispatch left-over obligations. Note that `Solver.v` can be customized to provide more powerful tactics to solve __all__ obligations. 
+You may want to inspect the resulting artefacts to view the repaired
+proofs. To this end, we briefly describe any important directories you
+may want to look at.
 
-Each of the directories contains old and repaired versions of the program and proofs, along with some compiled object files. For example, the `array_exists` example consists of the old OCaml program (`array_exists_old.ml`) and its corresponding proof (`Verify_array_exists_old.v`), along the new program (`array_exists_new.ml`) and its Sisyphus-generated proof (`Verify_array_exists_new.v`). A `_CoqProject` file is also provided to allow easier use with ProofGeneral.
+- The `common` directory contains the common OCaml files and Coq
+  library that is used by all the benchmarks.
+
+  Inside `common`, we define utility functions for each datastructure
+  are defined in dedicated OCaml files (e.g. `arr.ml`, `lst.ml`) along
+  with proofs of their correctness in Coq (e.g. `Verify_arr.v`, `Verify_lst.v`).
+  
+  The `Tactics.v` and `Solver.v` define any tactics and the user
+  tactic we use in our experiments.
+
+- Each of the remaining directories correspond to one of the
+  benchmarks (for example: `array_exists/`), and contains the old and
+  new version of the benchmark program, the old proof and the repaired
+  new proof.
+  
+  As an example, look at the `array_exists` folder:
 
 ```bash
-opam@c3afcc4630be:~$ ls /tmp/repaired/array_exists
-array_exists_old.ml  array_exists_new.ml Verify_array_exists_old.v Verify_array_exists_new.v _CoqProject
-...
+$ ls -1 ./array_exists | grep -v -G '\(.*vo.*\|.*_stub\|.*glob\)'
+Array_exists_new_ml.v
+Array_exists_old_ml.v
+Dummy.v
+Verify_array_exists_new.v
+Verify_array_exists_old.v
+_CoqProject
+array_exists_new.ml
+array_exists_old.ml
 ```
+
+  The directory consists of the old OCaml program
+  (`array_exists_old.ml`) and its corresponding proof
+  (`Verify_array_exists_old.v`), along the new program
+  (`array_exists_new.ml`) and its Sisyphus-generated proof
+  (`Verify_array_exists_new.v`).
+  
+  A `_CoqProject` file is also provided to allow easier use with ProofGeneral.
+  
+  You can cat the `Verify_array_exists_new.v` file to view the proof with its new invariant:
+  ```
+Set Implicit Arguments.
+From CFML Require Import WPLib Stdlib.
+From TLC Require Import LibListZ.
+
+From Common Require Import Verify_combinators.
+
+From Common Require Import Tactics Utils Solver Verify_opt.
+
+From ProofsArrayExists Require Import Array_exists_new_ml.
+
+Lemma array_exists_spec :
+  forall (A : Type) `{EA : Enc A} (a : array A) (f : func) (l : list A) (fp: A -> bool),
+    (forall (a: A),
+        SPEC_PURE (f a)
+         POST (fun b => \[b = fp a])
+    ) ->
+  SPEC (array_exists a f)
+  PRE (a ~> Array l)
+  POST (fun (b : bool) => \[b = List.existsb fp l] \* a ~> Array l).
+Proof using (All).
+xcf.
+xapp.
+xletopaque tmp Htmp.
+xapp (Common.Verify_combinators.until_upto_spec (unit) (0) ((TLC.LibListZ.length (l))) (tmp) (fun (arg0: int) (arg1: (option (unit))) => \[ (arg1 = (opt_of_bool ((existsb (fp) ((take (arg0) 
+(l))))))) ] )).
+...
+  ```
 
 ### Viewing the results table
 
@@ -190,7 +277,6 @@ trends and orders of magnitude between the different components of
 Sisyphus will remain the same.
 
 ### Calculating source code stats
-
 Near section 5, we present a table of the rounded sizes in terms of
 LoC of each component of Sisyphus.
 
@@ -271,23 +357,129 @@ on their usage. For example, have a look at:
 
 ### Adding new benchmarks
 
-To add a new benchmark named `my_benchmark`, do the following:
+To add a new benchmark, you will need 4 things:
+   - an old version of the program
+   - a new version of the program
+   - an old version of the proof 
+   - and a new proof stub, which contains only the specification copied from the old proof
 
-1. Add a new directory under `resources` with the following files:
-   - `my_benchmark_old.ml` -- the old version of the program
-   - `my_benchmark_new.ml` -- the new version of the program
-   - `Verify_my_benchmark_old.v` -- the old version of the proof
-   - `Verify_my_benchmark_new.v` -- the new proof stub, which contains only the specification copied from the old proof
-   - `dune` -- a dune file that specifies the dependencies of the example (see `resources/array_exists/dune` for an example)
-   - NOTE the folowing:
+We will illustrate this process by adding a new benchmark
+`my_benchmark` implementing a custom array allocation function:
+  - old version of the program (`my_benchmark_old.ml`):
+  ```ocaml
+  (* file: my_benchmark_old.ml *)
+  let my_benchmark (v: unit) =
+    let (a: int array) = Array.make 0 0 in
+    a
+  ```
+  - new version of the program (`my_benchmark_new.ml`):
+  ```ocaml
+  (* file: my_benchmark_new.ml *)
+  let my_benchmark (v: unit) = [|  |]
+  ```
+  - an old version of the proof (`Verify_my_benchmark_old.v`):
+  ```ocaml
+  (* file: Verify_my_benchmark_old.v *)
+  Set Implicit Arguments.
+  From CFML Require Import WPLib Stdlib.
+  From TLC Require Import LibListZ.
+
+  From Common Require Import Tactics Utils Solver.
+
+  From ProofsMyBenchmark Require Import My_benchmark_old_ml.
+
+  Lemma my_benchmark_spec :
+    SPEC (my_benchmark tt)
+    PRE \[]
+    POST (fun a : loc => a ~> Array (@nil int)).
+  Proof using (All).
+     xcf.
+     xalloc arr data Hdata.
+     xvals. { sis_generic_solver. }
+  Qed.
+  ```
+  - and the new proof stub (`Verify_my_benchmark_new.v`):
+  ```ocaml
+  (* file: Verify_my_benchmark_new.v *)
+  Set Implicit Arguments.
+  From CFML Require Import WPLib Stdlib.
+  From TLC Require Import LibListZ.
+
+  From Common Require Import Tactics Utils Solver.
+
+  From ProofsMyBenchmark Require Import My_benchmark_new_ml.
+
+  Lemma my_benchmark_spec :
+    SPEC (my_benchmark tt)
+    PRE \[]
+    POST (fun a : loc => a ~> Array (@nil int)).
+  Proof using (All).
+  Admitted.
+  ```
+
+To add `my_benchmark` to Sisyphus, do the following (run all commands from the project root):
+
+1. Add a new directory `my_benchmark` under `resources` with files as
+   described above:
+   - `my_benchmark_old.ml` 
+   - `my_benchmark_new.ml` 
+   - `Verify_my_benchmark_old.v`
+   - `Verify_my_benchmark_new.v`
+
+2. Add a dune file `resources/my_benchmark/dune`. 
+
+   The file should have the following contents, describing how to
+   build the `my_benchmark` OCaml library, how to produce a Coq
+   library representing the `my_benchmark` library and how to compile
+   the resulting proofs:
+
+```
+(* file: dune *)
+(library (name my_benchmark)
+  (libraries common))
+
+(coq.theory
+ (name ProofsMyBenchmark)
+ (modules
+   My_benchmark_old_ml Verify_my_benchmark_old
+   My_benchmark_new_ml Verify_my_benchmark_new
+   Dummy)
+ (libraries sisyphus.plugin)
+ (flags -R resources/common Common)
+)
+
+(include build-rules.sexp)
+(rule (with-stdout-to build-rules.sexp.gen (run ../../scripts/gen_build_rules.sh)))
+(rule (alias gen-build-rules) (action (diff build-rules.sexp build-rules.sexp.gen)))
+
+
+(env
+  (dev
+    (flags (:standard -w -32 -w -27))))
+```
+   - The structure of the dune file follows a standard form and can
+     easily be adapted from the other benchmarks (see
+     `resources/array_exists/dune` as an example).
+   - Also note the folowing:
      - the name of the directory should be the same as the name of the example
-     - all OCaml programs must annotate all types explicitly and should be written in SSA-style
-  
-2. Run `dune build @gen-build-rules --auto-promote` to ensure the new example is built correctly with the common dependencies.
-  
-3. Add a new directory named `benchmarks/my_benchmark`.
+     - all OCaml programs must annotate all types explicitly and
+       should be written in SSA-style
 
-4. Add a new file `benchmarks/my_benchmark/test_my_benchmark.ml` with the following
+3. Add an empty file `resources/my_benchmark/build-rules.sexp` which
+   will be populated by the next step:
+
+```bash
+$ touch resources/my_benchmark/build-rules.sexp
+```
+  
+4. Run `dune build @gen-build-rules --auto-promote` to populate the
+   `build-rules.sexp` file with appropriate information.
+
+5. Test that the new benchmarks library compiles with `dune build`
+  
+6. Add a new directory named `benchmarks/my_benchmark`.
+
+7. Add a new file `benchmarks/my_benchmark/test_my_benchmark.ml` with the following
    contents (see `benchmarks/array_exists/test_array_exists.ml` for another example)):
 
     ```ocaml
@@ -303,131 +495,37 @@ To add a new benchmark named `my_benchmark`, do the following:
 
     let () =
     Benchmark_utils.run "my_benchmark_test"
-    ```   
+    ```
+8. Add a dune file `benchmarks/my_benchmark/dune` to inform dune of the new test:
 
-5. Run `dune runtest benchmarks/my_benchmark` to assert that Sisyphus generates a proof for the new benchmark.
+```dune
+(tests
+ (names test_my_benchmark)
+ (libraries alcotest bos containers benchmark_utils)
+ (deps ../../bin/main.exe (glob_files_rec ../../resources/*.{ml,v}) (glob_files_rec ../../resources/_CoqProject))
+ (preprocess (pps ppx_deriving.std)))
+```
+
+9. Run `dune runtest benchmarks/my_benchmark` to assert that Sisyphus
+   generates a proof for the new benchmark.
+
+```bash
+$ dune runtest ./benchmarks/my_benchmark
+
+...
+
+ASSERT Sisyphus builds project
+  [OK]          my_benchmark          0   my_benchmark.
+
+Test Successful in 91.235s. 1 test run.
+```
+(Even though our program was fairly simple, running the benchmark through the harness 
+takes a bit of time as it requires Coq to re-compile all the common libraries).
 
 ### Navigating the project
 
-Finally, we include the original README for the project below, which
-describes how a prospective user/developer hoping to build on top of
-Sisyphus could build the project and where to look to start extending
-it.
-
-Old README
-=======================================================
-
-
-Idea: Repair proofs of programs after refactoring.
-
-## Setup
-
-Setting up the project is mostly automated by the opam file.
-
-Simply create a new local opam switch, and opam will handle installing all the dependencies:
-```
-opam switch create . 4.12.0
-```
-
-Note: you will need the coq-released repo installed and set as a default for fresh-switches, otherwise you will get a complaint about unknown packages cfml:
-```
-opam repo add coq-released https://coq.inria.fr/opam/released --all --set-default
-```
-
-## Building and Running Benchmarks
-
-Once you have installed Sisyphus, to build the project, simply call dune:
-
-```
-dune build
-```
-
-Then, to run the benchmarks:
-
-```
-dune runtest
-```
-
-To run a particular benchmark, simply run:
-
-```
-dune runtest ./benchmarks/<name-of-benchmark>
-```
-
-To update the build rules (for example, when you update resources/common, or add a new example):
-
-```
-dune build @gen-build-rules --auto-promote
-```
-
-Note: when running the benchmarks, you may also want to enable the
-`SIS_FAST_BENCHMARK=1` in your environment, to avoid the benchmarks
-building the common directory repeatedly on each test.
-
-## Project structure
-```
-.
-|-- LICENSE
-|-- readme.md
-|-- dune-project
-|-- benchmarks
-|-- resources
-|-- bin
-|-- lib
-|   |-- dune
-|   |-- coq
-|   |-- dynamic
-|   |-- expr_generator
-|   |-- lang
-|   |-- plugin
-|   |-- proof_analysis
-|   |-- proof_generator
-|   |-- proof_parser
-|   |-- proof_reduction
-|   |-- proof_spec
-|   |-- proof_utils
-|   |-- configuration
-|   `-- utils
-|-- scripts
-`-- sisyphus.opam
-```
-
-Most of the magic happens in the `./lib` directory:
-
-| Directory       | Description                                                           |
-|-----------------|-----------------------------------------------------------------------|
-| coq             | Safe wrapper over Coq API                                             |
-| dynamic         | Dynamic execution and tracing of OCaml programs                       |
-| expr_generator  | Enumerative synthesis of expressions                                  |
-| lang            | Simplified OCaml AST and types                                        |
-| plugin          | Coq Plugin to perform Ultimate-reduction                              |
-| proof_analysis  | Performs analysis of Coq proof terms (proof reduction etc.)           |
-| proof_generator | Synthesises new proof scripts for a program                           |
-| proof_parser    | Parses old proof scripts using the Coq API                            |
-| proof_reduction | Vendored copy of Coq reduction code extended to do Ultimate-reduction |
-| proof_spec      | Simplified encoding of CFML specifications                            |
-| proof_utils     | Collection of utilities for manipulating Coq objects from OCaml       |
-| configuration   | Generic configuration, preferences and logging options for the tool   |
-| utils           | Generic utilities used throughout the project                         |
-
-
-## Requirements
-
-| Packages       | Version  | Notes                                     |
-|:---------------|:---------|:------------------------------------------|
-| cmdliner       | 1.0.4    | important otherwise coq-serapi will crash |
-| coq            | 8.15.1   |                                           |
-| coq-serapi     |          |                                           |
-| coq-cfml       | 20220112 |                                           |
-| coq-cfml-basis | 20220112 |                                           |
-| cfml           | 20220112 |                                           |
-| containers     | 3.7      |                                           |
-| nottui         | 0.2      |                                           |
-| iter           | 1.4      |                                           |
-| bos            | 0.2.1    |                                           |
-| alcotest       | 1.5.0    |                                           |
-| z3             | 4.8.14   |                                           |
-| sedlex         | 2.5      |                                           |
-| ppx_blob       | 0.7.2    |                                           |
-
+Finally, we include the original README for the project in
+`readme.md`, which describes how a prospective user/developer hoping
+to build on top of Sisyphus could build the project and where to look
+to start extending it.
 
