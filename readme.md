@@ -67,7 +67,6 @@ The subsequent steps of this guide will assume that you are operating
 inside this container and will show how to run Sisyphus and produce
 the benchmark results.
 
-
 ### Running Sisyphus and individual benchmarks (kick-the-tires)
 
 Once in the docker container, the main Sisyphus binary is available
@@ -138,6 +137,12 @@ $ dune exec -- ./benchmarks/table/table.exe -dir=/tmp/repaired
 
 This command takes around an hour as the benchmark Coq project must be
 built and compiled before each repair can proceed.
+
+Note: If the docker daemon does not have enough memory, the repair
+process can sometimes be killed by the linux OOM killer because it
+runs out of space. As such, if you find that tasks are failing due to
+being SIGKILL-ed, try running again, or increase the memory allocated
+to your docker container (we recommend ~8gb)
 
 Once it has completed, the `/tmp/repaired/` directory should now be
 populated with both the repaired projects (under each directory), and
