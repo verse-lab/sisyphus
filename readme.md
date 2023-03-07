@@ -14,10 +14,6 @@
     - [Documentation](#documentation)
     - [Adding new benchmarks](#adding-new-benchmarks)
     - [Navigating the project](#navigating-the-project)
-  - [Setup](#setup)
-  - [Building and Running Benchmarks](#building-and-running-benchmarks)
-  - [Project structure](#project-structure)
-  - [Requirements](#requirements)
 
 ## Artefact Instructions
 
