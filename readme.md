@@ -14,7 +14,6 @@
     - [Documentation](#documentation)
     - [Adding new benchmarks](#adding-new-benchmarks)
     - [Navigating the project](#navigating-the-project)
-- [Old README](#old-readme)
   - [Setup](#setup)
   - [Building and Running Benchmarks](#building-and-running-benchmarks)
   - [Project structure](#project-structure)
@@ -194,9 +193,9 @@ may want to look at.
 - The `common` directory contains the common OCaml files and Coq
   library that is used by all the benchmarks.
 
-  Inside `common`, we define utility functions for each datastructure
-  are defined in dedicated OCaml files (e.g. `arr.ml`, `lst.ml`) along
-  with proofs of their correctness in Coq (e.g. `Verify_arr.v`, `Verify_lst.v`).
+  Inside `common`, we provide utility functions for each datastructure
+  in dedicated OCaml files (e.g. `arr.ml`, `lst.ml`) along with proofs
+  of their correctness in Coq (e.g. `Verify_arr.v`, `Verify_lst.v`).
   
   The `Tactics.v` and `Solver.v` define any tactics and the user
   tactic we use in our experiments.
