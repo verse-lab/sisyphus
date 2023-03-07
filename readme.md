@@ -1,8 +1,6 @@
 <p align="center"><img width="70%" src="https://github.com/verse-lab/proof-repair/raw/master/sisyphus-logo.png" alt="sisyphus-logo" /></p>
 <h1 align="center">Sisyphus: Proof Repair at Scale</h1>
 
-Idea: Repair proofs of programs after refactoring.
-
 ## Setup
 
 Setting up the project is mostly automated by the opam file.
