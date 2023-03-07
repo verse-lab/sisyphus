@@ -1,8 +1,6 @@
 # README
 (Note: this is the readme of the project, if you are looking for the artefact readme, see `readme.md`)
 
-Idea: Repair proofs of programs after refactoring.
-
 ## Setup
 
 Setting up the project is mostly automated by the opam file.
