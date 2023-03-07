@@ -525,7 +525,7 @@ takes a bit of time as it requires Coq to re-compile all the common libraries).
 ### Navigating the project
 
 Finally, we include the original README for the project in
-`readme.md`, which describes how a prospective user/developer hoping
+`readme.old.md`, which describes how a prospective user/developer hoping
 to build on top of Sisyphus could build the project and where to look
 to start extending it.
 
