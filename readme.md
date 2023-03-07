@@ -8,7 +8,7 @@
     - [Getting Started](#getting-started)
       - [Setting up Docker](#setting-up-docker)
       - [Running Sisyphus and individual benchmarks (kick-the-tires)](#running-sisyphus-and-individual-benchmarks-kick-the-tires)
-    - [Evaluation Instructions](#evaluation-instructions)
+    - [Step-by-step Instructions](#step-by-step-instructions)
       - [(a): Calculating source code stats](#a-calculating-source-code-stats)
       - [(b): Running all benchmarks and viewing repaired proofs](#b-running-all-benchmarks-and-viewing-repaired-proofs)
       - [(c): Viewing the table of times](#c-viewing-the-table-of-times)
@@ -120,12 +120,25 @@ The temporary directory is cleaned up after the test completes -- we
 will see how to view the produced repaired proofs in the command for
 running all benchmarks in the next section.
 
-### Evaluation Instructions
+### Step-by-step Instructions
 The Sisyphus Paper contains 3 tables:
 
 - (a) Page 17: Table describing source code statistics
 - (b) Page 18: Table describing the number of obligations/effort to complete the proof
 - (c) Page 19: Table describing execution times of the artefact 
+
+Our artefact will reproduce the following claims:
+
+- (a): the distribution of source code in our development 
+- (b): the number of admits remaining in repaired proofs
+- (c): the trends of execution times in the paper
+
+Our artefact can not reproduce the following claims:
+
+- (b): effort in time taken to complete the proofs -- these times were
+  recorded by the developers, and would require a developer to be
+  familiar with the frameworks and tooling that we use (Coq, CFML, our
+  user_solve tactic).
 
 The subsequent sections describe how to reproduce each table using our
 artefact.
