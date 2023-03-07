@@ -5,11 +5,13 @@
 
 - [Sisyphus](#sisyphus)
   - [Artefact Instructions](#artefact-instructions)
-    - [Setting up (Docker)](#setting-up-docker)
-    - [Running Sisyphus and individual benchmarks (kick-the-tires)](#running-sisyphus-and-individual-benchmarks-kick-the-tires)
-    - [Running all benchmarks and viewing repaired proofs](#running-all-benchmarks-and-viewing-repaired-proofs)
-    - [Viewing the results table](#viewing-the-results-table)
-    - [Calculating source code stats](#calculating-source-code-stats)
+    - [Getting Started](#getting-started)
+      - [Setting up Docker](#setting-up-docker)
+      - [Running Sisyphus and individual benchmarks (kick-the-tires)](#running-sisyphus-and-individual-benchmarks-kick-the-tires)
+    - [Evaluation Instructions](#evaluation-instructions)
+      - [(a): Calculating source code stats](#a-calculating-source-code-stats)
+      - [(b): Running all benchmarks and viewing repaired proofs](#b-running-all-benchmarks-and-viewing-repaired-proofs)
+      - [(c): Viewing the table of times](#c-viewing-the-table-of-times)
   - [Extending Sisyphus](#extending-sisyphus)
     - [Documentation](#documentation)
     - [Adding new benchmarks](#adding-new-benchmarks)
@@ -27,7 +29,8 @@ setting up the development environment.
 The rest of this guide will instruct the reader how to build and
 produce the results presented in the paper using the Dockerfile.
 
-### Setting up (Docker)
+### Getting Started
+#### Setting up Docker
 
 To build the docker image from our provided docker-file, simply run:
 
@@ -67,7 +70,7 @@ The subsequent steps of this guide will assume that you are operating
 inside this container and will show how to run Sisyphus and produce
 the benchmark results.
 
-### Running Sisyphus and individual benchmarks (kick-the-tires)
+#### Running Sisyphus and individual benchmarks (kick-the-tires)
 
 Once in the docker container, the main Sisyphus binary is available
 through the source file `bin/main.ml`, which provides a nice
@@ -117,7 +120,44 @@ The temporary directory is cleaned up after the test completes -- we
 will see how to view the produced repaired proofs in the command for
 running all benchmarks in the next section.
 
-### Running all benchmarks and viewing repaired proofs
+### Evaluation Instructions
+The Sisyphus Paper contains 3 tables:
+
+- (a) Page 17: Table describing source code statistics
+- (b) Page 18: Table describing the number of obligations/effort to complete the proof
+- (c) Page 19: Table describing execution times of the artefact 
+
+The subsequent sections describe how to reproduce each table using our
+artefact.
+
+#### (a): Calculating source code stats
+Near section 5, we present a table of the rounded sizes in terms of
+LoC of each component of Sisyphus.
+
+```
+$ find ./lib/  -name '*.ml' | grep -v 'main.ml'| xargs cat | wc -l
+18783
+```
+
+The directories correspond to the sections in the paper as follows:
+
+ - Proof Skeleton Generation (3.1) -- `lib/proof_generator, lib/proof_spec`
+ - Program Alignment (3.2) -- `lib/dynamic`
+ - Expression Generator (3.3) -- `lib/expr_generator, ./lib/lang`
+ - Reduction (4.1) -- `lib/proof_reduction`
+ - Proof driven test-extraction for CFML (4.2, 4.3) -- `lib/proof_analysis (sans lib/proof_analysis/proof_analysis.ml)`
+ - Reflection & extraction for CFML -- `lib/proof_analysis/proof_analysis.ml` and `lib/proof_utils/proof_cfml.ml`
+ - Miscellanea -- `lib/configuration/`, `lib/utils`, `lib/coq`, `lib/proof_parser`, `lib/proof_utils/ (sans lib/proof_utils/proof_cfml.ml)`
+
+
+Because Sisyphus' implementation doesn't cleanly partition into the
+division used in the paper for clarity (for example, different parts
+of `lib/proof_analysis`, sometimes within the same file, correspond to
+our general proof-driven testing procedure, and other parts correspond
+to our CFML embedding), the LoC by sub-directories won't exactly match
+the decomposition in the paper, but the broad pattern will hold.
+
+#### (b): Running all benchmarks and viewing repaired proofs
 
 We provide an executable under `benchmarks/table/table.ml` that runs
 all the benchmarks and collects the stats for the tables in the paper.
@@ -140,9 +180,9 @@ built and compiled before each repair can proceed.
 
 Note: If the docker daemon does not have enough memory, the repair
 process can sometimes be killed by the linux OOM killer because it
-runs out of space. As such, if you find that tasks are failing due to
-being SIGKILL-ed, try running again, or increase the memory allocated
-to your docker container (we recommend ~8gb)
+runs out of space. As such, if you find that tasks are failing due to being
+SIGKILL-ed, try running again, or increase the memory allocated to
+your docker container (we recommend ~8gb)
 
 Once it has completed, the `/tmp/repaired/` directory should now be
 populated with both the repaired projects (under each directory), and
@@ -185,11 +225,15 @@ tree_to_array_stats.txt
 
 The file `stats.csv` contains a single table with the aggregation of
 all results of all benchmarks, and contains the data that corresponds
-to the results in the table.
+to the results in (c), which we will discuss in the next section.
 
-You may want to inspect the resulting artefacts to view the repaired
-proofs. To this end, we briefly describe any important directories you
-may want to look at.
+You can inspect the resulting directory to view the old and new
+programs and the repaired proofs to confirm that the columns in the
+table are accurate (i.e that the number of admits for the generated
+proof artefacts is correct).
+
+To this end, we briefly describe any important directories you may
+want to look at.
 
 - The `common` directory contains the common OCaml files and Coq
   library that is used by all the benchmarks.
@@ -257,12 +301,15 @@ xapp (Common.Verify_combinators.until_upto_spec (unit) (0) ((TLC.LibListZ.length
 (l))))))) ] )).
 ...
   ```
+  In the table in the paper, we report 2 admitted obligations, and the corresponding repaired 
+  proof should contain 2 uses of the `admit` tactic.
 
-### Viewing the results table
+#### (c): Viewing the table of times
 
 We provide a helper script under `scripts/gen_table.py` that pretty
-prints the statistics and can be used to cross reference the data in
-our paper.
+prints the run-time statistics generated in the previous section and
+can be used to cross reference the results presented in the
+corresponding table in our paper.
 
 ```
 $ python3 ./scripts/gen_table.py /tmp/repaired/stats.csv 
@@ -278,33 +325,6 @@ Naturally, as these record raw clock times, there will be some
 variation between machines and on multiple runs, but the overall
 trends and orders of magnitude between the different components of
 Sisyphus will remain the same.
-
-### Calculating source code stats
-Near section 5, we present a table of the rounded sizes in terms of
-LoC of each component of Sisyphus.
-
-```
-$ find ./lib/  -name '*.ml' | grep -v 'main.ml'| xargs cat | wc -l
-18783
-```
-
-The directories correspond to the sections in the paper as follows:
-
- - Proof Skeleton Generation (3.1) -- `lib/proof_generator, lib/proof_spec`
- - Program Alignment (3.2) -- `lib/dynamic`
- - Expression Generator (3.3) -- `lib/expr_generator, ./lib/lang`
- - Reduction (4.1) -- `lib/proof_reduction`
- - Proof driven test-extraction for CFML (4.2, 4.3) -- `lib/proof_analysis (sans lib/proof_analysis/proof_analysis.ml)`
- - Reflection & extraction for CFML -- `lib/proof_analysis/proof_analysis.ml` and `lib/proof_utils/proof_cfml.ml`
- - Miscellanea -- `lib/configuration/`, `lib/utils`, `lib/coq`, `lib/proof_parser`, `lib/proof_utils/ (sans lib/proof_utils/proof_cfml.ml)`
-
-
-Because Sisyphus' implementation doesn't cleanly partition into the
-division used in the paper for clarity (for example, different parts
-of `lib/proof_analysis`, sometimes within the same file, correspond to
-our general proof-driven testing procedure, and other parts correspond
-to our CFML embedding), the LoC by sub-directories won't exactly match
-the decomposition in the paper, but the broad pattern will hold.
 
 ## Extending Sisyphus
 Sisyphus is not just a write-once static artefact, but instead is
