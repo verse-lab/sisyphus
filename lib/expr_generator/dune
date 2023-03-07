@@ -1,13 +1,6 @@
 (library (name expr_generator)
  (public_name sisyphus.expr_generator)
  (libraries sedlex containers utils configuration lang proof_spec proof_parser coq)
- (modules (:standard \ "main"))
  (flags -rectypes)
- (preprocess (pps sedlex.ppx ppx_deriving.std ppx_deriving.ord)))
-
-(executable (name main)
- (modules main)
- (flags -rectypes)
- (libraries expr_generator containers iter)
  (preprocess (pps sedlex.ppx ppx_deriving.std ppx_deriving.ord)))
 
