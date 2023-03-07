@@ -317,6 +317,10 @@ xapp (Common.Verify_combinators.until_upto_spec (unit) (0) ((TLC.LibListZ.length
   In the table in the paper, we report 2 admitted obligations, and the corresponding repaired 
   proof should contain 2 uses of the `admit` tactic.
 
+Note: Our tool conservatively always ends proof scripts with
+`Admitted`, even when the proof itself may be complete and can be
+completed with `Qed.`. 
+
 #### (c): Viewing the table of times
 
 We provide a helper script under `scripts/gen_table.py` that pretty
@@ -621,6 +625,9 @@ $ cat _build/default/resources/my_benchmark/result.v
   xvalemptyarr.
   Admitted.
 ```
+
+Note: The above proof is complete and the `Admitted` could be replaced
+by `Qed`, but our tool conservatively always outputs `Admitted`.
 
 ### Navigating the project
 
