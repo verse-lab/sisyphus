@@ -869,7 +869,7 @@ let generate_candidate_invariants t env ~mut_vars ~inv:inv_ty ~pre:pre_heap ~f:l
       | Lang.Type.Int
       | Lang.Type.Bool
       | Lang.Type.Val -> Some (v,ty)
-      (* TODO(KIRAN): HANDLE ADTS *)
+      (* TODO(ANON): HANDLE ADTS *)
       | Lang.Type.ADT ("option", _, _) -> Some (v, ty)
       | _ -> None
     ) in
@@ -1255,7 +1255,7 @@ and symexec_if_then_else t env cond l r =
                         (t.Proof_context.current_program_id |>  Lang.Id.show)
                         Lang.Expr.pp cond);
   Log.debug (fun f -> f "proof script is %s" (Proof_context.extract_proof_script t));
-  (* use Kiran's xif as tactic to dispatch the proofs with IMPUNITY *)
+  (* use Anon's xif as tactic to dispatch the proofs with IMPUNITY *)
   (* come up with a fresh variable to track the value of the conditional in each branch:  *)
   let cond_vl_var = Proof_context.fresh ~base:("H_cond") t in
 
