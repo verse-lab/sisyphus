@@ -121,7 +121,7 @@ will see how to view the produced repaired proofs in the command for
 running all benchmarks in the next section.
 
 ### Step-by-step Instructions
-The Sisyphus Paper contains 3 tables:
+The Sisyphus paper contains 3 tables:
 
 - (a) Page 17: Table describing source code statistics
 - (b) Page 18: Table describing the number of obligations/effort to complete the proof
@@ -133,7 +133,7 @@ Our artefact will reproduce the following claims:
 - (b): the number of admits remaining in repaired proofs
 - (c): the trends of execution times in the paper
 
-Our artefact can not reproduce the following claims:
+Our artefact cannot reproduce the following claims:
 
 - (b): effort in time taken to complete the proofs -- these times were
   recorded by the developers, and would require a developer to be
