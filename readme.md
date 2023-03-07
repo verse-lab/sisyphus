@@ -558,6 +558,70 @@ Test Successful in 91.235s. 1 test run.
 (Even though our program was fairly simple, running the benchmark through the harness 
 takes a bit of time as it requires Coq to re-compile all the common libraries).
 
+#### Viewing Repaired Proof
+Running the above push-button benchmark will create a new temporary
+directory, copy over the original files from `resources/`, then run
+Sisyphus on these files to produce a repaired proof, and finally check
+that the resulting project, with the repaired proof compiles.
+
+As the benchmarks are set up to clean any intermediate files,
+including the temporary directory, after they complete, it is not
+possible to view the repaired proof using this method.
+
+If you wish to see the repaired files for an individual benchmark then
+the process is a little more challenging, as we must run the tool
+ourselves:
+
+1. Build the resources directory.
+
+```
+$ dune build resources
+```
+
+2. Modify
+   `_build/default/resources/my_benchmark/Verify_my_benchmark_new.v`
+   and remove `Admitted.` (This is done automatically by the
+   test-harness)
+   
+```
+$ chmod u+rw _build/default/resources/my_benchmark/Verify_my_benchmark_new.v
+$ nano _build/default/resources/my_benchmark/Verify_my_benchmark_new.v
+# remove "Admitted." line
+```
+
+3. Run the `./bin/main.exe` passing in appropriate arguments:
+
+```
+dune exec ./bin/main.exe -- -c Common:./_build/default/resources/common \
+    ./_build/default/resources/my_benchmark/my_benchmark_old.ml \
+    ./_build/default/resources/my_benchmark/my_benchmark_new.ml \
+    ./_build/default/resources/my_benchmark/ ProofsMyBenchmark  \
+    Verify_my_benchmark_old.v Verify_my_benchmark_new.v \
+    result.v
+```
+4. The repaired proof will be under `_build/default/resources/my_benchmark/result.v`:
+
+```
+$ cat _build/default/resources/my_benchmark/result.v
+
+  Set Implicit Arguments.
+  From CFML Require Import WPLib Stdlib.
+  From TLC Require Import LibListZ.
+
+  From Common Require Import Tactics Utils Solver.
+
+  From ProofsMyBenchmark Require Import My_benchmark_new_ml.
+
+  Lemma my_benchmark_spec :
+    SPEC (my_benchmark tt)
+    PRE \[]
+    POST (fun a : loc => a ~> Array (@nil int)).
+  Proof using (All).
+  xcf.
+  xvalemptyarr.
+  Admitted.
+```
+
 ### Navigating the project
 
 Finally, we include the original README for the project in
