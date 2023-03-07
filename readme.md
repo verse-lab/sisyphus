@@ -1,4 +1,7 @@
 # Sisyphus
+<p align="center"><img width="70%" src="./sisyphus-logo.png" alt="sisyphus-logo" /></p>
+<h1 align="center">Sisyphus: Proof Repair at Scale</h1>
+
 
 - [Sisyphus](#sisyphus)
   - [Artefact Instructions](#artefact-instructions)
