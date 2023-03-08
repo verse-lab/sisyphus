@@ -46,7 +46,7 @@ Successfully tagged sisyphus:latest
 
 This command will build a new docker image for Sisyphus, downloading
 any required system dependencies and OCaml packages, and building
-Sisyphus. This process will take approximately 10 minutes on a 
+Sisyphus. This process will take approximately 10 minutes on a
 commodity laptop.
 
 Once the image has been built, you can launch a container using the
@@ -125,11 +125,11 @@ The Sisyphus paper contains 3 tables:
 
 - (a) Page 17: Table describing source code statistics
 - (b) Page 18: Table describing the number of obligations/effort to complete the proof
-- (c) Page 19: Table describing execution times of the artefact 
+- (c) Page 19: Table describing execution times of the artefact
 
 Our artefact will reproduce the following claims:
 
-- (a): the distribution of source code in our development 
+- (a): the distribution of source code in our development
 - (b): the number of admits remaining in repaired proofs
 - (c): the trends of execution times in the paper
 
@@ -140,8 +140,7 @@ Our artefact cannot reproduce the following claims:
   familiar with the frameworks and tooling that we use (Coq, CFML, our
   user_solve tactic).
 
-The subsequent sections describe how to reproduce each table using our
-artefact.
+The subsequent sections describe how to reproduce each table using our artefact.
 
 #### (a): Calculating source code stats
 Near section 5, we present a table of the rounded sizes in terms of
@@ -254,7 +253,7 @@ want to look at.
   Inside `common`, we provide utility functions for each datastructure
   in dedicated OCaml files (e.g. `arr.ml`, `lst.ml`) along with proofs
   of their correctness in Coq (e.g. `Verify_arr.v`, `Verify_lst.v`).
-  
+
   The `Tactics.v` and `Solver.v` define any tactics and the user
   tactic we use in our experiments.
 
@@ -262,7 +261,7 @@ want to look at.
   benchmarks (for example: `array_exists/`), and contains the old and
   new version of the benchmark program, the old proof and the repaired
   new proof.
-  
+
   As an example, look at the `array_exists` folder:
 
 ```bash
@@ -282,9 +281,9 @@ array_exists_old.ml
   (`Verify_array_exists_old.v`), along the new program
   (`array_exists_new.ml`) and its Sisyphus-generated proof
   (`Verify_array_exists_new.v`).
-  
+
   A `_CoqProject` file is also provided to allow easier use with ProofGeneral.
-  
+
   You can cat the `Verify_array_exists_new.v` file to view the proof with its new invariant:
   ```
 Set Implicit Arguments.
@@ -310,16 +309,16 @@ Proof using (All).
 xcf.
 xapp.
 xletopaque tmp Htmp.
-xapp (Common.Verify_combinators.until_upto_spec (unit) (0) ((TLC.LibListZ.length (l))) (tmp) (fun (arg0: int) (arg1: (option (unit))) => \[ (arg1 = (opt_of_bool ((existsb (fp) ((take (arg0) 
+xapp (Common.Verify_combinators.until_upto_spec (unit) (0) ((TLC.LibListZ.length (l))) (tmp) (fun (arg0: int) (arg1: (option (unit))) => \[ (arg1 = (opt_of_bool ((existsb (fp) ((take (arg0)
 (l))))))) ] )).
 ...
   ```
-  In the table in the paper, we report 2 admitted obligations, and the corresponding repaired 
+  In the table in the paper, we report 2 admitted obligations, and the corresponding repaired
   proof should contain 2 uses of the `admit` tactic.
 
 Note: Our tool conservatively always ends proof scripts with
 `Admitted`, even when the proof itself may be complete and can be
-completed with `Qed.`. 
+completed with `Qed.`.
 
 #### (c): Viewing the table of times
 
@@ -329,12 +328,11 @@ can be used to cross reference the results presented in the
 corresponding table in our paper.
 
 ```
-$ python3 ./scripts/gen_table.py /tmp/repaired/stats.csv 
-
-    \begin{center}
-     \begin{tabular}[t]{lccccccccccccc}
+$ python3 ./scripts/gen_table.py /tmp/repaired/stats.csv
+    \begin{tabular}[t]{lcccccccccc}
        \toprule
-      Example & Data Structures & Refactoring & For/While & HOF & Heap & Pure & Total & # Admits (# Obligations) & Synthesis & Reduction & Pruning & Solver & Total \\
+       \multirow{Example} & \multicolumn{3}{c}{Candidates} &
+       \multicolumn{4}{c}{Time (s)} & \multirow{Total (s)} \\
       ...
 ```
 
@@ -400,7 +398,7 @@ on their usage. For example, have a look at:
 To add a new benchmark, you will need 4 things:
    - an old version of the program
    - a new version of the program
-   - an old version of the proof 
+   - an old version of the proof
    - and a new proof stub, which contains only the specification copied from the old proof
 
 We will illustrate this process by adding a new benchmark
@@ -461,12 +459,12 @@ To add `my_benchmark` to Sisyphus, do the following (run all commands from the p
 
 1. Add a new directory `my_benchmark` under `resources` with files as
    described above:
-   - `my_benchmark_old.ml` 
-   - `my_benchmark_new.ml` 
+   - `my_benchmark_old.ml`
+   - `my_benchmark_new.ml`
    - `Verify_my_benchmark_old.v`
    - `Verify_my_benchmark_new.v`
 
-2. Add a dune file `resources/my_benchmark/dune`. 
+2. Add a dune file `resources/my_benchmark/dune`.
 
    The file should have the following contents, describing how to
    build the `my_benchmark` OCaml library, how to produce a Coq
@@ -511,12 +509,12 @@ To add `my_benchmark` to Sisyphus, do the following (run all commands from the p
    ```bash
    $ touch resources/my_benchmark/build-rules.sexp
    ```
-  
+
 4. Run `dune build @gen-build-rules --auto-promote` to populate the
    `build-rules.sexp` file with appropriate information.
 
 5. Test that the new benchmarks library compiles with `dune build`
-  
+
 6. Add a new directory named `benchmarks/my_benchmark`.
 
 7. Add a new file `benchmarks/my_benchmark/test_my_benchmark.ml` with the following
@@ -533,9 +531,11 @@ To add `my_benchmark` to Sisyphus, do the following (run all commands from the p
          ~common_path:"../../resources/common"
          ~common_coq_name:"Common")
 
+
    let () =
    Benchmark_utils.run "my_benchmark_test"
    ```
+
 8. Add a dune file `benchmarks/my_benchmark/dune` to inform dune of the new test:
 
    ```dune
@@ -559,7 +559,7 @@ To add `my_benchmark` to Sisyphus, do the following (run all commands from the p
 
    Test Successful in 91.235s. 1 test run.
    ```
-(Even though our program was fairly simple, running the benchmark through the harness 
+(Even though our program was fairly simple, running the benchmark through the harness
 takes a bit of time as it requires Coq to re-compile all the common libraries).
 
 #### Viewing Repaired Proof
@@ -586,7 +586,7 @@ $ dune build resources
    `_build/default/resources/my_benchmark/Verify_my_benchmark_new.v`
    and remove `Admitted.` (This is done automatically by the
    test-harness)
-   
+
 ```
 $ chmod u+rw _build/default/resources/my_benchmark/Verify_my_benchmark_new.v
 $ nano _build/default/resources/my_benchmark/Verify_my_benchmark_new.v
@@ -631,8 +631,8 @@ by `Qed`, but our tool conservatively always outputs `Admitted`.
 
 ### Navigating the project
 
+
 Finally, we include the original README for the project in
 `readme.old.md`, which describes how a prospective user/developer hoping
 to build on top of Sisyphus could build the project and where to look
 to start extending it.
-
