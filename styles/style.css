@@ -40,21 +40,6 @@ pre {
     background-color: unset !important;
 }
 
-.sis-highlight-block {
-  /* background-color: whitesmoke; */
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  justify-content: flex-start;
-  align-items: stretch;
-}
-.sis-code-block.bd-tabs-item {
-  display: flex !important;
-}
-.sis-highlight-block pre {
-  padding: 0.5em;
-}
-
 .sis-highlight-teaser {
   text-align: center;
   font-size: large;
