@@ -83,15 +83,15 @@
               <figure class="sis-highlight-block highlight bd-program">
                 <p class="sis-highlight-teaser">Old version</p>
                 <pre><code data-lang="ocaml" class="language-ocaml">let to_array s =
-match s () with
-| Nil -&gt; [| |]
-| Cons (x, _) -&gt;
-let n = length s in
-let a = Array.make n x in
-let _ = iteri
-(fun i x -&gt; a.(i) &lt;- x)
-s in
-a
+  match s () with
+  | Nil -&gt; [| |]
+  | Cons (x, _) -&gt;
+    let n = length s in
+    let a = Array.make n x in
+    let _ = iteri
+        (fun i x -&gt; a.(i) &lt;- x)
+        s in
+    a
 
 
 
@@ -101,18 +101,18 @@ a
               <figure class="sis-highlight-block highlight bd-program">
                 <p class="sis-highlight-teaser">New version</p>
                 <pre><code data-lang="ocaml" class="language-ocaml">let to_array s =
-let len, ls =
-fold (fun (i,acc) x -&gt; 
-(i + 1, x :: acc)) (0, []) s in
-match ls with
-| [] -&gt; [| |]
-| init::rest -&gt;
-let a = Array.make len init in
-let idx = len - 2 in
-List.fold_left (fun i x -&gt; 
-a.(i) &lt;- x;
-i - 1) idx rest
-a
+  let len, ls =
+    fold (fun (i,acc) x -&gt; 
+      (i + 1, x :: acc)) (0, []) s in
+  match ls with
+  | [] -&gt; [| |]
+  | init::rest -&gt;
+    let a = Array.make len init in
+    let idx = len - 2 in
+    List.fold_left (fun i x -&gt; 
+      a.(i) &lt;- x;
+      i - 1) idx rest
+    a
 
                   </code></pre>
               </figure>
@@ -142,10 +142,10 @@ a
           </div>
           <div class="sis-code-column column">
             <pre><code data-lang="ocaml" class="language-coq">Lemma to_array_old_spec :
-forall A (l : list A) (s : func),
-SPEC (to_array s)
-PRE [Seq l s]
-POST (fun a =&gt; a ~&gt; Array l).
+  forall A (l : list A) (s : func),
+  SPEC (to_array s)
+  PRE [Seq l s]
+  POST (fun a =&gt; a ~&gt; Array l).
 Proof using (All).
 (* .. *)
 (* .. *)
