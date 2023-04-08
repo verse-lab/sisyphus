@@ -1,7 +1,0 @@
-(library
- (name sisyphus)
- (public_name sisyphus)
- (preprocess (pps ppx_deriving.std))
- (libraries proof_parser proof_spec proof_generator lang containers))
-
-(documentation)

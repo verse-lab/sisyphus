@@ -1,6 +1,0 @@
-(library
- (name proof_reduction)
- (public_name sisyphus.proof_reduction)
- (synopsis "Coq Ultimate Reduction.")
- (flags :standard -rectypes -w -27)
- (libraries coq-core.vernac coq-core.plugins.ltac))

@@ -1,9 +1,0 @@
-(library
- (name printreduced)
- (public_name sisyphus.plugin)
- (synopsis "Coq Full Reduce Plugin.")
- (flags :standard -rectypes -w -27)
- (libraries proof_reduction coq-core.vernac coq-core.plugins.ltac)
-)
-
-(coq.pp (modules printreduced))

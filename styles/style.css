@@ -1,0 +1,155 @@
+/* * Global  */
+html {
+    font-family: "Vera";
+    color: var(--text-color);
+    background-color: var(--secondary-accent);
+}
+
+
+.buttons {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.buttons:last-child {
+  margin-bottom: -0.5rem;
+}
+
+.button.is-primary {
+  background-color: var(--primary) !important;
+}
+
+.button.is-primary.is-outlined {
+    background-color: unset !important;
+    color: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+
+.button.is-primary:hover {
+  background-color: var(--primary-accent) !important;
+}
+
+.button.is-primary.is-outlined:hover {
+ color: var(--text-color) !important;
+ background-color: var(--primary-accent) !important;
+}
+
+pre {
+    background-color: unset !important;
+}
+
+.sis-highlight-block {
+  /* background-color: whitesmoke; */
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+.sis-code-block.bd-tabs-item {
+  display: flex !important;
+}
+.sis-highlight-block pre {
+  padding: 0.5em;
+}
+
+.sis-highlight-teaser {
+  text-align: center;
+  font-size: large;
+  padding: 0.25em 0.5em;
+}
+
+.sis-teaser-title {
+    text-align: center;
+}
+
+.sis-teaser-description {
+    margin: 1.75em 0;
+    font-size: large;
+}
+
+.sis-landing-teaser {
+  text-align: center;
+  font-size: larger;
+  color: black;
+}
+
+.sis-landing-teaser b {
+  color: var(--primary-accent);
+}
+
+.sis-teaser-centered {
+  text-align: center;
+  font-size: larger;
+}
+
+.sis-teaser-centered div {
+  margin: 1.25em 0;
+}
+
+.sis-teaser-centered b {
+  color: var(--primary-accent);
+}
+
+.sis-teaser-description-shift-left {
+  margin-right: 5em !important;
+}
+
+.sis-teaser-description-shift-right {
+  margin-left: 5em !important;
+}
+
+.sis-text-column p {
+  word-wrap: break-word;
+  font-size: large;
+  text-align: center;
+}
+
+.sis-text-column.column {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.sis-text-column b {
+  font-weight: bolder;
+  color: var(--primary);
+}
+
+.sis-text-centered {
+  text-align: center;
+  margin: 1.75em 0;
+  font-size: larger;
+}
+
+.sis-text-centered b {
+  color: var(--primary-accent);
+}
+
+.sis-text-centered i {
+  font-size: larger;
+}
+
+.sis-text-banner {
+  width: 100%;
+  margin: 1.25em 0 3.25em 0;
+  background: var(--highlight);
+  padding: 2.5em 0 2.5em 0;
+}
+
+.sis-text-huge {
+  text-align: center;
+  font-size: xx-large;
+}
+
+.section.sis-example {
+  padding-bottom: 0em;
+}
+
+.action-link {
+    display: flex;
+    align-items: center;
+    text-align: center;
+}

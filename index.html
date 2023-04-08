@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html data-ctzscriptallow="true" lang="en" class="theme">
+  <head><title>Sisyphus - Mostly Automated Proof Repair</title> <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta content="ocaml-pug" name="generator"/>
+    <meta content="root page" name="description"/>
+    <link href="/styles/colors.css" rel="stylesheet"/>
+    <link href="/styles/fonts.css" rel="stylesheet"/>
+    <link href="/styles/style.css" rel="stylesheet"/>
+    <link href="/styles/bulma.css" rel="stylesheet"/>
+    <link href="/styles/bd-tabs.css" rel="stylesheet"/>
+    <link href="/styles/atom-one-dark.min.css" rel="stylesheet"/>
+
+    <script src="/js/navbar.js"></script>
+    <script src="/js/highlight.js"></script>
+    <script src="/js/ocaml.min.js"></script>
+    <script src="/js/coq.min.js"></script>
+    <script>hljs.highlightAll();</script>
+  </head>
+  <body>
+    <nav class="navbar sis-navbar">
+      <div class="navbar-brand sis-navbar">
+        <a href="https://sisyphus.github.io" class="navbar-item">
+          <img height="28" src="/images/sisyphus-logo.png" width="112"/>
+        </a>
+        <a aria-expanded="false" aria-label="menu"
+           data-target="nav-menu" role="button"
+           class="navbar-burger"><span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </a>
+      </div>
+      <div id="nav-menu" class="navbar-menu">
+        <div class="navbar-end">
+          <a class="navbar-item" href="/pdfs/sisyphus-pldi23.pdf">Paper</a>
+          <a class="navbar-item" href="https://zenodo.org/record/7703886">Artefact</a>
+          <div class="navbar-item">
+            <div class="buttons">
+              <a class="button is-primary" href="https://github.com/verse-lab/sisyphus">Code</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <section class="hero">
+      <div class="hero-body">
+        <div class="container">
+          <div class="columns is-vcentered">
+            <div class="column is-3 is-offset-1 landing-caption">
+              <h1 class="sis-title title is-1 is-bold is-spaced">
+                <img src="/images/sisyphus-logo.png"/>
+              </h1>
+              <div class="subtitle is-5 is-muted">
+                Mostly Automated Proof Repair of Verified Libraries
+                <a class="button is-primary" href="/pdfs/sisyphus-pldi23.pdf">View Paper</a>
+              </div>
+            </div>
+            <div class="column is-7">
+              <div class="title is-1 is-bold is-spaced">
+                <img src="/images/hero.svg"/>
+              </div>
+            </div>
+          </div>
+          <div class="columns is-vcentered">
+            <div class="column sis-landing-teaser">Programs <b>evolve</b>, so why shouldn't proofs?
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="section sis-example">
+      <h1 class="sis-teaser-title title">The labours of Sisyphus</h1>
+      <div class="container">
+        <div class="sis-teaser-description">
+          Real-world programs change.
+          Consider two versions of <code>Seq.to_array</code> (taken from the <a href="https://github.com/c-cube/ocaml-containers">Containers</a> library):
+        </div>
+      </div>
+      <div class="container">
+        <div class="sis-code-comparison bd-tabs">
+          <div class="sis-code-items bd-tabs-items">
+            <div class="sis-code-block bd-tabs-item bd-is-active">
+              <figure class="sis-highlight-block highlight bd-program">
+                <p class="sis-highlight-teaser">Old version</p>
+                <pre><code data-lang="ocaml" class="language-ocaml">let to_array s =
+match s () with
+| Nil -&gt; [| |]
+| Cons (x, _) -&gt;
+let n = length s in
+let a = Array.make n x in
+let _ = iteri
+(fun i x -&gt; a.(i) &lt;- x)
+s in
+a
+
+
+
+
+                  </code></pre>
+              </figure>
+              <figure class="sis-highlight-block highlight bd-program">
+                <p class="sis-highlight-teaser">New version</p>
+                <pre><code data-lang="ocaml" class="language-ocaml">let to_array s =
+let len, ls =
+fold (fun (i,acc) x -&gt; 
+(i + 1, x :: acc)) (0, []) s in
+match ls with
+| [] -&gt; [| |]
+| init::rest -&gt;
+let a = Array.make len init in
+let idx = len - 2 in
+List.fold_left (fun i x -&gt; 
+a.(i) &lt;- x;
+i - 1) idx rest
+a
+
+                  </code></pre>
+              </figure>
+            </div>
+            <div class="bd-tabs-item bd-is-active">
+              <figure class="highlight"></figure>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="sis-teaser-description centered sis-centered">
+          <div class="sis-teaser-centered">
+            <div class="sis-teaser-description-shift-left">
+              <b>Radically</b> different implementations...
+            </div>
+            <div class="sis-teaser-description-shift-right">
+              ...how can we know it's <b>correct</b>?
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="sis-code-side-by-side columns">
+          <div class="sis-text-column column">
+            <p>We <i>manually</i> verified the<br/><b>old</b> version in Coq (using CFML).</p>
+          </div>
+          <div class="sis-code-column column">
+            <pre><code data-lang="ocaml" class="language-coq">Lemma to_array_old_spec :
+forall A (l : list A) (s : func),
+SPEC (to_array s)
+PRE [Seq l s]
+POST (fun a =&gt; a ~&gt; Array l).
+Proof using (All).
+(* .. *)
+(* .. *)
+(* .. *)
+Qed.</code></pre>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="sis-text-centered">
+          <p>Sisyphus was able to <i>automatically</i> repair the proof to work for the <b>new</b> program.
+          </p>
+        </div>
+      </div>
+    </section>
+    <div class="sis-text-banner">
+      <div class="container sis-text-huge">
+        <p>Mostly <i>Automated</i> Proof <b>Repair</b></p>
+      </div>
+    </div>
+    <section class="section">
+      <h1 class="sis-teaser-title title">Why Sisyphus?</h1>
+      <div class="container">
+        <div class="columns">
+          <div class="column has-text-centered">
+            <h3 class="is-size-3 has-text-weight-bold">1</h3>
+            <p class="mb-3 has-text-weight-bold">Scalable</p>
+            <p>
+              We evaluated Sisyphus on 14 OCaml programs, 10 of which
+              were taken from real-world OCaml libraries (Jane
+              Street's Core, Inria's Menhir, Containers e.t.c.).
+            </p>
+          </div>
+          <div class="column has-text-centered">
+            <h3 class="is-size-3 has-text-weight-bold">2</h3>
+            <p class="mb-3 has-text-weight-bold">Elegant</p>
+            <p>
+              Sisyphus's repair procedure builds some of the most
+              elegant truths of Computer Science, the Curry-Howard
+              correspondence, to automatically and efficiently infer
+              invariants for programs.
+            </p>
+          </div>
+          <div class="column has-text-centered">
+            <h3 class="is-size-3 has-text-weight-bold">3</h3>
+            <p class="mb-3 has-text-weight-bold">Free</p>
+            <p>
+              Sisyphus is built from the ground up using Free (as in
+              freedom) technologies, and is licensed under the
+              ultimate AGPLv3+ libre license to ensure the Freedoms
+              of its users are preserved!
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      <h1 class="sis-teaser-title title">
+        Get rolling with Sisyphus!
+      </h1>
+      <div class="container">
+        <div class="subtitle">
+          <p>
+            You can learn more about Sisyphus by reading our paper,
+            or try it out using our artefact, or built and extend it
+            from the source code:
+          </p>
+        </div>
+        <div class="columns">
+          <div class="column action-link">
+            <a class="button is-primary is-outlined is-large is-responsive" href="/pdfs/sisyphus-pldi23.pdf">Read the Paper</a>
+          </div>
+          <div class="column action-link">
+            <a class="button is-primary is-outlined is-large is-responsive" href="https://zenodo.org/record/7703886">Run the Artefact</a>
+          </div>
+          <div class="column action-link">
+            <a class="button is-primary is-outlined is-large is-responsive" href="https://sisyphus.github.io">Get the Code</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
